@@ -1,0 +1,31 @@
+# Handbook §8 limits — changing a threshold requires a PR to this file plus a note in docs/BACKLOG.md
+included:
+  - app
+  - core
+  - features
+file_length:
+  warning: 300
+  error: 300
+function_body_length:
+  warning: 50
+  error: 50
+cyclomatic_complexity:
+  warning: 10
+  error: 10
+function_parameter_count:
+  warning: 4
+  error: 4   # 3 + self-documenting closure allowance; prefer an options struct
+nesting:
+  type_level: 2
+  function_level: 3
+identifier_name:
+  min_length: 2
+opt_in_rules:
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+force_unwrapping:
+  severity: error
+implicitly_unwrapped_optional:
+  severity: error
+force_cast: error
+force_try: error

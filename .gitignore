@@ -1,0 +1,23 @@
+# Xcode / Swift
+*.xcodeproj
+xcuserdata/
+DerivedData/
+.build/
+.swiftpm/
+*.playground
+
+# Env + secrets
+.env
+.env.*
+!.env.example
+
+# Supabase local
+supabase/.branches/
+supabase/.temp/
+supabase/.env
+
+# macOS
+.DS_Store
+
+# Tooling
+.claude/settings.local.json

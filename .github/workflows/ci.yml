@@ -1,0 +1,89 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    name: lint · format · size · secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: SwiftFormat (lint mode)
+        run: |
+          curl -sSL https://github.com/nicklockwood/SwiftFormat/releases/latest/download/swiftformat_linux.zip -o sf.zip
+          unzip -o sf.zip && chmod +x swiftformat_linux
+          ./swiftformat_linux --lint . --swiftversion 6.0 || exit 1
+
+      - name: SwiftLint
+        uses: norio-nomura/action-swiftlint@3.2.1
+        with:
+          args: --strict
+
+      - name: PR size check (handbook §13 — 5 files / 400 lines, size-override label to bypass)
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json labels -q '.labels[].name' | grep -qx 'size-override'; then
+            echo "size-override label present — skipping (reason must be in the PR body)"; exit 0
+          fi
+          BASE=origin/${{ github.event.pull_request.base.ref }}
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
+          # generated + vendored files excluded
+          FILES=$(git diff --name-only $BASE...HEAD -- . ':!*.xcodeproj*' ':!.claude/skills/*' | wc -l)
+          LINES=$(git diff --numstat $BASE...HEAD -- . ':!*.xcodeproj*' ':!.claude/skills/*' | awk '{a+=$1+$2} END {print a+0}')
+          echo "files=$FILES lines=$LINES"
+          if [ "$FILES" -gt 5 ] || [ "$LINES" -gt 400 ]; then
+            echo "::error::PR exceeds handbook limits ($FILES files, $LINES lines). Split it, or add the size-override label with a written reason."
+            exit 1
+          fi
+
+  build:
+    name: build · test (iOS)
+    runs-on: macos-26
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild build -project Glossed.xcodeproj -scheme Glossed \
+            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
+      - name: Package tests
+        run: |
+          cd core/DesignSystem && swift test
+
+  db:
+    name: db · isolation suite
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect supabase project
+        id: has_db
+        run: |
+          if [ -f supabase/config.toml ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: supabase/setup-cli@v1
+        if: steps.has_db.outputs.present == 'true'
+        with:
+          version: latest
+      - name: Start + migrate + test
+        if: steps.has_db.outputs.present == 'true'
+        run: |
+          supabase db start
+          supabase test db
