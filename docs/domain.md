@@ -146,7 +146,8 @@ Uploaded photos: EXIF (incl. GPS) is stripped on device before upload, deliberat
 
 - **Account deletion**: UserItems, chips, face-offs, rankings, collections, routines, photos → destroyed. Their *contributions to aggregates* are recomputed on the next refresh (aggregates store no user identifiers). Audit records persist with pseudonymous identifiers, personal fields redacted.
 - **Catalog** rows are never hard-deleted (shelves point at them): merge keeps aliases; delisted SKUs get `delisted_at`.
-- **Phone number / birthday**: kept while account active (auth + age gate); destroyed on deletion.
+- **Birthday is collected, not stored.** The native date wheel captures a full birthday (best UX, and the PRD's "birthday, not age range" is about *collection*); the server validates the under-13 block at that instant and persists only `birth_year_month` (`YYYY-MM` — the day is dropped before write). Minor status derives from year-month, flipping conservatively on the 1st of the month after the 18th birthday could have occurred. Analytics sees only a derived age bracket (13–17 · 18–24 · 25–34 · 35–44 · 45+). Full birthdays exist nowhere at rest.
+- **Phone number / birth year-month**: kept while account active (auth + age gate); destroyed on deletion.
 - **Reports + moderation records**: outlive the content they describe (T&S), 2 years.
 - **Backups**: daily, 14-day retention minimum, PITR on prod once real users exist; restore drill rehearsed on staging before launch and quarterly.
 - **Export**: user can export their shelf as CSV (V1 feature, and the honest answer to "what if I leave").

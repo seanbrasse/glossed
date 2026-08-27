@@ -57,11 +57,15 @@ Convention: `object_action` lowercase snake, past tense; props are ids + enums o
 
 ## 4. Person properties (snapshot, in-DB only)
 
-Nightly job materializes `user_facts(user_id, signup_cohort_week, domains, skin_type, tone_band, hair_pattern, onboarding_branch, anchor_count, shelf_size, ranked_lists, two_domain bool, minor bool, last_active_day)`. Every analysis is `events ⋈ user_facts` — this is the "who is our user base" table.
+Nightly job materializes `user_facts(user_id, signup_cohort_week, age_bracket, domains, skin_type, tone_band, hair_pattern, onboarding_branch, anchor_count, shelf_size, ranked_lists, two_domain bool, minor bool, last_active_day)`. Every analysis is `events ⋈ user_facts` — this is the "who is our user base" table.
+
+`age_bracket` (13–17 · 18–24 · 25–34 · 35–44 · 45+) derives from `profiles.birth_year_month`; full birthdays are never stored anywhere (`domain.md` §6), so age analysis exists only at bracket granularity — which is all a product decision ever needs.
 
 ## 5. The standing questions (weekly dashboard)
 
-One SQL file per question, rendered by a lightweight dashboard (Supabase Studio saved queries now; Metabase on a free box if/when charts matter):
+**Where analysis happens:** **Metabase** (open-source, free) connected to Supabase through a dedicated **read-only Postgres role** granted on `events`, `event_rollups_daily`, `user_facts`, and the `agg_*` views only — no shelf rows, no PII columns. Run it in Docker locally at first (`docker run metabase/metabase` → point at the Supabase connection string; zero hosting cost, analysis is a weekly sit-down anyway); move it to a ~$5 Fly/Railway box the day dashboards need to be shareable or checked from a phone. Each standing question below is a saved Metabase question pinned to one dashboard; the nightly `event_rollups_daily` + `user_facts` materializations keep every chart reading pre-aggregated rows, so nothing scans raw events at view time. Funnels and retention are plain SQL over those tables (templates checked into `supabase/analytics/`), and the day self-serve exploration beats maintained SQL, the PostHog dual-write path in §1 is the escalation — for behavioral events; the body-fact joins stay here.
+
+The standing questions, one SQL file each:
 
 1. **Who**: signup mix by domains selected, skin type, tone band (granularity check on the deep range — PRD §06 trust issue), hair pattern, anchor vs palette-fallback cohort, minor share.
 2. **Funnel**: onboarding step → payoff → account → 5-item activation; split by branch and by `evidence_backed` payoff.

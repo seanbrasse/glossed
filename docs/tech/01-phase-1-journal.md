@@ -44,7 +44,8 @@ Personal-scope isolation is **structural**: RLS on `products` = `scope = 'canoni
 ### 1.2 User shelf
 
 ```sql
-profiles(user_id pk, display_name, avatar_seed, timezone, birthday date,     -- birthday: 18+ gate + recs only
+profiles(user_id pk, display_name, avatar_seed, timezone,
+         birth_year_month char(7),               -- 'YYYY-MM'; full birthday validated at signup then discarded (domain.md §6)
          domains domain_enum[],                                              -- what-you-buy multi-select
          skin_type enum null, concerns text[] default '{}', tone_band int null,
          hair_pattern text null,        -- '1a'..'4c', asked only when haircare in domains
@@ -101,7 +102,7 @@ audit_records(id, actor, action, entity, entity_id, before jsonb, after jsonb, a
 
 - **Providers**: Sign in with Apple (native: `AuthenticationServices` credential → `supabase.auth.signInWithIdToken(provider: .apple, token:, nonce:)`; capture `fullName` on first sign-in only) and phone OTP (`signInWithOTP(phone:)` → `verifyOTP(phone:token:type:.sms)`, Twilio Verify provider, OTP expiry raised from the 60s default to 300s, rate limits at defaults). Email/password disabled entirely.
 - **Pre-signup onboarding is anonymous**: domain selection, anchor pick, hair type, palette, and the payoff all run before an account exists, held client-side; on account creation they're written in one batch. The payoff RPC (`payoff_for_variant(variant_id)`) is anonymous-callable, returns `{n_exact_shade, n_with_fit, top_products[]}` and the client shows the evidence-backed claim **only if `n_exact_shade ≥ 8`**; otherwise it renders the neutral fallback (swatches/browse, no match claim). One weak early recommendation poisons every good one after it.
-- **Birthday gate**: server-side check in a `before user created` auth hook + a `profiles` constraint. Under-13 → signup rejected. 13–17 → `is_minor` derived; restrictions apply from Phase 1.5+ surfaces.
+- **Birthday gate**: full birthday goes to a `before user created` auth hook that rejects under-13 and returns the derived `birth_year_month`; only the year-month is persisted (the day never touches a table). `is_minor` derives from year-month, flipping on the 1st of the month after the 18th birthday could have occurred — conservative by up to one month, deliberately. 13–17 restrictions apply on Phase 1.5+ surfaces.
 - **Returning users**: login path sets no onboarding state; app lands on discover. A returning user with no anchor gets the "sharpen your matches" card, not a re-quiz.
 - The hero-question flow doubles as the catalog test: log `failed_searches` from the anchor picker too — a miss in the first 30s is the churn signal (metric: catalog hit rate).
 
