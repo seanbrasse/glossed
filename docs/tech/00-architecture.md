@@ -120,7 +120,20 @@ Port the Claude Design kit 1:1 into `core/DesignSystem`:
 
 ## 7. Cross-phase concerns
 
-- **Observability**: structured logs with request/user/route ids; never log field values for regulated data; typed error enum with machine code + user-safe message; every user-facing error shows a support reference mapping to a logged event; uptime check on a health RPC touching the DB.
+### 7.1 Observability + error logging
+
+| Concern | How |
+|---|---|
+| Crashes + errors (iOS) | **Sentry** (free tier: 5k errors/mo): crash reporting, symbolicated, release-tagged; breadcrumbs carry screen + event names, never regulated values. MetricKit hangs/launch metrics via Sentry's integration. |
+| Errors (server) | Sentry in every Edge Function; Postgres errors surface in Supabase logs (Logflare), log-drain later if needed. |
+| Typed errors | One Swift error enum + one SQL error convention: machine code + user-safe message; a single boundary maps them to UI. Internal details never reach the user. Every user-facing error renders a short **support reference** that maps 1:1 to a Sentry event id. |
+| Structured logs | Request id, user id (pseudonymous), route/RPC name on every server log line. Never document contents, tokens, photos, or regulated field values — identifiers only. |
+| Uptime | External cron ping (Better Stack / UptimeRobot free) against a `health` RPC that touches the DB. |
+| Alerting | Sentry alert rules + uptime alerts → one alerts channel (email/Slack). Quiet by default — noise there is a bug. Watch 30 min after each deploy. |
+| Job visibility | `ingest_jobs` table is the queue *and* the dashboard: state, attempts, last_error, dead-letter rows reviewed weekly. |
+| Product analytics | Separate system, first-party — see `06-instrumentation.md`. Sentry answers "what broke"; the events table answers "what do people do". |
+
+- **Never log field values for regulated data** (`domain.md` §5) — applies to Sentry breadcrumbs and server logs equally.
 - **Idempotency**: client-generated UUIDs for UserItem/log/face-off writes; unique constraints make double-taps no-ops.
 - **Offline**: cut from MVP (PRD decision). Deliberate behavior: reads cache-last, writes fail loudly with retry affordance. Revisit at 1.5.
 - **Migrations**: free-reset until first real record; expand-and-contract from that day (Handbook §20).
