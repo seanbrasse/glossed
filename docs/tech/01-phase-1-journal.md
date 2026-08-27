@@ -167,6 +167,7 @@ Three profiles, kept separate (PRD §11): **body facts filter** (anchors+fit, sk
 - **Stage 1 (1–5 items)**: user affinity vector over attribute chips (like/dislike/rank-weighted counts of owned products' attributes), **shrunk toward the cohort mean** by `w = n_signals/(n_signals + k)` (k≈10). Ranking position weighs highest; dislike+chip above like; ownership weak; saves weak; searches intent-only; **dwell/scroll never used**.
 - Signal weights and shrinkage live in one SQL function so nothing changes architecturally between stages — only `w`. Confidence meter = same `w` rendered honestly (`ConfidenceMeter have/need`).
 - Crosswalk (display only in V1): `shade_cooccurrence` self-join, thresholded on n, n displayed: "people who wear fenty 240 also wear …". Never "your match." Never parse shade names.
+- Age bracket enters the **taste/diversification layer only** as a weak prior (cohort trends), plus the legal 18+ product gate as a hard filter. Age never maps to concern categories the user didn't self-report (no unprompted anti-aging pushes) — see `06-instrumentation.md` "rules of use."
 - Failure-mode guards: popularity damping on the rec surface (not on shade matching), one labeled exploration slot, exclude items already ranked top-of-list (circularity).
 - Visible profile: body facts editable ("sharpen your matches" = `G.Tune`); affinity shown as receipts ("8 of your top 10 are fragrance-free") **gated on confidence**; neighbor internals opaque (Phase 3).
 

@@ -52,8 +52,18 @@ Convention: `object_action` lowercase snake, past tense; props are ids + enums o
 | `rec_impression` / `rec_tapped` / `rec_dismissed` | slot (stage0/picked/crosswalk/exploration), variant_id, reason? | rec quality without engagement-optimizing: tap-through + dismissal reasons only |
 | `error_shown` | code, support_ref | UX-visible failure rate |
 
+| `restricted_action_blocked` | surface, action (photo_post/contact_sync/…) | how many minors hit which gates, how often — the "limited functionality" experience, measured |
+
 ### Phase 1.5+ additions
 `scope_changed` (surface, from, to, via_master) · `profile_published` · `follow_added` · `swatch_posted` · `link_card_opened` (server-side) · `report_filed` — plus Phase 2: `look_posted`, `comment_posted`, `feed_session` (depth as *count of taps*, not dwell), `gap_card_{shown,accepted,dismissed}` (reason — the learning loop), `stylist_query` (tools_used, answered bool).
+
+### Age bracket: rules of use
+
+Age was already collected (the gate requires it); the bracket is its minimum-necessary form. What keeps it non-creepy is where it's allowed to flow:
+
+- **Analytics**: yes, freely — cohort trends, funnel splits, minor-gate friction (`restricted_action_blocked ⋈ user_facts.minor`). First-party only, like all body-adjacent data.
+- **Recommendations**: yes, as a **weak prior in the taste/diversification layer** — never a hard filter (the only hard age filter is the legal 18+ product gate). The onboarding copy already promises this ("age changes what we recommend").
+- **Never**: shown on any profile or surface, framed as identity ("for your age"), sent to any vendor, or used to *infer a concern* — age must never push aging/wrinkle-type categories the user didn't self-report. Concerns are self-reported only; an unprompted "you're 34, try retinol" is the gap-card body-image landmine wearing a different hat. Aggregate age claims ("trending with 18–24") are fine and carry their n like every other claim.
 
 ## 4. Person properties (snapshot, in-DB only)
 
@@ -67,7 +77,7 @@ Nightly job materializes `user_facts(user_id, signup_cohort_week, age_bracket, d
 
 The standing questions, one SQL file each:
 
-1. **Who**: signup mix by domains selected, skin type, tone band (granularity check on the deep range — PRD §06 trust issue), hair pattern, anchor vs palette-fallback cohort, minor share.
+1. **Who**: signup mix by age bracket, domains selected, skin type, tone band (granularity check on the deep range — PRD §06 trust issue), hair pattern, anchor vs palette-fallback cohort, minor share — plus **minor experience**: count of minors, which restricted gates they hit and how often, and whether their W4 retention diverges.
 2. **Funnel**: onboarding step → payoff → account → 5-item activation; split by branch and by `evidence_backed` payoff.
 3. **What they use**: feature adoption matrix (logged via which ingest path, chip rate, face-off rate, collections, import, export) by cohort — **and the inverse: features with <X% adoption at W4 get flagged as dead-or-hidden**, the "what they don't use" report.
 4. **What they like/dislike** (the product data *is* the preference data): top chips by valence per category/cohort, dislike-chip concentration (which products create dislikes), fit-miss distribution (are people admitting bad buys — PRD §19.9), leaderboard scope usage (your-shade vs everyone).
