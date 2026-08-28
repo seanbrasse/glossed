@@ -85,9 +85,18 @@ all**, and GLO-15 cannot close until that lands.
 
 ## 5. The automated recap earns its keep — read it
 
-Every PR opened gets a recap comment (mermaid diagram, file map by layer, schema
-deltas, risk-ordered review notes) from `claude-code-action`, pinned to
-**Sonnet 5** at 30 turns for cost.
+**It is manual now, not automatic** (Aug 28). Each run is a full Sonnet agent at
+30 turns billed to a *personal* Anthropic key, and a busy agent session opens a
+dozen PRs — plus a close/reopen for every recap that came back a stub. That
+outran what the review was worth paying for on every PR. Ask for one where it
+matters:
+
+```bash
+gh workflow run visual-recap -f pr=123
+```
+
+It still posts the same thing: mermaid diagram, file map by layer, schema
+deltas, risk-ordered review notes.
 
 It has now caught four real bugs, and they are all one family: **a name
 claiming more certainty than the code can supply.** Two sub-shapes, worth
@@ -112,17 +121,20 @@ acting on them pushes the PR past 400 lines, that is what `size-override` with a
 written reason is for — trimming the reasoning the review asked for to hit a
 number defeats the point of both.
 
-Three mechanical facts:
+Two mechanical facts:
 - It **refuses to run on any PR that modifies workflow files** (a sound guard:
   otherwise a PR could rewrite the workflow to exfiltrate the key). Workflow
   changes cannot test themselves; the next feature PR is the check.
-- It triggers only on `opened` / `reopened` / `ready_for_review`. A push does not
-  retrigger it — close and reopen if you need a fresh one.
-- **A green `recap` check does not prove a recap was posted.** Seen once on
-  [#43](https://github.com/seanbrasse/glossed/pull/43): the agent spent its turns
-  working out how to pipe a body into `gh pr comment`, left a stub comment, and
-  exited green. Look for the comment, not the check mark; close and reopen to
-  get a real one.
+- **A green `recap` run does not prove a recap was posted.** Seen twice
+  ([#43](https://github.com/seanbrasse/glossed/pull/43),
+  [#45](https://github.com/seanbrasse/glossed/pull/45)): the agent spent its
+  turns working out how to pipe a body into `gh pr comment`, left a stub, and
+  exited green. The prompt now tells it to write the body to a file and forbids
+  test comments ([GLO-59](https://linear.app/glossed/issue/GLO-59)), but look for
+  the comment rather than the check mark.
+
+**Since it no longer runs automatically, the PR body's Visual plan section is
+the only shape-of-the-change artifact on most PRs.** Hold it to that bar.
 
 ## 6. CI economics
 

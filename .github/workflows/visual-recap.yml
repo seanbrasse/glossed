@@ -1,4 +1,17 @@
-# Automated visual recap on every PR (handbook: the PR body's "visual plan" section).
+# Visual recap of a PR — MANUAL ONLY as of Aug 28 2026.
+#
+# It used to run on every PR opened/reopened. Each run is a full Sonnet agent at
+# 30 turns billed to a personal Anthropic key, and a busy session opens a dozen
+# PRs — plus a close/reopen for every recap that came back a stub (GLO-59). That
+# added up faster than the review was worth paying for automatically.
+#
+# It is not deleted, because it earns its keep when you ask for it: it has caught
+# five real bugs, all one family — a name claiming more certainty than the code
+# could supply. Run it on the PRs where that matters.
+#
+#   gh workflow run visual-recap -f pr=123
+#
+# Or from the Actions tab → visual-recap → Run workflow.
 #
 # Runs the repo-vendored /visual-recap skill via claude-code-action. In CI the hosted
 # Agent-Native-Plan connector is unavailable, so the skill's CI fallback applies:
@@ -6,21 +19,25 @@
 # file map grouped by layer, schema/API deltas, review-focus notes) instead of a hosted
 # plan. Run /visual-recap locally when you want the full interactive version.
 #
-# Inert until the ANTHROPIC_API_KEY repo secret is set.
+# Inert until the ANTHROPIC_API_KEY repo secret is set. Removing that secret is
+# the belt-and-braces off switch — nothing else uses it.
 name: visual-recap
 
 on:
-  pull_request:
-    types: [opened, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to recap"
+        required: true
+        type: string
 
 concurrency:
-  group: recap-${{ github.ref }}
+  group: recap-${{ inputs.pr }}
   cancel-in-progress: true
 
 jobs:
   recap:
     runs-on: ubuntu-latest
-    if: ${{ !github.event.pull_request.draft }}
     permissions:
       contents: read
       pull-requests: write
@@ -44,7 +61,7 @@ jobs:
         if: steps.key.outputs.present == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
+          PR: ${{ inputs.pr }}
           REPO: ${{ github.repository }}
         run: |
           MARKER="<!-- recap-unavailable -->"
@@ -74,17 +91,21 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
-            Read .claude/skills/visual-recap/SKILL.md, then produce a visual recap of PR #${{ github.event.pull_request.number }}
+            Read .claude/skills/visual-recap/SKILL.md, then produce a visual recap of PR #${{ inputs.pr }}
             (diff vs its base branch). The hosted plan connector is not available here, so use the skill's
             principles to post the recap as a single PR comment via `gh pr comment`: shape-of-the-change
             first (mermaid diagram of affected modules/flows), file map grouped by architecture layer
             (app/features/core/supabase/docs), any schema or API deltas called out explicitly, then 3-5
             review-focus notes ordered by risk (tenancy/RLS first, per the handbook review checklist).
             Do not review line-by-line; do not approve or request changes; one comment only.
+            Write the recap to /tmp/recap.md with the Write tool, then post it with
+            `gh pr comment ${{ inputs.pr }} --body-file /tmp/recap.md`. Do not experiment with
+            stdin piping, and never post a test or placeholder comment — a run that posts a stub
+            and exits still reports green, so the stub is worse than no comment at all.
           claude_args: |
             --model claude-sonnet-5
             # Sonnet takes more turns than Opus for the same recap, and 15 cut it
             # off mid-run. More turns on the cheaper model is still well below
             # Opus at 15 — the point of pinning was cost, not turn count.
             --max-turns 30
-            --allowedTools "Bash(git:*),Bash(gh pr comment:*),Bash(gh pr view:*),Bash(gh pr diff:*),Read,Grep,Glob"
+            --allowedTools "Bash(git:*),Bash(gh pr comment:*),Bash(gh pr view:*),Bash(gh pr diff:*),Read,Write,Grep,Glob"
