@@ -34,33 +34,40 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Next | Why |
 |---|---|
-| [GLO-14](https://linear.app/glossed/issue/GLO-14) PR 2 — dedupe adjudication | **The open lane.** PR 1 (#92, #93) landed: `feed_diff` plans every row and applies GTIN updates/delistings, but `queue_candidate` and `insert_product` deliberately write nothing until the adjudicator defines what a `merge_candidates` row means. Claude API work ⇒ `read-the-damn-docs` first, spend caps per the ticket |
-| [GLO-16](https://linear.app/glossed/issue/GLO-16) logging sheet | **Unblocked by two decisions this session** (§6): the sheet owns the shade/size pick (GLO-56 decided), preselecting a single variant but always confirming; fit capture is multi-axis via `captureFit(itemID:fits:)` once #90/#91 merge |
-| [GLO-47](https://linear.app/glossed/issue/GLO-47) fit block persistence | The write path exists end-to-end after #88/#90/#91: multi-select `FitControl` → `captureFit` → `capture_fit()` RPC. The page still persists nothing |
-| Wiring screens to live data | The whole chain exists (`user_shelf_items` → `ShelfRepository.shelf()` → `ShelfItem(row:)`) but **no screen calls it**, because nothing can sign in — a debug-only password sign-in against the local seed would unblock driving real data ([GLO-23](https://linear.app/glossed/issue/GLO-23) is the real auth, still gated on GLO-50) |
-| [GLO-58](https://linear.app/glossed/issue/GLO-58) GTIN-14 migration | Small, independent, migration slot free after #88. `feed_diff` already compares at 14 digits; the scan path still does not |
-| [GLO-70](https://linear.app/glossed/issue/GLO-70) "rated it" copy · [GLO-51](https://linear.app/glossed/issue/GLO-51) plural labels | One-liners, but each needs the frame read first |
+| [GLO-16](https://linear.app/glossed/issue/GLO-16) logging sheet | **The most-unblocked ticket in the project.** The sheet owns the shade/size pick (GLO-56 decided — preselect a single variant, always confirm); fit capture is multi-axis end to end (`captureFit(itemID:fits:)` → `capture_fit()`); the shelf's data path is live. Build it against the LIVE picker state |
+| [GLO-47](https://linear.app/glossed/issue/GLO-47) fit block persistence | The write path exists whole: multi-select `FitControl` → `captureFit` → RPC. The page persists nothing yet |
+| [GLO-15](https://linear.app/glossed/issue/GLO-15) create rung | Buildable at last: `brands(matching:)` supplies the FK, `createPersonalProduct` returns a loggable `CreatedProduct`, `scannedGTIN` rides the draft |
+| Event wiring | `core/Tracking` + `events` + `track_ingest` all exist and **nothing calls `track()` yet** — each feature wires its own events while its surface is fresh (the whole point of moving GLO-21 PR 1 forward) |
+| [GLO-14](https://linear.app/glossed/issue/GLO-14) leftovers | All four PRs landed. What remains: the pg_cron schedule for nightly `feed_diff` (needs the deployed function, §7) and the Rakuten/Impact applications (human) |
+| [GLO-63](https://linear.app/glossed/issue/GLO-63) item 3 | The near-match RPC with a *reason* — the valuable one. Migration slot free |
+| [GLO-51](https://linear.app/glossed/issue/GLO-51) plural labels | Small, needs the frame open |
 
-**Merged this session (do not re-do):** #82 `user_shelf_items` view ·
-#83 `create_personal_product` + widened `search_catalog` · #84 `ShelfRow` +
-`shelf()` · #85 brands/RPC/`CatalogHit` widening · #86 packaging table →
-DesignSystem · #87 `ShelfItem(row:)` mapping · #88 multi-axis `item_fits` +
-`capture_fit()` · #89 the main-compile fix · #92 `feed_diff` planner.
-Open at handoff time: #90 (captureFit set), #91 (multi-select FitControl),
-#93 (`feed_diff` handler) — all green-or-pending, merge on green.
+**Merged this session (do not re-do):** #82–#105 — the shelf chain (view,
+`ShelfRow`, packaging table, mapping), the ladder server (`create_personal_product`,
+widened `search_catalog`), multi-axis fit (#88/#90/#91), GTIN-14 both halves
+(#95/#96), `core/Tracking` + `events` schema + `track_ingest` (#97/#98/#99),
+the whole GLO-14 dedupe chain (#92/#93/#100/#101/#102) + `inci_enrich` (#105)
++ the weekly fill list (#104), the main-compile fix (#89), and **the first live
+read** (#103): a debug sign-in and a `shelf · LIVE` picker state rendering the
+seeded database end to end. Tickets closed: GLO-66, GLO-67, GLO-58, GLO-70.
 
 ## 2. What exists
 
 | Layer | State |
 |---|---|
-| Schema | **9 migrations**, all applied to the hosted project (manually via Supabase MCP after each merge). **85 pgTAP assertions.** Migration slot free. |
-| `core/DataKit` | Still frozen by default. **Opened this session with explicit authorization** for GLO-66/60/63/67; that authorization was session-scoped and does not carry forward. 29 tests (30 after #90). |
-| `core/DesignSystem` | + `ProductMock.Kind.usual(forCategory:)` (one packaging table for all features), multi-select `FitControl` in #91. 33 tests (38 after #91). |
-| `core/Media`, `core/Tracking` | **Still do not exist.** Media needs R2 (§7); Tracking is GLO-21 PR 1 and still needed by everything. |
-| `features/Shelf` | Screen + **the wire mapping** (`ShelfItem(row:)`, `ShelfSection.grouped(from:)`). 45 tests. |
-| `features/*` others | Unchanged from last session (AddLadder 78, Ranking 29, ProductPage 11, Import 12). |
-| `supabase/functions` | `storage_presign` (not deployed, §7) + **`feed_diff`** (planner merged, handler in #93). 29 deno tests. Not deployed — needs `INGEST_SECRET` and a pg_cron schedule (a later PR). |
-| The data path | `user_items → user_shelf_items → ShelfRow → ShelfItem` exists end to end and is tested at every joint. **No screen reads it yet** — the app has no way to sign in, so every screen still renders from the debug picker's fixtures. That is the honest sentence about this codebase: the seam is closed in code and open at runtime. |
+| Schema | **12 migrations**, all applied to hosted (manually via Supabase MCP after each merge). **106 pgTAP assertions.** Migration slot free. |
+| `core/DataKit` | Frozen again. Session's authorized openings delivered: `ShelfRow`+`shelf()`, brands/RPC/`CatalogHit`, `captureFit(fits:)`, `gtin14` matching, `signIn(email:password:)`. 32 tests. |
+| `core/DesignSystem` | + packaging table, multi-select `FitControl`. 38 tests. |
+| `core/Tracking` | **Exists** (#97): the tech/06 registry as a compiler-checked enum + the drop-on-failure queue. 10 tests. **Nothing calls `track()` yet.** |
+| `core/Media` | Still does not exist — R2 (§7). |
+| `features/Shelf` | Screen + wire mapping. 45 tests. |
+| `supabase/functions` | `storage_presign`, `feed_diff` (plans + writes), `track_ingest`, `dedupe_adjudicate` (claude-opus-5, ≤10 calls/run), `inci_enrich` (OBF, 12/run). **45 deno tests. None deployed** — secrets are §7. |
+| The data path | **Live, drivable, and driven**: the `shelf · LIVE` picker state signs in as maya and renders Postgres through the whole chain. Everything else still renders fixtures until screens adopt the same path. |
+
+The auth seed is now signable-in (#103): GoTrue rejects NULL token/timestamp
+columns with "Database error querying schema", and email users need
+`auth.identities` rows — both fixed in `seed.sql`, with maya given a starting
+shelf on variants the pgTAP suites don't touch.
 
 ## 3. How this session worked (changes from last time)
 
@@ -172,6 +179,21 @@ earning its place.
 What went right and is worth copying: asking the human the three questions
 instead of routing around all of them — GLO-56 and GLO-67 had been "flag and
 wait" for two sessions and each took one message to settle.
+
+**Evening additions, same session:**
+
+*The seeded users could never sign in, and nothing knew.* GoTrue scans
+`auth.users` token/timestamp columns into non-nullable Go types; the seed's
+NULLs failed every password grant with "Database error querying schema" —
+which reads like a broken stack. Found the minute the first live sign-in was
+attempted (#103), which is the deepest version of "run the thing": the seed
+had been "working" since day one because nothing had ever exercised its
+login path. **Rule: a fixture nothing consumes is not known to work.**
+
+*A commit landed on the wrong branch* (Tracking onto the GLO-58 branch)
+because a background CI-wait had checked out a different branch mid-flight.
+**Rule: never background a task that switches branches while foreground work
+continues in the same tree** — background only read-only waits.
 
 ## 9. Local setup (unchanged)
 
