@@ -25,7 +25,7 @@ iOS beauty journal that ranks. Read `docs/README.md` first; `docs/domain.md` is 
 
 ## Conventions
 
-- Branches `feat/<issue#>-short-desc` (also `fix/`, `chore/`, `docs/`). Conventional commits. Squash merge.
+- **Tickets live in Linear** (workspace `atlas-ios`, team Glossed) — every work item is a Linear issue before it is code. Branches `feat/GLO-<n>-short-desc` (also `fix/`, `chore/`, `docs/`); PR bodies link the Linear issue and its status is kept current. (Pre-Linear branches used GitHub issue numbers.)
 - PRs: ≤5 files, ≤400 lines (generated files excluded). Larger ⇒ `size-override` label + written reason in the body. PR body follows `.github/PULL_REQUEST_TEMPLATE.md`, including the visual plan section.
 - Every PR gets a visual recap: run `/visual-recap` locally, or rely on the CI recap comment.
 - Booleans read as assertions (`isRanked`), services are verbs (`applyFaceOffSession`), DB is snake_case plural with `created_at`/`updated_at`.
