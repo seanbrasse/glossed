@@ -5,24 +5,16 @@ Where Phase 1 stands, what to do next, and what this session learned. Read
 
 ## 0. Read this first
 
-**Two PRs are open and mid-merge; finish the sequence before new work.**
-[#121](https://github.com/seanbrasse/glossed/pull/121) (catalog import + image
-pipeline scripts) and [#123](https://github.com/seanbrasse/glossed/pull/123)
-(DataKit image fields) were CI-rerunning at handoff time after amendments.
-When green: merge #121 (independent); merge #123; then **rebase
-`feat/GLO-74-shelf-adoption` onto main and open its PR** — it is pushed,
-verified on-simulator, and unopened only because #123 had to land first.
-Then build `origin/main` locally (the standing stack rule) and close
-[GLO-74](https://linear.app/glossed/issue/GLO-74).
+**The merge sequence completed in-session**: #121, #123, and #126 all merged
+green (real iOS runs where the diff warranted one), `origin/main` rebuilt and
+verified, [GLO-74](https://linear.app/glossed/issue/GLO-74) closed, **zero
+open PRs** at handoff. The catalog scripts now live on `main` under
+`scripts/`.
 
 **A skipped CI check is still not a passed check**
 ([GLO-71](https://linear.app/glossed/issue/GLO-71) remains unfixed): rebase
 onto the base's exact tip, read WHICH jobs ran. Every merge across these two
 sessions was verified this way — all iOS runs were real (5m53s–10m33s).
-
-**The catalog scripts live on #121's branch until it merges.** Running
-`scripts/catalog_images.ts` from another branch fails with "module not found"
-— check `git branch --show-current` before running pipeline scripts.
 
 **Local dev needs no scheme editing:** `supabase start`, then launch with
 `SIMCTL_CHILD_SUPABASE_PUBLISHABLE_KEY=<from supabase status>` +
@@ -36,7 +28,6 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Next | Why |
 |---|---|
-| Finish §0's merge sequence | Two green-pending PRs + one unopened; GLO-74 closes on it |
 | [GLO-79](https://linear.app/glossed/issue/GLO-79) source ladder, next rungs | The Shopify rung shipped and proved the thesis (studio shots mask clean). Next: widen the curated store list; fix title-matching's wrong-franchise risk (it picked fenty's *powder* over the liquid — prefer exact name+shade, else hand-check); og:image lands with GLO-19; feeds when Sean flips Rakuten from reach |
 | [GLO-16](https://linear.app/glossed/issue/GLO-16) logging sheet / variant pick | The biggest remaining unlock: search/near-match picks dead-end at an interim card until it exists. **Unblocked** — Sean's no-frames ruling (§6): build from the design system, workshop at review |
 | [GLO-72](https://linear.app/glossed/issue/GLO-72) status change + remove | Same ruling; `remove()` exists in DataKit, `updateStatus` needs a core opening (re-ask) |
@@ -64,14 +55,14 @@ migrations 14 and 15 applied to hosted immediately after merge.
 |---|---|
 | Schema | **15 migrations**, all applied to hosted. **114 pgTAP assertions.** Slot free. |
 | Catalog data | **435 brands / 788 products / 788 variants with real GTINs** (`source='obf'`), local only — hosted has schema, not data. **593 catalog images** in the local `catalog` storage bucket (588 OBF clean-gated + 5 Shopify studio); 200 OBF images rejected by the person gate. |
-| `core/DataKit` | Frozen. Session openings (authorized): draft variant field; ShelfRow image/size fields + file split (#123, open). 33 tests. |
+| `core/DataKit` | Frozen again — all session openings merged. 33 tests. |
 | `core/DesignSystem` | + `ProductImage` (fallback chain) + shared `ProductSticker`. 38 tests. |
 | `core/Tracking` | Exists; nothing calls `track()`. 10 tests. |
 | `core/Media` | Does not exist — user cutouts are GLO-16 PR 1. |
 | `features/Shelf` | Live screen: real images, volume-scaled, centred planks, contact shadows, persisting fit section. 58 tests. |
 | `features/AddLadder` | All five rungs + `LadderFlowView` (one trip). 86 tests. |
 | `app/` | **A real app in DEBUG**: `AppShell` + `AppSession` (dev sign-in, local stack), tabs, drawer, ladder, live shelf. Release builds keep the placeholder until GLO-18/GLO-23. |
-| `scripts/` (on #121) | `obf_import.ts` (catalog fill), `catalog_images.ts` (download → Vision cutout + person gate → storage), `shopify_images.ts` (studio-image rung), `CatalogCutout` (Swift/Vision tool). |
+| `scripts/` | `obf_import.ts` (catalog fill), `catalog_images.ts` (download → Vision cutout + person gate → storage), `shopify_images.ts` (studio-image rung), `CatalogCutout` (Swift/Vision tool). |
 | `supabase/functions` | 5 functions, 49 deno tests, none deployed (secrets — §7). |
 
 The sentence that is true about all of it: **the app is live against the
@@ -160,7 +151,8 @@ separated cleanly (hands 0.75–60% of pixels, clean products exactly 0).
 When a detector fails, question the detector's task definition before the
 threshold. *The allowlist that didn't grow:* adding the Shopify rung without
 widening the image-host allowlist dead-lettered 5 good jobs. *Ran pipeline
-scripts from the wrong branch* — they only exist on #121 until it merges.
+scripts from the wrong branch* — mid-stack, scripts existed on one branch
+only; `git branch --show-current` before running repo scripts.
 *Title-matching picked the wrong product in a franchise* (fenty powder vs
 liquid): shortest-containing is not exact; prefer name+shade equality and
 route the rest to hand-check. *Crowd-photo quality is a data fact, not a
@@ -175,7 +167,7 @@ re-watching** — that is what §0 is.
 make setup && make dev
 supabase test db          # 114 assertions
 make functions-test       # 49 deno tests
-# catalog data (scripts on #121's branch):
+# catalog data:
 deno run --allow-net --allow-run --allow-env scripts/obf_import.ts
 SUPABASE_SERVICE_ROLE_KEY=<legacy JWT from supabase status> \
   deno run --allow-net --allow-run --allow-env --allow-read --allow-write scripts/catalog_images.ts
