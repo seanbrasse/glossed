@@ -16,6 +16,8 @@ packages:
     path: core/DataKit
   Ranking:
     path: features/Ranking
+  AddLadder:
+    path: features/AddLadder
 targets:
   Glossed:
     type: application
@@ -25,6 +27,7 @@ targets:
       - package: DesignSystem
       - package: DataKit
       - package: Ranking
+      - package: AddLadder
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.glossed.app
