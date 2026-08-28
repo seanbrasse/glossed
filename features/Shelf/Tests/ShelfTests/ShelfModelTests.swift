@@ -33,9 +33,10 @@ private func section(_ slug: String, domain: Domain, items: [ShelfItem] = [item(
 private func model(
     _ sections: [ShelfSection],
     domains: Set<Domain> = Set(ShelfModel.domains),
-    sort: ShelfSort = .favorite
+    sort: ShelfSort = .favorite,
+    viewMode: ShelfViewMode = .shelf
 ) -> ShelfModel {
-    ShelfModel(sections: sections, selectedDomains: domains, sort: sort)
+    ShelfModel(sections: sections, selectedDomains: domains, sort: sort, viewMode: viewMode)
 }
 
 // MARK: - The domain filter
@@ -147,4 +148,53 @@ private func model(
     #expect(live.bays[0].items.map(\.name) == ["ranked-second", "ranked-first"])
     live.sort = .recent
     #expect(live.bays[0].items.map(\.name) == ["ranked-second", "ranked-first"])
+}
+
+// MARK: - Shelf or list
+
+@MainActor
+@Test func bothViewsRenderTheSameItemsInTheSameOrder() {
+    // The toggle changes what you can do with the shelf, not what is true
+    // about it. Two views that disagreed about the order would make the sort
+    // pills mean different things depending on which was showing.
+    let live = model(
+        [section("blush", domain: .makeup, items: [
+            item("second", brand: "alpha", rank: 2),
+            item("first", brand: "zed", rank: 1)
+        ])],
+        domains: [.makeup]
+    )
+    for sort in ShelfSort.allCases {
+        live.sort = sort
+        let inBays = live.bays.flatMap(\.items).map(\.id)
+        let inSections = live.shownSections.flatMap(\.items).map(\.id)
+        #expect(inBays == inSections)
+    }
+}
+
+@MainActor
+@Test func onlyOneCategoryIsOpenAtATime() {
+    let live = model([section("blush", domain: .makeup), section("cleanser", domain: .skincare)])
+    live.toggleSection("blush")
+    #expect(live.openSection == "blush")
+    live.toggleSection("cleanser")
+    #expect(live.openSection == "cleanser")
+}
+
+@MainActor
+@Test func tappingTheOpenCategoryClosesIt() {
+    // Without this an accordion can only ever be opened, and the count on a
+    // closed card — the reason to collapse one at all — becomes unreachable.
+    let live = model([section("blush", domain: .makeup)], domains: [.makeup])
+    live.toggleSection("blush")
+    live.toggleSection("blush")
+    #expect(live.openSection == nil)
+}
+
+@MainActor
+@Test func theViewModeSurvivesAFilterChange() {
+    // Switching domains is not a reason to be thrown back to the other view.
+    let live = model([section("blush", domain: .makeup)], viewMode: .list)
+    live.toggle(.haircare)
+    #expect(live.viewMode == .list)
 }

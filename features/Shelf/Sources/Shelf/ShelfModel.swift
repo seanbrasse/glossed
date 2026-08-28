@@ -2,6 +2,11 @@ import DataKit
 import Foundation
 import Observation
 
+/// Shelf or list. Two readings of the same items, not a view and a fallback.
+public enum ShelfViewMode: String, CaseIterable, Sendable {
+    case shelf, list
+}
+
 /// The three ways the kit lets you reorder a bay.
 ///
 /// `favorite` is the default and the only one that is about the product rather
@@ -27,17 +32,31 @@ public final class ShelfModel {
 
     public var selectedDomains: Set<Domain>
     public var sort: ShelfSort
+    public var viewMode: ShelfViewMode
+    /// Which category is expanded in the list view. One at a time, as the kit
+    /// has it — an accordion where everything can be open is a long list with
+    /// extra taps in it.
+    public private(set) var openSection: String?
 
     private let sections: [ShelfSection]
 
     public init(
         sections: [ShelfSection],
         selectedDomains: Set<Domain> = [.makeup, .skincare],
-        sort: ShelfSort = .favorite
+        sort: ShelfSort = .favorite,
+        viewMode: ShelfViewMode = .shelf,
+        openSection: String? = nil
     ) {
         self.sections = sections
         self.selectedDomains = selectedDomains
         self.sort = sort
+        self.viewMode = viewMode
+        self.openSection = openSection
+    }
+
+    /// Tapping the open one closes it; tapping another moves the opening.
+    public func toggleSection(_ slug: String) {
+        openSection = openSection == slug ? nil : slug
     }
 
     /// The sections currently on, in their given order, each internally sorted.
