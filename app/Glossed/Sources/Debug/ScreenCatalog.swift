@@ -26,7 +26,7 @@
             ShelfEntries.baysWithOverflow,
             ShelfEntries.list,
             ShelfEntries.sheetOpen,
-            ShelfEntries.anchorSheet,
+            AnchorSheetEntry.anchorSheet,
             ShelfEntries.everythingOff,
             LadderEntries.search,
             LadderEntries.searchEmpty,
