@@ -3,6 +3,7 @@
     import AddLadder
     import DataKit
     import DesignSystem
+    import ProductPage
     import Shelf
     import SwiftUI
 
@@ -234,5 +235,55 @@
             ladder.noneOfThese()
             return ladder
         }
+    }
+
+    // MARK: - ProductPage
+
+    actor StubAggregates: ShadeEvidenceReading {
+        private let evidence: PayoffEvidence?
+        private let failure: GlossedError?
+
+        init(evidence: PayoffEvidence? = nil, failure: GlossedError? = nil) {
+            self.evidence = evidence
+            self.failure = failure
+        }
+
+        func payoff(variantID _: UUID) async throws(GlossedError) -> PayoffEvidence {
+            if let failure {
+                throw failure
+            }
+            return evidence ?? PayoffEvidence(exactShadeCount: 0, withFitCount: 0, evidenceBacked: false)
+        }
+    }
+
+    enum ProductFixtures {
+        /// The kit's own fixture: rhode pocket blush, #2 of 5, 89 reports.
+        static let pocketBlush = ProductPageItem(
+            variantID: UUID(),
+            brand: "rhode",
+            name: "pocket blush",
+            categoryLabel: "cream blush",
+            variant: "freckle",
+            benefitLine: "the natural flush",
+            packaging: .compact,
+            isAnchor: true,
+            rank: 2,
+            rankedInCategory: 5
+        )
+
+        /// Not an anchor, so no fit block and no confidence meter — the shape of
+        /// the page for most of the catalog.
+        static let notAnAnchor = ProductPageItem(
+            variantID: UUID(),
+            brand: "glossier",
+            name: "cloud paint",
+            categoryLabel: "cream blush",
+            variant: "beam",
+            benefitLine: "gel-cream, buildable to a flush",
+            packaging: .tube,
+            isAnchor: false,
+            rank: 3,
+            rankedInCategory: 5
+        )
     }
 #endif
