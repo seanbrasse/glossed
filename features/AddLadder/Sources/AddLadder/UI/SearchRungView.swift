@@ -3,36 +3,51 @@ import SwiftUI
 
 /// Rung 1: type, see what the catalog has, or say none of these.
 ///
-/// The screen holds no ordering or matching logic — it renders
-/// `SearchRungModel.options` in order and reports taps back.
+/// Built to `G.AddLadder` rung 0 in the kit. The screen holds no ordering or
+/// matching logic — it renders `SearchRungModel.options` in order and reports
+/// taps back.
 public struct SearchRungView: View {
     @State private var model: SearchRungModel
     @State private var searchTask: Task<Void, Never>?
+    private let onBack: () -> Void
 
-    public init(model: SearchRungModel) {
+    public init(model: SearchRungModel, onBack: @escaping () -> Void = {}) {
         _model = State(initialValue: model)
+        self.onBack = onBack
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: Tokens.Space.s5) {
-            RungRail(trail: model.ladder.trail, current: model.ladder.rung)
-            // No label: the rail overhead already names the rung, and two
-            // "search"s stacked read as a rendering bug rather than a heading.
-            GlossedInput("what are you adding?", text: $model.query, hint: hint)
+        LadderScaffold(ladder: model.ladder, onBack: onBack) {
+            GlossedInput("brand, product, shade…", text: $model.query, hint: hint)
                 .plainTyping()
+            if matchCount > 0 {
+                Text("\(matchCount) MATCHES IN THE CATALOG").eyebrow()
+            }
             options
         }
-        .padding(Tokens.Space.s5)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Tokens.Ground.milk)
+        // Arriving with a query already in hand is ordinary — the ladder seeds
+        // it, and rung 0 can be re-entered. Without this the screen sits empty
+        // until the user types a character it already has.
+        .task { await model.search() }
         .onChange(of: model.query) { _, _ in scheduleSearch() }
     }
 
-    /// The escape hatch is the last element of the same list, not a footer, so
-    /// it cannot drift out of the layout the matches live in.
+    /// The eyebrow counts matches, so it counts everything in the list except
+    /// the way out — which is in the same list by design, and is not a match.
+    private var matchCount: Int {
+        model.options.count { option in
+            if case .match = option {
+                return true
+            }
+            return false
+        }
+    }
+
+    /// The way out is the last element of the same list, not a footer, so it
+    /// cannot drift out of the layout the matches live in.
     private var options: some View {
         ScrollView {
-            LazyVStack(spacing: Tokens.Space.s3) {
+            LazyVStack(spacing: 10) {
                 ForEach(model.options) { option in
                     LadderOptionRow(option) { model.choose(option) }
                 }
