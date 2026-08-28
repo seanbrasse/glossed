@@ -1,25 +1,22 @@
-# Session handoff — Aug 28 2026 (sessions 4–5, ending mid-merge)
+# Session handoff — Aug 28 2026 (session 6, merge-as-you-go)
 
 Where Phase 1 stands, what to do next, and what this session learned. Read
 `docs/README.md` first for the design; this file is only about state.
 
 ## 0. Read this first
 
-**The merge sequence completed in-session**: #121, #123, and #126 all merged
-green (real iOS runs where the diff warranted one), `origin/main` rebuilt and
-verified, [GLO-74](https://linear.app/glossed/issue/GLO-74) closed, **zero
-open PRs** at handoff. The catalog scripts now live on `main` under
-`scripts/`.
+**After retargeting a stacked PR to main, CI's scope job can silently reuse a
+stale decision and skip the iOS job** (GLO-71's bug, hit three times this
+session — #131, #133, #139). A skipped check is not a passed check. The
+routine that works: rebase onto the base's exact tip, push, **check that the
+iOS job actually queued**; if it shows `skipping`, `git commit --amend
+--no-edit` for a fresh SHA and push again — the new run re-evaluates scope
+correctly. Read WHICH jobs ran before merging, every time.
 
-**A skipped CI check is still not a passed check**
-([GLO-71](https://linear.app/glossed/issue/GLO-71) remains unfixed): rebase
-onto the base's exact tip, read WHICH jobs ran. Every merge across these two
-sessions was verified this way — all iOS runs were real (5m53s–10m33s).
-
-**Local dev needs no scheme editing:** `supabase start`, then launch with
-`SIMCTL_CHILD_SUPABASE_PUBLISHABLE_KEY=<from supabase status>` +
-`simctl terminate/install/launch`. If sign-in fails: `supabase db reset`
-first. `GLOSSED_SCREENS=1` opens the screen picker instead of the app.
+**Authorizations are per-session and all expired with this one.** Session 6
+had: self-merge on green ("Merge as you go" — 15 PRs merged under it), one
+DataKit opening (CatalogHit image fields, from Sean's search-images ask).
+Re-ask before merging or touching the frozen core.
 
 ## 1. Where to start
 
@@ -28,150 +25,159 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Next | Why |
 |---|---|
-| [GLO-79](https://linear.app/glossed/issue/GLO-79) source ladder, next rungs | The Shopify rung shipped and proved the thesis (studio shots mask clean). Next: widen the curated store list; fix title-matching's wrong-franchise risk (it picked fenty's *powder* over the liquid — prefer exact name+shade, else hand-check); og:image lands with GLO-19; feeds when Sean flips Rakuten from reach |
-| [GLO-16](https://linear.app/glossed/issue/GLO-16) logging sheet / variant pick | The biggest remaining unlock: search/near-match picks dead-end at an interim card until it exists. **Unblocked** — Sean's no-frames ruling (§6): build from the design system, workshop at review |
-| [GLO-72](https://linear.app/glossed/issue/GLO-72) status change + remove | Same ruling; `remove()` exists in DataKit, `updateStatus` needs a core opening (re-ask) |
-| [GLO-73](https://linear.app/glossed/issue/GLO-73) shelf search | Same ruling |
-| Event wiring | `core/Tracking` + `events` + `track_ingest` exist; **nothing calls `track()` yet** |
-| [GLO-63](https://linear.app/glossed/issue/GLO-63) item 3 | Near-match RPC with a reason. Migration slot free (0015 merged + hosted) |
-| [GLO-76](https://linear.app/glossed/issue/GLO-76) disabled buttons | Small DesignSystem PR; visible on the create form |
+| [GLO-85](https://linear.app/glossed/issue/GLO-85) remaining halves | The shade collapse merged (#142); still open: the merge-candidates feeder (similarity band → queue, never auto-merge) and the adjudication path. The measurements and the wrong-franchise warning are on the ticket |
+| [GLO-72](https://linear.app/glossed/issue/GLO-72) status half | Remove is merged and driven; status change is hard-blocked on a DataKit opening (`updateStatus(itemID:to:)`) — re-ask, and bundle GLO-56's `strength_pct` decode into the same opening. The rank_positions decision for removed ranked items also waits on Sean (proposal on the ticket) |
+| [GLO-80](https://linear.app/glossed/issue/GLO-80) first track() calls | Nothing calls the tracker; the ticket carries the real design question (who owns the Tracker; where `item_logged`'s categoryID comes from — the pick path only has a slug) |
+| [GLO-16](https://linear.app/glossed/issue/GLO-16) remainder | Logging sheet + variant pick shipped (#128/#129). Still open: chips/notes/status on the item sheet, fit-at-log-time on the ladder path, capture flow, cutout pipeline (R2-blocked) |
+| [GLO-84](https://linear.app/glossed/issue/GLO-84) follow-up decision | The digit-name filter merged; the OBF foreign-language-names question is noted there for Sean |
+| [GLO-63](https://linear.app/glossed/issue/GLO-63) item 3 | Near-match RPC with a reason. Migration slot is free again (0016 merged + hosted) |
 
-**Done in sessions 4–5 (do not re-do):** fit persistence end-to-end
-(#110/#112); migration 0014 + `PersonalProductDraft.variant` (#113/#114,
-GLO-75 closed); the create rung (#115/#116) — **all five ladder rungs
-exist**; the **app shell** (#118/#119, GLO-77 closed): DEBUG builds
-cold-launch signed in as the seeded user, three tabs + plus drawer, the
-drawer's *add a product* runs the whole ladder as one flow, adding a product
-refreshes the shelf; **the catalog is real** (GLO-78: 435 brands / 788
-products / 788 variants with GTINs from Open Beauty Facts); **the image
-pipeline is real** (588 clean cutouts + 5 Shopify studio images on local
-storage; migration 0015 exposes them; `ProductImage` renders the fallback
-chain; the shelf shows real product photos). Handoffs #117/#120 merged;
-migrations 14 and 15 applied to hosted immediately after merge.
+**Done in session 6 (do not re-do), 15 PRs #128–#142, zero open at handoff:**
+the **variant-pick logging sheet** (#128/#129 — the search dead-end is gone;
+GLO-56's pick has an owner); **shelf item remove** (#130/#131, GLO-72's
+authorization-free half); **disabled buttons** (#132, GLO-76 closed, the
+kit's own 45% recipe); **find-on-shelf search** (#133/#134, GLO-73 —
+matching rule + field, no autocorrect); **Shopify catalog fill** (#135,
+GLO-81 closed — 12 storefronts, the `lip` category added to the seed,
+flagged for tree workshop); **size buckets** (#136/#137, GLO-82 — S/M/L
+44/60/78 with width caps; 4 larges per shelf guaranteed by test);
+**search-result images** (#138/#139/#140, GLO-83 closed — migration 0016
+merged **and applied to hosted**, CatalogHit opening, rows + variant sheet
+draw real cutouts); **GTIN-as-name filter** (#141, GLO-84 closed);
+**per-shade collapse** (#142 — fenty 562 rows → 61 products with shade
+variants).
 
 ## 2. What exists
 
 | Layer | State |
 |---|---|
-| Schema | **15 migrations**, all applied to hosted. **114 pgTAP assertions.** Slot free. |
-| Catalog data | **435 brands / 788 products / 788 variants with real GTINs** (`source='obf'`), local only — hosted has schema, not data. **593 catalog images** in the local `catalog` storage bucket (588 OBF clean-gated + 5 Shopify studio); 200 OBF images rejected by the person gate. |
-| `core/DataKit` | Frozen again — all session openings merged. 33 tests. |
-| `core/DesignSystem` | + `ProductImage` (fallback chain) + shared `ProductSticker`. 38 tests. |
-| `core/Tracking` | Exists; nothing calls `track()`. 10 tests. |
-| `core/Media` | Does not exist — user cutouts are GLO-16 PR 1. |
-| `features/Shelf` | Live screen: real images, volume-scaled, centred planks, contact shadows, persisting fit section. 58 tests. |
-| `features/AddLadder` | All five rungs + `LadderFlowView` (one trip). 86 tests. |
-| `app/` | **A real app in DEBUG**: `AppShell` + `AppSession` (dev sign-in, local stack), tabs, drawer, ladder, live shelf. Release builds keep the placeholder until GLO-18/GLO-23. |
-| `scripts/` | `obf_import.ts` (catalog fill), `catalog_images.ts` (download → Vision cutout + person gate → storage), `shopify_images.ts` (studio-image rung), `CatalogCutout` (Swift/Vision tool). |
+| Schema | **16 migrations**, all applied to hosted (0016 applied via Supabase MCP immediately after merge). **116 pgTAP assertions.** Slot free. |
+| Catalog data | **~1,114 products / ~2,171 variants** local-only (shopify + obf + seed), post-collapse; sources gated against exact dupes and digit names. Image pipeline refilling storage in the background at handoff (~1.6k queued) — images arrive as it drains; the mock floor covers the gap. |
+| `core/DataKit` | Frozen again — session-6 opening (CatalogHit image fields) merged. 34 tests. |
+| `core/DesignSystem` | + disabled button state, ProductImage aspect envelope + per-call `maxWidth`. 38 tests. |
+| `core/Tracking` | Exists; **still nothing calls `track()`** (GLO-80). 10 tests. |
+| `features/Shelf` | Live: search field, remove on the sheet, S/M/L size buckets, real images. 75 tests. |
+| `features/AddLadder` | All five rungs + variant-pick sheet + real images on rows and sheet. 93 tests. |
+| `app/` | DEBUG shell unchanged in shape; ladder now gets `catalogImageBase` from the session. |
+| `scripts/` | + `shopify_import.ts` (catalog fill + shade collapse). Both importers reject digit-only names. |
 | `supabase/functions` | 5 functions, 49 deno tests, none deployed (secrets — §7). |
 
 The sentence that is true about all of it: **the app is live against the
-local stack only** — hosted has migrations but no catalog data, no functions,
-no storage bucket; nothing user-facing exists outside DEBUG builds.
+local stack only** — hosted has all 16 migrations but no catalog data, no
+functions, no storage; nothing user-facing exists outside DEBUG builds.
 
 ## 3. How this session worked
 
-Unchanged: branches `feat/GLO-<n>-desc`, ≤5 files/400 lines
-(`size-override` + written reason when tests/pipelines justify — #115, #121),
-squash merges, stacked PRs retarget-then-restack, one migration PR at a time
-applied to hosted immediately, `origin/main` built after stacks. Authorizations
-are **per-session** and were granted for these: self-merge on green, DataKit
-openings (draft variant; ShelfRow fields). Re-ask next session.
+Unchanged: branches `feat/GLO-<n>-desc` (also `fix/`), ≤5 files/400 lines
+(`size-override` + reason when justified — #129), squash merges, stacked PRs
+retarget-then-restack (now with §0's fresh-SHA step), one migration PR at a
+time applied to hosted immediately, `origin/main` rebuilt after stacks.
 
-The loop that keeps working: frame first (as source, via the browser pane —
-`docs/DESIGN.md`; where no frame exists, Sean's ruling in §6 applies), model
-first, view to the frame, picker states incl. failures, **drive it on the
-simulator**, verify DB effects in psql, restack, merge, rebuild main.
+The loop that kept working: check the kit first and record the frame absence,
+model PR then UI PR, picker states incl. failures, **drive it on the
+simulator**, verify DB effects in psql, restack, merge on green, rebuild
+main. Sean steered live mid-session (buckets, search images, the bug report)
+— tickets were created/updated in Linear at each turn, which is what made
+the pivots cheap.
 
 ## 4. Frozen or dangerous areas
 
 Unchanged: `core/DataKit` (openings are per-session asks), `supabase/
 migrations/` (lock + apply-to-hosted), CI workflows (GLO-71 is a human's),
-`ingest_jobs` claiming (the state-filtered UPDATE **is** the lock — both
-pipeline scripts use it; do not "improve" it).
+`ingest_jobs` claiming (the state-filtered UPDATE **is** the lock), the
+image-host allowlist in `catalog_images.ts` (one host per rung).
 
-New: **image-host allowlist** in `catalog_images.ts` — one host per source
-rung. A queued URL on an unknown host is a bug or an injection; widen the
-list only when adding a rung (the Shopify rung forgot this and failed 5 jobs
-until the allowlist grew).
+New: **`supabase test db` runs against the live local DB, not a fresh
+container.** A session that has logged/removed items or re-imported the
+catalog will fail state-dependent pgTAP tests that pass in CI. Reset before
+trusting a local red — and know that reset costs the imported catalog and
+its images (scripts restore ~40 min in the background; three resets this
+session).
 
 ## 5. How work gets reviewed
 
-Driving the build catches what nothing else does. This session: the floating
-nav rendered **on top of** the item sheet (shell bug); the category select
-held a view-local copy of the pick and lied after a failed write; disabled
-buttons look enabled (GLO-76); OBF's crowd photos put **hands** on the shelf.
-None of these had a failing test. The manual recap workflow was again unused;
-psql after every driven write (`item_fits`, `failed_searches`, `products`)
-is the fastest truth check.
+Driving the build still catches what nothing else does. This session: the
+empty-variants sheet showed an unpressable CTA (fixed pre-PR); the remove
+confirm-line truncated instead of wrapping; the simulator autocorrected
+"fenty" → "Fentyen" in the search field (a search that corrects is a shelf
+claiming you own nothing); Sean's own drive caught the GTIN-as-name row
+(GLO-84). psql after every driven write remains the fastest truth check.
+None of these had a failing test.
 
-## 6. Decisions made these sessions (by Sean, in-session)
+## 6. Open threads
 
-| Decision | Answer | Consequence |
-|---|---|---|
-| Self-merge on green? | Yes, per-session | 12 PRs merged across sessions 4–5; re-ask |
-| Frames for missing UI? | **"I won't be adding frames — build from the design system"**, workshop at review | Frame-*blocked* is over for absent frames; kit-framed screens still build to the frame exactly |
-| Real auth now? | Defer — "wire the app as if it works" | Dev session ships; GLO-23 carries the setup list (Apple Developer + Twilio) |
-| Rakuten/Impact? | Reach, not blocker | `feed_diff` stays on fixtures; **flipping this also unlocks the best image source** (GLO-79 rung 1) |
-| OBF images? | Retired after seeing them — "good ingredient source, bad image source" | Person gate added (25% of OBF images had people); source ladder filed (GLO-79); Shopify rung shipped same-day |
-| Shelf layout | Centre the planks; commit to the shelf (contact shadows); scale must track size | All shipped in the adoption branch |
+| Thread | Where |
+|---|---|
+| Merge-candidates feeder + adjudication | GLO-85 |
+| `updateStatus` opening + rank_positions decision | GLO-72 |
+| First `track()` calls + categoryID question | GLO-80 |
+| Chips/notes/status on item sheet; fit-at-log; capture flow | GLO-16 |
+| `lip` category + the tree workshop; per-kind mm table + bucket thresholds | GLO-81 / GLO-82 (Sean workshops) |
+| OBF foreign-language names | GLO-84 (note) |
+| Variant sheet shared with Import (features can't import features) | GLO-56 |
+| krave maps 0 products (product_type mismatch) | GLO-79 comment |
 
 ## 7. Blocked on a human, not on code
 
 | Blocked thing | On what | Who |
 |---|---|---|
-| Best image source (feeds) + real catalog spine | Rakuten/Impact applications — **currently "reach" by choice; the application hour also buys studio images** | Sean |
-| R2 (prod storage) | Cloudflare provisioning (GLO-48) — dev runs on local Supabase storage meanwhile | Sean |
+| Best image source (feeds) + catalog spine | Rakuten/Impact applications — still "reach" by choice; value rose again (also the Sephora/Ulta catalog) | Sean |
+| R2 (prod storage) | Cloudflare provisioning (GLO-48) | Sean |
 | Function deploys | `INGEST_SECRET`, `ANTHROPIC_API_KEY` secrets | Sean |
-| Real auth + TestFlight | Apple Developer + Twilio setup (GLO-23/GLO-50), deferred by choice | Sean |
-| GLO-71 CI scope fix | Workflow edit | Any human; agents barred |
-| Beauty API archive (images rung 2) | Licensed, quote-based — PRD says don't buy until hit-rate says | Sean |
+| Real auth + TestFlight | Apple Developer + Twilio (GLO-23/GLO-50), deferred by choice | Sean |
+| GLO-71 CI scope fix | Workflow edit — the §0 workaround exists but the fix is a human's | Any human; agents barred |
+| DataKit openings (`updateStatus`, `strength_pct`) | Per-session authorization | Sean |
+| Beauty API archive | PRD says wait for hit-rate data | Sean |
 
 ## 8. What went wrong, so you don't repeat it
 
-Sessions 1–3 (preserved): built to primitives when frames were reachable;
+Sessions 1–5 (preserved): built to primitives when frames were reachable;
 `git push -q` hid a failure; planned against a core that couldn't supply the
 data; fixed a bug that wasn't there; one number in two places; stacked
 squash double-apply (→ build main after stacks); scope-job silent skip (→
 read which jobs ran); green test testing its own decoder; seeded users that
-could never sign in (a fixture nothing consumes is not known to work); a
-background task switched branches mid-flight (never background branch
-switches); secrets must be squashed out of history; stale simulator binaries
-(terminate+install+launch, md5 when in doubt).
+could never sign in; a background task switched branches mid-flight; secrets
+must be squashed out of history; stale simulator binaries; `--delete-branch`
+on a stack parent auto-closes the child PR; piping build/lint into
+`tail`/`grep` eats the exit code; a view-local `@State` copy lied on screen;
+hand-pose vs person-segmentation (question the detector's task definition);
+the allowlist that didn't grow; ran pipeline scripts from the wrong branch;
+title-matching picked the wrong franchise; record in-flight CI state in the
+handoff instead of re-watching.
 
-**Session 4:** `--delete-branch` on a stack parent auto-closes the child PR,
-unrecoverably (#111 → recreated). Piping build/lint into `tail`/`grep` eats
-the exit code — twice a failed lint committed anyway; check `$?` on the bare
-command. A view-local `@State` copy of model state lied on screen (category
-select); bind to the model.
-
-**Session 5:** *The wrong detector shape:* hand-pose found **nothing** in a
-photo that was 60% arm — it wants articulated joints. Person *segmentation*
-separated cleanly (hands 0.75–60% of pixels, clean products exactly 0).
-When a detector fails, question the detector's task definition before the
-threshold. *The allowlist that didn't grow:* adding the Shopify rung without
-widening the image-host allowlist dead-lettered 5 good jobs. *Ran pipeline
-scripts from the wrong branch* — mid-stack, scripts existed on one branch
-only; `git branch --show-current` before running repo scripts.
-*Title-matching picked the wrong product in a franchise* (fenty powder vs
-liquid): shortest-containing is not exact; prefer name+shade equality and
-route the rest to hand-check. *Crowd-photo quality is a data fact, not a
-styling problem:* 25% of OBF beauty images contain people; no amount of
-cutout tuning fixes the source. And a process one: when the human interrupts
-a CI watch, **record the in-flight state in the handoff instead of
-re-watching** — that is what §0 is.
+**Session 6:** *The pipe ate the exit code again* — `make lint | tail` let a
+file-length violation commit; the same trap the handoff already warned
+about; check `$?` on the bare command, always. *An amend landed on the wrong
+branch* (cut the child branch, then fixed the parent's lint — the amend
+rewrote the child; repoint with `git branch -f`, and never fix a parent
+after cutting its child without checking `--show-current`). *A dirty working
+tree silently skipped a rebase in a `&&` chain* — twice; the chain's later
+steps then "succeeded" against the unrebased branch, and #140 nearly went up
+reverting merged work. Rebase with a clean tree, and verify the rebase line
+actually says "Successfully rebased". *`swift test` builds packages for
+macOS* — `.textInputAutocapitalization` compiled fine in the iOS app build
+and failed CI's package build; run `swift test` in the package, not just
+`xcodebuild`, before pushing UI with platform-gated modifiers. *The picker's
+fixture rungs don't host flow transitions* — tapping "none of these" in a
+single-rung picker state moves the ladder but not the screen; drive
+transitions in the shell. *Retarget scope-skip* (→ §0). *`supabase test db`
+is not hermetic* (→ §4).
 
 ## 9. Local setup
 
 ```bash
 make setup && make dev
-supabase test db          # 114 assertions
+supabase test db          # 116 assertions (fresh DB only — §4)
 make functions-test       # 49 deno tests
-# catalog data:
+# catalog data (order matters: shopify first claims the good names):
+deno run --allow-net --allow-run --allow-env scripts/shopify_import.ts
 deno run --allow-net --allow-run --allow-env scripts/obf_import.ts
 SUPABASE_SERVICE_ROLE_KEY=<legacy JWT from supabase status> \
-  deno run --allow-net --allow-run --allow-env --allow-read --allow-write scripts/catalog_images.ts
+  deno run --allow-net --allow-run --allow-env --allow-read --allow-write scripts/catalog_images.ts --limit 2500
 ```
 
-Note: the local **storage API wants the legacy JWT** service key
-(`eyJ…` from `supabase status`), not the new `sb_secret_…` form.
+Launch: `supabase start`, then
+`SIMCTL_CHILD_SUPABASE_PUBLISHABLE_KEY=<from supabase status>` +
+`simctl terminate/install/launch`. Sign-in fails → `supabase db reset`
+first. `GLOSSED_SCREENS=1` opens the screen picker. The local storage API
+wants the **legacy JWT** service key (`eyJ…`), not `sb_secret_…`.
