@@ -34,6 +34,10 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_KEY_UILaunchScreen_Generation: true
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        # Shown verbatim in the permission prompt, so it says what the camera is
+        # for in the user's terms — not "camera access required".
+        INFOPLIST_KEY_NSCameraUsageDescription: "to scan a barcode and find the exact shade you're holding"
+
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 0.1.0
         TARGETED_DEVICE_FAMILY: 1
