@@ -52,10 +52,11 @@ Next tickets, in dependency order:
 
 | Ticket | Why it is next |
 |---|---|
-| [GLO-16](https://linear.app/glossed/issue/GLO-16) shelf + cutouts | **Start here.** The biggest genuinely-free work. Unblocked by GLO-48's presign ([#37](https://github.com/seanbrasse/glossed/pull/37)). The ticket carries the bay view's exact geometry, and `ProductMock` (#56) is the primitive its bays are made of |
-| [GLO-65](https://linear.app/glossed/issue/GLO-65) a way to run a screen | Small, and it pays for itself on the next UI ticket. The app root is still `PlaceholderView`, so every look at a screen costs a throwaway edit — see §5 |
-| [GLO-63](https://linear.app/glossed/issue/GLO-63) three facts the catalog withholds | The ladder's rows are shipped with an empty sub-slot because of it. Server-side; wants a migration slot |
-| [GLO-62](https://linear.app/glossed/issue/GLO-62) ladder rework | **Done for what exists.** Rungs 0–2 rebuilt to the frames: [#56](https://github.com/seanbrasse/glossed/pull/56) `ProductMock`, [#57](https://github.com/seanbrasse/glossed/pull/57) the rows, [#58](https://github.com/seanbrasse/glossed/pull/58) rung 0, [#61](https://github.com/seanbrasse/glossed/pull/61) rung 1, [#60](https://github.com/seanbrasse/glossed/pull/60) rung 2. Rungs 3–4 were never built, and belong to GLO-15 when GLO-60 unblocks it |
+| [GLO-66](https://linear.app/glossed/issue/GLO-66) the shelf cannot render a row | **Start here — it is the thing blocking the most.** `ShelfRepository.items()` returns a variant id and a status: no brand, no name, no category, no height. Wants one `security_invoker` view, so it is a migration ticket too |
+| [GLO-63](https://linear.app/glossed/issue/GLO-63) three facts the catalog withholds | The ladder's rows ship with an empty sub-slot because of it. Same door as GLO-66 and GLO-60 — open the frozen core once |
+| [GLO-16](https://linear.app/glossed/issue/GLO-16) shelf + cutouts | **The whole screen is built** (#63–#68): bays, list, filter, sort, item sheet. What is left is `core/Media` + the capture flow (needs R2, §9) and the sheet's chips/fit (needs GLO-66's read) |
+| [GLO-62](https://linear.app/glossed/issue/GLO-62) ladder rework | **Done.** Rungs 0–2 rebuilt to the frames: [#56](https://github.com/seanbrasse/glossed/pull/56) `ProductMock`, [#57](https://github.com/seanbrasse/glossed/pull/57) the rows, [#58](https://github.com/seanbrasse/glossed/pull/58) rung 0, [#61](https://github.com/seanbrasse/glossed/pull/61) rung 1, [#60](https://github.com/seanbrasse/glossed/pull/60) rung 2. Rungs 3–4 were never built and belong to GLO-15 when GLO-60 unblocks it |
+| [GLO-65](https://linear.app/glossed/issue/GLO-65) a way to run a screen | **Done** ([#69](https://github.com/seanbrasse/glossed/pull/69), [#70](https://github.com/seanbrasse/glossed/pull/70)) — see §5 |
 | [GLO-60](https://linear.app/glossed/issue/GLO-60) DataKit: 3 gaps | **Blocks GLO-15 from closing.** Needs a human, or explicit authorization — see §4 |
 | [GLO-56](https://linear.app/glossed/issue/GLO-56) who owns the shade/size pick | A decision, not code. Also blocks GLO-15; read it before starting GLO-16 |
 | [GLO-15](https://linear.app/glossed/issue/GLO-15) submission ladder | Search, barcode and near-match rungs merged. Create rung is not buildable (GLO-60) |
@@ -71,15 +72,17 @@ with Apple capability on the App ID gates [GLO-23](https://linear.app/glossed/is
 
 ## 2. What exists
 
-**53 PRs merged, all CI-green.** `main` is the only long-lived branch.
+**61 PRs merged, all CI-green.** `main` is the only long-lived branch.
 
 | Layer | State |
 |---|---|
 | Schema | 6 migrations, all applied to the hosted project. 49 pgTAP assertions. |
 | `core/DataKit` | **FROZEN** — see §4. Config, client, typed errors, 4 repositories. 23 tests. |
-| `core/DesignSystem` | Tokens, 3 bundled fonts, 28 primitives. 26 tests. `ProductMock` is what the frames draw; `TypographicTile` is the floor below it. No icon primitive yet ([GLO-64](https://linear.app/glossed/issue/GLO-64)). |
+| `core/DesignSystem` | Tokens, 3 bundled fonts, 28 primitives. 28 tests. `ProductMock` is what the frames draw; `TypographicTile` is the floor below it. No icon primitive yet ([GLO-64](https://linear.app/glossed/issue/GLO-64)). |
 | `features/Ranking` | Complete: engine, rules, session, view. 29 tests. |
 | `features/AddLadder` | Ladder, search rung, barcode rung, near-match rung — **all three built to the kit frames**. 78 tests. Create rung blocked (GLO-60); the rows' sub-slot is empty for want of data (GLO-63). |
+| `features/Shelf` | Bays, list, domain filter, sort, item sheet — **the whole screen, built to `G.Shelf`**. 35 tests. **Renders from fixtures only**: nothing in the frozen core can supply a row ([GLO-66](https://linear.app/glossed/issue/GLO-66)). |
+| `app/Glossed` | `#if DEBUG` screen picker — twelve states, two taps each. Release root is still `PlaceholderView` until onboarding (GLO-18). |
 | `supabase/functions` | `storage_presign` — scoped R2 PUT URLs. 14 Deno tests, run by the `functions · deno` CI job. **Not deployed** (§9). |
 | Other features | Not started — the bulk of what remains. |
 
@@ -197,12 +200,20 @@ the loss is real. Two things partly cover it:
   drew as the same pink dropper — on the screen whose eyebrow says *check the
   photo, not the name*.
 
-  **The cost is that there is nowhere to look.** `app/Glossed` is still
-  `PlaceholderView`, so each of those four looks meant hand-writing an entry
-  point and a fake repository into `GlossedApp.swift`, then remembering to
-  revert it. A review step that costs an uncommitted edit is a review step that
-  gets skipped silently. [GLO-65](https://linear.app/glossed/issue/GLO-65) is a
-  `#if DEBUG` screen picker, and it is smaller than the ticket it unblocks.
+  **There is now somewhere to look.** [GLO-65](https://linear.app/glossed/issue/GLO-65)
+  landed: debug builds open on a screen picker with twelve states, each carrying
+  a note saying what the state is *for*. Use it, and add to it — the entries are
+  the shape of every UI bug this project has actually had:
+
+  - the escape row nobody could pick out of a list,
+  - a near-match list where every product drew as the same pink dropper,
+  - a brand sticker wide enough to cross into the product name,
+  - a primary action sitting under the home indicator,
+  - copy telling a phone with no camera to point its camera.
+
+  **None of those is expressible as an assertion.** A picker of happy paths
+  would have caught none of them either, which is why an entry names its state
+  rather than its screen.
 
 ## 6. CI economics
 
@@ -229,6 +240,7 @@ matters, and batching pushes is the single biggest lever.
 | No branch protection on `main` | Now that the repo is public, protection is free — worth enabling |
 | Numbers chosen, not validated | `docs/BACKLOG.md` — payoff n≥8, min-n 5, shrinkage k≈10 |
 | Nobody owns the shade/size pick | [GLO-56](https://linear.app/glossed/issue/GLO-56) — a search hit is a *product*, a shelf item is a *variant*. AddLadder or GLO-16's logging sheet? Blocks GLO-15 |
+| The shelf renders from fixtures only | [GLO-66](https://linear.app/glossed/issue/GLO-66) — the frozen core cannot supply one shelf row. Three tickets now want that door opened; open it once |
 | Two-char search floor duplicated | [GLO-55](https://linear.app/glossed/issue/GLO-55) — frozen DataKit and AddLadder each hard-code it. Drift one way silently poisons the queue GLO-14 reads |
 | Autocorrect fix lives at a call site | [GLO-57](https://linear.app/glossed/issue/GLO-57) — belongs in `GlossedInput`, next to `GlossedKeyboard`. Every future search field forgets it otherwise |
 | Orphaned cutouts accumulate | [GLO-54](https://linear.app/glossed/issue/GLO-54) — re-shoots write new keys by design; nothing collects the old ones |
