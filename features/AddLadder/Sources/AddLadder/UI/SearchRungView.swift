@@ -25,6 +25,7 @@ public struct SearchRungView: View {
             }
             options
         }
+        .scrollDismissesKeyboard(.immediately)
         // Arriving with a query already in hand is ordinary — the ladder seeds
         // it, and rung 0 can be re-entered. Without this the screen sits empty
         // until the user types a character it already has.
@@ -45,15 +46,15 @@ public struct SearchRungView: View {
 
     /// The way out is the last element of the same list, not a footer, so it
     /// cannot drift out of the layout the matches live in.
+    ///
+    /// `gap: 10` in the frame, which is tighter than the 14 between the screen's
+    /// own blocks — the rows read as one list rather than as four things.
     private var options: some View {
-        ScrollView {
-            LazyVStack(spacing: 10) {
-                ForEach(model.options) { option in
-                    LadderOptionRow(option) { model.choose(option) }
-                }
+        VStack(spacing: 10) {
+            ForEach(model.options) { option in
+                LadderOptionRow(option) { model.choose(option) }
             }
         }
-        .scrollDismissesKeyboard(.immediately)
     }
 
     /// Says what the state actually is. A failed search is never dressed up as

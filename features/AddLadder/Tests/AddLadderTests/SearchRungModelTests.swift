@@ -33,6 +33,17 @@ private func model(hits: [CatalogHit] = [], failure: GlossedError? = nil) -> Sea
 }
 
 @MainActor
+@Test func theEscapePromptStillNamesWhereItGoesWhenThereAreMatches() async throws {
+    // The frame writes one label for this rung. Shortening it once results
+    // arrive drops the "scan the barcode" from the only moment it is a real
+    // choice: matches on screen and none of them the thing in your hand.
+    let live = try model(hits: [hit(name: "Watermelon Glow")])
+    live.query = "glow"
+    await live.search()
+    #expect(live.options.last == .noneOfThese(prompt: "none of these — scan the barcode"))
+}
+
+@MainActor
 @Test func choosingTheWayOutAdvancesTheLadder() {
     let live = model()
     live.choose(.noneOfThese(prompt: "none of these"))

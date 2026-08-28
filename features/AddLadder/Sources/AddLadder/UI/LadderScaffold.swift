@@ -21,6 +21,19 @@ public struct LadderScaffold<Content: View>: View {
     }
 
     public var body: some View {
+        ScrollView {
+            column
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Tokens.Ground.milk)
+    }
+
+    /// One scrolling column, which is what the frame is: `G.AddLadder` returns a
+    /// single `flex-column` and the page scrolls. A rung that scrolls only its
+    /// own list pins the title and the rail to the top instead, and on a short
+    /// screen that leaves the way out below the fold with nothing to suggest it
+    /// is there.
+    private var column: some View {
         VStack(alignment: .leading, spacing: 14) {
             Button("← back", action: onBack)
                 .buttonStyle(.plain)
@@ -40,8 +53,7 @@ public struct LadderScaffold<Content: View>: View {
         // 110pt of bottom room: the floating nav sits over this screen, and a
         // list that ends underneath it looks like a list that got cut off.
         .padding(.init(top: 14, leading: 16, bottom: 110, trailing: 16))
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Tokens.Ground.milk)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

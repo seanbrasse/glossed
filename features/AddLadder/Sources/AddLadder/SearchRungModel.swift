@@ -63,8 +63,15 @@ public final class SearchRungModel {
 
     /// Names what happens next rather than just refusing: at the search rung the
     /// next rung is the scanner, so say so.
+    ///
+    /// Unconditional, which the frame is explicit about and the shipped version
+    /// was not: `G.AddLadder` rung 0 writes this label once, whether or not the
+    /// catalog had anything. Shortening it to a bare "none of these" the moment
+    /// results appear is when the row stops naming where it goes — and that is
+    /// exactly the case where someone needs telling, because they are looking
+    /// at matches and deciding none of them is the thing in their hand.
     private var escapePrompt: String {
-        result.isEmpty ? "none of these — scan the barcode" : "none of these"
+        "none of these — scan the barcode"
     }
 
     /// True only when a real query came back empty. A query too short to
