@@ -6,7 +6,16 @@ Closes #
 
 ## Visual plan (shape of the change at a glance)
 
-<!-- /visual-recap link, or the CI recap comment covers this -->
+<!--
+  VISUAL, not prose. A reviewer should grasp the shape before reading a line of
+  code. Use at least one of:
+    - a mermaid diagram (```mermaid — GitHub renders it) of the flow, the module
+      graph, or the before/after of whatever this rewires
+    - a file tree annotated with what each path does and why it changed
+    - a table mapping surface -> behavior for UI work
+  A paragraph describing the files is not a visual plan. If the change is
+  genuinely one file and one idea, say that in one line and move on.
+-->
 
 ## How to verify (screen/route, seeded account, expected outcome)
 
