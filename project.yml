@@ -18,6 +18,8 @@ packages:
     path: features/Ranking
   AddLadder:
     path: features/AddLadder
+  Shelf:
+    path: features/Shelf
 targets:
   Glossed:
     type: application
@@ -28,6 +30,7 @@ targets:
       - package: DataKit
       - package: Ranking
       - package: AddLadder
+      - package: Shelf
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.glossed.app
