@@ -38,14 +38,27 @@ jobs:
         if: steps.key.outputs.present == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
           MARKER="<!-- recap-unavailable -->"
-          if ! gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} \
-               --json comments -q '.comments[].body' | grep -qF "$MARKER"; then
-            gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body \
-              "$MARKER
-> **No automated visual recap on this PR.** \`ANTHROPIC_API_KEY\` is not set on this repo, so the recap workflow skipped ([GLO-13](https://linear.app/glossed/issue/GLO-13)). The author's hand-written **Visual plan** section is the only shape-of-the-change artifact here — hold it to that bar."
+          EXISTING=$(gh pr view "$PR" --repo "$REPO" --json comments -q '.comments[].body' || true)
+          if printf '%s' "$EXISTING" | grep -qF "$MARKER"; then
+            echo "already noted on this PR"
+            exit 0
           fi
+          {
+            printf '%s\n' "$MARKER"
+            printf '%s' "> **No automated visual recap on this PR.** The "
+            printf '%s' '`ANTHROPIC_API_KEY`'
+            printf '%s' " secret is not set, so the recap workflow skipped "
+            printf '%s\n' "([GLO-13](https://linear.app/glossed/issue/GLO-13))."
+            printf '%s\n' ">"
+            printf '%s' "> The author's hand-written **Visual plan** section is the only "
+            printf '%s\n' "shape-of-the-change artifact here — hold it to that bar."
+          } > /tmp/recap-note.md
+          gh pr comment "$PR" --repo "$REPO" --body-file /tmp/recap-note.md
+
       - uses: actions/checkout@v4
         if: steps.key.outputs.present == 'true'
         with:
