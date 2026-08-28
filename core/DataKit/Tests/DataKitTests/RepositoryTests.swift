@@ -56,3 +56,18 @@ import Testing
     ])
     #expect(Fit.allCases.allSatisfy { $0.label == $0.label.lowercased() })
 }
+
+@Test func aScanIsPaddedToTheCanonicalFourteen() {
+    // The database's gtin14 column pads the stored side; this pads the scanned
+    // side. One-sided normalization would make every scan miss (GLO-58).
+    #expect(CatalogRepository.gtin14("810086012350") == "00810086012350")
+    #expect(CatalogRepository.gtin14("0810086012350") == "00810086012350")
+    #expect(CatalogRepository.gtin14("00810086012350") == "00810086012350")
+}
+
+@Test func aCodeThatIsNotAGTINIsNoCodeAtAll() {
+    #expect(CatalogRepository.gtin14("not-a-code") == nil)
+    #expect(CatalogRepository.gtin14("1234567") == nil) // seven digits: too short
+    #expect(CatalogRepository.gtin14("123456781234567") == nil) // fifteen: too long
+    #expect(CatalogRepository.gtin14("") == nil)
+}

@@ -35,17 +35,31 @@ public struct CatalogRepository: Sendable {
 
     /// Exact GTIN lookup — the barcode rung, where dedupe is exact rather than
     /// probabilistic.
+    ///
+    /// Matches on `gtin14`, the padded generated column, so a 12-digit UPC-A
+    /// scan finds the 13-digit EAN-13 row for the same product (GLO-58). The
+    /// padding happens on both sides — client here, generated column there —
+    /// because normalizing one side of an exact match makes every scan miss.
     public func variant(gtin: String) async throws(GlossedError) -> Variant? {
+        guard let padded = CatalogRepository.gtin14(gtin) else { return nil }
         let hits: [Variant] = try await run {
             try await client.supabase
                 .from("variants")
                 .select()
-                .eq("gtin", value: gtin)
+                .eq("gtin14", value: padded)
                 .limit(1)
                 .execute()
                 .value
         }
         return hits.first
+    }
+
+    /// GS1's canonical form: digits only, 8–14 of them, left-padded to 14.
+    /// Anything else is not a GTIN and returns nil rather than a padded typo.
+    static func gtin14(_ raw: String) -> String? {
+        let digits = raw.filter(\.isNumber)
+        guard digits.count == raw.count, (8 ... 14).contains(digits.count) else { return nil }
+        return String(repeating: "0", count: 14 - digits.count) + digits
     }
 
     /// Brands for the create rung's typeahead. The draft requires a `brandID`
