@@ -33,17 +33,30 @@ public enum RankingRules {
 
     /// Days left before an item can be ranked — drives the "week N" label and
     /// the nudge when the window closes.
+    ///
+    /// Returns 0 for categories with no wear-in, and `nil` when the item needs a
+    /// start date it does not have: there is no countdown to render for an item
+    /// blocked on a date nobody entered. That pairing is the one the UI must
+    /// handle explicitly, since it is also the item that is most stuck —
+    /// `isBlockedPendingStartDate` names it rather than leaving a bare nil.
     public static func daysUntilRankable(
         startedOn: Date?,
         wearInDays: Int,
         now: Date = Date(),
         calendar: Calendar = Calendar(identifier: .gregorian)
     ) -> Int? {
-        guard wearInDays > 0, let startedOn else { return wearInDays > 0 ? nil : 0 }
+        guard wearInDays > 0 else { return 0 }
+        guard let startedOn else { return nil }
         let start = calendar.startOfDay(for: startedOn)
         let today = calendar.startOfDay(for: now)
         guard let elapsed = calendar.dateComponents([.day], from: start, to: today).day else { return nil }
         return max(0, wearInDays - elapsed)
+    }
+
+    /// The item cannot be ranked and cannot show a countdown either, because it
+    /// is waiting on a start date. The fix is to ask for the date, not to wait.
+    public static func isBlockedPendingStartDate(startedOn: Date?, wearInDays: Int) -> Bool {
+        wearInDays > 0 && startedOn == nil
     }
 
     /// Whether a category's list can be ranked at all.

@@ -37,7 +37,7 @@ public enum RankingEngine {
             comparisonsMade = 0
         }
 
-        /// The item to face off against, or nil when the position is settled.
+        /// The item to face off against, or nil when there is nothing left to ask.
         public var nextComparison: Comparison? {
             guard low < high, comparisonsMade < Insertion.maxComparisons else { return nil }
             return Comparison(candidate: candidate, opponent: list[midpoint])
@@ -48,8 +48,12 @@ public enum RankingEngine {
         }
 
         /// `candidateWon` means "I reach for the new one first".
+        ///
+        /// Ignored once the insertion has nothing left to ask, so a caller that
+        /// keeps answering past the cap cannot push the search further than the
+        /// four questions the design allows.
         public mutating func record(candidateWon: Bool) {
-            guard low < high else { return }
+            guard nextComparison != nil else { return }
             let mid = midpoint
             if candidateWon {
                 high = mid
@@ -59,10 +63,12 @@ public enum RankingEngine {
             comparisonsMade += 1
         }
 
-        /// A skip resolves the current step without expressing a preference:
-        /// the candidate settles at the midpoint rather than pushing either way.
+        /// "Too close to call" — which ends the insertion rather than skipping a
+        /// question. If someone cannot separate the candidate from this opponent,
+        /// placing it adjacent to that opponent is the honest answer; asking
+        /// again would only invite a guess.
         public mutating func skip() {
-            guard low < high else { return }
+            guard nextComparison != nil else { return }
             let mid = midpoint
             low = mid
             high = mid
@@ -75,8 +81,26 @@ public enum RankingEngine {
             low < high ? midpoint : low
         }
 
+        /// Nothing left to ask — either because the position is known or because
+        /// the cap stopped us. Callers that care which should read `isExact`.
         public var isSettled: Bool {
             nextComparison == nil
+        }
+
+        /// True when the range actually collapsed, so this placement is the
+        /// user's answer rather than our best guess.
+        ///
+        /// A capped placement *is* a guess, and a caller that cannot tell the
+        /// difference will persist it as though it were stated. Lists longer
+        /// than fifteen reach the cap — which is exactly when a shelf is big
+        /// enough for a wrong-looking placement to get noticed.
+        public var isExact: Bool {
+            low >= high
+        }
+
+        /// The cap stopped the search before the position was known.
+        public var wasCapped: Bool {
+            !isExact && comparisonsMade >= Insertion.maxComparisons
         }
 
         /// The list with the candidate placed.

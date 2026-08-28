@@ -128,3 +128,50 @@ private let start = Date(timeIntervalSince1970: 1_700_000_000)
     #expect(RankingRules.percentile(position: 0, listLength: 5) == nil)
     #expect(RankingRules.percentile(position: 6, listLength: 5) == nil)
 }
+
+// MARK: - Regressions from the PR #30 recap
+
+@Test func aCappedPlacementIsMarkedAsAGuess() {
+    // Thirty-one items with the candidate winning every time halves the range
+    // down to two and runs out of questions. The caller has to tell that
+    // placement apart from a stated one, or it persists a guess as though the
+    // user said it.
+    var insertion = RankingEngine.Insertion(candidate: UUID(), list: ids(31))
+    while insertion.nextComparison != nil {
+        insertion.record(candidateWon: true)
+    }
+    #expect(insertion.isSettled)
+    #expect(insertion.wasCapped)
+    #expect(!insertion.isExact)
+}
+
+@Test func aResolvedPlacementIsExact() {
+    var insertion = RankingEngine.Insertion(candidate: UUID(), list: ids(4))
+    while insertion.nextComparison != nil {
+        insertion.record(candidateWon: false)
+    }
+    #expect(insertion.isExact)
+    #expect(!insertion.wasCapped)
+}
+
+@Test func answeringPastTheCapChangesNothing() {
+    // A caller that ignores nextComparison must not be able to push the search
+    // past the four questions the design allows.
+    var insertion = RankingEngine.Insertion(candidate: UUID(), list: ids(16))
+    while insertion.nextComparison != nil {
+        insertion.record(candidateWon: false)
+    }
+    let settled = insertion
+    insertion.record(candidateWon: true)
+    insertion.skip()
+    #expect(insertion == settled)
+}
+
+@Test func anItemWaitingOnAStartDateIsNamedNotJustNil() {
+    // The item most stuck is the one with no countdown to show, so it gets a
+    // state of its own rather than a bare nil the UI has to guess at.
+    #expect(RankingRules.isBlockedPendingStartDate(startedOn: nil, wearInDays: 56))
+    #expect(RankingRules.daysUntilRankable(startedOn: nil, wearInDays: 56) == nil)
+    #expect(!RankingRules.isBlockedPendingStartDate(startedOn: nil, wearInDays: 0))
+    #expect(RankingRules.daysUntilRankable(startedOn: nil, wearInDays: 0) == 0)
+}
