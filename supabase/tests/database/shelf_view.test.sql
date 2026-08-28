@@ -4,7 +4,7 @@
 -- not invent the two facts the schema leaves null.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(13);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -68,6 +68,18 @@ select is((select ranked_in_category from user_shelf_items where user_item_id = 
 -- wrong place.
 select is((select height_mm from user_shelf_items where user_item_id = '50000000-0000-0000-0000-000000000013'),
     70::numeric, 'height comes from the variant, unmodified');
+
+-- The sheet's gate (0013): shade is only evidence where a shade is meant to
+-- match skin, and the row now says which categories those are.
+select is((select is_anchor from user_shelf_items
+           where user_item_id = '50000000-0000-0000-0000-000000000013'),
+    false, 'a blush row is not an anchor');
+insert into user_items (id, user_id, variant_id, client_id)
+values ('50000000-0000-0000-0000-000000000014', '00000000-0000-0000-0000-000000000002',
+        '40000000-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000004');
+select is((select is_anchor from user_shelf_items
+           where user_item_id = '50000000-0000-0000-0000-000000000014'),
+    true, 'a foundation row is');
 
 select * from finish();
 rollback;
