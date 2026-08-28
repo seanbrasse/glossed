@@ -41,7 +41,8 @@
             ImportEntries.parsed,
             ImportEntries.nothingMatched,
             ImportEntries.parseFailed,
-            GalleryEntries.productMock
+            GalleryEntries.productMock,
+            LiveShelfEntry.live
         ]
     }
 
