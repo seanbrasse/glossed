@@ -54,11 +54,12 @@ public enum GTIN {
     /// The scanned code as a string worth looking up, or nil if it is not a
     /// product code at all.
     ///
-    /// Deliberately *not* zero-padded to GTIN-14. Padding is the correct
-    /// canonical form, but `variants.gtin` stores whatever the feed supplied —
-    /// 13 digits today — and the lookup is an exact match, so padding one side
-    /// only would turn every scan into a miss. Normalizing both sides is a
-    /// schema change; GLO-58 has it.
+    /// Still not zero-padded here, and now for a different reason than it once
+    /// was: GLO-58 landed, both sides normalize, but the padding belongs to the
+    /// *lookup* (`CatalogRepository.variant(gtin:)` pads against the database's
+    /// generated `gtin14`). This function's job is validation — is it a product
+    /// code at all — and it keeps the code as scanned, which is also the form
+    /// `submitted_gtin` stores when the scan misses.
     public static func normalize(_ raw: String) -> String? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
