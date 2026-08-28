@@ -4,20 +4,38 @@ Where Phase 1 stands, what to do next, and the decisions a new session would
 otherwise have to rediscover. Read `docs/README.md` first for the design; this
 file is only about state.
 
+## 0. Read this before you build a screen
+
+**Open the frame first.** [`docs/DESIGN.md`](DESIGN.md) has the design kit's URL
+and — more importantly — how to read `screens.jsx` **as source**, which gives
+you exact copy, sizes and tokens instead of a screenshot to squint at.
+
+This is not a nicety. An earlier session could not reach the kit, built the
+whole submission ladder from the primitives instead, and produced screens that
+use every token correctly and look nothing like the design. That is
+[GLO-62](https://linear.app/glossed/issue/GLO-62), and it is a rework, not a
+polish pass. **If you cannot open the frame, stop and say so.**
+
+Every UI ticket now names its `G.<Screen>` symbol and quotes the frame's
+structure. The PRD sections that constrain each screen are quoted there too,
+because the PRD is not in this repo (§9).
+
 ## 1. Where to start
 
 Everything is tracked in **Linear**, not GitHub Issues:
 workspace [glossed](https://linear.app/glossed), team **GLO**, project
-**GLOSSED — Phase 1: The Journal**.
+**GLOSSED — Phase 1: The Journal**. Every ticket carries its design frame, its
+PRD references, and what is blocking it.
 
 Next tickets, in dependency order:
 
 | Ticket | Why it is next |
 |---|---|
-| [GLO-16](https://linear.app/glossed/issue/GLO-16) shelf + cutouts | **Now unblocked** — GLO-48's presign merged in [#37](https://github.com/seanbrasse/glossed/pull/37). The biggest genuinely-free piece of work |
-| [GLO-60](https://linear.app/glossed/issue/GLO-60) DataKit: brand lookup + 2 | **Blocks GLO-15 from closing.** Needs a human, or explicit authorization — see §4 |
+| [GLO-62](https://linear.app/glossed/issue/GLO-62) ladder rework | **Start here.** The chrome landed in [#53](https://github.com/seanbrasse/glossed/pull/53); the rows still do not match the frame. Small, visible, and it proves the frame-first loop works before it is applied to a bigger surface |
+| [GLO-16](https://linear.app/glossed/issue/GLO-16) shelf + cutouts | The biggest genuinely-free work. Unblocked by GLO-48's presign ([#37](https://github.com/seanbrasse/glossed/pull/37)). The ticket now carries the bay view's exact geometry |
+| [GLO-60](https://linear.app/glossed/issue/GLO-60) DataKit: 3 gaps | **Blocks GLO-15 from closing.** Needs a human, or explicit authorization — see §4 |
 | [GLO-56](https://linear.app/glossed/issue/GLO-56) who owns the shade/size pick | A decision, not code. Also blocks GLO-15; read it before starting GLO-16 |
-| [GLO-15](https://linear.app/glossed/issue/GLO-15) submission ladder | **5 of 7 PRs merged.** Search and barcode rungs done. Near-match is buildable; create is not (GLO-60) |
+| [GLO-15](https://linear.app/glossed/issue/GLO-15) submission ladder | Search, barcode and near-match rungs merged. Create rung is not buildable (GLO-60) |
 | [GLO-47](https://linear.app/glossed/issue/GLO-47) product page · [GLO-19](https://linear.app/glossed/issue/GLO-19) import | Parallel-safe — different feature directories, untouched |
 | [GLO-14](https://linear.app/glossed/issue/GLO-14) catalog ingest | Server-only lane, parallel with all iOS work |
 | [GLO-48](https://linear.app/glossed/issue/GLO-48) catalog images + R2 | Presign done. The rest **needs a human with the Cloudflare account** — see §9 |
@@ -30,7 +48,7 @@ with Apple capability on the App ID gates [GLO-23](https://linear.app/glossed/is
 
 ## 2. What exists
 
-**41 PRs merged, all CI-green.** `main` is the only long-lived branch.
+**48 PRs merged, all CI-green.** `main` is the only long-lived branch.
 
 | Layer | State |
 |---|---|
@@ -38,7 +56,7 @@ with Apple capability on the App ID gates [GLO-23](https://linear.app/glossed/is
 | `core/DataKit` | **FROZEN** — see §4. Config, client, typed errors, 4 repositories. 23 tests. |
 | `core/DesignSystem` | Tokens, 3 bundled fonts, 27 primitives. 20 tests. `TypographicTile` is the image fallback floor — nothing consumes it yet. |
 | `features/Ranking` | Complete: engine, rules, session, view. 29 tests. |
-| `features/AddLadder` | Ladder, search rung (logic/state/screen), barcode rung (GTIN + state + scanner). 57 tests. Near-match and create rungs remain. |
+| `features/AddLadder` | Ladder, search rung, barcode rung, near-match rung. 74 tests. **Screens need rework to the kit — GLO-62.** Create rung blocked. |
 | `supabase/functions` | `storage_presign` — scoped R2 PUT URLs. 14 Deno tests, run by the `functions · deno` CI job. **Not deployed** (§9). |
 | Other features | Not started — the bulk of what remains. |
 
@@ -135,6 +153,20 @@ Two mechanical facts:
 
 **Since it no longer runs automatically, the PR body's Visual plan section is
 the only shape-of-the-change artifact on most PRs.** Hold it to that bar.
+
+### With the recap manual, you are the review
+
+Turning it off ([#51](https://github.com/seanbrasse/glossed/pull/51)) removed the
+only automated review these PRs had. It caught five real bugs in one session, so
+the loss is real. Two things partly cover it:
+
+- **The PR body's Visual plan section is now the only shape-of-the-change
+  artifact on most PRs.** Write it like someone will rely on it, because they
+  will.
+- **Run the thing on a simulator.** Every UI bug this session that mattered was
+  found by looking at the screen, not by a test: a doubled heading, iOS
+  autocapitalising a brand name into a miss, a rung that never searched on
+  appear, and copy instructing a phone that cannot scan to scan.
 
 ## 6. CI economics
 
@@ -249,3 +281,31 @@ posted a test stub instead of a recap while the check went green. The recap is
 the review step this project leans on, so a silent miss means a PR merges with
 no review while the check mark says otherwise. Fixing it means editing a
 workflow, which agents may not do.
+
+## 12. What this session got wrong, so you don't repeat it
+
+Three failures, all the same shape — **acting on an assumption instead of
+checking**, and not saying out loud that it was an assumption.
+
+**The design.** The kit was linked on the Linear project from the day it was
+created. The 403 from `WebFetch` was taken as "unreachable" and the whole
+submission ladder was built from the primitives. It opens fine in the browser
+pane; `screens.jsx` reads as source. One question would have caught it.
+→ [GLO-62](https://linear.app/glossed/issue/GLO-62), and §0 above.
+
+**The handoff.** The previous session's PR added the pointer to
+`docs/HANDOFF.md` without the file — a `git push -q` had failed silently and the
+merge went through empty. **Check `git show --stat HEAD` before pushing, and the
+PR's file list after.**
+
+**The blockers.** GLO-15's create rung was planned three times before anyone
+checked whether `CatalogRepository` could supply a `brandID` (it cannot) or
+whether a created product could reach the shelf (it cannot — nothing creates the
+variant, and `user_items.variant_id` is `not null`). Both were findable in a
+two-minute read of the frozen core. → [GLO-60](https://linear.app/glossed/issue/GLO-60).
+
+The counterweight worth keeping: the automated recap caught five real bugs, all
+one family — *a name claiming more certainty than the code can supply*. When it
+flagged something, checking it rather than agreeing with it was what found the
+actual defect twice (a test that could not fail the way it claimed; a
+determinism test that passed for the implementation it existed to prevent).
