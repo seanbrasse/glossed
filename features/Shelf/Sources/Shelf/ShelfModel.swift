@@ -1,4 +1,5 @@
 import DataKit
+import DesignSystem
 import Foundation
 import Observation
 
@@ -41,19 +42,22 @@ public final class ShelfModel {
     public private(set) var openSection: String?
 
     private let sections: [ShelfSection]
+    private let fitStore: ShelfFitStore?
 
     public init(
         sections: [ShelfSection],
         selectedDomains: Set<Domain> = [.makeup, .skincare],
         sort: ShelfSort = .favorite,
         viewMode: ShelfViewMode = .shelf,
-        openSection: String? = nil
+        openSection: String? = nil,
+        fitStore: ShelfFitStore? = nil
     ) {
         self.sections = sections
         self.selectedDomains = selectedDomains
         self.sort = sort
         self.viewMode = viewMode
         self.openSection = openSection
+        self.fitStore = fitStore
     }
 
     /// Tapping the open one closes it; tapping another moves the opening.
@@ -64,12 +68,71 @@ public final class ShelfModel {
     /// The item whose sheet is open, if any.
     public private(set) var openItem: ShelfItem?
 
+    /// The open item's fit answers, as the sheet's control shows them.
+    ///
+    /// Loaded when an anchor item opens, written through `fitChanged(to:)`.
+    /// Empty while the load is in flight — an unanswered control, which is
+    /// what the truth is until the read says otherwise.
+    public private(set) var openFit: Set<FitAnswer> = []
+
+    /// The last set the store confirmed. A failed save falls back here, so the
+    /// control never keeps showing an answer that did not persist.
+    private var persistedFit: Set<FitAnswer> = []
+
+    /// Whether the user has touched the control since the sheet opened. A load
+    /// that resolves after an edit loses: the newer fact wins.
+    private var fitEdited = false
+
+    /// Internal, not private: tests await these to order the async work.
+    var fitLoadTask: Task<Void, Never>?
+    var fitSaveTask: Task<Void, Never>?
+
     public func open(_ item: ShelfItem) {
         openItem = item
+        openFit = []
+        persistedFit = []
+        fitEdited = false
+        fitLoadTask?.cancel()
+        guard item.isAnchorCategory, let fitStore else { return }
+        fitLoadTask = Task { [id = item.id] in
+            guard let saved = try? await fitStore.load(id) else { return }
+            // Late answers do not overwrite: a different sheet, or an edit made
+            // while the read was in flight, is newer than what was read.
+            guard !Task.isCancelled, openItem?.id == id, !fitEdited else { return }
+            openFit = saved
+            persistedFit = saved
+        }
     }
 
     public func closeSheet() {
         openItem = nil
+        fitLoadTask?.cancel()
+    }
+
+    /// The sheet's control writes here. Optimistic: the control shows the new
+    /// answer immediately, the save runs behind it, and a failure reverts to
+    /// the last persisted set rather than leaving a lie on screen.
+    ///
+    /// Saves are chained in order — `capture_fit` replaces the whole set, so
+    /// two saves racing out of order could persist the older answer last.
+    public func fitChanged(to answers: Set<FitAnswer>) {
+        guard let item = openItem, item.isAnchorCategory else { return }
+        openFit = answers
+        fitEdited = true
+        guard let fitStore else { return }
+        fitSaveTask = Task { [previous = fitSaveTask, id = item.id] in
+            await previous?.value
+            do {
+                try await fitStore.save(id, answers)
+                guard openItem?.id == id else { return }
+                persistedFit = answers
+            } catch {
+                // Only the latest edit reverts — an older save failing under a
+                // newer pending one says nothing about what ends up persisted.
+                guard openItem?.id == id, openFit == answers else { return }
+                openFit = persistedFit
+            }
+        }
     }
 
     /// The denominator of "#2 of 5".
