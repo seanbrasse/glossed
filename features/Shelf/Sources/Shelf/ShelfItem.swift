@@ -237,3 +237,25 @@ public extension ShelfItem {
         }
     }
 }
+
+extension ShelfItem {
+    /// Whether this item answers a shelf search (GLO-73).
+    ///
+    /// Brand, name and variant per the ticket's criteria, plus the bay label —
+    /// the ticket's own motivating query is "where's my cleanser", and that is
+    /// a category word. Case- and diacritic-insensitive, whitespace-tidied;
+    /// an empty query matches everything, which is what "no filter" means.
+    func matches(_ query: String) -> Bool {
+        let wanted = ShelfItem.folded(query)
+        guard !wanted.isEmpty else { return true }
+        return [brand, name, variant, categoryLabel]
+            .compactMap(\.self)
+            .contains { ShelfItem.folded($0).contains(wanted) }
+    }
+
+    private static func folded(_ raw: String) -> String {
+        raw.split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ")
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+    }
+}
