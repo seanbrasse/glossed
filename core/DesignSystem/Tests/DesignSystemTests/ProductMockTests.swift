@@ -1,3 +1,4 @@
+import CoreGraphics
 import Testing
 @testable import DesignSystem
 
@@ -63,4 +64,36 @@ import Testing
     // claim about ranking that is not true.
     #expect(ProductMock.spoken("new") == "new")
     #expect(ProductMock.spoken("") == "")
+}
+
+/// Points, compared loosely — these are `Double` multiplications and 100 × 0.28
+/// is 28.000000000000004. A tenth of a point is far below anything drawable.
+private func isNear(_ lhs: CGFloat, _ rhs: CGFloat) -> Bool {
+    abs(lhs - rhs) < 0.1
+}
+
+@Test func everyKindReportsTheWidthOfItsWidestPiece() {
+    // A jar's lid is narrower than its body and a dropper's cap is much
+    // narrower than its bottle, so "how wide is this" is the widest piece —
+    // which is what a caller laying two of them side by side needs.
+    #expect(isNear(ProductMock.drawnWidth(kind: .compact, scale: 100), 80))
+    #expect(isNear(ProductMock.drawnWidth(kind: .jar, scale: 100), 66))
+    #expect(isNear(ProductMock.drawnWidth(kind: .bottle, scale: 100), 42))
+    #expect(isNear(ProductMock.drawnWidth(kind: .dropper, scale: 100), 36))
+    #expect(isNear(ProductMock.drawnWidth(kind: .mist, scale: 100), 32))
+    #expect(isNear(ProductMock.drawnWidth(kind: .tube, scale: 100), 28))
+}
+
+@Test func widthScalesLinearlyAndNeverGoesNegative() {
+    #expect(isNear(ProductMock.drawnWidth(kind: .bottle, scale: 50), 21))
+    #expect(ProductMock.drawnWidth(kind: .bottle, scale: 0) == 0)
+}
+
+@Test func aCompactIsTheWidestKindAndATubeTheNarrowest() {
+    // Not arithmetic for its own sake: the shelf packs bays by width, so which
+    // kind is widest decides how many fit, and a silent reordering here would
+    // quietly change every bay in the app.
+    let widths = ProductMock.Kind.allCases.map { ($0, ProductMock.drawnWidth(kind: $0, scale: 100)) }
+    #expect(widths.max { $0.1 < $1.1 }?.0 == .compact)
+    #expect(widths.min { $0.1 < $1.1 }?.0 == .tube)
 }
