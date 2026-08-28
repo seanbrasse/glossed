@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertThrows } from "jsr:@std/assert@1";
 import { type FeedRow, gtin14, type KnownProduct, type KnownVariant, plan } from "./diff.ts";
-import { resolveSecretKey } from "./index.ts";
+import { resolveSecretKey } from "../_shared/credentials.ts";
 
 // -- the credential contract -------------------------------------------------
 // The modern env is a JSON dictionary (SUPABASE_SECRET_KEYS); the legacy
