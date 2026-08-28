@@ -6,7 +6,8 @@ import Testing
 /// DataKit is frozen and `CatalogHit`'s memberwise init is internal to it, so
 /// hits are built the way the app really gets them — decoded off the wire.
 /// A drift in the RPC's column names fails here rather than in production.
-private func hit(name: String, scope: String = "canonical") throws -> CatalogHit {
+/// Shared with the model tests: one shape of fake hit, one place to fix it.
+func hit(name: String, scope: String = "canonical") throws -> CatalogHit {
     let json = """
     {"id":"\(UUID().uuidString)","name":"\(name)","brand_name":"Glow Recipe",
      "category_slug":"serum","domain":"skincare","scope":"\(scope)"}
@@ -14,7 +15,7 @@ private func hit(name: String, scope: String = "canonical") throws -> CatalogHit
     return try JSONDecoder().decode(CatalogHit.self, from: Data(json.utf8))
 }
 
-private actor FakeCatalog: CatalogSearching {
+actor FakeCatalog: CatalogSearching {
     private let hits: [CatalogHit]
     private let failure: GlossedError?
     private(set) var searched: [String] = []
