@@ -6,7 +6,8 @@ import Testing
 /// A real GS1-valid GTIN-13, matching what `supabase/seed.sql` now carries.
 private let seededGTIN = "0810086012343"
 
-private func variant(gtin: String) throws -> Variant {
+/// Shared with the model tests: one shape of variant, one place to fix it.
+func variant(gtin: String) throws -> Variant {
     let json = """
     {"id":"40000000-0000-0000-0000-000000000001",
      "product_id":"30000000-0000-0000-0000-000000000001",
@@ -16,7 +17,7 @@ private func variant(gtin: String) throws -> Variant {
     return try JSONDecoder().decode(Variant.self, from: Data(json.utf8))
 }
 
-private actor FakeVariants: VariantLookup {
+actor FakeVariants: VariantLookup {
     private let known: [String: Variant]
     private(set) var lookedUp: [String] = []
 
@@ -107,7 +108,7 @@ private actor FakeVariants: VariantLookup {
     }
 }
 
-private struct FailingVariants: VariantLookup {
+struct FailingVariants: VariantLookup {
     func variant(gtin _: String) async throws(GlossedError) -> Variant? {
         throw GlossedError(.offline, userMessage: "no connection — try again in a sec.")
     }
