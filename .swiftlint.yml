@@ -20,6 +20,7 @@ nesting:
   function_level: 3
 identifier_name:
   min_length: 2
+  excluded: [n, x, y] # "the n" is domain vocabulary (always show the n); x/y for pin coordinates
 opt_in_rules:
   - force_unwrapping
   - implicitly_unwrapped_optional
@@ -29,3 +30,6 @@ implicitly_unwrapped_optional:
   severity: error
 force_cast: error
 force_try: error
+excluded:
+  - "**/.build"
+  - DerivedData
