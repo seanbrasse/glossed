@@ -11,7 +11,7 @@ name: visual-recap
 
 on:
   pull_request:
-    types: [opened, ready_for_review]
+    types: [opened, reopened, ready_for_review]
 
 jobs:
   recap:
