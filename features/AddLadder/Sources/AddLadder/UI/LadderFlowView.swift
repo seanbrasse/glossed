@@ -2,9 +2,9 @@ import DataKit
 import DesignSystem
 import SwiftUI
 
-/// Everything the ladder asks of the catalog, in one requirement — the three
-/// per-rung protocols, which `CatalogRepository` already satisfies severally.
-public typealias LadderCatalog = CatalogSearching & ProductCreating & VariantLookup
+/// Everything the ladder asks of the catalog, in one requirement — the four
+/// per-need protocols, which `CatalogRepository` already satisfies severally.
+public typealias LadderCatalog = CatalogSearching & ProductCreating & VariantListing & VariantLookup
 
 /// The ladder as one trip: search → barcode → near matches → create → confirm.
 ///
@@ -15,11 +15,11 @@ public typealias LadderCatalog = CatalogSearching & ProductCreating & VariantLoo
 /// arrives pre-filled two rungs later, and a scanned code that missed rides
 /// all the way into the create draft.
 ///
-/// Two seams are stated rather than papered over:
-/// - A *matched* product from search/near-matches needs the shade/size pick,
-///   which the GLO-56 decision assigned to the logging sheet (GLO-16, not
-///   built). Picking a product shows an honest interim card and a way back —
-///   it does not guess a variant.
+/// The variant seam, resolved both ways:
+/// - A *matched* product from search/near-matches opens the shade/size pick
+///   (GLO-56 → GLO-16's logging sheet). The sheet hands a variant id back to
+///   the rung model, and the same matched-log machinery as the barcode path
+///   writes the row — one write path, two doors.
 /// - A *matched barcode* is an exact variant (GLO-56: "barcode skips the
 ///   pick"), so it logs directly and hands back to the host.
 public struct LadderFlowView: View {
@@ -69,8 +69,15 @@ public struct LadderFlowView: View {
                 react(to: ladder)
             }
             .overlay {
-                if let productID = pickedProductID {
-                    variantPickInterim(productID)
+                if let hit = pickedHit {
+                    // Identity pinned to the pick: a different product is a
+                    // fresh sheet with a fresh load, never recycled state.
+                    VariantPickSheet(
+                        model: VariantPickModel(hit: hit, catalog: catalog),
+                        onConfirm: { variantID in pickedVariant(variantID) },
+                        onCancel: { cancelVariantPick() }
+                    )
+                    .id(hit.id)
                 }
                 if isLoggingMatch || matchLogFailure != nil {
                     matchLogOverlay
@@ -100,11 +107,21 @@ public struct LadderFlowView: View {
         }
     }
 
-    private var pickedProductID: UUID? {
+    private var pickedHit: CatalogHit? {
         switch step {
-        case let .search(model): model.pickedProductID
-        case let .nearMatches(model): model.pickedProductID
+        case let .search(model): model.pickedHit
+        case let .nearMatches(model): model.pickedHit
         case .barcode, .create: nil
+        }
+    }
+
+    /// The sheet's answer, delivered to whichever rung asked — the rung model
+    /// is the only party allowed to resolve the ladder.
+    private func pickedVariant(_ variantID: UUID) {
+        switch step {
+        case let .search(model): model.pickedVariant(variantID)
+        case let .nearMatches(model): model.pickedVariant(variantID)
+        case .barcode, .create: break
         }
     }
 
@@ -163,41 +180,6 @@ public struct LadderFlowView: View {
         guard !hasNotifiedShelf else { return }
         hasNotifiedShelf = true
         onShelfChanged()
-    }
-
-    // MARK: - The stated seams
-
-    /// A picked product is not yet a shelf item — the shade/size pick belongs
-    /// to the logging sheet (GLO-56 → GLO-16), which does not exist. Saying so
-    /// beats guessing a variant, and the way back keeps the rung usable.
-    private func variantPickInterim(_: UUID) -> some View {
-        VStack(spacing: Tokens.Space.s3) {
-            Text("almost —")
-                .font(Typography.display(24))
-                .foregroundStyle(Tokens.Ink.primary)
-            Text(
-                "picking the shade & size is the logging sheet's job, and it isn't built yet "
-                    + "(GLO-16). scan the barcode instead — a scan knows its exact variant."
-            )
-            .meta()
-            .multilineTextAlignment(.center)
-            Button("back") {
-                cancelVariantPick()
-            }
-            .buttonStyle(.glossed(.secondary))
-        }
-        .padding(Tokens.Space.s5)
-        .frame(maxWidth: .infinity)
-        .background(Tokens.Ground.card)
-        .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.lg))
-        .overlay(
-            RoundedRectangle(cornerRadius: Tokens.Radius.lg)
-                .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.std)
-        )
-        .padding(Tokens.Space.s5)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Tokens.Ink.primary.opacity(0.4))
-        .ignoresSafeArea()
     }
 
     private func cancelVariantPick() {
