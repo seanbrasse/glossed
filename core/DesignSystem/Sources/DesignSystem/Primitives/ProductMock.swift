@@ -91,6 +91,35 @@ public struct ProductMock: View {
             .offset(y: scale * 0.033)
     }
 
+    /// How wide this draws, in points.
+    ///
+    /// The widest piece wins: a jar's lid is narrower than its body, a dropper's
+    /// cap is much narrower than its bottle. Callers laying mocks out beside
+    /// each other need the silhouette's footprint, not a nominal size.
+    ///
+    /// Deliberately *not* the label's width. A brand sticker is wider than the
+    /// bottle it is stuck to — that is what a label looks like — and letting it
+    /// widen the object would make a long brand name push its neighbours around.
+    /// A caller packing mocks tightly enough for stickers to collide should give
+    /// them a floor of its own.
+    public nonisolated static func drawnWidth(kind: Kind, scale: CGFloat) -> CGFloat {
+        scale * widestFraction(kind)
+    }
+
+    /// The `width` fractions in `shape`, largest per kind. Kept next to the
+    /// drawing rather than derived from it: `Piece` is a private detail and a
+    /// `View` cannot be measured without rendering it.
+    private nonisolated static func widestFraction(_ kind: Kind) -> CGFloat {
+        switch kind {
+        case .compact: 0.8
+        case .jar: 0.66
+        case .bottle: 0.42
+        case .dropper: 0.36
+        case .mist: 0.32
+        case .tube: 0.28
+        }
+    }
+
     /// `#2` read aloud as "hash two" is noise. Only the shelf uses this today
     /// and its labels are ranks, so the `#` becomes the word that explains it.
     nonisolated static func spoken(_ label: String) -> String {
