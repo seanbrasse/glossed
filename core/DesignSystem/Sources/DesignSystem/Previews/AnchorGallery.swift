@@ -8,7 +8,7 @@ import SwiftUI
 }
 
 private struct AnchorPreview: View {
-    @State private var fit: FitAnswer? = .justRight
+    @State private var fit: Set<FitAnswer> = [.justRight]
     @State private var hair: String? = "3b"
 
     var body: some View {
