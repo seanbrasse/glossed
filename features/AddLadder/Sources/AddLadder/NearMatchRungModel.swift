@@ -15,7 +15,13 @@ public final class NearMatchRungModel {
     public private(set) var ladder: Ladder
     public private(set) var isSearching = false
     public private(set) var failure: GlossedError?
-    public private(set) var pickedProductID: UUID?
+    /// The whole hit, for the same reason as the search rung: the logging
+    /// sheet's header renders from it.
+    public private(set) var pickedHit: CatalogHit?
+
+    public var pickedProductID: UUID? {
+        pickedHit?.id
+    }
 
     public var query: String {
         didSet { ladder.refine(query: query) }
@@ -82,7 +88,7 @@ public final class NearMatchRungModel {
         case let .match(hit):
             // A hit is a product; a shelf item is a variant (GLO-56). Same
             // handoff as the search rung — picking here is not resolving.
-            pickedProductID = hit.id
+            pickedHit = hit
         case .noneOfThese:
             ladder.noneOfThese()
         }
@@ -93,6 +99,6 @@ public final class NearMatchRungModel {
     }
 
     public func cancelVariantPick() {
-        pickedProductID = nil
+        pickedHit = nil
     }
 }

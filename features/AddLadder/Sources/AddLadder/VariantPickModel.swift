@@ -1,0 +1,110 @@
+import DataKit
+import Foundation
+import Observation
+
+/// What the logging sheet needs from the catalog. DataKit is frozen, so the
+/// conformance lives here (same seam as `VariantLookup`).
+public protocol VariantListing: Sendable {
+    func variants(productID: UUID) async throws(GlossedError) -> [Variant]
+}
+
+extension CatalogRepository: VariantListing {}
+
+/// The variant pick behind the logging sheet (GLO-56 → GLO-16).
+///
+/// A search hit is a *product*; a shelf item is a *variant*. This model turns
+/// the picked hit into the list of shades and sizes the catalog actually has,
+/// and holds the one the user says is theirs. It never resolves the ladder
+/// itself — confirming hands the variant id back to the rung model, which is
+/// the only party allowed to call `Ladder.matched`.
+///
+/// GLO-56's warning, honored here: a product with exactly one variant still
+/// shows the sheet. "A foundation with one shade in the catalog and twenty in
+/// reality would silently log the wrong one" — the sole option is preselected
+/// so confirming is one tap, but the user reads the shade before it logs.
+@MainActor
+@Observable
+public final class VariantPickModel {
+    /// The picked product, kept whole — brand and name render the sheet's
+    /// header, and a bare UUID cannot say "soft pinch liquid blush".
+    public let hit: CatalogHit
+
+    public private(set) var variants: [Variant] = []
+    public private(set) var isLoading = false
+    /// The load failed. Distinct from "no variants": a failure is not evidence
+    /// about the catalog, so the sheet must offer a retry, not an empty state.
+    public private(set) var failure: GlossedError?
+    public private(set) var selectedVariantID: UUID?
+
+    private let catalog: any VariantListing
+
+    public init(hit: CatalogHit, catalog: any VariantListing) {
+        self.hit = hit
+        self.catalog = catalog
+    }
+
+    /// True once a load has finished and found nothing to pick. A real state —
+    /// the catalog has products whose variants were never filled in — and the
+    /// sheet owes the user a way back rather than an unpressable button.
+    public var isEmpty: Bool {
+        failure == nil && !isLoading && hasLoaded && variants.isEmpty
+    }
+
+    public var canConfirm: Bool {
+        selectedVariantID != nil
+    }
+
+    private var hasLoaded = false
+
+    public func load() async {
+        isLoading = true
+        failure = nil
+        defer { isLoading = false }
+        do {
+            variants = try await catalog.variants(productID: hit.id)
+            hasLoaded = true
+            // One option is a confirmation, not a choice — preselect it so the
+            // sheet reads "this is the one we have, check it's yours".
+            if variants.count == 1 {
+                selectedVariantID = variants.first?.id
+            }
+        } catch {
+            variants = []
+            failure = error
+        }
+    }
+
+    public func select(_ variantID: UUID) {
+        guard variants.contains(where: { $0.id == variantID }) else { return }
+        selectedVariantID = variantID
+    }
+
+    /// The confirmed variant, or nil while nothing is picked. The sheet's
+    /// confirm button is disabled exactly when this is nil.
+    public var confirmed: Variant? {
+        variants.first { $0.id == selectedVariantID }
+    }
+}
+
+extension Variant {
+    /// The shade-or-size line — "joy · 7.5ml", "150ml". The client-side twin
+    /// of the database's `variant_label()` (migration 0007): same separator,
+    /// same trailing-zero trim, so a sheet row and a shelf row agree.
+    ///
+    /// Known gap, stated: `variant_label()` also renders `strength_pct`
+    /// ("10% · 30ml") and `Variant` does not decode that column — a DataKit
+    /// opening tracked on GLO-56. One catalog row is affected today.
+    public var pickLabel: String? {
+        let size = sizeML.map { Variant.trimmed($0) + "ml" }
+        let parts = [shadeCode, size].compactMap(\.self)
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// "32.0" reads as a decimal nobody printed on the box; `trim_scale` in
+    /// SQL drops it and this is its Swift half.
+    private static func trimmed(_ value: Double) -> String {
+        value == value.rounded() && abs(value) < 1e15
+            ? String(Int(value))
+            : String(value)
+    }
+}

@@ -29,7 +29,15 @@ public final class SearchRungModel {
     /// returns `products.id` — and a shelf item is a variant, so choosing here
     /// opens the shade/size pick rather than resolving the ladder. Resolving on
     /// a product id would put the wrong row on the shelf.
-    public private(set) var pickedProductID: UUID?
+    ///
+    /// The whole hit, not just its id: the logging sheet's header has to say
+    /// whose shades it is offering, and a UUID cannot.
+    public private(set) var pickedHit: CatalogHit?
+
+    public var pickedProductID: UUID? {
+        pickedHit?.id
+    }
+
     public private(set) var isSearching = false
     /// Set when the search itself failed. Distinct from "no results": a failure
     /// is not evidence about the catalog, so the rung must not present it as an
@@ -95,7 +103,7 @@ public final class SearchRungModel {
 
     public func choose(_ option: LadderOption) {
         switch option {
-        case let .match(hit): pickedProductID = hit.id
+        case let .match(hit): pickedHit = hit
         case .noneOfThese: ladder.noneOfThese()
         }
     }
@@ -109,6 +117,6 @@ public final class SearchRungModel {
     /// The user backed out of the shade/size pick. They are still on the search
     /// rung with their query intact, not one rung further down.
     public func cancelVariantPick() {
-        pickedProductID = nil
+        pickedHit = nil
     }
 }

@@ -1,0 +1,152 @@
+import DataKit
+import Foundation
+import Testing
+@testable import AddLadder
+
+/// Variants the way the app really gets them — decoded off the wire, because
+/// DataKit is frozen and `Variant`'s memberwise init is internal to it. Same
+/// reasoning as `hit(name:scope:)` in SearchRungTests.
+func variant(
+    productID: UUID,
+    shade: String? = nil,
+    sizeML: Double? = nil
+) throws -> Variant {
+    let shadeField = shade.map { "\"shade_code\":\"\($0)\"," } ?? ""
+    let sizeField = sizeML.map { "\"size_ml\":\($0)," } ?? ""
+    let json = """
+    {"id":"\(UUID().uuidString)","product_id":"\(productID.uuidString)",
+     \(shadeField)\(sizeField)"gtin":null}
+    """
+    return try JSONDecoder().decode(Variant.self, from: Data(json.utf8))
+}
+
+actor FakeVariantListing: VariantListing {
+    /// One outcome per call, last one repeating — so a test can script
+    /// "fail, then succeed" and exercise retry on the same model.
+    private var outcomes: [Result<[Variant], GlossedError>]
+    private(set) var asked: [UUID] = []
+
+    init(variants: [Variant] = [], failure: GlossedError? = nil) {
+        if let failure {
+            outcomes = [.failure(failure)]
+        } else {
+            outcomes = [.success(variants)]
+        }
+    }
+
+    init(outcomes: [Result<[Variant], GlossedError>]) {
+        self.outcomes = outcomes
+    }
+
+    func variants(productID: UUID) async throws(GlossedError) -> [Variant] {
+        asked.append(productID)
+        let outcome = outcomes.count > 1 ? outcomes.removeFirst() : outcomes[0]
+        return try outcome.get()
+    }
+}
+
+@MainActor
+struct VariantPickModelTests {
+    @Test func loadingListsTheProductsOwnVariantsUnpicked() async throws {
+        let picked = try hit(name: "soft pinch liquid blush")
+        let shades = try ["220", "240", "330"].map {
+            try variant(productID: picked.id, shade: $0, sizeML: 32)
+        }
+        let model = VariantPickModel(hit: picked, catalog: FakeVariantListing(variants: shades))
+
+        await model.load()
+
+        #expect(model.variants.count == 3)
+        // Three shades is a real choice — preselecting any of them is exactly
+        // the silent wrong-shade log GLO-56 warns about.
+        #expect(model.selectedVariantID == nil)
+        #expect(!model.canConfirm)
+    }
+
+    @Test func aSoleVariantIsPreselectedButStillNeedsTheConfirm() async throws {
+        let picked = try hit(name: "pineapple refresh")
+        let only = try variant(productID: picked.id, sizeML: 150)
+        let model = VariantPickModel(hit: picked, catalog: FakeVariantListing(variants: [only]))
+
+        await model.load()
+
+        // One tap to confirm, zero taps to select — but nothing has resolved:
+        // the model never logs, it only holds the answer.
+        #expect(model.selectedVariantID == only.id)
+        #expect(model.canConfirm)
+        #expect(model.confirmed?.id == only.id)
+    }
+
+    @Test func selectingKeepsToTheListedVariants() async throws {
+        let picked = try hit(name: "soft pinch liquid blush")
+        let shades = try ["220", "240"].map {
+            try variant(productID: picked.id, shade: $0, sizeML: 32)
+        }
+        let model = VariantPickModel(hit: picked, catalog: FakeVariantListing(variants: shades))
+        await model.load()
+
+        try model.select(#require(shades.last?.id))
+        #expect(model.confirmed?.shadeCode == "240")
+
+        // A stray id — a stale row, a race — must not become the confirmed
+        // pick, and must not clear one either.
+        model.select(UUID())
+        #expect(model.confirmed?.shadeCode == "240")
+    }
+
+    @Test func aFailedLoadOffersRetryNotAnEmptyState() async throws {
+        let picked = try hit(name: "cloud paint")
+        let failing = FakeVariantListing(
+            failure: GlossedError(.offline, userMessage: "no connection — try again in a sec.")
+        )
+        let model = VariantPickModel(hit: picked, catalog: failing)
+
+        await model.load()
+
+        #expect(model.failure != nil)
+        // A failure is not evidence about the catalog: the sheet must say
+        // "couldn't load", never "there is nothing here".
+        #expect(!model.isEmpty)
+        #expect(!model.canConfirm)
+    }
+
+    @Test func aProductWithNoVariantsIsEmptyOnlyAfterALoadSaysSo() async throws {
+        let picked = try hit(name: "an unfilled catalog row")
+        let model = VariantPickModel(hit: picked, catalog: FakeVariantListing())
+
+        // Before the load finishes there is no verdict either way.
+        #expect(!model.isEmpty)
+        await model.load()
+        #expect(model.isEmpty)
+        #expect(!model.canConfirm)
+    }
+
+    @Test func retryAfterFailureCanStillSucceed() async throws {
+        let picked = try hit(name: "revealer")
+        let only = try variant(productID: picked.id, shade: "6.5 n", sizeML: 30)
+        let catalog = FakeVariantListing(outcomes: [
+            .failure(GlossedError(.offline, userMessage: "no network")),
+            .success([only])
+        ])
+        let model = VariantPickModel(hit: picked, catalog: catalog)
+
+        await model.load()
+        #expect(model.failure != nil)
+
+        await model.load()
+        #expect(model.failure == nil)
+        #expect(model.canConfirm)
+    }
+
+    @Test func labelMatchesTheDatabasesRule() throws {
+        let productID = UUID()
+        // The database's own outputs for these rows: "220 · 32ml", "joy ·
+        // 7.5ml", "150ml" — variant_label() in migration 0007. The trailing
+        // zero on a whole size is trimmed exactly as trim_scale does.
+        #expect(try variant(productID: productID, shade: "220", sizeML: 32).pickLabel == "220 · 32ml")
+        #expect(try variant(productID: productID, shade: "joy", sizeML: 7.5).pickLabel == "joy · 7.5ml")
+        #expect(try variant(productID: productID, sizeML: 150).pickLabel == "150ml")
+        #expect(try variant(productID: productID, shade: "freckle").pickLabel == "freckle")
+        #expect(try variant(productID: productID).pickLabel == nil)
+    }
+}
