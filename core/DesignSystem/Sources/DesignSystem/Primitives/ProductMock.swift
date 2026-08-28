@@ -100,21 +100,12 @@ public struct ProductMock: View {
     /// middle, which is where a label sits on a real bottle rather than exactly
     /// halfway up it. Offset from centre rather than measured, because the
     /// drawn height varies by kind and 4% of it is under half a point.
+    ///
+    /// The drawing lives in `ProductSticker` so a real photo (`ProductImage`)
+    /// wears the identical label — two sticker styles in one bay would read as
+    /// two kinds of rank.
     private func sticker(_ text: String) -> some View {
-        Text(text)
-            .font(Typography.mono(7.5))
-            .foregroundStyle(Tokens.Ink.primary)
-            .lineLimit(1)
-            .fixedSize()
-            .padding(.vertical, 1)
-            .padding(.horizontal, 4)
-            .background(Tokens.Ground.card)
-            .clipShape(RoundedRectangle(cornerRadius: 3))
-            .overlay(
-                RoundedRectangle(cornerRadius: 3)
-                    .strokeBorder(Tokens.Ink.primary, lineWidth: 1)
-            )
-            .offset(y: scale * 0.033)
+        ProductSticker(text: text, scale: scale)
     }
 
     /// How wide this draws, in points.
