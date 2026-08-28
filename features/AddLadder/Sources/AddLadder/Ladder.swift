@@ -39,19 +39,18 @@ public struct Ladder: Equatable, Sendable {
     }
 
     public private(set) var rung: Rung
-    /// Every rung visited, in order. The rail renders from this, so a user who
-    /// entered at the barcode rung does not see a search step they skipped.
+    /// Every rung visited, in order. The rail renders from this, so entering
+    /// at the barcode rung does not show a search step nobody was offered.
     public private(set) var trail: [Rung]
     /// What the user typed, carried down every rung so the create rung arrives
     /// pre-filled with the words they already said once.
     public private(set) var query: String
-    /// Set when a scan happened, whether or not it matched — a GTIN that missed
-    /// is still the strongest hint the near-match rung will get.
+    /// Set when a scan happened — a GTIN that missed is still the strongest
+    /// hint the near-match rung will get.
     public private(set) var scannedGTIN: String?
     public private(set) var resolution: Resolution?
 
-    /// Barcode is the pushed path (tech/01 §6), so entering there is ordinary,
-    /// not an edge case.
+    /// Barcode is the pushed path (tech/01 §6), so entering there is ordinary.
     public init(entry: Rung = .search, query: String = "") {
         rung = entry
         trail = [entry]
@@ -75,15 +74,15 @@ public struct Ladder: Equatable, Sendable {
         move(to: next)
     }
 
-    /// The user kept typing. Refining does not move the ladder — a query is a
-    /// question about the rung you are on.
+    /// Refining does not move the ladder — a query is a question about the
+    /// rung you are on.
     public mutating func refine(query: String) {
         guard !isResolved else { return }
         self.query = Ladder.tidy(query)
     }
 
-    /// A scan that found nothing in the catalog. The GTIN is kept and the
-    /// ladder advances, because a miss is still progress.
+    /// A scan that found nothing. The GTIN is kept and the ladder advances,
+    /// because a miss is still progress.
     public mutating func scanMissed(gtin: String) {
         guard !isResolved, rung == .barcode, let next = rung.next else { return }
         scannedGTIN = gtin
@@ -96,7 +95,7 @@ public struct Ladder: Equatable, Sendable {
         resolution = .matched(variantID: variantID)
     }
 
-    /// The create rung submitted, so the product exists in personal scope and
+    /// The create rung submitted: the product exists in personal scope, and
     /// the ladder lands on the confirmation that says so.
     public mutating func created(productID: UUID) {
         guard !isResolved else { return }

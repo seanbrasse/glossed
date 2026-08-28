@@ -43,17 +43,19 @@ private actor FakeCatalog: CatalogSearching {
     let result = try await SearchRung(catalog: catalog).typeahead("watermelon")
     #expect(result.hits.count == 1)
     #expect(result.hits[0].name == "Watermelon Glow")
-    #expect(result.recordedMiss == false)
+    #expect(result.isMiss == false)
     #expect(await catalog.recordedMisses.isEmpty)
 }
 
 @Test func anEmptySearchIsRecordedAsDemand() async throws {
     // tech/01 §4: the miss is the signal. Losing it is the expensive bug here,
-    // not returning zero rows.
+    // not returning zero rows. `isMiss` claims only what this layer can see —
+    // a real query came back empty and we asked for it to be recorded — since
+    // recordFailedSearch swallows its own transport errors by design.
     let catalog = FakeCatalog()
     let result = try await SearchRung(catalog: catalog).typeahead("  laneige  lip  ", domain: .skincare)
     #expect(result.isEmpty)
-    #expect(result.recordedMiss)
+    #expect(result.isMiss)
     #expect(await catalog.recordedMisses == ["laneige lip"])
 }
 
@@ -62,7 +64,7 @@ private actor FakeCatalog: CatalogSearching {
     for tooShort in ["", " ", "l", " l "] {
         let result = try await SearchRung(catalog: catalog).typeahead(tooShort)
         #expect(result.isEmpty)
-        #expect(result.recordedMiss == false)
+        #expect(result.isMiss == false)
     }
     #expect(await catalog.searched.isEmpty)
     #expect(await catalog.recordedMisses.isEmpty)
