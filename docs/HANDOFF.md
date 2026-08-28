@@ -34,34 +34,38 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Next | Why |
 |---|---|
-| [GLO-16](https://linear.app/glossed/issue/GLO-16) logging sheet | **The most-unblocked ticket in the project.** The sheet owns the shade/size pick (GLO-56 decided — preselect a single variant, always confirm); fit capture is multi-axis end to end (`captureFit(itemID:fits:)` → `capture_fit()`); the shelf's data path is live. Build it against the LIVE picker state |
-| [GLO-47](https://linear.app/glossed/issue/GLO-47) fit block persistence | The write path exists whole: multi-select `FitControl` → `captureFit` → RPC. The page persists nothing yet |
+| [GLO-47](https://linear.app/glossed/issue/GLO-47) fit block persistence — **and wiring the sheet's fit section** | Both write paths exist whole (`captureFit(fits:)` → `capture_fit()`; `fits(itemID:)` reads back). The product page persists nothing; the item sheet's new fit section (#108) fires `onFitChanged` into a default no-op. Wire either against the LIVE picker state |
 | [GLO-15](https://linear.app/glossed/issue/GLO-15) create rung | Buildable at last: `brands(matching:)` supplies the FK, `createPersonalProduct` returns a loggable `CreatedProduct`, `scannedGTIN` rides the draft |
 | Event wiring | `core/Tracking` + `events` + `track_ingest` all exist and **nothing calls `track()` yet** — each feature wires its own events while its surface is fresh (the whole point of moving GLO-21 PR 1 forward) |
 | [GLO-14](https://linear.app/glossed/issue/GLO-14) leftovers | All four PRs landed. What remains: the pg_cron schedule for nightly `feed_diff` (needs the deployed function, §7) and the Rakuten/Impact applications (human) |
 | [GLO-63](https://linear.app/glossed/issue/GLO-63) item 3 | The near-match RPC with a *reason* — the valuable one. Migration slot free |
+| [GLO-16](https://linear.app/glossed/issue/GLO-16) logging sheet | **Frame-blocked, not effort-blocked** — do not start it. The kit has no variant-pick UI anywhere (checked Aug 28 evening; every frame shows a product with its variant already resolved). Sean has to add the frame. The sheet's *anchor fit section* is already built (#107/#108) |
 | [GLO-51](https://linear.app/glossed/issue/GLO-51) plural labels | Small, needs the frame open |
 
-**Merged this session (do not re-do):** #82–#105 — the shelf chain (view,
+**Merged this session (do not re-do):** #82–#108, zero open at handoff time — the shelf chain (view,
 `ShelfRow`, packaging table, mapping), the ladder server (`create_personal_product`,
 widened `search_catalog`), multi-axis fit (#88/#90/#91), GTIN-14 both halves
 (#95/#96), `core/Tracking` + `events` schema + `track_ingest` (#97/#98/#99),
 the whole GLO-14 dedupe chain (#92/#93/#100/#101/#102) + `inci_enrich` (#105)
-+ the weekly fill list (#104), the main-compile fix (#89), and **the first live
-read** (#103): a debug sign-in and a `shelf · LIVE` picker state rendering the
-seeded database end to end. Tickets closed: GLO-66, GLO-67, GLO-58, GLO-70.
++ the weekly fill list (#104), the main-compile fix (#89), **the first live
+read** (#103: debug sign-in + a `shelf · LIVE` picker state rendering the
+seeded database end to end), and the item sheet's anchor fit section
+(#107/#108: `is_anchor` on the row, `fits(itemID:)`, the section built to the
+frame and driven, the picker close's third home). Tickets closed: GLO-66,
+GLO-67, GLO-58, GLO-70. `origin/main` was rebuilt locally after the final
+merge and compiles.
 
 ## 2. What exists
 
 | Layer | State |
 |---|---|
-| Schema | **12 migrations**, all applied to hosted (manually via Supabase MCP after each merge). **106 pgTAP assertions.** Migration slot free. |
-| `core/DataKit` | Frozen again. Session's authorized openings delivered: `ShelfRow`+`shelf()`, brands/RPC/`CatalogHit`, `captureFit(fits:)`, `gtin14` matching, `signIn(email:password:)`. 32 tests. |
+| Schema | **13 migrations**, all applied to hosted (manually via Supabase MCP after each merge). **108 pgTAP assertions.** Migration slot free. |
+| `core/DataKit` | Frozen again. Session's authorized openings delivered: `ShelfRow`+`shelf()`, brands/RPC/`CatalogHit`, `captureFit(fits:)`+`fits(itemID:)`, `gtin14` matching, `signIn(email:password:)`, `is_anchor` on the row. 32 tests. |
 | `core/DesignSystem` | + packaging table, multi-select `FitControl`. 38 tests. |
 | `core/Tracking` | **Exists** (#97): the tech/06 registry as a compiler-checked enum + the drop-on-failure queue. 10 tests. **Nothing calls `track()` yet.** |
 | `core/Media` | Still does not exist — R2 (§7). |
-| `features/Shelf` | Screen + wire mapping. 45 tests. |
-| `supabase/functions` | `storage_presign`, `feed_diff` (plans + writes), `track_ingest`, `dedupe_adjudicate` (claude-opus-5, ≤10 calls/run), `inci_enrich` (OBF, 12/run). **45 deno tests. None deployed** — secrets are §7. |
+| `features/Shelf` | Screen + wire mapping + the sheet's anchor fit section. 46 tests. |
+| `supabase/functions` | `storage_presign`, `feed_diff` (plans + writes), `track_ingest`, `dedupe_adjudicate` (claude-opus-5, ≤10 calls/run), `inci_enrich` (OBF, 12/run). **49 deno tests. None deployed** — secrets are §7. |
 | The data path | **Live, drivable, and driven**: the `shelf · LIVE` picker state signs in as maya and renders Postgres through the whole chain. Everything else still renders fixtures until screens adopt the same path. |
 
 The auth seed is now signable-in (#103): GoTrue rejects NULL token/timestamp
@@ -193,7 +197,28 @@ login path. **Rule: a fixture nothing consumes is not known to work.**
 *A commit landed on the wrong branch* (Tracking onto the GLO-58 branch)
 because a background CI-wait had checked out a different branch mid-flight.
 **Rule: never background a task that switches branches while foreground work
-continues in the same tree** — background only read-only waits.
+continues in the same tree** — background only read-only waits. It happened a
+second time the same evening (the picker fix edited on #103's branch): the
+rule is real.
+
+*Gitleaks scans the PR's whole commit range, not the tip.* #103 removed a
+hardcoded key in a follow-up commit and still failed — the first commit
+carried it. **Rule: a secret must be squashed out of the branch history, not
+just deleted at HEAD.** (And do not teach the scanner the key is harmless —
+a guard that has to know that stops being a guard.)
+
+*A rebuilt .app does not reach a running simulator by itself.* Twenty minutes
+were spent driving a stale binary that still showed the fixed bug. **Rule:
+after rebuilding, `simctl terminate` + `install` + `launch`, and when a fix
+refuses to appear, md5 the installed binary against the built one before
+doubting the fix.**
+
+*The frame check prevented a GLO-62 repeat.* GLO-16's logging sheet was next
+by every plan, and reading the kit first showed **no variant-pick frame
+exists anywhere** — the pick the GLO-56 decision assigned to that sheet has
+never been designed. Stopped and flagged instead of inventing UI from
+primitives. **Rule: "open the frame first" applies to whether the frame
+exists at all.**
 
 ## 9. Local setup (unchanged)
 
