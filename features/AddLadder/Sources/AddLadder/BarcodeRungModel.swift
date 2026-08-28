@@ -61,11 +61,13 @@ public final class BarcodeRungModel {
     /// Always present, always advancing, and it says what it will do — which
     /// matters most here, because a user whose camera is off needs the way
     /// forward to be the obvious thing on screen rather than a consolation.
-    public var escapePrompt: String {
-        availability == .ready
-            ? "none of these — find it by photo"
-            : "no camera — find it by photo"
-    }
+    ///
+    /// One label, which is what the frame writes. It said "no camera" when the
+    /// camera was unavailable, and that fact now has a better place to live:
+    /// the card above states it at display size, where someone looking for the
+    /// reason will actually find it. Repeating it on the row cost the row its
+    /// destination, and the destination is the part that is a decision.
+    public let escapePrompt = "no barcode — show me near matches"
 
     /// A payload from the scanner. Safe to call on every frame.
     public func scanned(_ payload: String) async {

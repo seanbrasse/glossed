@@ -90,7 +90,11 @@ private func model(
         let live = model(availability: blocked)
         #expect(live.isScanning == false)
         #expect(live.message == blocked.explanation)
-        #expect(live.escapePrompt == "no camera — find it by photo")
+        // One label, whatever the camera is doing — the frame writes it once.
+        // Why the camera is unusable is on the card above, at display size,
+        // where the person hunting for a reason will find it. The row's job is
+        // to name where it goes, and that is true in both states.
+        #expect(live.escapePrompt == "no barcode — show me near matches")
         live.noneOfThese()
         #expect(live.ladder.rung == .nearMatches)
     }
