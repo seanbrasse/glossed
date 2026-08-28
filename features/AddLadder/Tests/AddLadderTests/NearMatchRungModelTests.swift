@@ -38,20 +38,20 @@ private func model(
     let live = try model(hits: [hit(name: "Watermelon Glow"), hit(name: "Dew Drops")])
     await live.search()
     #expect(live.options.count == 3)
-    #expect(live.options.last == .noneOfThese(prompt: "none of these — add it yourself"))
+    #expect(live.options.last == .noneOfThese(prompt: "none of these — create it"))
 }
 
 @MainActor
 @Test func theWayOutIsThereWithNothingToCompareAgainst() async {
     let live = model()
     await live.search()
-    #expect(live.options == [.noneOfThese(prompt: "none of these — add it yourself")])
+    #expect(live.options == [.noneOfThese(prompt: "none of these — create it")])
 }
 
 @MainActor
 @Test func takingTheWayOutLandsOnCreate() {
     let live = model()
-    live.choose(.noneOfThese(prompt: "none of these — add it yourself"))
+    live.choose(.noneOfThese(prompt: "none of these — create it"))
     #expect(live.ladder.rung == .create)
 }
 

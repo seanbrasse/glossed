@@ -1,39 +1,62 @@
 import DesignSystem
 import SwiftUI
 
-/// Rung 3: near matches, framed as a question about the photo.
+/// Rung 2: near matches, framed as a question about the photo.
+///
+/// Built to `G.AddLadder` rung 2, which is the sparest screen in the flow: an
+/// eyebrow, the candidates, and the way out. No heading and no search field —
+/// the query came down the ladder, and the rung's job is to make you look at
+/// the pictures rather than re-read the names.
 public struct NearMatchRungView: View {
     @State private var model: NearMatchRungModel
     @State private var searchTask: Task<Void, Never>?
+    private let onBack: () -> Void
 
-    public init(model: NearMatchRungModel) {
+    public init(model: NearMatchRungModel, onBack: @escaping () -> Void = {}) {
         _model = State(initialValue: model)
+        self.onBack = onBack
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: Tokens.Space.s5) {
-            RungRail(trail: model.ladder.trail, current: model.ladder.rung)
-            Text(prompt)
-                .font(Typography.display(20))
-                .foregroundStyle(Tokens.Ink.primary)
-            GlossedInput("what's it called?", text: $model.query, hint: hint)
+        LadderScaffold(ladder: model.ladder, onBack: onBack) {
+            Text(eyebrow).eyebrow()
+            // The one thing the frame has no state for. A prototype always
+            // arrives with a query; a scan that missed arrives with a GTIN and
+            // no name at all, and the rung cannot show candidates until it has
+            // one. Present only in that case — otherwise the field would invite
+            // re-typing what the ladder already carried down.
+            if model.needsAName {
+                GlossedInput(
+                    "what's it called?",
+                    text: $model.query,
+                    label: "the scan came up empty",
+                    hint: hint
+                )
                 .plainTyping()
+            } else if let hint {
+                // The field is where a hint normally lives, so without this a
+                // failed lookup on a rung that has no field says nothing at
+                // all: an eyebrow, no candidates, and a way out. That reads as
+                // "we checked, there is nothing" — the exact conclusion this
+                // rung exists to stop someone reaching by accident.
+                Text(hint).meta()
+            }
             options
         }
-        .padding(Tokens.Space.s5)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Tokens.Ground.milk)
+        .scrollDismissesKeyboard(.immediately)
         .task { await model.search() }
         .onChange(of: model.query) { _, _ in scheduleSearch() }
     }
 
-    /// The instruction that gives this rung its reason to exist. Two shades of
-    /// one product read almost identically as text, so the name is the thing
-    /// least worth trusting here.
-    private var prompt: String {
-        model.needsAName
-            ? "the scan came up empty — what's it called?"
-            : "check the photo, not the name"
+    /// The instruction that gives this rung its reason to exist — but only when
+    /// the list can carry it. Two shades of one product read almost identically
+    /// as text, so the name is the thing least worth trusting here; a list that
+    /// failed to load has no photos to check, and telling someone to check them
+    /// anyway is the screen vouching for something it does not know.
+    private var eyebrow: String {
+        model.isCandidateListTrustworthy
+            ? "NEAR MATCHES · CHECK THE PHOTO, NOT THE NAME"
+            : "NEAR MATCHES"
     }
 
     private var hint: String? {
@@ -48,15 +71,14 @@ public struct NearMatchRungView: View {
         return nil
     }
 
+    /// `gap: 10` in the frame — the rows read as one list, and the way out is
+    /// the last element of it rather than a footer under it.
     private var options: some View {
-        ScrollView {
-            LazyVStack(spacing: Tokens.Space.s3) {
-                ForEach(model.options) { option in
-                    LadderOptionRow(option) { model.choose(option) }
-                }
+        VStack(spacing: 10) {
+            ForEach(model.options) { option in
+                LadderOptionRow(option) { model.choose(option) }
             }
         }
-        .scrollDismissesKeyboard(.immediately)
     }
 
     private func scheduleSearch() {

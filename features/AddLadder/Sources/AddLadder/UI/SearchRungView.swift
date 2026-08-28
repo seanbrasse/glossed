@@ -100,34 +100,3 @@ extension View {
         #endif
     }
 }
-
-/// The rungs walked so far. Renders from the ladder's trail, so entering at the
-/// barcode rung never shows a search step nobody was offered.
-struct RungRail: View {
-    let trail: [Rung]
-    let current: Rung
-
-    var body: some View {
-        HStack(spacing: Tokens.Space.s2) {
-            ForEach(trail, id: \.self) { rung in
-                Text(RungRail.label(for: rung))
-                    .font(Typography.mono(Typography.Size.tag, bold: rung == current))
-                    .foregroundStyle(rung == current ? Tokens.Ink.primary : Tokens.Ink.faint)
-                if rung != trail.last {
-                    Text("›").foregroundStyle(Tokens.Ink.faint)
-                }
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    static func label(for rung: Rung) -> String {
-        switch rung {
-        case .search: "search"
-        case .barcode: "scan"
-        case .nearMatches: "near matches"
-        case .create: "add it"
-        case .confirm: "done"
-        }
-    }
-}
