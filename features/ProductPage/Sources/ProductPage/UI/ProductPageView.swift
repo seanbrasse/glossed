@@ -9,7 +9,7 @@ import SwiftUI
 /// of-what; every claim carries its n or is not made.
 public struct ProductPageView: View {
     @State private var model: ProductPageModel
-    @State private var fit: FitAnswer?
+    @State private var fit: Set<FitAnswer> = []
     private let onBack: () -> Void
     private let onRank: () -> Void
     private let onLeaderboard: () -> Void
@@ -148,7 +148,7 @@ public struct ProductPageView: View {
     /// but it needs a `user_item_id`, and this page is opened from a variant.
     /// GLO-47's second half carries that.
     private var anchorsHeld: Int {
-        (model.anchorsWithFit ?? 0) + (fit == nil ? 0 : 1)
+        (model.anchorsWithFit ?? 0) + (fit.isEmpty ? 0 : 1)
     }
 
     private var actions: some View {

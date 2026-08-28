@@ -25,17 +25,57 @@ public enum FitAnswer: String, CaseIterable, Sendable {
     public var isMatch: Bool {
         self == .justRight
     }
+
+    /// Which axis an answer sits on. Lightness and undertone are independent —
+    /// a shade can miss on both — which is why the control holds a set with
+    /// one answer per axis rather than a single value (GLO-67). Mirrors the
+    /// database's `fit_axis()`; the pgTAP suite pins that side.
+    public var axis: FitAxis {
+        switch self {
+        case .justRight: .justRight
+        case .tooLight, .tooDark: .depth
+        case .tooPink, .tooYellow, .tooOrange: .undertone
+        }
+    }
+}
+
+/// The three axes a fit answer can sit on.
+public enum FitAxis: Sendable {
+    case justRight, depth, undertone
 }
 
 /// Asked on every log of an anchor-category product, not buried in a rating
 /// flow: most people log in five seconds and never rank.
+///
+/// A set, with the kit's own rules — encoded once in `picked(_:from:)` so the
+/// view is just the drawing of it.
 public struct FitControl: View {
-    @Binding var selection: FitAnswer?
+    @Binding var selection: Set<FitAnswer>
     let note: String?
 
-    public init(selection: Binding<FitAnswer?>, note: String? = "we only match shades people have actually worn") {
+    public init(selection: Binding<Set<FitAnswer>>, note: String? = "we only match shades people have actually worn") {
         _selection = selection
         self.note = note
+    }
+
+    /// The kit's pick rules, verbatim from `glossed-lib.js`:
+    /// tapping a selected answer clears it; `just right` is exclusive; any
+    /// other answer replaces its axis-mate and clears `just right`.
+    ///
+    /// `nonisolated`: it is arithmetic on a set, and View conformance would
+    /// otherwise pull it onto the main actor — which is also what lets the
+    /// rule be tested without a @MainActor test (the `ShelfModel.ordered`
+    /// precedent).
+    nonisolated static func picked(_ answer: FitAnswer, from selection: Set<FitAnswer>) -> Set<FitAnswer> {
+        if selection.contains(answer) {
+            return selection.subtracting([answer])
+        }
+        if answer.isMatch {
+            return [answer]
+        }
+        return selection
+            .filter { !$0.isMatch && $0.axis != answer.axis }
+            .union([answer])
     }
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
@@ -55,9 +95,9 @@ public struct FitControl: View {
     }
 
     private func answerButton(_ answer: FitAnswer) -> some View {
-        let isOn = selection == answer
+        let isOn = selection.contains(answer)
         return Button {
-            selection = isOn ? nil : answer
+            selection = FitControl.picked(answer, from: selection)
         } label: {
             Text(answer.label)
                 .font(.system(size: 12.5, weight: .bold))
