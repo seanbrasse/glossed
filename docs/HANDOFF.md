@@ -176,6 +176,17 @@ SUPABASE_SERVICE_ROLE_KEY=<legacy JWT from supabase status> \
   deno run --allow-net --allow-run --allow-env --allow-read --allow-write scripts/catalog_images.ts --limit 2500
 ```
 
+**The simulator canon: iPhone 16 Pro (iOS 18.0), UDID
+`0E1EF64B-E2E3-4A51-B322-29BBEFCEEFE1` — one booted device, always.** All of
+session 6's drives, screenshots and psql-verified flows ran there. Sessions
+4–5 used an iPhone 16 Plus (iOS 18.2); its leftover booted instance
+misdirected a screenshot this session — `xcrun simctl shutdown <udid>` any
+second device before starting. No simulator is "more accurate": the shelf
+measures its width per device and bay capacity differs with it (GLO-68), so
+screenshots only compare on the same device — which is the whole reason for
+a canon. The size-bucket 4-larges guarantee targets the narrowest class
+(375pt) and is held by test, not by the device you happen to drive.
+
 Launch: `supabase start`, then
 `SIMCTL_CHILD_SUPABASE_PUBLISHABLE_KEY=<from supabase status>` +
 `simctl terminate/install/launch`. Sign-in fails → `supabase db reset`
