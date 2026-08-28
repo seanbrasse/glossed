@@ -1,4 +1,5 @@
 import DataKit
+import DesignSystem
 import Foundation
 import Testing
 @testable import Import
@@ -151,4 +152,31 @@ private func model(
         #expect(!source.subtitle.isEmpty)
         #expect(source.title == source.title.lowercased())
     }
+}
+
+// MARK: - What each verdict says out loud
+
+@Test func everyVerdictNamesWhatHappensNextRatherThanThatItFailed() {
+    // "no match" on its own reads as a dead end. The ladder is the plan.
+    #expect(ImportView.explanation(for: .matched(variantID: UUID())) == "matched in the catalog")
+    #expect(ImportView.explanation(for: .needsSize(productID: UUID())) == "matched — pick the size")
+    #expect(ImportView.explanation(for: .noMatch) == "no match — goes to the ladder")
+}
+
+@Test func theTwoUnfinishedVerdictsAreTintedApartFromEachOther() {
+    // A line needing a size and a line the catalog does not know both show a
+    // question mark, so the tint is the only thing separating them at a glance.
+    #expect(ImportView.dotFill(.needsSize(productID: UUID())) != ImportView.dotFill(.noMatch))
+    #expect(ImportView.dotFill(.matched(variantID: UUID())) != ImportView.dotFill(.noMatch))
+}
+
+@Test func eachSourceCardIsTellableApartFromTheOthers() {
+    let tints = ImportSource.allCases.map { ImportView.tint(for: $0) }
+    let glyphs = ImportSource.allCases.map { ImportView.glyph(for: $0) }
+    #expect(Set(glyphs).count == ImportSource.allCases.count)
+    // Colours cannot go in a Set — comparing two SwiftUI `Color`s traps in a
+    // headless process — so this checks the pairs that would collide.
+    #expect(tints[0] != tints[1])
+    #expect(tints[1] != tints[2])
+    #expect(tints[0] != tints[2])
 }
