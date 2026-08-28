@@ -4,7 +4,7 @@
 -- impossible before this migration.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(17);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -43,6 +43,24 @@ select is((select normalized_name from products where id = (select product_id fr
     'kinky curly knot today', 'the server normalizes, so the client cannot drift');
 select is((select submitted_gtin from variants where id = (select variant_id from made)),
     '0850000000004', 'the scanned code is kept — it is the strongest identifier a user will ever hand us');
+select is((select shade_code from variants where id = (select variant_id from made)),
+    null, 'no variant typed means no shade_code — absent, not empty (0014)');
+
+-- 0014: the variant field the frame collects is kept, and renders with no
+-- view changes because shade_code is what variant_label() reads.
+create temp table made_with_variant as
+select * from create_personal_product(
+    '20000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000006',
+    'haircare', 'Kinky-Curly Original', null, 'travel · 59ml');
+
+select is((select variant_label(shade_code, size_ml, strength_pct)
+           from variants where id = (select variant_id from made_with_variant)),
+    'travel · 59ml', 'the variant the user typed renders through variant_label');
+select is((select shade_code from variants where id = (select variant_id from (
+    select * from create_personal_product(
+        '20000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000006',
+        'haircare', 'Kinky-Curly Come Clean', null, '   ') ) t)),
+    null, 'a whitespace variant stays null rather than becoming an empty label');
 
 -- juli scans the same missing barcode. `variants.gtin` is globally unique, so
 -- putting the code there would fail her create against a row she cannot see.
