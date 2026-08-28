@@ -1,8 +1,31 @@
-# Session handoff — Aug 28 2026 (fourth session)
+# Session handoff — Aug 28 2026 (fourth + fifth sessions)
 
 Where Phase 1 stands, what to do next, and the decisions a new session would
 otherwise have to rediscover. Read `docs/README.md` first for the design; this
 file is only about state.
+
+## −1. Session five, same day: the app is an app now
+
+**`GLO-77` (done, #118/#119): the shell is live.** A DEBUG build cold-launches
+into the real app — signed in as the seeded user against the local stack,
+three tabs + the plus drawer per the kit's FLOW 2, the shelf tab live, and
+the drawer's *add a product* opening **the whole ladder as one flow**
+(`LadderFlowView`): carried query, riding GTIN, matched barcodes log
+directly, matched products show an honest interim card until the logging
+sheet exists. Adding a product refreshes the shelf without a relaunch —
+verified end to end on the simulator and in Postgres. The screen picker
+still exists: launch with `GLOSSED_SCREENS=1`.
+
+**Two decisions by Sean (session 5):** real auth is *deferred by choice* —
+GLO-23 carries the full account-setup shopping list (Apple Developer App ID +
+Services ID + Supabase Apple provider; Twilio Verify + phone provider) for
+when it returns, and email/password must be disabled on hosted at that point.
+And **Rakuten/Impact is a reach, not a blocker** — `feed_diff` stays on
+fixture feeds (GLO-14 updated).
+
+**Run it:** `supabase start`, then launch with
+`SIMCTL_CHILD_SUPABASE_PUBLISHABLE_KEY=<from supabase status>`. That's the
+whole setup now. If sign-in fails: `supabase db reset` first.
 
 ## 0. Silent failures and standing traps
 
@@ -121,9 +144,9 @@ to hosted right after merge), CI workflows (GLO-71 stays a human fix),
 |---|---|---|
 | `storage_presign` deploy, catalog images, cutouts, GLO-74's real bytes | R2 buckets/token/CORS ([GLO-48](https://linear.app/glossed/issue/GLO-48)) | Cloudflare account holder |
 | Function deploys (`track_ingest`, `feed_diff`, …) | `INGEST_SECRET`, `ANTHROPIC_API_KEY` secrets | Sean |
-| Auth → onboarding → live-by-default | Sign in with Apple ([GLO-50](https://linear.app/glossed/issue/GLO-50)) | Apple Developer account holder |
+| **Real** auth + TestFlight (dev session covers local dev — §−1) | Apple Developer setup ([GLO-50](https://linear.app/glossed/issue/GLO-50)) + Twilio (GLO-23's list) | Sean, deferred by choice |
 | [GLO-71](https://linear.app/glossed/issue/GLO-71) CI scope fix | Workflow edit | Any human; agents barred |
-| `feed_diff` against a real feed | Rakuten/Impact applications (long lead) | Account holder |
+| `feed_diff` against a real feed | Rakuten/Impact — **re-scoped to reach** (session 5) | Later |
 
 ## 8. What past sessions got wrong, so you don't repeat it
 
