@@ -16,6 +16,10 @@ public struct ProductImage: View {
     private let kind: ProductMock.Kind
     private let tint: Color
     private let scale: CGFloat
+    /// A width limit tighter than the envelope, when the caller has one —
+    /// the shelf's size buckets (GLO-82) pass theirs so a bay's slot and its
+    /// render are the same number. Nil means the envelope alone applies.
+    private let maxWidth: CGFloat?
     private let rotation: Angle
     private let label: String?
 
@@ -30,6 +34,7 @@ public struct ProductImage: View {
         kind: ProductMock.Kind,
         tint: Color,
         scale: CGFloat,
+        maxWidth: CGFloat? = nil,
         rotation: Angle = .zero,
         label: String? = nil
     ) {
@@ -37,6 +42,7 @@ public struct ProductImage: View {
         self.kind = kind
         self.tint = tint
         self.scale = scale
+        self.maxWidth = maxWidth
         self.rotation = rotation
         self.label = label
     }
@@ -60,11 +66,25 @@ public struct ProductImage: View {
         }
     }
 
+    /// No photo draws wider than this × its drawn height (GLO-82). The mock
+    /// silhouettes' own envelope: nothing the kit draws is wider than tall,
+    /// and a carton shot that is must not dominate a bay by area. Public so
+    /// the shelf's slot packing can reserve exactly what will render.
+    public static let maxPhotoAspect: CGFloat = 1.25
+
     private func photo(_ image: Image) -> some View {
         image
             .resizable()
             .scaledToFit()
-            .frame(height: scale)
+            // Fit inside the height band *and* the width cap: a tall bottle
+            // keeps its full height; a wide carton gives up height instead of
+            // taking the shelf. Wide things are short — the cap is also the
+            // more accurate reading of the photo.
+            .frame(
+                maxWidth: min(maxWidth ?? .infinity, scale * ProductImage.maxPhotoAspect),
+                maxHeight: scale
+            )
+            .frame(height: scale, alignment: .bottom)
             .shadow(color: Tokens.Ink.primary.opacity(0.22), radius: 3, x: 0, y: 2)
             .overlay(alignment: .center) {
                 if let label {
