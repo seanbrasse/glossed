@@ -20,9 +20,12 @@ public enum RankingEngine {
         /// The ordered list the candidate is being placed into.
         public let list: [ItemID]
         /// Inclusive bounds of where the candidate could still land.
-        public private(set) var low: Int
-        public private(set) var high: Int
+        public internal(set) var low: Int
+        public internal(set) var high: Int
         public private(set) var comparisonsMade: Int
+        /// A skip collapses the range like a resolved search would, so without
+        /// this the placement would report itself as the user's answer.
+        public private(set) var endedOnSkip: Bool
 
         /// Four is the cap: past that, the questions stop feeling like play and
         /// start feeling like data entry. A longer list settles over later
@@ -35,6 +38,7 @@ public enum RankingEngine {
             low = 0
             high = list.count
             comparisonsMade = 0
+            endedOnSkip = false
         }
 
         /// The item to face off against, or nil when there is nothing left to ask.
@@ -73,6 +77,7 @@ public enum RankingEngine {
             low = mid
             high = mid
             comparisonsMade += 1
+            endedOnSkip = true
         }
 
         /// Where the candidate lands: `low` once the range collapses, and the
@@ -90,17 +95,19 @@ public enum RankingEngine {
         /// True when the range actually collapsed, so this placement is the
         /// user's answer rather than our best guess.
         ///
-        /// A capped placement *is* a guess, and a caller that cannot tell the
-        /// difference will persist it as though it were stated. Lists longer
-        /// than fifteen reach the cap — which is exactly when a shelf is big
-        /// enough for a wrong-looking placement to get noticed.
+        /// Two things make a placement a guess, and both have to be excluded:
+        /// the cap stopping the search, and a skip. A skip collapses the range
+        /// exactly as a resolved search does, so checking bounds alone would
+        /// report "I can't tell these apart" as a stated preference — and
+        /// persist a coin-flip as evidence.
         public var isExact: Bool {
-            low >= high
+            low >= high && !endedOnSkip
         }
 
-        /// The cap stopped the search before the position was known.
+        /// The search stopped before the position was known — either the cap
+        /// ran out of questions or the user could not separate the pair.
         public var wasCapped: Bool {
-            !isExact && comparisonsMade >= Insertion.maxComparisons
+            !isExact
         }
 
         /// The list with the candidate placed.
