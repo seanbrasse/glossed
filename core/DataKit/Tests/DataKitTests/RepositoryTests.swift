@@ -27,6 +27,18 @@ import Testing
         brandID: UUID(), categoryID: UUID(), domain: .makeup, name: "hand cream"
     )
     #expect(draft.params().gtin == nil)
+    #expect(draft.params().variant == nil)
+}
+
+@Test func theDraftCarriesTheVariantAsTyped() {
+    // The create rung's third field (GLO-75). Sent verbatim — trimming and
+    // empty-to-null are the server's rules, and duplicating them here is how
+    // the two sides drift.
+    let draft = PersonalProductDraft(
+        brandID: UUID(), categoryID: UUID(), domain: .makeup,
+        name: "soft pinch liquid blush", variant: "joy · 2.5ml mini"
+    )
+    #expect(draft.params().variant == "joy · 2.5ml mini")
 }
 
 @Test func theSearchFloorHasOneDefinition() {

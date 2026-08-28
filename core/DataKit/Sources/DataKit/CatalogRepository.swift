@@ -154,6 +154,11 @@ public struct PersonalProductDraft: Sendable {
     public let categoryID: UUID
     public let domain: Domain
     public let name: String
+    /// The variant as the user wrote it — "joy · 2.5ml mini". Free text on
+    /// purpose: for a personal-scope product the variant is whatever its owner
+    /// calls it. The server lands it in `shade_code`, which is what
+    /// `variant_label()` reads, so it renders everywhere with no view changes.
+    public let variant: String?
     /// The barcode the scan rung failed to find. Kept because it is the
     /// strongest identifier a user will ever hand us — it is what later lets
     /// this product be matched against the feed and promoted (domain.md §3.1).
@@ -164,12 +169,14 @@ public struct PersonalProductDraft: Sendable {
         categoryID: UUID,
         domain: Domain,
         name: String,
+        variant: String? = nil,
         scannedGTIN: String? = nil
     ) {
         self.brandID = brandID
         self.categoryID = categoryID
         self.domain = domain
         self.name = name
+        self.variant = variant
         self.scannedGTIN = scannedGTIN
     }
 
@@ -185,7 +192,8 @@ public struct PersonalProductDraft: Sendable {
             categoryID: categoryID.uuidString,
             domain: domain.rawValue,
             name: name,
-            gtin: scannedGTIN
+            gtin: scannedGTIN,
+            variant: variant
         )
     }
 }
@@ -196,6 +204,7 @@ struct CreateProductParams: Encodable, Sendable {
     let domain: String
     let name: String
     let gtin: String?
+    let variant: String?
 
     enum CodingKeys: String, CodingKey {
         case brandID = "p_brand_id"
@@ -203,6 +212,7 @@ struct CreateProductParams: Encodable, Sendable {
         case domain = "p_domain"
         case name = "p_name"
         case gtin = "p_gtin"
+        case variant = "p_variant"
     }
 }
 
