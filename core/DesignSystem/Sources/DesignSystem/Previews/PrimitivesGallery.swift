@@ -33,6 +33,9 @@ import SwiftUI
             EvidenceLine(n: 3, of: 5, label: "matched outright")
             EvidenceLine(n: 2, label: "face-offs", empty: "not enough face-offs yet · 2 of 5")
 
+            Text("FORMS").eyebrow()
+            FormsPreviewRow()
+
             Text("no wrong answers ✿")
                 .handAside()
                 .rotationEffect(Tokens.Rotate.r3)
@@ -41,4 +44,23 @@ import SwiftUI
     }
     .background(Tokens.Ground.milk)
     .task { Typography.registerFonts() }
+}
+
+/// Stateful row so the preview exercises focus + selection.
+private struct FormsPreviewRow: View {
+    @State private var query = ""
+    @State private var brand = "rare beauty"
+    @State private var note = "one dot, blends forever"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Tokens.Space.s4) {
+            GlossedInput("brand, product, shade…", text: $query, label: "search")
+            GlossedSelect(
+                options: ["rare beauty", "rhode", "fenty beauty", "kosas"],
+                selection: $brand,
+                label: "brand"
+            )
+            GlossedTextArea(text: $note, label: "note")
+        }
+    }
 }

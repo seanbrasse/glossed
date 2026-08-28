@@ -21,3 +21,7 @@ supabase/.env
 
 # Tooling
 .claude/settings.local.json
+
+# Session-local scheduler artifacts
+.claude/scheduled_tasks.lock
+.claude/*.lock
