@@ -47,7 +47,7 @@ private func model(
         [section("blush", domain: .makeup), section("cleanser", domain: .skincare)],
         domains: [.makeup]
     )
-    #expect(live.bays.map(\.label) == ["blush"])
+    #expect(live.bays(fittingWidth: 370).map(\.label) == ["blush"])
 }
 
 @MainActor
@@ -68,7 +68,7 @@ private func model(
 @MainActor
 @Test func turningEveryDomainOffLeavesAShelfWithNoBaysAndNoCrash() {
     let live = model([section("blush", domain: .makeup)], domains: [])
-    #expect(live.bays.isEmpty)
+    #expect(live.bays(fittingWidth: 370).isEmpty)
     #expect(live.shownItemCount == 0)
 }
 
@@ -143,11 +143,11 @@ private func model(
         ])],
         domains: [.makeup]
     )
-    #expect(live.bays[0].items.map(\.name) == ["ranked-first", "ranked-second"])
+    #expect(live.bays(fittingWidth: 370)[0].items.map(\.name) == ["ranked-first", "ranked-second"])
     live.sort = .brand
-    #expect(live.bays[0].items.map(\.name) == ["ranked-second", "ranked-first"])
+    #expect(live.bays(fittingWidth: 370)[0].items.map(\.name) == ["ranked-second", "ranked-first"])
     live.sort = .recent
-    #expect(live.bays[0].items.map(\.name) == ["ranked-second", "ranked-first"])
+    #expect(live.bays(fittingWidth: 370)[0].items.map(\.name) == ["ranked-second", "ranked-first"])
 }
 
 // MARK: - Shelf or list
@@ -166,7 +166,7 @@ private func model(
     )
     for sort in ShelfSort.allCases {
         live.sort = sort
-        let inBays = live.bays.flatMap(\.items).map(\.id)
+        let inBays = live.bays(fittingWidth: 370).flatMap(\.items).map(\.id)
         let inSections = live.shownSections.flatMap(\.items).map(\.id)
         #expect(inBays == inSections)
     }
@@ -218,7 +218,7 @@ private func model(
     // opened from a filtered shelf must not renumber it.
     let items = [item("a", rank: 1), item("b", rank: 2)]
     let live = model([section("blush", domain: .makeup, items: items)], domains: [])
-    #expect(live.bays.isEmpty)
+    #expect(live.bays(fittingWidth: 370).isEmpty)
     #expect(live.rankedCount(inCategoryOf: items[0]) == 2)
 }
 

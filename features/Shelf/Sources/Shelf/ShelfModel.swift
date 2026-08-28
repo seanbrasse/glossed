@@ -99,8 +99,14 @@ public final class ShelfModel {
             }
     }
 
-    public var bays: [ShelfBay] {
-        ShelfBay.bays(from: shownSections)
+    /// The bays, for a shelf of the given inside width.
+    ///
+    /// A function rather than a property because packing depends on how much
+    /// shelf there is, and only the view knows that. Nothing about which items
+    /// are shown or in what order depends on the width — that is all decided by
+    /// `shownSections`, which stays testable without a layout.
+    public func bays(fittingWidth width: CGFloat) -> [ShelfBay] {
+        ShelfBay.bays(from: shownSections, fittingWidth: width)
     }
 
     /// Counts what is on screen, not what is owned. A count that ignored the

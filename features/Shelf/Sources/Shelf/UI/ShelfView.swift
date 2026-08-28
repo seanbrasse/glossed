@@ -42,7 +42,7 @@ public struct ShelfView: View {
                 controls
                 switch model.viewMode {
                 case .shelf:
-                    ShelfBayView(bays: model.bays, onTap: tapped)
+                    ShelfBayView(sections: model.shownSections, onTap: tapped)
                 case .list:
                     ShelfListView(
                         sections: model.shownSections,
