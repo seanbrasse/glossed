@@ -25,9 +25,26 @@ jobs:
       - name: Check secret
         id: key
         run: |
-          if [ -n "${{ secrets.ANTHROPIC_API_KEY }}" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else
+          if [ -n "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::ANTHROPIC_API_KEY not set — skipping visual recap"
+            echo "::warning::ANTHROPIC_API_KEY not set — no automated recap on this PR (GLO-13)"
+          fi
+
+      # A silently-green "recap" check reads as "a recap happened". Say so on the
+      # PR itself instead, once, so the gap is visible where reviewers look.
+      - name: Say the recap is unavailable
+        if: steps.key.outputs.present == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          MARKER="<!-- recap-unavailable -->"
+          if ! gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} \
+               --json comments -q '.comments[].body' | grep -qF "$MARKER"; then
+            gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body \
+              "$MARKER
+> **No automated visual recap on this PR.** \`ANTHROPIC_API_KEY\` is not set on this repo, so the recap workflow skipped ([GLO-13](https://linear.app/glossed/issue/GLO-13)). The author's hand-written **Visual plan** section is the only shape-of-the-change artifact here — hold it to that bar."
           fi
       - uses: actions/checkout@v4
         if: steps.key.outputs.present == 'true'
