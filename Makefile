@@ -1,4 +1,4 @@
-.PHONY: setup dev lint format test db-reset db-test generate
+.PHONY: setup dev lint format test db-reset db-test generate functions-test
 
 setup:
 	brew bundle --no-upgrade
@@ -30,3 +30,10 @@ db-reset:
 
 db-test:
 	supabase test db
+
+# Edge Functions are Deno, so they sit outside the Swift toolchain entirely.
+functions-test:
+	deno check supabase/functions/*/*.ts
+	deno lint supabase/functions
+	deno fmt --check --line-width=100 supabase/functions
+	deno test --allow-net --allow-import supabase/functions
