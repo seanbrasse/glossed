@@ -3,19 +3,6 @@ import DesignSystem
 import Foundation
 import Observation
 
-/// Shelf or list. Two readings of the same items, not a view and a fallback.
-public enum ShelfViewMode: String, CaseIterable, Sendable {
-    case shelf, list
-}
-
-/// The three ways the kit lets you reorder a bay.
-///
-/// `favorite` is the default and the only one that is about the product rather
-/// than about you — it is the ranking, which is what the whole app is for.
-public enum ShelfSort: String, CaseIterable, Sendable {
-    case favorite, recent, brand
-}
-
 /// What the shelf screen shows: which domains are on, how the bays are ordered,
 /// and the bays that fall out of those two answers.
 ///
@@ -43,6 +30,10 @@ public final class ShelfModel {
 
     private let sections: [ShelfSection]
     private let fitStore: ShelfFitStore?
+    private let lifecycle: ShelfLifecycleStore?
+    /// Fired after a lifecycle write lands — the host re-reads the shelf, the
+    /// same contract the ladder's `onShelfChanged` already has.
+    private let onShelfChanged: (() -> Void)?
 
     public init(
         sections: [ShelfSection],
@@ -50,7 +41,9 @@ public final class ShelfModel {
         sort: ShelfSort = .favorite,
         viewMode: ShelfViewMode = .shelf,
         openSection: String? = nil,
-        fitStore: ShelfFitStore? = nil
+        fitStore: ShelfFitStore? = nil,
+        lifecycle: ShelfLifecycleStore? = nil,
+        onShelfChanged: (() -> Void)? = nil
     ) {
         self.sections = sections
         self.selectedDomains = selectedDomains
@@ -58,6 +51,8 @@ public final class ShelfModel {
         self.viewMode = viewMode
         self.openSection = openSection
         self.fitStore = fitStore
+        self.lifecycle = lifecycle
+        self.onShelfChanged = onShelfChanged
     }
 
     /// Tapping the open one closes it; tapping another moves the opening.
@@ -92,6 +87,8 @@ public final class ShelfModel {
         openFit = []
         persistedFit = []
         fitEdited = false
+        isRemoving = false
+        removeFailure = nil
         fitLoadTask?.cancel()
         guard item.isAnchorCategory, let fitStore else { return }
         fitLoadTask = Task { [id = item.id] in
@@ -107,6 +104,51 @@ public final class ShelfModel {
     public func closeSheet() {
         openItem = nil
         fitLoadTask?.cancel()
+    }
+
+    // MARK: - Lifecycle (GLO-72)
+
+    /// Whether removal is wired at all. The sheet hides the row when it is
+    /// not — a remove that writes nowhere must not be offered (fixture
+    /// states run with no store).
+    public var supportsRemoval: Bool {
+        lifecycle != nil
+    }
+
+    /// A removal in flight. The sheet disables the action while true — a
+    /// second tap during the write would be a second update, harmless but
+    /// dishonest about what one tap did.
+    public private(set) var isRemoving = false
+    /// The last removal that failed, held for the sheet to say so. Cleared on
+    /// open and on retry.
+    public private(set) var removeFailure: GlossedError?
+
+    /// Internal, not private: tests await it to order the async work.
+    var removeTask: Task<Void, Never>?
+
+    /// Removes the open item from the shelf — a soft delete; the schema keeps
+    /// the row, the app stops showing it. On success the sheet closes and the
+    /// host re-reads, so the item leaves bays, list and counts in one motion.
+    /// On failure the sheet stays up and says why: a remove that silently
+    /// did not happen is an item that reappears on the next launch.
+    public func removeOpenItem() {
+        guard let item = openItem, let lifecycle, !isRemoving else { return }
+        isRemoving = true
+        removeFailure = nil
+        removeTask = Task { [id = item.id] in
+            defer { isRemoving = false }
+            do throws(GlossedError) {
+                try await lifecycle.remove(id)
+                guard openItem?.id == id else { return }
+                closeSheet()
+                onShelfChanged?()
+            } catch {
+                // A different sheet is a different conversation — a stale
+                // failure must not land on whatever opened since.
+                guard openItem?.id == id else { return }
+                removeFailure = error
+            }
+        }
     }
 
     /// The sheet's control writes here. Optimistic: the control shows the new
