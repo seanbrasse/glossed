@@ -31,6 +31,10 @@ struct ShelfChipsSection: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             GlossedTextArea(text: $model.note, label: "your note", minHeight: 56)
+                // TextEditor expands to every point it is offered, and a
+                // bottom-pinned sheet offers it the screen — cap it to a
+                // few lines; the note scrolls inside itself past that.
+                .frame(maxHeight: 104)
         }
         .padding(.top, 12)
         .overlay(alignment: .top) {
