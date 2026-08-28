@@ -1,19 +1,28 @@
 import SwiftUI
 
-/// Stand-in for a background-removed product cutout until real photos land.
-private struct MockBottle: View {
-    var tint: Color
-    var height: CGFloat = 52
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 6)
-            .fill(tint)
-            .frame(width: height * 0.42, height: height)
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.thin)
-            )
+#Preview("product mock — the drawn product, one shape per packaging") {
+    VStack(alignment: .leading, spacing: Tokens.Space.s5) {
+        Text("EVERY KIND THE KIT DRAWS").eyebrow()
+        HStack(alignment: .bottom, spacing: Tokens.Space.s4) {
+            ForEach(ProductMock.Kind.allCases, id: \.self) { kind in
+                VStack(spacing: Tokens.Space.s2) {
+                    ProductMock(kind: kind, tint: ProductMock.tint(for: kind.rawValue), scale: 62)
+                    Text(kind.rawValue).meta()
+                }
+            }
+        }
+        Text("AT ROW SCALE · THE LADDER DRAWS THESE AT 50").eyebrow()
+        HStack(alignment: .bottom, spacing: Tokens.Space.s4) {
+            ForEach(ProductMock.Kind.allCases, id: \.self) { kind in
+                ProductMock(kind: kind, tint: ProductMock.tint(for: kind.rawValue), scale: 50)
+                    .frame(width: 46)
+            }
+        }
     }
+    .padding(Tokens.Space.s5)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(Tokens.Ground.milk)
+    .task { Typography.registerFonts() }
 }
 
 #Preview("product — avatar, rank badge, cards") {
@@ -34,14 +43,14 @@ private struct MockBottle: View {
                 ),
                 chips: [Chip("lasted all day", kind: .like, size: .sm, count: "×132")],
                 fitLabel: "just right"
-            ) { MockBottle(tint: Color(hex: 0xD9A87E), height: 60) }
+            ) { ProductMock(kind: .bottle, tint: ProductMock.tint(for: "foundation"), scale: 60) }
 
             Text("ANCHOR ITEM · FIT MISSING").eyebrow()
             ProductCard(
                 meta: .init(brand: "kosas", name: "revealer", variant: "6.5 n"),
                 chips: [Chip("ran light", kind: .dislike, size: .sm, count: "×9")],
                 needsFit: true
-            ) { MockBottle(tint: Color(hex: 0xE5C6A8)) }
+            ) { ProductMock(kind: .dropper, tint: ProductMock.tint(for: "concealer"), scale: 52) }
 
             Text("PERSONAL SCOPE").eyebrow()
             ProductCard(
@@ -52,7 +61,7 @@ private struct MockBottle: View {
                     benefitLine: "yours until three people log it"
                 ),
                 isPersonalScope: true
-            ) { MockBottle(tint: Color(hex: 0xE7E2D6)) }
+            ) { ProductMock(kind: .jar, tint: ProductMock.tint(for: "styler"), scale: 52) }
         }
         .padding(Tokens.Space.s5)
     }
