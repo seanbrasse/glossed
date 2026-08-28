@@ -85,18 +85,25 @@ public struct ShelfRepository: Sendable {
 
     /// Fit is captured at log time, on every log of an anchor-category product —
     /// most people log in five seconds and never rank (PRD §05).
-    public func captureFit(itemID: UUID, fit: Fit, season: String? = nil) async throws(GlossedError) {
-        let userID = try await client.requireUserID()
-        let row = ItemFitRow(
-            userID: userID.uuidString,
+    ///
+    /// A *set*, because fit is multi-axis (GLO-67): lightness and undertone are
+    /// independent, and a shade can miss on both. One RPC rather than upserts
+    /// because the rules are about the set — `just right` is exclusive, one
+    /// answer per axis, and a re-capture replaces the answer wholesale so
+    /// cleared axes actually clear. The database enforces all three; this side
+    /// does not re-derive them.
+    public func captureFit(itemID: UUID, fits: Set<Fit>, season: String? = nil) async throws(GlossedError) {
+        _ = try await client.requireUserID()
+        let params = CaptureFitParams(
             userItemID: itemID.uuidString,
-            fit: fit.rawValue,
+            // Sorted for a deterministic wire order — a Set would otherwise
+            // make identical captures encode differently between runs.
+            fits: fits.map(\.rawValue).sorted(),
             season: season
         )
         try await run {
             _ = try await client.supabase
-                .from("item_fits")
-                .upsert(row, onConflict: "user_item_id")
+                .rpc("capture_fit", params: params)
                 .execute()
         }
     }
@@ -187,15 +194,14 @@ struct ItemChipRow: Encodable, Sendable {
     }
 }
 
-struct ItemFitRow: Encodable, Sendable {
-    let userID: String
+struct CaptureFitParams: Encodable, Sendable {
     let userItemID: String
-    let fit: String
+    let fits: [String]
     let season: String?
 
     enum CodingKeys: String, CodingKey {
-        case fit, season
-        case userID = "user_id"
-        case userItemID = "user_item_id"
+        case userItemID = "p_user_item_id"
+        case fits = "p_fits"
+        case season = "p_season"
     }
 }

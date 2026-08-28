@@ -107,3 +107,17 @@ import Testing
     #expect(row.status == .wantToTry)
     #expect(row.scope == .personal)
 }
+
+@Test func aFitCaptureEncodesTheRPCArgumentNames() throws {
+    // The set is sorted on the wire: identical captures must encode
+    // identically, and Set iteration order would break that.
+    let params = CaptureFitParams(
+        userItemID: "50000000-0000-0000-0000-000000000021",
+        fits: Set<Fit>([.tooPink, .tooLight]).map(\.rawValue).sorted(),
+        season: nil
+    )
+    let data = try JSONEncoder().encode(params)
+    let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    #expect(json["p_user_item_id"] as? String == "50000000-0000-0000-0000-000000000021")
+    #expect(json["p_fits"] as? [String] == ["too_light", "too_pink"])
+}
