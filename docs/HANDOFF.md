@@ -14,11 +14,12 @@ Next tickets, in dependency order:
 
 | Ticket | Why it is next |
 |---|---|
-| [GLO-48](https://linear.app/glossed/issue/GLO-48) catalog images + R2 | Its presign function blocks GLO-16, and R2 provisioning is a chore you can start cold |
-| [GLO-15](https://linear.app/glossed/issue/GLO-15) submission ladder | Fully unblocked; self-contained and high value |
-| [GLO-16](https://linear.app/glossed/issue/GLO-16) shelf + cutouts | Needs GLO-48's presign first |
-| [GLO-47](https://linear.app/glossed/issue/GLO-47) product page · [GLO-19](https://linear.app/glossed/issue/GLO-19) import | Parallel-safe — different feature directories |
+| [GLO-15](https://linear.app/glossed/issue/GLO-15) submission ladder | **In progress, 3 of 5 PRs merged.** Next: PR 4 (barcode + near-match rungs), PR 5 (create rung + confirm) |
+| [GLO-16](https://linear.app/glossed/issue/GLO-16) shelf + cutouts | **Now unblocked** — GLO-48's presign merged in [#37](https://github.com/seanbrasse/glossed/pull/37) |
+| [GLO-56](https://linear.app/glossed/issue/GLO-56) who owns the shade/size pick | A decision, not code. Blocks GLO-15 closing; read it before starting GLO-16 |
+| [GLO-47](https://linear.app/glossed/issue/GLO-47) product page · [GLO-19](https://linear.app/glossed/issue/GLO-19) import | Parallel-safe — different feature directories, untouched |
 | [GLO-14](https://linear.app/glossed/issue/GLO-14) catalog ingest | Server-only lane, parallel with all iOS work |
+| [GLO-48](https://linear.app/glossed/issue/GLO-48) catalog images + R2 | Presign done. The rest **needs a human with the Cloudflare account** — see §9 |
 
 **Blocked on a human, not on code:**
 [GLO-50](https://linear.app/glossed/issue/GLO-50) App Store Connect — the Sign in
@@ -28,7 +29,7 @@ with Apple capability on the App ID gates [GLO-23](https://linear.app/glossed/is
 
 ## 2. What exists
 
-**28 PRs merged, all CI-green.** `main` is the only long-lived branch.
+**34 PRs merged, all CI-green.** `main` is the only long-lived branch.
 
 | Layer | State |
 |---|---|
@@ -36,6 +37,8 @@ with Apple capability on the App ID gates [GLO-23](https://linear.app/glossed/is
 | `core/DataKit` | **FROZEN** — see §4. Config, client, typed errors, 4 repositories. 23 tests. |
 | `core/DesignSystem` | Complete: tokens, 3 bundled fonts, 26 primitives. 11 tests. |
 | `features/Ranking` | Complete: engine, rules, session, view. 29 tests. |
+| `features/AddLadder` | Rungs, search rung, model, screen. 28 tests. Barcode + create rungs remain. |
+| `supabase/functions` | `storage_presign` — scoped R2 PUT URLs. 14 Deno tests, run by the `functions · deno` CI job. **Not deployed** (§9). |
 | Other features | Not started — the bulk of what remains. |
 
 **Hosted Supabase**: project `glossed`, us-east-1. The project ref lives in the
@@ -77,18 +80,40 @@ Every PR opened gets a recap comment (mermaid diagram, file map by layer, schema
 deltas, risk-ordered review notes) from `claude-code-action`, pinned to
 **Sonnet 5** at 30 turns for cost.
 
-It has caught two real bugs, both the same class: **a placement the system
-guessed being recorded as one the user stated.** First for comparison-cap
-exhaustion, then — in the very fix for the first — for skips, because a skip
-collapses the search range exactly as a resolved comparison does. Treat its
-findings as review, not decoration: act on them before merging.
+It has now caught four real bugs, and they are all one family: **a name
+claiming more certainty than the code can supply.** Two sub-shapes, worth
+telling apart because the fixes differ.
 
-Two mechanical facts:
+*A guess reported as a statement.* A placement the system guessed recorded as
+one the user stated — first for comparison-cap exhaustion, then, in the very fix
+for the first, for skips, because a skip collapses the search range exactly as a
+resolved comparison does. The fix adds a flag that admits the uncertainty.
+
+*An attempt reported as an achievement.* `SearchRung` returned
+`recordedMiss: true` after calling `recordFailedSearch` — which is `try?` inside
+frozen DataKit and swallows its own transport errors, so the layer above cannot
+know whether the miss was recorded. And `SearchRungModel` re-derived "is this a
+miss" from the raw query while the rung decides from the *tidied* one, so `" a "`
+would have claimed a miss for a search that never ran. The fix here *removes* a
+claim rather than adding a flag — rename to what is actually known, or delete
+the second implementation of the rule. Prefer this shape where it is available.
+
+Treat its findings as review, not decoration: act on them before merging. If
+acting on them pushes the PR past 400 lines, that is what `size-override` with a
+written reason is for — trimming the reasoning the review asked for to hit a
+number defeats the point of both.
+
+Three mechanical facts:
 - It **refuses to run on any PR that modifies workflow files** (a sound guard:
   otherwise a PR could rewrite the workflow to exfiltrate the key). Workflow
   changes cannot test themselves; the next feature PR is the check.
 - It triggers only on `opened` / `reopened` / `ready_for_review`. A push does not
   retrigger it — close and reopen if you need a fresh one.
+- **A green `recap` check does not prove a recap was posted.** Seen once on
+  [#43](https://github.com/seanbrasse/glossed/pull/43): the agent spent its turns
+  working out how to pipe a body into `gh pr comment`, left a stub comment, and
+  exited green. Look for the comment, not the check mark; close and reopen to
+  get a real one.
 
 ## 6. CI economics
 
@@ -114,6 +139,10 @@ matters, and batching pushes is the single biggest lever.
 | Category tree + chip vocabulary exist only in dev seeds | [GLO-51](https://linear.app/glossed/issue/GLO-51) — production needs them as a migration |
 | No branch protection on `main` | Now that the repo is public, protection is free — worth enabling |
 | Numbers chosen, not validated | `docs/BACKLOG.md` — payoff n≥8, min-n 5, shrinkage k≈10 |
+| Nobody owns the shade/size pick | [GLO-56](https://linear.app/glossed/issue/GLO-56) — a search hit is a *product*, a shelf item is a *variant*. AddLadder or GLO-16's logging sheet? Blocks GLO-15 |
+| Two-char search floor duplicated | [GLO-55](https://linear.app/glossed/issue/GLO-55) — frozen DataKit and AddLadder each hard-code it. Drift one way silently poisons the queue GLO-14 reads |
+| Autocorrect fix lives at a call site | [GLO-57](https://linear.app/glossed/issue/GLO-57) — belongs in `GlossedInput`, next to `GlossedKeyboard`. Every future search field forgets it otherwise |
+| Orphaned cutouts accumulate | [GLO-54](https://linear.app/glossed/issue/GLO-54) — re-shoots write new keys by design; nothing collects the old ones |
 
 ## 8. Local setup
 
@@ -127,3 +156,38 @@ Docker runs via **colima** (`colima start --cpu 2 --memory 4`). One gotcha seen
 this session: a Docker image whose layer was corrupted by a full disk keeps
 being reused after a re-pull — `docker system prune -a -f --volumes` is the fix,
 not another `docker pull`.
+
+## 9. Blocked on a human, not on code
+
+Both need credentials no agent has. Everything else routes around them.
+
+**R2 provisioning ([GLO-48](https://linear.app/glossed/issue/GLO-48)).** Buckets
+`glossed-prod` / `glossed-dev`, an API token, CORS, and a spend alert. Until
+they exist, `storage_presign` is merged but deliberately **not deployed** — a
+deployed function without secrets is just an endpoint that 500s. The env var
+names are already in `.env.example` and are read only inside the Edge Function,
+never in the app bundle. Deploy with `supabase functions deploy storage_presign`
+once the secrets are set.
+
+**App Store Connect ([GLO-50](https://linear.app/glossed/issue/GLO-50)).** The
+Sign in with Apple capability on the App ID gates
+[GLO-23](https://linear.app/glossed/issue/GLO-23) (auth), which gates
+[GLO-18](https://linear.app/glossed/issue/GLO-18) (onboarding).
+
+## 10. Two agents at once works, with one rule
+
+Two sessions ran concurrently on Aug 28 without collision. What made it work:
+**claim tickets explicitly before starting, by message, and say what you are
+holding on disk but have not pushed.** Use `ListAgents` to find peers and
+`SendMessage` to claim. The near-miss was both sessions eyeing GLO-15 at the
+same minute; one message settled it.
+
+Worth repeating: a session that is winding down should say so and name what it
+is leaving free, and one agent should not merge another's PR when that PR
+touches a file class its own instructions put off-limits — merging is not
+modifying, but the conservative read costs nothing.
+
+One git habit that cost the earlier session real work twice: `git push -q` hides
+a failed push, and a docs commit whose content never reached the remote merged
+as an empty pointer. **Check `git show --stat HEAD` before pushing**, and check
+the PR's file list after.
