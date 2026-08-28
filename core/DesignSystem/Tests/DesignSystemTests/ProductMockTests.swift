@@ -97,3 +97,20 @@ private func isNear(_ lhs: CGFloat, _ rhs: CGFloat) -> Bool {
     #expect(widths.max { $0.1 < $1.1 }?.0 == .compact)
     #expect(widths.min { $0.1 < $1.1 }?.0 == .tube)
 }
+
+@Test func everySeededCategoryDrawsTheShapeTheKitDrew() {
+    // The kit's own assignments, one per seeded category. The ladder's rows and
+    // the shelf's bays both read this table, so it lives on the primitive.
+    #expect(ProductMock.Kind.usual(forCategory: "blush") == .dropper)
+    #expect(ProductMock.Kind.usual(forCategory: "serum") == .dropper)
+    #expect(ProductMock.Kind.usual(forCategory: "foundation") == .bottle)
+    #expect(ProductMock.Kind.usual(forCategory: "cleanser") == .bottle)
+    #expect(ProductMock.Kind.usual(forCategory: "styler") == .bottle)
+    #expect(ProductMock.Kind.usual(forCategory: "moisturizer") == .jar)
+    #expect(ProductMock.Kind.usual(forCategory: "fragrance") == .mist)
+}
+
+@Test func anUnknownCategoryGetsTheGenericShapeNotAConfidentWrongOne() {
+    #expect(ProductMock.Kind.usual(forCategory: "lip-oil") == .tube)
+    #expect(ProductMock.Kind.usual(forCategory: "") == .tube)
+}

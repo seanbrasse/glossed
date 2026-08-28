@@ -120,25 +120,11 @@ public struct LadderOptionRow: View {
         }
     }
 
-    /// What a category is usually sold in.
-    ///
-    /// A guess, and labelled one: the catalog records no packaging, so this
-    /// reads the category and picks the silhouette the kit drew for that kind
-    /// of product. Unknown slugs fall through to `tube`, which is the kit's own
-    /// fallthrough — a category we have never seen gets the generic shape
-    /// rather than a confident wrong one.
-    ///
-    /// It is deliberately not a claim about the individual product. A powder
-    /// blush in a compact still draws as a dropper here, and that is the cost
-    /// of not having the field; GLO-63 carries the fix.
+    /// One table, on the primitive — see `ProductMock.Kind.usual(forCategory:)`.
+    /// The shelf draws by category too, and two copies of the table is how the
+    /// same product comes to draw as two shapes on two screens.
     static func packaging(for categorySlug: String) -> ProductMock.Kind {
-        switch categorySlug {
-        case "blush", "serum": .dropper
-        case "foundation", "cleanser", "styler": .bottle
-        case "moisturizer": .jar
-        case "fragrance": .mist
-        default: .tube
-        }
+        ProductMock.Kind.usual(forCategory: categorySlug)
     }
 }
 
