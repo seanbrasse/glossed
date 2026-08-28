@@ -31,7 +31,10 @@
     private struct LiveShelfScreen: View {
         enum Phase {
             case connecting
-            case loaded([ShelfSection])
+            // The model rather than the sections: it is built where the
+            // repository is in hand, so the sheet's fit section reads and
+            // writes item_fits instead of firing into a no-op.
+            case loaded(ShelfModel)
             case failed(String)
         }
 
@@ -52,8 +55,8 @@
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Tokens.Ground.milk)
-            case let .loaded(sections):
-                ShelfView(model: ShelfModel(sections: sections))
+            case let .loaded(model):
+                ShelfView(model: model)
             case let .failed(message):
                 VStack(alignment: .leading, spacing: Tokens.Space.s3) {
                     Text("the local stack is not answering").font(Typography.display(24))
@@ -80,8 +83,12 @@
                 let config = try GlossedConfig.validated(from: environment)
                 let client = GlossedClient(config: config)
                 try await client.signIn(email: "maya@local.test", password: "password")
-                let rows = try await ShelfRepository(client: client).shelf()
-                phase = .loaded(ShelfSection.grouped(from: rows))
+                let repository = ShelfRepository(client: client)
+                let rows = try await repository.shelf()
+                phase = .loaded(ShelfModel(
+                    sections: ShelfSection.grouped(from: rows),
+                    fitStore: .repository(repository)
+                ))
             } catch let error as GlossedError {
                 phase = .failed("\(error.code.rawValue): \(error.debugDetail ?? error.userMessage)")
             } catch {

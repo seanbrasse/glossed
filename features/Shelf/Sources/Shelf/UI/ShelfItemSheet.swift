@@ -19,27 +19,27 @@ public struct ShelfItemSheet: View {
     /// line. Nil omits the line: an absent aggregate is not a claim of zero,
     /// and nothing reads `agg_variant_stats` for the sheet yet (GLO-63 family).
     private let exactShadeCount: Int?
-    private let onFitChanged: (Set<FitAnswer>) -> Void
-    @State private var fit: Set<FitAnswer>
+    /// Owned outside, because the answer is not the sheet's: it is loaded
+    /// before the sheet exists and persists after it closes. A sheet holding
+    /// its own copy could never show a read that resolves after it opens.
+    @Binding private var fit: Set<FitAnswer>
 
     public init(
         item: ShelfItem,
         rankedInCategory: Int,
-        fit: Set<FitAnswer> = [],
+        fit: Binding<Set<FitAnswer>> = .constant([]),
         exactShadeCount: Int? = nil,
         onClose: @escaping () -> Void,
         onRank: @escaping () -> Void = {},
-        onOpenProduct: @escaping () -> Void = {},
-        onFitChanged: @escaping (Set<FitAnswer>) -> Void = { _ in }
+        onOpenProduct: @escaping () -> Void = {}
     ) {
         self.item = item
         self.rankedInCategory = rankedInCategory
-        _fit = State(initialValue: fit)
+        _fit = fit
         self.exactShadeCount = exactShadeCount
         self.onClose = onClose
         self.onRank = onRank
         self.onOpenProduct = onOpenProduct
-        self.onFitChanged = onFitChanged
     }
 
     public var body: some View {
@@ -174,15 +174,7 @@ public struct ShelfItemSheet: View {
     /// inventing a second is a DesignSystem PR, not a sheet detail.
     private var fitSection: some View {
         VStack(alignment: .leading, spacing: 9) {
-            FitControl(
-                selection: Binding(
-                    get: { fit },
-                    set: { newValue in
-                        fit = newValue
-                        onFitChanged(newValue)
-                    }
-                )
-            )
+            FitControl(selection: $fit)
             if let exactShadeCount {
                 EvidenceLine(n: exactShadeCount, label: "people wear this exact shade")
             }

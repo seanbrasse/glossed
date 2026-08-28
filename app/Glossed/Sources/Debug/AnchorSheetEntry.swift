@@ -19,11 +19,15 @@
         }
 
         private struct AnchorSheetOnLaunch: View {
+            /// The sheet's fit is a binding now (the answer outlives the sheet);
+            /// the fixture holds its own so the control is still drivable here.
+            @State private var fit: Set<FitAnswer> = [.tooLight, .tooPink]
+
             var body: some View {
                 ShelfItemSheet(
                     item: ShelfFixtures.anchorFoundation,
                     rankedInCategory: 3,
-                    fit: [.tooLight, .tooPink],
+                    fit: $fit,
                     exactShadeCount: 12,
                     onClose: {}
                 )
