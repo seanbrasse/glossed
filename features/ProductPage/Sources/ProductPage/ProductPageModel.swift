@@ -108,6 +108,15 @@ public final class ProductPageModel {
         return evidence.evidenceBacked ? .backed(n: evidence.exactShadeCount) : .notEnoughYet
     }
 
+    /// How many anchors this user has already given a fit for, when we know.
+    ///
+    /// `nil` rather than `0` while the lookup is out or has failed: a meter that
+    /// reads "0 of 5 anchors" during a network hiccup tells someone they have
+    /// done nothing, which is a claim about them rather than about the request.
+    public var anchorsWithFit: Int? {
+        failure == nil ? evidence?.withFitCount : nil
+    }
+
     /// "freckle · the natural flush", and just one of them when that is all
     /// there is — never a stray separator standing in for a variant string the
     /// catalog does not return (GLO-63).

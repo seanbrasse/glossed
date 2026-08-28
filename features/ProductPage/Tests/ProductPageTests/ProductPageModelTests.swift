@@ -126,3 +126,37 @@ private func model(
     #expect(model(item(of: nil)).showsRank == false)
     #expect(model(item(of: 0)).showsRank == false)
 }
+
+// MARK: - The confidence meter's baseline
+
+@MainActor
+@Test func theMeterHasNoBaselineUntilThereIsAnAnswer() async {
+    // Not zero. "0 of 5 anchors" during a network hiccup tells someone they
+    // have done nothing, which is a claim about them rather than about the
+    // request that failed.
+    let live = model(failure: GlossedError(.offline, userMessage: "no connection"))
+    #expect(live.anchorsWithFit == nil)
+    await live.load()
+    #expect(live.anchorsWithFit == nil)
+}
+
+@MainActor
+@Test func theMeterAndTheEvidenceLineComeFromTheSameAnswer() async {
+    // Both halves of the page describe the same user in the same moment. Two
+    // reads would let the meter and the count disagree about who is being
+    // talked about.
+    let live = model(evidence: PayoffEvidence(exactShadeCount: 89, withFitCount: 2, evidenceBacked: true))
+    await live.load()
+    #expect(live.shadeClaim == .backed(n: 89))
+    #expect(live.anchorsWithFit == 2)
+}
+
+@MainActor
+@Test func aThinSampleStillHasARealAnchorCount() async {
+    // `evidenceBacked` gates the claim about *other people*. How many anchors
+    // you have given a fit for is a fact about you, and is not gated by it.
+    let live = model(evidence: PayoffEvidence(exactShadeCount: 1, withFitCount: 3, evidenceBacked: false))
+    await live.load()
+    #expect(live.shadeClaim == .notEnoughYet)
+    #expect(live.anchorsWithFit == 3)
+}
