@@ -30,6 +30,8 @@
             ShelfLifecycleEntry.removeOffered,
             ShelfLifecycleEntry.removeFailed,
             ShelfEntries.everythingOff,
+            ShelfSearchEntry.narrowed,
+            ShelfSearchEntry.cameUpDry,
             LadderEntries.search,
             LadderEntries.searchEmpty,
             LadderEntries.searchFailed,

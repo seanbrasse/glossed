@@ -9,10 +9,20 @@ import SwiftUI
 /// fragrance note when it applies, and the sort pills.
 public struct ShelfView: View {
     @State private var model: ShelfModel
+    /// View-local on purpose: whether the field is showing is about this
+    /// render of the screen; what is being searched for lives on the model.
+    /// Closing clears the query — a hidden filter would be a shelf that
+    /// silently lies about what you own.
+    @State private var isSearchOpen = false
     private let onTapItem: (ShelfItem) -> Void
 
-    public init(model: ShelfModel, onTapItem: @escaping (ShelfItem) -> Void = { _ in }) {
+    public init(
+        model: ShelfModel,
+        startsSearching: Bool = false,
+        onTapItem: @escaping (ShelfItem) -> Void = { _ in }
+    ) {
         _model = State(initialValue: model)
+        _isSearchOpen = State(initialValue: startsSearching)
         self.onTapItem = onTapItem
     }
 
@@ -50,6 +60,16 @@ public struct ShelfView: View {
                         .meta()
                 }
                 controls
+                if isSearchOpen {
+                    searchField
+                }
+                if model.searchCameUpEmpty {
+                    // A designed dead end, not a blank shelf: say the search
+                    // came up dry and name the way onward.
+                    Text("nothing on your shelf matches — check the spelling, or add it with +")
+                        .meta()
+                        .padding(.top, 6)
+                }
                 switch model.viewMode {
                 case .shelf:
                     ShelfBayView(sections: model.shownSections, onTap: tapped)
@@ -117,8 +137,56 @@ public struct ShelfView: View {
     private var controls: some View {
         HStack(alignment: .center, spacing: 8) {
             sortPills
+            searchToggle
             viewToggle
         }
+    }
+
+    /// Find-what-I-own (GLO-73), folded into the controls row so search reads
+    /// as one more way to narrow the same list — beside sort, not above the
+    /// shelf. No kit frame exists for it; workshop at review.
+    private var searchToggle: some View {
+        Button {
+            isSearchOpen.toggle()
+            if !isSearchOpen {
+                model.searchQuery = ""
+            }
+        } label: {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Tokens.Ink.primary)
+                .frame(width: 34, height: 30)
+                .background(isSearchOpen ? Tokens.Cherry.soft : Tokens.Ground.card)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule().strokeBorder(
+                        isSearchOpen ? Tokens.Ink.primary : Tokens.Ground.line,
+                        lineWidth: isSearchOpen ? Tokens.Border.std : Tokens.Border.hair
+                    )
+                )
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("find on your shelf")
+        .accessibilityAddTraits(isSearchOpen ? [.isSelected] : [])
+    }
+
+    private var searchField: some View {
+        GlossedInput(
+            "find on your shelf",
+            text: Binding(
+                get: { model.searchQuery },
+                set: { model.searchQuery = $0 }
+            )
+        )
+        // A find field, not prose: "rhode" corrected to "Rhodes" is a shelf
+        // that claims you own nothing. Both propagate to the inner TextField.
+        // The capitalization modifier is UIKit-backed and absent on macOS,
+        // where the package tests build — hence the gate.
+        .autocorrectionDisabled()
+        #if os(iOS)
+            .textInputAutocapitalization(.never)
+        #endif
     }
 
     /// Two 38×30 buttons inside one 2px ink pill, so it reads as a single
