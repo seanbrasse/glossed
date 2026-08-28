@@ -59,3 +59,25 @@ private struct MockBottle: View {
     .background(Tokens.Ground.milk)
     .task { Typography.registerFonts() }
 }
+
+#Preview("typographic tile — the floor of the fallback chain") {
+    VStack(alignment: .leading, spacing: Tokens.Space.s5) {
+        Text("NO PHOTO YET · NEVER A BROKEN IMAGE").eyebrow()
+        HStack(spacing: Tokens.Space.s3) {
+            TypographicTile(brand: "Rare Beauty", seed: "blush")
+            TypographicTile(brand: "Glow Recipe", seed: "serum")
+            TypographicTile(brand: "Glossier", seed: "lip-oil")
+            TypographicTile(brand: "Drunk-Elephant", seed: "cleanser")
+            TypographicTile(brand: "", seed: "mask")
+        }
+        Text("SAME SEED, SAME COLOUR, EVERY LAUNCH").eyebrow()
+        ProductCard(
+            meta: .init(brand: "rare beauty", name: "soft pinch liquid blush", variant: "joy"),
+            isPersonalScope: true
+        ) {
+            TypographicTile(brand: "Rare Beauty", seed: "blush")
+        }
+    }
+    .padding(Tokens.Space.s5)
+    .background(Tokens.Ground.milk)
+}
