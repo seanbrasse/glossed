@@ -22,6 +22,10 @@ final class AppSession {
 
     private(set) var phase = Phase.connecting
     private(set) var client: GlossedClient?
+    /// Where catalog cutouts are served from: the stack's public storage
+    /// bucket. Composed from config, so the storage move (local → R2) is an
+    /// env change here and nowhere else (GLO-74).
+    private var imageBase: URL?
     /// The shelf tab's model. Rebuilt by `reloadShelf()` — the ladder calls
     /// that after landing something, so a new bottle appears without a
     /// relaunch.
@@ -40,6 +44,7 @@ final class AppSession {
                 let booted = GlossedClient(config: config)
                 try await booted.signIn(email: "maya@local.test", password: "password")
                 client = booted
+                imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
                 await reloadShelf()
                 phase = .ready
             } catch let error as GlossedError {
@@ -62,7 +67,7 @@ final class AppSession {
         let repository = ShelfRepository(client: client)
         guard let rows = try? await repository.shelf() else { return }
         shelfModel = ShelfModel(
-            sections: ShelfSection.grouped(from: rows),
+            sections: ShelfSection.grouped(from: rows, imageBase: imageBase),
             fitStore: .repository(repository)
         )
     }

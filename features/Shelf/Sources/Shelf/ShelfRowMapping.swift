@@ -14,7 +14,10 @@ public extension ShelfItem {
     /// `packaging` is the one field the row does not supply — the catalog
     /// records no packaging (GLO-14) — so it is derived from the category via
     /// the primitive's own table, the same lookup the ladder's match rows use.
-    init(row: ShelfRow) {
+    /// - Parameter imageBase: the public base URL for catalog cutouts (the
+    ///   app's config knows the stack; the row carries only a storage key).
+    ///   Nil renders mocks — the fixture states pass nothing and lose nothing.
+    init(row: ShelfRow, imageBase: URL? = nil) {
         self.init(
             id: row.userItemID,
             brand: row.brandName,
@@ -31,8 +34,25 @@ public extension ShelfItem {
             isPersonalScope: row.scope == .personal,
             rank: row.rankPosition,
             loggedAt: row.loggedAt,
-            isAnchorCategory: row.isAnchor
+            isAnchorCategory: row.isAnchor,
+            sizeML: row.sizeML,
+            catalogImageURL: ShelfItem.imageURL(base: imageBase, key: row.catalogImageKey),
+            catalogImageAspect: ShelfItem.aspect(width: row.catalogImageWidth, height: row.catalogImageHeight)
         )
+    }
+
+    /// Composed only when both halves exist — a key with no base is a fixture
+    /// context, and a URL guessed there would 404 on screen.
+    static func imageURL(base: URL?, key: String?) -> URL? {
+        guard let base, let key else { return nil }
+        return base.appending(path: key)
+    }
+
+    /// Width over height, only when both are real — a zero would divide, and
+    /// an aspect from half a size is a lie about the pack width.
+    static func aspect(width: Int?, height: Int?) -> Double? {
+        guard let width, let height, width > 0, height > 0 else { return nil }
+        return Double(width) / Double(height)
     }
 }
 
@@ -43,7 +63,7 @@ public extension ShelfSection {
     ///
     /// Grouped by slug, not label — two categories could share a label some
     /// day, and a bay that merged them would mix two rank lists.
-    static func grouped(from rows: [ShelfRow]) -> [ShelfSection] {
+    static func grouped(from rows: [ShelfRow], imageBase: URL? = nil) -> [ShelfSection] {
         let byCategory = Dictionary(grouping: rows, by: \.categorySlug)
         return byCategory.values
             .compactMap { group -> ShelfSection? in
@@ -52,7 +72,7 @@ public extension ShelfSection {
                     slug: first.categorySlug,
                     label: first.categoryLabel,
                     domain: first.domain,
-                    items: group.map(ShelfItem.init(row:))
+                    items: group.map { ShelfItem(row: $0, imageBase: imageBase) }
                 )
             }
             .sorted { lhs, rhs in

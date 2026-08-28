@@ -86,7 +86,10 @@
                 let repository = ShelfRepository(client: client)
                 let rows = try await repository.shelf()
                 phase = .loaded(ShelfModel(
-                    sections: ShelfSection.grouped(from: rows),
+                    sections: ShelfSection.grouped(
+                        from: rows,
+                        imageBase: config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
+                    ),
                     fitStore: .repository(repository)
                 ))
             } catch let error as GlossedError {

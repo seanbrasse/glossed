@@ -54,6 +54,17 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
     /// Whether the category's shade is meant to match skin — the gate on the
     /// sheet's fit section. Shade is only evidence where it is meant to match.
     public let isAnchorCategory: Bool
+    /// The variant's volume, for the height estimate when `heightMM` is
+    /// unset — which is every imported variant today.
+    public let sizeML: Double?
+    /// The variant's catalog cutout, already resolved to a URL by whoever
+    /// built the item — the feature knows nothing about buckets (GLO-74).
+    /// Nil renders the drawn mock, which is the chain's floor, not an error.
+    public let catalogImageURL: URL?
+    /// That image's width over height. Carried because the bay packs by drawn
+    /// width, and a photo's width is its aspect times the drawn height —
+    /// packing on the mock's width while rendering a photo's is GLO-68 again.
+    public let catalogImageAspect: Double?
 
     public init(
         id: UUID,
@@ -71,7 +82,10 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
         isPersonalScope: Bool = false,
         rank: Int? = nil,
         loggedAt: Date? = nil,
-        isAnchorCategory: Bool = false
+        isAnchorCategory: Bool = false,
+        sizeML: Double? = nil,
+        catalogImageURL: URL? = nil,
+        catalogImageAspect: Double? = nil
     ) {
         self.id = id
         self.brand = brand
@@ -89,6 +103,9 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
         self.rank = rank
         self.loggedAt = loggedAt
         self.isAnchorCategory = isAnchorCategory
+        self.sizeML = sizeML
+        self.catalogImageURL = catalogImageURL
+        self.catalogImageAspect = catalogImageAspect
     }
 }
 
@@ -217,60 +234,6 @@ public extension ShelfItem {
         case .own: "own"
         case .finished: "finished"
         case .repurchased: "repurchased"
-        }
-    }
-
-    /// How tall to draw this object, in `ProductMock`'s scale units.
-    ///
-    /// **The ratios are compressed, and the name says drawn rather than real.**
-    /// A 15mm compact next to a 190mm shampoo bottle is a 12× difference; drawn
-    /// at 12× either the compact is four points tall or the bottle does not fit
-    /// in an 82pt bay. So real millimetres are mapped linearly onto the band the
-    /// kit draws in and clamped at both ends. What survives is the ordering and
-    /// a visible difference — which is what PRD §08 asks for ("a lipstick is
-    /// visibly smaller than a shampoo bottle") — not the true proportion.
-    ///
-    /// With no measurement, the kit's own per-kind table stands in. It is not a
-    /// guess dressed as data: a bottle is drawn taller than a compact because
-    /// bottles are taller than compacts, and nothing about the individual
-    /// product is being claimed.
-    var drawnScale: CGFloat {
-        guard let heightMM, heightMM > 0 else { return ShelfItem.kitScale(packaging) }
-        let clamped = min(max(heightMM, ShelfItem.shortestMM), ShelfItem.tallestMM)
-        let fraction = (clamped - ShelfItem.shortestMM) / (ShelfItem.tallestMM - ShelfItem.shortestMM)
-        return ShelfItem.smallestScale + CGFloat(fraction) * (ShelfItem.largestScale - ShelfItem.smallestScale)
-    }
-
-    /// A pressed powder compact and a litre shampoo bottle — the ends of what a
-    /// beauty shelf actually holds. Outside these the drawing stops changing,
-    /// which is better than a travel sample vanishing.
-    static let shortestMM: Double = 15
-    static let tallestMM: Double = 200
-
-    /// The band the kit draws in, taken from its own per-kind table: nothing is
-    /// smaller than a compact and nothing is much taller than a bottle.
-    static let smallestScale: CGFloat = 44
-    static let largestScale: CGFloat = 88
-
-    /// How much shelf this object takes up: what it draws, or the floor that
-    /// keeps its rank sticker off its neighbour's — whichever is larger.
-    ///
-    /// Both the packing and the layout use this. They have to be the same
-    /// number: pack by the slot and render at the drawn width and the shelf
-    /// comes out short of full, with the stickers back where they started.
-    var slotWidth: CGFloat {
-        max(ProductMock.drawnWidth(kind: packaging, scale: drawnScale), ShelfBay.minimumSlot)
-    }
-
-    /// `kindH` in `G.Shelf`.
-    static func kitScale(_ packaging: ProductMock.Kind) -> CGFloat {
-        switch packaging {
-        case .compact: 44
-        case .jar: 50
-        case .tube: 62
-        case .mist: 66
-        case .dropper: 68
-        case .bottle: 74
         }
     }
 }
