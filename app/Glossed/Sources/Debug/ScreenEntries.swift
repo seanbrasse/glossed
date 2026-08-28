@@ -151,7 +151,7 @@
                             ProductMock(
                                 kind: kind,
                                 tint: ProductMock.tint(for: kind.rawValue),
-                                scale: ShelfItem.kitScale(kind),
+                                scale: ShelfItem.kitSizeClass(kind).height,
                                 rotation: .degrees([-2, 1.5, -1, 2, -1.5][index % 5]),
                                 label: "#\(index + 1)"
                             )

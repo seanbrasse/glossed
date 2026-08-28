@@ -128,9 +128,11 @@ private func shelfFitting(_ count: Int) -> CGFloat {
 
 // MARK: - How tall a thing is drawn
 
-@Test func withNoMeasurementTheKitsOwnHeightsStandIn() {
-    #expect(item("x", packaging: .compact).drawnScale == 44)
-    #expect(item("x", packaging: .bottle).drawnScale == 74)
+@Test func withNoMeasurementTheKindsOwnBucketStandsIn() {
+    // GLO-82: a compact is small and a bottle is large, and each draws at
+    // its bucket's one height.
+    #expect(item("x", packaging: .compact).drawnScale == ShelfSizeClass.small.height)
+    #expect(item("x", packaging: .bottle).drawnScale == ShelfSizeClass.large.height)
 }
 
 @Test func aCompactIsDrawnSmallerThanABottleWhichIsThePointOfTheWholeThing() {
@@ -151,18 +153,20 @@ private func shelfFitting(_ count: Int) -> CGFloat {
 }
 
 @Test func nothingVanishesAndNothingOverflowsTheBay() {
-    // A sample vial and a litre pump both have to stand in an 82pt bay.
+    // A sample vial and a litre pump both have to stand in an 82pt bay —
+    // and land in one of the three buckets (GLO-82), never off the scale.
     for mm in [0.5, 1, 15, 200, 400, 5000] as [Double] {
         let scale = item("x", heightMM: mm).drawnScale
-        #expect(scale >= ShelfItem.smallestScale)
-        #expect(scale <= ShelfItem.largestScale)
+        #expect(scale >= ShelfSizeClass.small.height)
+        #expect(scale <= ShelfSizeClass.large.height)
     }
 }
 
 @Test func aMeaninglessMeasurementFallsBackRatherThanDrawingNothing() {
-    // Zero and negative are bad data, not tiny products.
-    #expect(item("x", packaging: .jar, heightMM: 0).drawnScale == 50)
-    #expect(item("x", packaging: .jar, heightMM: -3).drawnScale == 50)
+    // Zero and negative are bad data, not tiny products: the kind's own
+    // bucket answers, and a jar is small.
+    #expect(item("x", packaging: .jar, heightMM: 0).drawnScale == ShelfSizeClass.small.height)
+    #expect(item("x", packaging: .jar, heightMM: -3).drawnScale == ShelfSizeClass.small.height)
 }
 
 // MARK: - The uprights
