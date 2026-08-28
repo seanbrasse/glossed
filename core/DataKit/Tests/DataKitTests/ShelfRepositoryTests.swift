@@ -47,7 +47,7 @@ import Testing
      "scope":"canonical","benefit_line":"one dot, blends forever",
      "variant_label":"joy · 7.5ml","height_mm":70,"status":"own",
      "started_on":"2026-08-01","note":null,"cutout_r2_key":null,
-     "logged_at":"2026-08-01T12:00:00Z","rank_position":2,"ranked_in_category":5}
+     "logged_at":"2026-08-01T12:00:00Z","rank_position":2,"ranked_in_category":5,"is_anchor":false}
     """#.utf8)
     let row = try PostgrestClient.Configuration.jsonDecoder.decode(ShelfRow.self, from: raw)
 
@@ -59,6 +59,7 @@ import Testing
     #expect(row.scope == .canonical)
     #expect(row.rankPosition == 2)
     #expect(row.rankedInCategory == 5)
+    #expect(row.isAnchor == false)
     // The one that used to be impossible: `started_on` is a Postgres `date`,
     // and the platform decoder parses timestamps only. Bound straight to
     // `Date?` this whole row threw.
@@ -97,7 +98,7 @@ import Testing
      "scope":"personal","benefit_line":null,"variant_label":null,
      "height_mm":null,"status":"want_to_try","started_on":null,"note":null,
      "cutout_r2_key":null,"logged_at":"2026-08-01T12:00:00Z",
-     "rank_position":null,"ranked_in_category":0}
+     "rank_position":null,"ranked_in_category":0,"is_anchor":true}
     """#.utf8)
     let row = try PostgrestClient.Configuration.jsonDecoder.decode(ShelfRow.self, from: raw)
 
@@ -106,6 +107,7 @@ import Testing
     #expect(row.variantLabel == nil)
     #expect(row.status == .wantToTry)
     #expect(row.scope == .personal)
+    #expect(row.isAnchor)
 }
 
 @Test func aFitCaptureEncodesTheRPCArgumentNames() throws {

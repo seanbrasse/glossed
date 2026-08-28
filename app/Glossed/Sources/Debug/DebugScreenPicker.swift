@@ -31,19 +31,19 @@
                 // Full screen, not a sheet: a screen shown inside a sheet is
                 // inset and rounded, and half the things worth checking are how
                 // it meets the edges of the display.
-                // Bottom-trailing, not top: every screen in this app puts
-                // something in its top-right — the shelf's item count, the item
-                // sheet's close, the product page's own chrome — and a harness
-                // button sitting on top of the thing you opened the screen to
-                // read is a harness that gets in the way of the review it exists
-                // for. The bottom-right is the one corner the kit leaves empty
-                // under the floating nav's 110pt of room.
-                ZStack(alignment: .bottomTrailing) {
+                // Top-center, third home for this button. Top-right sat on
+                // every screen's own chrome (#77 moved it); bottom-right then
+                // held until the item sheet's action row reached exactly there
+                // — "the corner the kit leaves empty" was only true of full
+                // screens, and a sheet's "full page" button disappeared under
+                // the harness's close. Top-center is the one zone every state
+                // actually leaves clear: full screens put titles leading and
+                // counts trailing, and sheets rise from the bottom.
+                ZStack(alignment: .top) {
                     entry.make()
                     Button("close") { showing = nil }
                         .buttonStyle(.glossed(.secondary, size: .sm))
-                        .padding(.trailing, Tokens.Space.s4)
-                        .padding(.bottom, Tokens.Space.s5)
+                        .padding(.top, Tokens.Space.s2)
                 }
             }
         }

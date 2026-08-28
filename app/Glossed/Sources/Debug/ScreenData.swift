@@ -29,7 +29,8 @@
             benefit: String? = nil,
             startedDaysAgo: Double? = nil,
             personal: Bool = false,
-            rank: Int? = nil
+            rank: Int? = nil,
+            anchor: Bool = false
         ) -> ShelfItem {
             ShelfItem(
                 id: UUID(),
@@ -46,9 +47,24 @@
                 startedOn: startedDaysAgo.map { Date().addingTimeInterval(-$0 * 86400) },
                 isPersonalScope: personal,
                 rank: rank,
-                loggedAt: Date().addingTimeInterval(-Double(rank ?? 9) * 86400)
+                loggedAt: Date().addingTimeInterval(-Double(rank ?? 9) * 86400),
+                isAnchorCategory: anchor
             )
         }
+
+        /// The sheet's anchor state: a foundation whose fit section shows the
+        /// multi-axis control with a saved two-axis answer and its evidence.
+        static let anchorFoundation = item(
+            "fenty beauty",
+            "pro filt'r soft matte",
+            variant: "240 · 32ml",
+            category: ("foundation", "foundation"),
+            packaging: .bottle,
+            heightMM: 110,
+            benefit: "your anchor shade. medium-full, holds all day, needs a balm underneath.",
+            rank: 1,
+            anchor: true
+        )
 
         /// Five blushes, three cleansers, two stylers, one fragrance.
         ///

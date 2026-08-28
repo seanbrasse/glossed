@@ -51,6 +51,9 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
     /// not exist yet (GLO-66); an item with no date sorts last rather than
     /// pretending to be new.
     public let loggedAt: Date?
+    /// Whether the category's shade is meant to match skin — the gate on the
+    /// sheet's fit section. Shade is only evidence where it is meant to match.
+    public let isAnchorCategory: Bool
 
     public init(
         id: UUID,
@@ -67,7 +70,8 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
         startedOn: Date? = nil,
         isPersonalScope: Bool = false,
         rank: Int? = nil,
-        loggedAt: Date? = nil
+        loggedAt: Date? = nil,
+        isAnchorCategory: Bool = false
     ) {
         self.id = id
         self.brand = brand
@@ -84,6 +88,7 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
         self.isPersonalScope = isPersonalScope
         self.rank = rank
         self.loggedAt = loggedAt
+        self.isAnchorCategory = isAnchorCategory
     }
 }
 

@@ -198,6 +198,9 @@ public struct ShelfRow: Codable, Sendable, Identifiable, Hashable {
     /// from one read and a shelf can never say you are second of five while
     /// showing you three things.
     public let rankedInCategory: Int
+    /// Whether this category's shade is meant to match skin — the gate on the
+    /// item sheet's fit section (GLO-16).
+    public let isAnchor: Bool
 
     private let startedOnRaw: String?
 
@@ -218,6 +221,7 @@ public struct ShelfRow: Codable, Sendable, Identifiable, Hashable {
         case loggedAt = "logged_at"
         case rankPosition = "rank_position"
         case rankedInCategory = "ranked_in_category"
+        case isAnchor = "is_anchor"
     }
 }
 
