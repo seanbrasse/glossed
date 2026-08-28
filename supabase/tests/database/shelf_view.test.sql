@@ -4,7 +4,7 @@
 -- not invent the two facts the schema leaves null.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(16);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -80,6 +80,26 @@ values ('50000000-0000-0000-0000-000000000014', '00000000-0000-0000-0000-0000000
 select is((select is_anchor from user_shelf_items
            where user_item_id = '50000000-0000-0000-0000-000000000014'),
     true, 'a foundation row is');
+
+-- The row's catalog image (0015): the newest catalog-kind key, or null — an
+-- absent image is ordinary and the render chain's floor handles it.
+select is((select catalog_image_key from user_shelf_items
+           where user_item_id = '50000000-0000-0000-0000-000000000014'),
+    null, 'no fetched image means null, not a broken path');
+-- The pipeline writes as the service, not a user — catalog tables are
+-- public-read, service-write.
+reset role;
+insert into variant_images (variant_id, kind, r2_key, width, height, image_source, last_fetched)
+values ('40000000-0000-0000-0000-000000000001', 'catalog',
+        '40000000-0000-0000-0000-000000000001/cut512.png', 219, 372, 'https://example.test/a.jpg', now());
+select test_as('00000000-0000-0000-0000-000000000002');
+select results_eq($$
+    select catalog_image_key, catalog_image_width, catalog_image_height
+    from user_shelf_items where user_item_id = '50000000-0000-0000-0000-000000000014'
+$$, $$ values ('40000000-0000-0000-0000-000000000001/cut512.png', 219, 372) $$,
+    'a fetched catalog image reaches the row: key, and the size the bay packs by');
+select is((select size_ml from user_shelf_items where user_item_id = '50000000-0000-0000-0000-000000000014'),
+    32::numeric, 'volume crosses the join untouched — the shelf scales by it when height is unset (0015)');
 
 select * from finish();
 rollback;
