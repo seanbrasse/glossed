@@ -99,6 +99,9 @@ public struct ShelfBayView: View {
                             kind: item.packaging,
                             tint: ProductMock.tint(for: item.name),
                             scale: item.drawnScale,
+                            // The bucket's own cap (GLO-82): render and slot
+                            // agree, and no photo outgrows its size class.
+                            maxWidth: item.sizeClass.maxWidth,
                             rotation: .degrees(ShelfBayView.tilt(for: item)),
                             label: item.rank.map { "#\($0)" }
                         )

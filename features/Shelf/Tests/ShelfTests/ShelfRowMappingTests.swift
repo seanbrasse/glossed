@@ -59,7 +59,9 @@ private func row(
         row: row(imageKey: "abc/cut512.png", imageWidth: 300, imageHeight: 300),
         imageBase: #require(URL(string: "http://x"))
     )
-    #expect(photo.slotWidth == photo.drawnScale)
+    // A square photo would pack at its drawn height — unless the bucket's
+    // cap is tighter, which for this row it is (GLO-82).
+    #expect(photo.slotWidth == min(photo.drawnScale, photo.sizeClass.maxWidth))
     let mock = try ShelfItem(row: row())
     #expect(mock.slotWidth == max(
         ProductMock.drawnWidth(kind: mock.packaging, scale: mock.drawnScale),
@@ -113,7 +115,7 @@ private func row(
         heightMM: 200,
         sizeML: 10
     )
-    #expect(measured.drawnScale == ShelfItem.largestScale)
+    #expect(measured.drawnScale == ShelfSizeClass.large.height)
 }
 
 @Test func theMappingRenamesRatherThanComputes() throws {
