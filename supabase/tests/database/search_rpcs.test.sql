@@ -1,7 +1,7 @@
 -- search_catalog respects personal scope; record_failed_search counts demand.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(10);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -48,6 +48,15 @@ select ok(
 select ok(
     exists(select 1 from search_catalog('flaxseed') where catalog_image_key is null),
     'a product with no image says null, not a made-up key');
+
+-- the category-id ride-along (0017): item_logged needs it, and it must be
+-- the product's real category, not merely non-null.
+select ok(
+    exists(
+        select 1 from search_catalog('soft pinch') s
+        join products p on p.id = s.id
+        where s.category_id = p.category_id),
+    'a hit carries its product''s category_id');
 
 select * from finish();
 rollback;
