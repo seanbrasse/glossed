@@ -22,6 +22,11 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
     public let categoryLabel: String
     /// Which domain filter answers for it.
     public let domain: Domain
+    /// The shade or size, as the row writes it — "joy · 7.5ml". Optional because
+    /// a search hit is a product and the variant text is one of the three facts
+    /// the catalog does not return yet (GLO-63); a row with none says the
+    /// product's name and stops rather than inventing a size.
+    public let variant: String?
     /// What it is sold in. Carried rather than derived from the category:
     /// `features/AddLadder` already derives a silhouette from a category slug,
     /// features may not import each other, and duplicating the table is how the
@@ -46,6 +51,7 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
         categorySlug: String,
         categoryLabel: String,
         domain: Domain,
+        variant: String? = nil,
         packaging: ProductMock.Kind,
         heightMM: Double? = nil,
         rank: Int? = nil,
@@ -57,6 +63,7 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
         self.categorySlug = categorySlug
         self.categoryLabel = categoryLabel
         self.domain = domain
+        self.variant = variant
         self.packaging = packaging
         self.heightMM = heightMM
         self.rank = rank

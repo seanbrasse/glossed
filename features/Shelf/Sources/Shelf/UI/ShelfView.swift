@@ -25,8 +25,18 @@ public struct ShelfView: View {
                     Text("fragrance ranks by face-off only — no shade or skin axis, and we don't invent one")
                         .meta()
                 }
-                sortPills
-                ShelfBayView(bays: model.bays, onTap: onTapItem)
+                controls
+                switch model.viewMode {
+                case .shelf:
+                    ShelfBayView(bays: model.bays, onTap: onTapItem)
+                case .list:
+                    ShelfListView(
+                        sections: model.shownSections,
+                        openSection: model.openSection,
+                        onToggleSection: model.toggleSection,
+                        onTapItem: onTapItem
+                    )
+                }
             }
             // 110pt of bottom room: the floating nav sits over this screen.
             .padding(.init(top: 14, leading: 16, bottom: 110, trailing: 16))
@@ -67,6 +77,42 @@ public struct ShelfView: View {
         }
         .frame(minHeight: 44)
         .padding(.horizontal, -16)
+    }
+
+    /// Sort on the left, view toggle pinned right — the kit puts them on one
+    /// row because they are the two things you change about the same list.
+    private var controls: some View {
+        HStack(alignment: .center, spacing: 8) {
+            sortPills
+            viewToggle
+        }
+    }
+
+    /// Two 38×30 buttons inside one 2px ink pill, so it reads as a single
+    /// control with two states rather than as two buttons that happen to touch.
+    private var viewToggle: some View {
+        HStack(spacing: 0) {
+            ForEach(ShelfViewMode.allCases, id: \.self) { mode in
+                Button { model.viewMode = mode } label: {
+                    Image(systemName: mode == .shelf ? "square.split.1x2" : "list.bullet")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Tokens.Ink.primary)
+                        .frame(width: 38, height: 30)
+                        .background(model.viewMode == mode ? Tokens.Cherry.soft : Tokens.Ground.card)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(mode.rawValue) view")
+                .accessibilityAddTraits(model.viewMode == mode ? [.isSelected] : [])
+            }
+        }
+        .clipShape(Capsule())
+        .overlay(Capsule().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.std))
+        .background(
+            Capsule().fill(Tokens.Ink.primary)
+                .offset(x: Tokens.Shadow.sm, y: Tokens.Shadow.sm)
+        )
+        .fixedSize()
     }
 
     private var sortPills: some View {
