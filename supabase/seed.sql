@@ -56,11 +56,14 @@ insert into products (id, brand_id, category_id, domain, name, normalized_name, 
     ('30000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000003',
      'skincare', 'juli''s decanted cleanser', 'julis decanted cleanser', 'personal', '00000000-0000-0000-0000-000000000002');
 
--- Variants: shades with real n-worthy spread, sizes, a GTIN, real dimensions
+-- Variants: shades with real n-worthy spread, sizes, a GTIN, real dimensions.
+-- The GTINs carry valid GS1 mod-10 check digits, because the barcode rung
+-- rejects codes that fail one as misreads — a seed that cannot be scanned
+-- would fail the scan journey for a reason that has nothing to do with the code.
 insert into variants (id, product_id, kind, shade_code, shade_hex, size_ml, gtin, height_mm, price_cents) values
-    ('40000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'shade', '220', '#E0B891', 32, '0810086012340', 110, 4000),
-    ('40000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001', 'shade', '240', '#D9A87E', 32, '0810086012341', 110, 4000),
-    ('40000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000001', 'shade', '330', '#8C5E3C', 32, '0810086012342', 110, 4000),
+    ('40000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'shade', '220', '#E0B891', 32, '0810086012343', 110, 4000),
+    ('40000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001', 'shade', '240', '#D9A87E', 32, '0810086012350', 110, 4000),
+    ('40000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000001', 'shade', '330', '#8C5E3C', 32, '0810086012367', 110, 4000),
     ('40000000-0000-0000-0000-000000000004', '30000000-0000-0000-0000-000000000002', 'shade', 'joy', '#D4788C', 7.5, null, 70, 2300);
 insert into variants (id, product_id, kind, size_ml, height_mm, price_cents) values
     ('40000000-0000-0000-0000-000000000005', '30000000-0000-0000-0000-000000000003', 'formulation', 150, 160, 3000),
