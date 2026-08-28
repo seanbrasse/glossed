@@ -14,9 +14,10 @@ Next tickets, in dependency order:
 
 | Ticket | Why it is next |
 |---|---|
-| [GLO-15](https://linear.app/glossed/issue/GLO-15) submission ladder | **In progress, 3 of 5 PRs merged.** Next: PR 4 (barcode + near-match rungs), PR 5 (create rung + confirm) |
-| [GLO-16](https://linear.app/glossed/issue/GLO-16) shelf + cutouts | **Now unblocked** — GLO-48's presign merged in [#37](https://github.com/seanbrasse/glossed/pull/37) |
-| [GLO-56](https://linear.app/glossed/issue/GLO-56) who owns the shade/size pick | A decision, not code. Blocks GLO-15 closing; read it before starting GLO-16 |
+| [GLO-16](https://linear.app/glossed/issue/GLO-16) shelf + cutouts | **Now unblocked** — GLO-48's presign merged in [#37](https://github.com/seanbrasse/glossed/pull/37). The biggest genuinely-free piece of work |
+| [GLO-60](https://linear.app/glossed/issue/GLO-60) DataKit: brand lookup + 2 | **Blocks GLO-15 from closing.** Needs a human, or explicit authorization — see §4 |
+| [GLO-56](https://linear.app/glossed/issue/GLO-56) who owns the shade/size pick | A decision, not code. Also blocks GLO-15; read it before starting GLO-16 |
+| [GLO-15](https://linear.app/glossed/issue/GLO-15) submission ladder | **5 of 7 PRs merged.** Search and barcode rungs done. Near-match is buildable; create is not (GLO-60) |
 | [GLO-47](https://linear.app/glossed/issue/GLO-47) product page · [GLO-19](https://linear.app/glossed/issue/GLO-19) import | Parallel-safe — different feature directories, untouched |
 | [GLO-14](https://linear.app/glossed/issue/GLO-14) catalog ingest | Server-only lane, parallel with all iOS work |
 | [GLO-48](https://linear.app/glossed/issue/GLO-48) catalog images + R2 | Presign done. The rest **needs a human with the Cloudflare account** — see §9 |
@@ -29,15 +30,15 @@ with Apple capability on the App ID gates [GLO-23](https://linear.app/glossed/is
 
 ## 2. What exists
 
-**34 PRs merged, all CI-green.** `main` is the only long-lived branch.
+**41 PRs merged, all CI-green.** `main` is the only long-lived branch.
 
 | Layer | State |
 |---|---|
 | Schema | 6 migrations, all applied to the hosted project. 49 pgTAP assertions. |
 | `core/DataKit` | **FROZEN** — see §4. Config, client, typed errors, 4 repositories. 23 tests. |
-| `core/DesignSystem` | Complete: tokens, 3 bundled fonts, 26 primitives. 11 tests. |
+| `core/DesignSystem` | Tokens, 3 bundled fonts, 27 primitives. 20 tests. `TypographicTile` is the image fallback floor — nothing consumes it yet. |
 | `features/Ranking` | Complete: engine, rules, session, view. 29 tests. |
-| `features/AddLadder` | Rungs, search rung, model, screen. 28 tests. Barcode + create rungs remain. |
+| `features/AddLadder` | Ladder, search rung (logic/state/screen), barcode rung (GTIN + state + scanner). 57 tests. Near-match and create rungs remain. |
 | `supabase/functions` | `storage_presign` — scoped R2 PUT URLs. 14 Deno tests, run by the `functions · deno` CI job. **Not deployed** (§9). |
 | Other features | Not started — the bulk of what remains. |
 
@@ -73,6 +74,14 @@ becomes a data leak.
 
 Business rules do not belong in it either. Ranking order, wear-in gating and
 unlock thresholds live in the features that own them.
+
+**Three changes are queued against it**, bundled into
+[GLO-60](https://linear.app/glossed/issue/GLO-60) so the core is opened once
+rather than three times. One of them is not a nicety:
+`PersonalProductDraft` requires a `brandID`, and nothing on `CatalogRepository`
+returns brands — `search_catalog` gives `brand_name` as a string with no id. So
+the create rung's "brand typeahead FK, no free-text brands" **cannot be built at
+all**, and GLO-15 cannot close until that lands.
 
 ## 5. The automated recap earns its keep — read it
 
@@ -191,3 +200,40 @@ One git habit that cost the earlier session real work twice: `git push -q` hides
 a failed push, and a docs commit whose content never reached the remote merged
 as an empty pointer. **Check `git show --stat HEAD` before pushing**, and check
 the PR's file list after.
+
+## 11. What is actually blocked, and on whom
+
+Worth reading before picking anything up — three of the remaining GLO-15 pieces
+are blocked on something other than effort.
+
+| Blocked thing | On what | Who can unblock |
+|---|---|---|
+| `storage_presign` deploy · catalog images | R2 buckets, token, CORS, spend alert ([GLO-48](https://linear.app/glossed/issue/GLO-48)) | the Cloudflare account holder |
+| GLO-15 create rung | **two** gaps in the frozen core ([GLO-60](https://linear.app/glossed/issue/GLO-60)) — see below | a human, or an agent explicitly authorized to open frozen DataKit |
+| GLO-15 near-match rung's *point* | catalog images — "check the photo, not the name" is a weak instruction when the photo is a tile | same R2 chore |
+| Auth, onboarding | Sign in with Apple on the App ID ([GLO-50](https://linear.app/glossed/issue/GLO-50)) | the Apple Developer account holder |
+
+The create rung's blocker is worth knowing precisely, because it is not
+obvious from the outside and it is not a missing convenience.
+`createPersonalProduct` inserts a row in `products`. `ShelfRepository.log` needs
+a `variantID`, and `user_items.variant_id` is `not null`. **Nothing creates the
+variant** — no DataKit call, no trigger; `variants.kind` merely defaults to
+`'default'` for a row nobody inserts. So the last rung of the ladder would
+produce a product that cannot be logged, which is the one thing the ladder
+exists to do — and it would fail *quietly*: the create succeeds, the
+personal-scope badge appears, and the shelf write fails a step later on a
+product that now exists and is invisible. The fix is probably a
+security-definer RPC inserting both atomically, which makes it a migration
+ticket as well as a DataKit one.
+
+The near-match rung is **buildable now** and degrades honestly:
+`TypographicTile` is the floor of ADR 0004's fallback chain and landed in
+[#48](https://github.com/seanbrasse/glossed/pull/48) precisely so it is not the
+thing holding that rung up when someone gets to it.
+
+Also open, and higher priority than its label suggests:
+[GLO-59](https://linear.app/glossed/issue/GLO-59) — the recap agent has twice
+posted a test stub instead of a recap while the check went green. The recap is
+the review step this project leans on, so a silent miss means a PR merges with
+no review while the check mark says otherwise. Fixing it means editing a
+workflow, which agents may not do.
