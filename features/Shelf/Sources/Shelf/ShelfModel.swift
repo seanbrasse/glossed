@@ -28,7 +28,9 @@ public final class ShelfModel {
     /// Every domain, in the kit's order. Not `Domain.allCases`: the enum's order
     /// is a schema detail and this one is a design decision — makeup first
     /// because it is the most-logged, fragrance last because it is the newest.
-    public static let domains: [Domain] = [.makeup, .skincare, .haircare, .fragrance]
+    /// `nonisolated`: it is an immutable list, and the section grouping — plain
+    /// arithmetic off the main actor — orders by it.
+    public nonisolated static let domains: [Domain] = [.makeup, .skincare, .haircare, .fragrance]
 
     public var selectedDomains: Set<Domain>
     public var sort: ShelfSort
