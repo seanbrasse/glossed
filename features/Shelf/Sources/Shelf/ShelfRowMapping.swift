@@ -29,6 +29,7 @@ public extension ShelfItem {
             packaging: ProductMock.Kind.usual(forCategory: row.categorySlug),
             heightMM: row.heightMM,
             benefitLine: row.benefitLine,
+            note: row.note,
             status: row.status,
             startedOn: row.startedOn,
             isPersonalScope: row.scope == .personal,
