@@ -27,6 +27,8 @@
             ShelfEntries.list,
             ShelfEntries.sheetOpen,
             AnchorSheetEntry.anchorSheet,
+            ShelfLifecycleEntry.removeOffered,
+            ShelfLifecycleEntry.removeFailed,
             ShelfEntries.everythingOff,
             LadderEntries.search,
             LadderEntries.searchEmpty,

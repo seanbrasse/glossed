@@ -68,7 +68,9 @@ final class AppSession {
         guard let rows = try? await repository.shelf() else { return }
         shelfModel = ShelfModel(
             sections: ShelfSection.grouped(from: rows, imageBase: imageBase),
-            fitStore: .repository(repository)
+            fitStore: .repository(repository),
+            lifecycle: .repository(repository),
+            onShelfChanged: { [weak self] in self?.refreshShelf() }
         )
     }
 
