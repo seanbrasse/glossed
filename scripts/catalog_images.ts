@@ -134,7 +134,10 @@ update ingest_jobs
 }
 
 async function process(job: Job, scratch: string): Promise<boolean> {
-  if (!job.url.startsWith("https://images.openbeautyfacts.org/")) {
+  // One host per source rung (GLO-79). Anything else in the queue is a bug
+  // or an injection, and downloading it would be the wrong response to both.
+  const allowedHosts = ["https://images.openbeautyfacts.org/", "https://cdn.shopify.com/"];
+  if (!allowedHosts.some((host) => job.url.startsWith(host))) {
     await fail(job, `unexpected image host: ${job.url}`);
     return false;
   }
