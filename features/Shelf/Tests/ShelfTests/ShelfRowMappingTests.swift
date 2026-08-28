@@ -14,7 +14,10 @@ private func row(
     domain: Domain = .makeup,
     scope: CatalogScope = .canonical,
     rank: Int? = nil,
-    name: String = "soft pinch liquid blush"
+    name: String = "soft pinch liquid blush",
+    imageKey: String? = nil,
+    imageWidth: Int? = nil,
+    imageHeight: Int? = nil
 ) throws -> ShelfRow {
     let raw = """
     {"user_item_id":"\(UUID().uuidString)",
@@ -27,9 +30,90 @@ private func row(
      "status":"own","started_on":null,"note":null,"cutout_r2_key":null,
      "logged_at":"2026-08-01T12:00:00Z",
      "rank_position":\(rank.map(String.init) ?? "null"),"ranked_in_category":0,
-     "is_anchor":\(category == "foundation")}
+     "is_anchor":\(category == "foundation"),
+     "catalog_image_key":\(imageKey.map { "\"\($0)\"" } ?? "null"),
+     "catalog_image_width":\(imageWidth.map(String.init) ?? "null"),
+     "catalog_image_height":\(imageHeight.map(String.init) ?? "null")}
     """
     return try JSONDecoder.postgrest.decode(ShelfRow.self, from: Data(raw.utf8))
+}
+
+@Test func theImageURLNeedsBothHalves() throws {
+    // A key with no base is a fixture context; a URL guessed there 404s on
+    // screen. Both present composes; either absent renders the mock floor.
+    let base = try #require(URL(string: "http://127.0.0.1:54321/storage/v1/object/public/catalog"))
+    let with = try ShelfItem(row: row(imageKey: "abc/cut512.png", imageWidth: 219, imageHeight: 372), imageBase: base)
+    #expect(with.catalogImageURL?.absoluteString
+        == "http://127.0.0.1:54321/storage/v1/object/public/catalog/abc/cut512.png")
+    #expect(with.catalogImageAspect.map { abs($0 - 219.0 / 372.0) < 0.0001 } == true)
+
+    let noBase = try ShelfItem(row: row(imageKey: "abc/cut512.png"))
+    #expect(noBase.catalogImageURL == nil)
+    let noKey = try ShelfItem(row: row(), imageBase: base)
+    #expect(noKey.catalogImageURL == nil)
+}
+
+@Test func aPhotoPacksAtItsOwnWidthAndAMockAtTheSilhouettes() throws {
+    // GLO-68's shape: the pack must use whichever width will actually render.
+    let photo = try ShelfItem(
+        row: row(imageKey: "abc/cut512.png", imageWidth: 300, imageHeight: 300),
+        imageBase: #require(URL(string: "http://x"))
+    )
+    #expect(photo.slotWidth == photo.drawnScale)
+    let mock = try ShelfItem(row: row())
+    #expect(mock.slotWidth == max(
+        ProductMock.drawnWidth(kind: mock.packaging, scale: mock.drawnScale),
+        ShelfBay.minimumSlot
+    ))
+}
+
+@Test func aHalfSizedImageClaimsNoAspect() throws {
+    // A zero would divide, and an aspect from half a size lies about the pack.
+    let item = try ShelfItem(
+        row: row(imageKey: "abc/cut512.png", imageWidth: 300),
+        imageBase: #require(URL(string: "http://x"))
+    )
+    #expect(item.catalogImageAspect == nil)
+}
+
+@Test func volumeScalesTheDrawingWhenHeightIsUnknown() {
+    // Every imported variant has a size and no height. Height goes as the
+    // cube root of volume, and only the ordering is claimed: the 236ml pump
+    // towers over the 30ml foundation, which is PRD §08's sentence.
+    let pump = ShelfItem(
+        id: UUID(),
+        brand: "cerave",
+        name: "big pump",
+        categorySlug: "cleanser",
+        categoryLabel: "cleanser",
+        domain: .skincare,
+        packaging: .bottle,
+        sizeML: 236
+    )
+    let foundation = ShelfItem(
+        id: UUID(),
+        brand: "fenty",
+        name: "small bottle",
+        categorySlug: "foundation",
+        categoryLabel: "foundation",
+        domain: .makeup,
+        packaging: .bottle,
+        sizeML: 30
+    )
+    #expect(pump.drawnScale > foundation.drawnScale)
+    // A measured height still wins over any estimate.
+    let measured = ShelfItem(
+        id: UUID(),
+        brand: "x",
+        name: "y",
+        categorySlug: "cleanser",
+        categoryLabel: "cleanser",
+        domain: .skincare,
+        packaging: .bottle,
+        heightMM: 200,
+        sizeML: 10
+    )
+    #expect(measured.drawnScale == ShelfItem.largestScale)
 }
 
 @Test func theMappingRenamesRatherThanComputes() throws {

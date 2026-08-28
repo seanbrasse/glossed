@@ -94,7 +94,8 @@ public struct ShelfBayView: View {
             HStack(alignment: .bottom, spacing: Frame.itemGap) {
                 ForEach(bay.items) { item in
                     Button { onTap(item) } label: {
-                        ProductMock(
+                        ProductImage(
+                            catalog: item.catalogImageURL,
                             kind: item.packaging,
                             tint: ProductMock.tint(for: item.name),
                             scale: item.drawnScale,
@@ -108,16 +109,29 @@ public struct ShelfBayView: View {
                         // touching distance — the two things the floor exists
                         // to prevent.
                         .frame(width: item.slotWidth)
+                        // The contact shadow: a soft pool where the object
+                        // meets the plank, which is what makes it *stand on*
+                        // the shelf rather than float near it (Sean's
+                        // session-5 review — commit to the shelf).
+                        .background(alignment: .bottom) {
+                            Ellipse()
+                                .fill(Tokens.Ink.primary.opacity(0.14))
+                                .frame(width: item.slotWidth * 0.72, height: 5)
+                                .offset(y: 3)
+                        }
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(item.brand.lowercased()), \(item.name.lowercased())")
                     .accessibilityHint("opens this item")
                 }
-                Spacer(minLength: 0)
             }
+            // Centred on the plank (a session-5 divergence from the kit's
+            // left alignment, Sean's call): one object mid-shelf reads as
+            // placed, not abandoned — and the first item stops standing on
+            // the left upright, which read as the frame slicing it.
             .padding(.horizontal, Frame.bayHorizontalPadding)
             .padding(.bottom, Frame.bayBottomPadding)
-            .frame(maxWidth: .infinity, minHeight: Frame.bayMinHeight, alignment: .bottomLeading)
+            .frame(maxWidth: .infinity, minHeight: Frame.bayMinHeight, alignment: .bottom)
 
             ground
             Color.clear.frame(height: Frame.gapBetweenBays)

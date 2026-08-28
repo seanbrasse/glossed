@@ -98,7 +98,14 @@ public struct ShelfListView: View {
         ProductCard(
             meta: .init(brand: item.brand, name: item.name, variant: item.variant),
             onTap: { onTapItem(item) },
-            thumb: { ProductMock(kind: item.packaging, tint: ProductMock.tint(for: item.name), scale: 52) }
+            thumb: {
+                ProductImage(
+                    catalog: item.catalogImageURL,
+                    kind: item.packaging,
+                    tint: ProductMock.tint(for: item.name),
+                    scale: 52
+                )
+            }
         )
         .overlay(
             RoundedRectangle(cornerRadius: Tokens.Radius.lg)

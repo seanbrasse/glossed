@@ -63,21 +63,32 @@ struct AppShell: View {
 
     // MARK: - Tabs
 
+    /// The item sheet owns the bottom of the screen while it is up — a nav
+    /// floating over a modal reads as two surfaces fighting (found by looking:
+    /// the nav sat on top of the sheet's actions).
+    private var itemSheetOpen: Bool {
+        tab == .shelf && session.shelfModel?.openItem != nil
+    }
+
     private var tabs: some View {
         ZStack(alignment: .bottom) {
             activeScreen
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            FloatingNav(
-                tabs: [
-                    .init(id: ShellTab.discover, label: "discover", systemImage: "sparkles"),
-                    .init(id: ShellTab.shelf, label: "shelf", systemImage: "square.split.1x2"),
-                    .init(id: ShellTab.you, label: "you", systemImage: "person.crop.circle")
-                ],
-                active: $tab,
-                onPlus: { drawerOpen = true }
-            )
-            .padding(.bottom, Tokens.Space.s3)
+            if !itemSheetOpen {
+                FloatingNav(
+                    tabs: [
+                        .init(id: ShellTab.discover, label: "discover", systemImage: "sparkles"),
+                        .init(id: ShellTab.shelf, label: "shelf", systemImage: "square.split.1x2"),
+                        .init(id: ShellTab.you, label: "you", systemImage: "person.crop.circle")
+                    ],
+                    active: $tab,
+                    onPlus: { drawerOpen = true }
+                )
+                .padding(.bottom, Tokens.Space.s3)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(Tokens.Motion.pop(Tokens.Motion.med), value: itemSheetOpen)
         .overlay {
             if drawerOpen {
                 drawer

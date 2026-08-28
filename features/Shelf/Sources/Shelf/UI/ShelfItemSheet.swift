@@ -115,7 +115,8 @@ public struct ShelfItemSheet: View {
         HStack(alignment: .top, spacing: 14) {
             // Bigger than anywhere else and tilted: this is the one screen
             // where the object itself is the subject rather than a thumbnail.
-            ProductMock(
+            ProductImage(
+                catalog: item.catalogImageURL,
                 kind: item.packaging,
                 tint: ProductMock.tint(for: item.name),
                 scale: 82,
