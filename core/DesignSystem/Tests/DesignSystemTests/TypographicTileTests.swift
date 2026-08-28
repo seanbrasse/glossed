@@ -28,13 +28,17 @@ import Testing
     }
 }
 
-@Test func theSameSeedIsAlwaysTheSameColour() {
-    // Swift's hashValue is seeded per process, so a hash-based tint would give
-    // a product a different colour on every launch — which reads as a bug, and
-    // makes a shelf look reshuffled when nothing moved.
-    for seed in ["blush", "serum", "shampoo", "lip-oil", ""] {
-        #expect(TypographicTile.tintIndex(for: seed) == TypographicTile.tintIndex(for: seed))
-    }
+@Test func theSameSeedIsAlwaysTheSameColourInEveryProcess() {
+    // Pinned values, not self-comparison. `hashValue` is seeded per *process*
+    // but stable *within* one, so `tintIndex(x) == tintIndex(x)` passes even
+    // for the hash-based implementation this rule exists to avoid. Only
+    // constants written down here fail when someone reaches for the shortcut.
+    #expect(TypographicTile.tintIndex(for: "blush") == 2)
+    #expect(TypographicTile.tintIndex(for: "serum") == 0)
+    #expect(TypographicTile.tintIndex(for: "shampoo") == 3)
+    #expect(TypographicTile.tintIndex(for: "cleanser") == 1)
+    #expect(TypographicTile.tintIndex(for: "lip-oil") == 2)
+    #expect(TypographicTile.tintIndex(for: "") == 0)
 }
 
 @Test func differentSeedsSpreadAcrossThePalette() {
@@ -49,4 +53,13 @@ import Testing
     for seed in ["", "a", "🙂", String(repeating: "z", count: 5000)] {
         #expect(TypographicTile.tints.indices.contains(TypographicTile.tintIndex(for: seed)))
     }
+}
+
+@Test func brandsThatAreNotLatinStillGetTheirOwnInitial() {
+    // The floor of the fallback chain has to hold for the whole catalog, not
+    // the English-language part of it.
+    #expect(TypographicTile.letters(of: "이니스프리") == "이")
+    #expect(TypographicTile.letters(of: "資生堂") == "資")
+    #expect(TypographicTile.letters(of: "Л'Этуаль") == "Л")
+    #expect(TypographicTile.letters(of: "قمر") == "ق")
 }
