@@ -33,6 +33,10 @@
             LadderEntries.barcodeNoCamera,
             LadderEntries.nearMatches,
             LadderEntries.nearMatchesAfterAMissedScan,
+            ProductEntries.backed,
+            ProductEntries.thinSample,
+            ProductEntries.lookupFailed,
+            ProductEntries.notAnAnchor,
             GalleryEntries.productMock
         ]
     }

@@ -3,6 +3,7 @@
     import AddLadder
     import DataKit
     import DesignSystem
+    import ProductPage
     import Shelf
     import SwiftUI
 
@@ -168,6 +169,59 @@
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .background(Tokens.Ground.milk)
             }
+        }
+    }
+
+    @MainActor
+    enum ProductEntries {
+        static let backed = ScreenEntry(
+            id: "product-backed",
+            title: "product · evidence backed",
+            note: "89 reports in your shade, #2 of 5, and the meter at 2 of 5 anchors"
+        ) {
+            ProductPageView(model: ProductPageModel(
+                product: ProductFixtures.pocketBlush,
+                aggregates: StubAggregates(
+                    evidence: PayoffEvidence(exactShadeCount: 89, withFitCount: 2, evidenceBacked: true)
+                )
+            ))
+        }
+
+        static let thinSample = ScreenEntry(
+            id: "product-thin",
+            title: "product · not enough reports yet",
+            note: "a promise, not an apology — and the anchor count is still real, because that is about you"
+        ) {
+            ProductPageView(model: ProductPageModel(
+                product: ProductFixtures.pocketBlush,
+                aggregates: StubAggregates(
+                    evidence: PayoffEvidence(exactShadeCount: 2, withFitCount: 3, evidenceBacked: false)
+                )
+            ))
+        }
+
+        static let lookupFailed = ScreenEntry(
+            id: "product-failed",
+            title: "product · the evidence lookup failed",
+            note: "must NOT read as 'not enough reports': we did not ask, so we know nothing"
+        ) {
+            ProductPageView(model: ProductPageModel(
+                product: ProductFixtures.pocketBlush,
+                aggregates: StubAggregates(failure: .offline)
+            ))
+        }
+
+        static let notAnAnchor = ScreenEntry(
+            id: "product-no-anchor",
+            title: "product · not an anchor category",
+            note: "no fit block and no meter — shade is only evidence where a shade is meant to match skin"
+        ) {
+            ProductPageView(model: ProductPageModel(
+                product: ProductFixtures.notAnAnchor,
+                aggregates: StubAggregates(
+                    evidence: PayoffEvidence(exactShadeCount: 52, withFitCount: 2, evidenceBacked: true)
+                )
+            ))
         }
     }
 #endif

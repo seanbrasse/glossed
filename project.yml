@@ -20,6 +20,8 @@ packages:
     path: features/AddLadder
   Shelf:
     path: features/Shelf
+  ProductPage:
+    path: features/ProductPage
 targets:
   Glossed:
     type: application
@@ -31,6 +33,7 @@ targets:
       - package: Ranking
       - package: AddLadder
       - package: Shelf
+      - package: ProductPage
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.glossed.app
