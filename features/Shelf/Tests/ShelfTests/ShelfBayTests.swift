@@ -102,3 +102,30 @@ private func section(_ slug: String, _ label: String, count: Int) -> ShelfSectio
     #expect(item("x", packaging: .jar, heightMM: 0).drawnScale == 50)
     #expect(item("x", packaging: .jar, heightMM: -3).drawnScale == 50)
 }
+
+// MARK: - The uprights
+
+private let uprightWidth: CGFloat = 11
+private let uprightInset: CGFloat = 14
+
+@Test func theCentreUprightIsActuallyCentred() {
+    // A rail off by half its own width looks almost right in a screenshot and
+    // wrong once anything stands next to it.
+    let width: CGFloat = 390
+    let offsets = ShelfBayView.uprightOffsets(in: width)
+    #expect(offsets[1] + uprightWidth / 2 == width / 2)
+}
+
+@Test func theOuterUprightsAreInsetEquallyFromBothEdges() {
+    let width: CGFloat = 390
+    let offsets = ShelfBayView.uprightOffsets(in: width)
+    #expect(offsets[0] == uprightInset)
+    #expect(width - (offsets[2] + uprightWidth) == uprightInset)
+}
+
+@Test func theUprightsStayInOrderOnEveryScreenWidth() {
+    for width in [320, 375, 390, 430, 1024] as [CGFloat] {
+        let offsets = ShelfBayView.uprightOffsets(in: width)
+        #expect(offsets == offsets.sorted())
+    }
+}
