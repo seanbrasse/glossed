@@ -43,9 +43,10 @@ jobs:
           fi
           BASE=origin/${{ github.event.pull_request.base.ref }}
           git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
-          # generated + vendored files excluded
-          FILES=$(git diff --name-only $BASE...HEAD -- . ':!*.xcodeproj*' ':!.claude/skills/*' | wc -l)
-          LINES=$(git diff --numstat $BASE...HEAD -- . ':!*.xcodeproj*' ':!.claude/skills/*' | awk '{a+=$1+$2} END {print a+0}')
+          # generated + vendored files excluded (handbook §13)
+          EXCLUDE=(':!*.xcodeproj*' ':!.claude/skills/*' ':!**/Package.resolved')
+          FILES=$(git diff --name-only $BASE...HEAD -- . "${EXCLUDE[@]}" | wc -l)
+          LINES=$(git diff --numstat $BASE...HEAD -- . "${EXCLUDE[@]}" | awk '{a+=$1+$2} END {print a+0}')
           echo "files=$FILES lines=$LINES"
           if [ "$FILES" -gt 5 ] || [ "$LINES" -gt 400 ]; then
             echo "::error::PR exceeds handbook limits ($FILES files, $LINES lines). Split it, or add the size-override label with a written reason."
@@ -67,9 +68,15 @@ jobs:
           set -o pipefail
           xcodebuild build -project Glossed.xcodeproj -scheme Glossed \
             -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
-      - name: Package tests
+      - name: Package tests (every package under core/)
         run: |
-          cd core/DesignSystem && swift test
+          set -e
+          for pkg in core/*/Package.swift; do
+            dir=$(dirname "$pkg")
+            echo "::group::swift test $dir"
+            (cd "$dir" && swift test)
+            echo "::endgroup::"
+          done
 
   db:
     name: db · isolation suite
