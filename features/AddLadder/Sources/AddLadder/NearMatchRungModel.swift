@@ -52,14 +52,27 @@ public final class NearMatchRungModel {
 
     public func search() async {
         isSearching = true
-        failure = nil
         defer { isSearching = false }
         do {
             result = try await rung.typeahead(query, domain: domain)
+            // Cleared only once an answer actually arrives. Clearing it up
+            // front leaves a window with no error and no candidates, which on
+            // this rung reads as "nothing matched, safe to create" — the exact
+            // duplicate it exists to prevent. Keeping the last failure visible
+            // through a retry says the truer thing: we still do not know.
+            failure = nil
         } catch {
             result = SearchRung.Result(hits: [], isMiss: false)
             failure = error
         }
+    }
+
+    /// Whether the candidate list can be trusted as "these are all of them".
+    ///
+    /// The way out is always available — it is not a dead end — but a screen
+    /// that cannot vouch for its list should not look like one that can.
+    public var isCandidateListTrustworthy: Bool {
+        failure == nil && !isSearching
     }
 
     public func choose(_ option: LadderOption) {

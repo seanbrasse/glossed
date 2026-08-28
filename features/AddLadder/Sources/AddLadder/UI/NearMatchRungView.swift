@@ -37,8 +37,10 @@ public struct NearMatchRungView: View {
     }
 
     private var hint: String? {
-        if model.failure != nil {
-            return model.failure?.userMessage
+        // Failure first, and it survives a retry until an answer replaces it —
+        // an unanswered list must never read as an empty one here.
+        if let failure = model.failure {
+            return failure.userMessage
         }
         if model.isSearching {
             return "looking…"

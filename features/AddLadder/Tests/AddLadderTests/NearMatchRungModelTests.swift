@@ -98,3 +98,28 @@ private func model(
     #expect(live.ladder.rung == .nearMatches)
     #expect(live.ladder.query == "glow recipe dew drops")
 }
+
+@MainActor
+@Test func aRetryDoesNotBrieflyLookLikeACleanEmptyResult() async {
+    // The window the recap asked about: clearing `failure` when a retry starts
+    // leaves no error and no candidates, which on the dedupe rung reads as
+    // "nothing matched, safe to create". The failure now survives until an
+    // answer replaces it.
+    let catalog = FakeCatalog(failure: GlossedError(.offline, userMessage: "no connection — try again in a sec."))
+    let live = NearMatchRungModel(catalog: catalog, ladder: Ladder(entry: .nearMatches, query: "glow"))
+    await live.search()
+    #expect(live.isCandidateListTrustworthy == false)
+
+    live.query = "glow recipe"
+    await live.search()
+    #expect(live.failure != nil, "still no answer, so still no clean list")
+    #expect(live.isCandidateListTrustworthy == false)
+}
+
+@MainActor
+@Test func aSuccessfulRetryClearsTheFailure() async throws {
+    let live = try model(hits: [hit(name: "Watermelon Glow")])
+    await live.search()
+    #expect(live.failure == nil)
+    #expect(live.isCandidateListTrustworthy)
+}
