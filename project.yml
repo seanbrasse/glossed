@@ -14,8 +14,6 @@ packages:
     path: core/DesignSystem
   DataKit:
     path: core/DataKit
-  Ranking:
-    path: features/Ranking
 targets:
   Glossed:
     type: application
@@ -24,7 +22,6 @@ targets:
     dependencies:
       - package: DesignSystem
       - package: DataKit
-      - package: Ranking
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.glossed.app
