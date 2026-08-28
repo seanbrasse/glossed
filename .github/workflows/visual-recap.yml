@@ -78,5 +78,6 @@ jobs:
             review-focus notes ordered by risk (tenancy/RLS first, per the handbook review checklist).
             Do not review line-by-line; do not approve or request changes; one comment only.
           claude_args: |
+            --model claude-sonnet-5
             --max-turns 15
             --allowedTools "Bash(git:*),Bash(gh pr comment:*),Bash(gh pr view:*),Bash(gh pr diff:*),Read,Grep,Glob"
