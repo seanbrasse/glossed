@@ -22,6 +22,17 @@
     @MainActor
     enum ScreenCatalog {
         static let entries: [ScreenEntry] = [
+            ShelfEntries.bays,
+            ShelfEntries.baysWithOverflow,
+            ShelfEntries.list,
+            ShelfEntries.sheetOpen,
+            ShelfEntries.everythingOff,
+            LadderEntries.search,
+            LadderEntries.searchEmpty,
+            LadderEntries.searchFailed,
+            LadderEntries.barcodeNoCamera,
+            LadderEntries.nearMatches,
+            LadderEntries.nearMatchesAfterAMissedScan,
             GalleryEntries.productMock
         ]
     }
