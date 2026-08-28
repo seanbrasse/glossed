@@ -1,6 +1,7 @@
 import DataKit
 import DesignSystem
 import SwiftUI
+import Tracking
 
 /// Everything the ladder asks of the catalog, in one requirement — the four
 /// per-need protocols, which `CatalogRepository` already satisfies severally.
@@ -41,9 +42,15 @@ public struct LadderFlowView: View {
     @State private var isLoggingMatch = false
     @State private var matchLogFailure: GlossedError?
     @State private var hasNotifiedShelf = false
+    /// What `item_logged` needs beyond the variant id, captured at pick time —
+    /// by the time the ladder resolves, the hit that supplied them is gone.
+    /// Nil on the matched-barcode path: a bare variant lookup carries no
+    /// category, so that door logs without an event (the stated gap, GLO-80).
+    @State private var matchEventContext: (categoryID: UUID, scope: String)?
 
     private let catalog: any LadderCatalog
     private let shelf: any ItemLogging
+    private let tracker: Tracker?
     private let onClose: () -> Void
     /// Something landed on the shelf — the host should reload it.
     private let onShelfChanged: () -> Void
@@ -51,12 +58,14 @@ public struct LadderFlowView: View {
     public init(
         catalog: any LadderCatalog,
         shelf: any ItemLogging,
+        tracker: Tracker? = nil,
         query: String = "",
         onClose: @escaping () -> Void = {},
         onShelfChanged: @escaping () -> Void = {}
     ) {
         self.catalog = catalog
         self.shelf = shelf
+        self.tracker = tracker
         self.onClose = onClose
         self.onShelfChanged = onShelfChanged
         _step = State(initialValue: .search(SearchRungModel(catalog: catalog, query: query)))
@@ -118,6 +127,9 @@ public struct LadderFlowView: View {
     /// The sheet's answer, delivered to whichever rung asked — the rung model
     /// is the only party allowed to resolve the ladder.
     private func pickedVariant(_ variantID: UUID) {
+        if let hit = pickedHit {
+            matchEventContext = (categoryID: hit.categoryID, scope: hit.scope.rawValue)
+        }
         switch step {
         case let .search(model): model.pickedVariant(variantID)
         case let .nearMatches(model): model.pickedVariant(variantID)
@@ -143,7 +155,7 @@ public struct LadderFlowView: View {
             carried.refine(query: carriedQuery)
             step = .nearMatches(NearMatchRungModel(catalog: catalog, ladder: carried))
         case (.nearMatches, .create):
-            step = .create(CreateRungModel(catalog: catalog, shelf: shelf, ladder: ladder))
+            step = .create(CreateRungModel(catalog: catalog, shelf: shelf, ladder: ladder, tracker: tracker))
         default:
             break
         }
@@ -168,6 +180,17 @@ public struct LadderFlowView: View {
             defer { isLoggingMatch = false }
             do {
                 _ = try await shelf.log(LogDraft(variantID: variantID, clientID: matchClientID))
+                // Fired on the write landing, not the tap — an event is a
+                // fact. Context exists only when a pick supplied it (see
+                // `matchEventContext`); the barcode door logs eventless.
+                if let context = matchEventContext, let tracker {
+                    await tracker.track(.itemLogged(
+                        variantID: variantID,
+                        categoryID: context.categoryID,
+                        source: .search,
+                        scope: context.scope
+                    ))
+                }
                 notifyShelfChanged()
                 onClose()
             } catch {

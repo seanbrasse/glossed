@@ -1,6 +1,7 @@
 import DataKit
 import Foundation
 import Testing
+import Tracking
 @testable import AddLadder
 
 // MARK: - Stubs
@@ -93,6 +94,16 @@ private struct StubShelf: ItemLogging {
     }
 }
 
+/// Receives what the tracker flushes, so a test can read the actual wire
+/// events rather than trusting a counter.
+private actor CapturingPoster: EventPosting {
+    var posted: [QueuedEvent] = []
+
+    func post(_ batch: [QueuedEvent]) async throws {
+        posted.append(contentsOf: batch)
+    }
+}
+
 private func blushCategory() throws -> DataKit.Category {
     try decoded("""
     {"id":"bbbbbbbb-0000-0000-0000-000000000001","domain":"makeup","slug":"blush",
@@ -108,7 +119,8 @@ private func rareBeauty() throws -> Brand {
 
 @MainActor
 private func probeAndFilledModel(
-    ladder: Ladder = Ladder(query: "soft pinch liquid blush")
+    ladder: Ladder = Ladder(query: "soft pinch liquid blush"),
+    tracker: Tracker? = nil
 ) throws -> (CreateProbe, CreateRungModel) {
     let probe = try CreateProbe(created: fixtureCreated())
     let brand = try rareBeauty()
@@ -116,7 +128,8 @@ private func probeAndFilledModel(
     let live = CreateRungModel(
         catalog: StubCatalog(probe: probe, brandRows: [brand], categoryRows: [category]),
         shelf: StubShelf(probe: probe),
-        ladder: ladder
+        ladder: ladder,
+        tracker: tracker
     )
     live.pick(brand: brand)
     live.pick(category: category)
@@ -180,6 +193,42 @@ private func probeAndFilledModel(
     #expect(live.ladder.rung == .confirm)
     #expect(live.ladder.resolution == .created(productID: probe.created.productID))
     #expect(live.confirmedMeta?.variant == "joy · 2.5ml mini")
+}
+
+@MainActor
+@Test func aShelvedCreateTracksItemLoggedWithTheDraftsCategory() async throws {
+    // GLO-80's first real call site: the event fires when the write lands,
+    // carries the created variant and the *draft's* category id, and names
+    // its door. No event without a shelf row — analytics reports facts.
+    let poster = CapturingPoster()
+    let tracker = Tracker(poster: poster)
+    let (probe, live) = try probeAndFilledModel(tracker: tracker)
+
+    await live.create()
+    await tracker.flush()
+
+    let categoryID = try blushCategory().id
+    let event = try #require(await poster.posted.first)
+    #expect(await poster.posted.count == 1)
+    #expect(event.name == "item_logged")
+    #expect(event.props["variant_id"] == .id(probe.created.variantID))
+    #expect(event.props["category_id"] == .id(categoryID))
+    #expect(event.props["source"] == .string("ladder_create"))
+    #expect(event.props["scope"] == .string("personal"))
+}
+
+@MainActor
+@Test func aFailedLogTracksNothing() async throws {
+    // The quiet-failure path (created but not shelved): no row, no event.
+    let poster = CapturingPoster()
+    let tracker = Tracker(poster: poster)
+    let (probe, live) = try probeAndFilledModel(tracker: tracker)
+    await probe.set(failLog: true)
+
+    await live.create()
+    await tracker.flush()
+
+    #expect(await poster.posted.isEmpty)
 }
 
 @MainActor

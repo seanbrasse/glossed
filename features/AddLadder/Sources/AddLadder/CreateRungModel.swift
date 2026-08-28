@@ -1,6 +1,7 @@
 import DataKit
 import Foundation
 import Observation
+import Tracking
 
 /// Rung 4's form: four fields, no review queue.
 ///
@@ -45,13 +46,20 @@ public final class CreateRungModel {
 
     private let rung: CreateRung
     private let catalog: any ProductCreating
+    private let tracker: Tracker?
 
     /// Seeded from the ladder: the words someone typed two rungs ago arrive
     /// pre-filled, and a scanned code that missed rides the draft.
-    public init(catalog: any ProductCreating, shelf: any ItemLogging, ladder: Ladder) {
+    public init(
+        catalog: any ProductCreating,
+        shelf: any ItemLogging,
+        ladder: Ladder,
+        tracker: Tracker? = nil
+    ) {
         rung = CreateRung(catalog: catalog, shelf: shelf)
         self.catalog = catalog
         self.ladder = ladder
+        self.tracker = tracker
         brandQuery = ""
         productName = ladder.query
     }
@@ -128,6 +136,14 @@ public final class CreateRungModel {
                 failure = nil
                 createdButNotShelved = nil
                 ladder.created(productID: created.productID)
+                // Fired on the write landing, not the tap — an event is a
+                // fact. Created products are personal scope by construction.
+                await tracker?.track(.itemLogged(
+                    variantID: created.variantID,
+                    categoryID: category.id,
+                    source: .ladderCreate,
+                    scope: CatalogScope.personal.rawValue
+                ))
             case let .createdButNotShelved(created, error):
                 createdButNotShelved = created
                 failure = error
