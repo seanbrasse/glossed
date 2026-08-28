@@ -1,0 +1,5 @@
+tap "supabase/tap"
+brew "xcodegen"
+brew "supabase/tap/supabase"
+brew "swiftlint"
+brew "swiftformat"
