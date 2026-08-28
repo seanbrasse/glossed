@@ -90,14 +90,14 @@ export async function planFeed(db: SupabaseClient, rows: FeedRow[]): Promise<Pla
   return rows.map((row) => plan(row, variantsByGTIN, blocks.get(normalizeName(row.brand)) ?? []));
 }
 
-/** Applies one plan.
+/** Applies one plan. Every branch is one write path:
  *
- * Two kinds deliberately write nothing yet. `queue_candidate` is PR 2's: the
- * adjudicator defines what a merge_candidates row means, and inserting a
- * placeholder pair today would be a claim the schema cannot cash. And
- * `insert_product` waits with it — a new canonical row should only exist after
- * the dedupe pass has said it is genuinely new. Both are counted in the
- * response so a dry run shows exactly what the full pipeline will do. */
+ * - `queue_candidate` goes to the merge queue as a feed-row pair (0012) —
+ *   never a product write; the adjudicator resolves it with §16's three verbs.
+ * - `insert_product` creates the canonical product + default variant: the
+ *   block-and-match already said nothing similar exists in the brand, which
+ *   is tech/01 §4's "low confidence creates".
+ */
 async function apply(db: SupabaseClient, decision: Plan): Promise<void> {
   switch (decision.kind) {
     case "update_variant": {
@@ -114,8 +114,8 @@ async function apply(db: SupabaseClient, decision: Plan): Promise<void> {
       return;
     }
     case "delist_variant": {
-      // Delisting is product-level state reached through the variant's product;
-      // the variant itself keeps availability so the shelf can say "discontinued".
+      // Delisting is availability, not deletion — the shelf can still say
+      // "discontinued" about a thing you own.
       const { error } = await db
         .from("variants")
         .update({ availability: "delisted", source: "feed" })
@@ -123,8 +123,68 @@ async function apply(db: SupabaseClient, decision: Plan): Promise<void> {
       if (error) throw error;
       return;
     }
-    case "queue_candidate":
-    case "insert_product":
+    case "queue_candidate": {
+      const { error } = await db.from("merge_candidates").insert({
+        product_a: decision.productID,
+        feed_row: decision.row,
+        similarity: decision.similarity,
+        state: "pending",
+      });
+      if (error) throw error;
+      return;
+    }
+    case "insert_product": {
+      const row = decision.row;
+      const { data: brand, error: brandError } = await db
+        .from("brands")
+        .select("id")
+        .eq("normalized_name", normalizeName(row.brand))
+        .maybeSingle();
+      if (brandError) throw brandError;
+      const { data: category, error: categoryError } = await db
+        .from("categories")
+        .select("id")
+        .eq("slug", row.category_slug)
+        .maybeSingle();
+      if (categoryError) throw categoryError;
+      // A brand or category the catalog has never seen is a curation
+      // question, not an insert — it queues as an unmatched pair against
+      // nothing... which the queue cannot hold, so it is skipped loudly in
+      // the response counts instead. Brand creation is deliberate work.
+      if (!brand || !category) {
+        throw new Error(`unknown ${brand ? "category" : "brand"} for "${row.name}"`);
+      }
+
+      const { data: product, error: productError } = await db
+        .from("products")
+        .insert({
+          brand_id: brand.id,
+          category_id: category.id,
+          domain: row.domain,
+          name: row.name,
+          normalized_name: normalizeName(row.name),
+          scope: "canonical",
+          source: "feed",
+          last_verified: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+      if (productError) throw productError;
+
+      const { error: variantError } = await db.from("variants").insert({
+        product_id: product.id,
+        kind: row.shade_code ? "shade" : "default",
+        shade_code: row.shade_code ?? null,
+        size_ml: row.size_ml ?? null,
+        gtin: row.gtin ?? null,
+        price_cents: row.price_cents ?? null,
+        availability: row.availability ?? null,
+        source: "feed",
+        last_verified: new Date().toISOString(),
+      });
+      if (variantError) throw variantError;
+      return;
+    }
     case "skip":
       return;
   }
@@ -164,8 +224,17 @@ Deno.serve(async (req: Request) => {
   try {
     const rows = await loadFeed();
     const plans = await planFeed(db, rows);
+    const failures: { index: number; reason: string }[] = [];
     if (!body.dry_run) {
-      for (const decision of plans) await apply(db, decision);
+      for (const [index, decision] of plans.entries()) {
+        try {
+          await apply(db, decision);
+        } catch (error) {
+          // One bad row costs itself, not the feed. It stays in the response
+          // so the run is inspectable, and the job still completes.
+          failures.push({ index, reason: String(error).slice(0, 200) });
+        }
+      }
     }
 
     await db.from("ingest_jobs")
@@ -174,7 +243,10 @@ Deno.serve(async (req: Request) => {
 
     const counts: Record<string, number> = {};
     for (const p of plans) counts[p.kind] = (counts[p.kind] ?? 0) + 1;
-    return json({ claimed: true, dry_run: body.dry_run ?? false, job: job.id, counts }, 200);
+    return json(
+      { claimed: true, dry_run: body.dry_run ?? false, job: job.id, counts, failures },
+      200,
+    );
   } catch (error) {
     console.error("feed_diff failed", error);
     const attempts = job.attempts + 1;
