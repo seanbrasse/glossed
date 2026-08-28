@@ -85,3 +85,34 @@ private func session(listSize: Int) -> FaceOffSession {
     #expect(live.finalPosition == 1)
     #expect(live.finalListLength == 5)
 }
+
+// MARK: - Regression from the PR #32 recap
+
+@Test func aSkippedSessionIsApproximateNotStated() {
+    // A skip collapses the search range exactly as a resolved comparison does,
+    // so checking bounds alone reported "I can't tell these apart" as the
+    // user's stated preference — and persisted a coin-flip as evidence.
+    var live = session(listSize: 4)
+    live.skip()
+    #expect(live.isFinished)
+    #expect(live.isApproximate)
+    #expect(live.outcome().isApproximate)
+}
+
+@Test func aFullyAnsweredSessionIsStatedNotApproximate() {
+    var live = session(listSize: 4)
+    while live.currentComparison != nil {
+        live.record(candidateWon: false)
+    }
+    #expect(!live.isApproximate)
+    #expect(!live.outcome().isApproximate)
+}
+
+@Test func aSkipAfterRealAnswersStillMarksTheOutcomeApproximate() {
+    // The last question is the one that decides the placement, so a skip there
+    // taints the result even when earlier answers were real.
+    var live = session(listSize: 7)
+    live.record(candidateWon: true)
+    live.skip()
+    #expect(live.outcome().isApproximate)
+}
