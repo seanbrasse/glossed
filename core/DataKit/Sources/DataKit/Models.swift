@@ -39,6 +39,32 @@ public enum Fit: String, Codable, Sendable, CaseIterable {
     }
 }
 
+/// A Postgres `date` as it arrives on the wire: `"2026-08-01"`, a calendar day
+/// with no time and no zone.
+///
+/// It needs handling of its own because the platform decoder parses
+/// *timestamps* only — it tries `year().month().day()` **plus** a time, and a
+/// bare day throws. So a `Date?` bound straight to a `date` column has never
+/// been able to decode a row that had one; `UserItem.startedOn` is that bug,
+/// and it would have surfaced the first time anyone logged a product with a
+/// wear-in period.
+///
+/// Midnight is resolved in the *current* calendar rather than UTC, because the
+/// only consumer is `ShelfRepository.week`, which asks `startOfDay` in the
+/// current calendar — pinning to UTC would move a user west of Greenwich onto
+/// the previous day and shift every week boundary by one.
+enum PostgresDay {
+    static func parse(_ raw: String?) -> Date? {
+        guard let raw, raw.count >= 10 else { return nil }
+        let parts = raw.prefix(10).split(separator: "-")
+        guard parts.count == 3,
+              let year = Int(parts[0]), let month = Int(parts[1]), let day = Int(parts[2])
+        else { return nil }
+        return Calendar(identifier: .gregorian)
+            .date(from: DateComponents(timeZone: .current, year: year, month: month, day: day))
+    }
+}
+
 public struct Brand: Codable, Sendable, Identifiable, Hashable {
     public let id: UUID
     public let name: String
@@ -119,20 +145,92 @@ public struct CatalogHit: Codable, Sendable, Identifiable, Hashable {
     }
 }
 
+/// One shelf row, joined — `user_shelf_items` (GLO-66).
+///
+/// `UserItem` is what the table stores: a variant id and a status. This is what
+/// a shelf draws, and it is one read rather than five lookups per row.
+public struct ShelfRow: Codable, Sendable, Identifiable, Hashable {
+    public var id: UUID {
+        userItemID
+    }
+
+    public let userItemID: UUID
+    public let variantID: UUID
+    public let productID: UUID
+    public let productName: String
+    public let brandName: String
+    public let categorySlug: String
+    public let categoryLabel: String
+    public let domain: Domain
+    /// `personal` until three people log the same product.
+    public let scope: CatalogScope
+    public let benefitLine: String?
+    public let variantLabel: String?
+    /// Real height in mm, so a lipstick draws visibly smaller than a shampoo
+    /// bottle. **Nullable and undefaulted**: what to draw for an object of
+    /// unknown height is the shelf's decision, not the database's.
+    public let heightMM: Double?
+    public let status: ItemStatus
+    /// See `PostgresDay` — the column is a calendar day, not an instant.
+    public var startedOn: Date? {
+        PostgresDay.parse(startedOnRaw)
+    }
+
+    public let note: String?
+    public let cutoutKey: String?
+    public let loggedAt: Date
+    /// Position within its category at the default scope. Nil is ordinary —
+    /// a category under its unlock threshold has no order yet, and that is a
+    /// different fact from being placed last.
+    public let rankPosition: Int?
+    /// The other half of "#2 of 5". Carried on the row so both halves come
+    /// from one read and a shelf can never say you are second of five while
+    /// showing you three things.
+    public let rankedInCategory: Int
+
+    private let startedOnRaw: String?
+
+    enum CodingKeys: String, CodingKey {
+        case domain, scope, status, note
+        case userItemID = "user_item_id"
+        case variantID = "variant_id"
+        case productID = "product_id"
+        case productName = "product_name"
+        case brandName = "brand_name"
+        case categorySlug = "category_slug"
+        case categoryLabel = "category_label"
+        case benefitLine = "benefit_line"
+        case variantLabel = "variant_label"
+        case heightMM = "height_mm"
+        case startedOnRaw = "started_on"
+        case cutoutKey = "cutout_r2_key"
+        case loggedAt = "logged_at"
+        case rankPosition = "rank_position"
+        case rankedInCategory = "ranked_in_category"
+    }
+}
+
 public struct UserItem: Codable, Sendable, Identifiable, Hashable {
     public let id: UUID
     public let userID: UUID
     public let variantID: UUID
     public let status: ItemStatus
-    public let startedOn: Date?
+    /// See `PostgresDay` — the column is a calendar day, not an instant. Bound
+    /// directly to `Date?` this threw on every row that had one.
+    public var startedOn: Date? {
+        PostgresDay.parse(startedOnRaw)
+    }
+
     public let note: String?
     public let cutoutKey: String?
+
+    private let startedOnRaw: String?
 
     enum CodingKeys: String, CodingKey {
         case id, status, note
         case userID = "user_id"
         case variantID = "variant_id"
-        case startedOn = "started_on"
+        case startedOnRaw = "started_on"
         case cutoutKey = "cutout_r2_key"
     }
 }

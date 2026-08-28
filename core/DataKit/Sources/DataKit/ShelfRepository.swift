@@ -20,6 +20,19 @@ public struct ShelfRepository: Sendable {
         }
     }
 
+    /// The shelf, as it is drawn: one read of `user_shelf_items`, which joins
+    /// `user_items → variants → products → brands → categories` and carries the
+    /// rank. `items(status:)` above returns the raw table rows — a variant id
+    /// and a status — which is enough to count what you own and nothing else.
+    public func shelf(status: ItemStatus? = nil) async throws(GlossedError) -> [ShelfRow] {
+        _ = try await client.requireUserID()
+        return try await run {
+            let base = client.supabase.from("user_shelf_items").select()
+            let filtered = status.map { base.eq("status", value: $0.rawValue) } ?? base
+            return try await filtered.order("logged_at", ascending: false).execute().value
+        }
+    }
+
     /// Logs a product. `clientID` makes this idempotent: a double-tap or a retry
     /// on a bad connection is a no-op rather than a duplicate shelf entry.
     public func log(_ draft: LogDraft) async throws(GlossedError) -> UserItem {
