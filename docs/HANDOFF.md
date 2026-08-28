@@ -1,4 +1,4 @@
-# Session handoff — Aug 28 2026
+# Session handoff — Aug 28 2026 (second session)
 
 Where Phase 1 stands, what to do next, and the decisions a new session would
 otherwise have to rediscover. Read `docs/README.md` first for the design; this
@@ -52,16 +52,14 @@ Next tickets, in dependency order:
 
 | Ticket | Why it is next |
 |---|---|
-| [GLO-66](https://linear.app/glossed/issue/GLO-66) the shelf cannot render a row | **Start here — it is the thing blocking the most.** `ShelfRepository.items()` returns a variant id and a status: no brand, no name, no category, no height. Wants one `security_invoker` view, so it is a migration ticket too |
-| [GLO-63](https://linear.app/glossed/issue/GLO-63) three facts the catalog withholds | The ladder's rows ship with an empty sub-slot because of it. Same door as GLO-66 and GLO-60 — open the frozen core once |
-| [GLO-16](https://linear.app/glossed/issue/GLO-16) shelf + cutouts | **The whole screen is built** (#63–#68): bays, list, filter, sort, item sheet. What is left is `core/Media` + the capture flow (needs R2, §9) and the sheet's chips/fit (needs GLO-66's read) |
-| [GLO-62](https://linear.app/glossed/issue/GLO-62) ladder rework | **Done.** Rungs 0–2 rebuilt to the frames: [#56](https://github.com/seanbrasse/glossed/pull/56) `ProductMock`, [#57](https://github.com/seanbrasse/glossed/pull/57) the rows, [#58](https://github.com/seanbrasse/glossed/pull/58) rung 0, [#61](https://github.com/seanbrasse/glossed/pull/61) rung 1, [#60](https://github.com/seanbrasse/glossed/pull/60) rung 2. Rungs 3–4 were never built and belong to GLO-15 when GLO-60 unblocks it |
-| [GLO-65](https://linear.app/glossed/issue/GLO-65) a way to run a screen | **Done** ([#69](https://github.com/seanbrasse/glossed/pull/69), [#70](https://github.com/seanbrasse/glossed/pull/70)) — see §5 |
-| [GLO-60](https://linear.app/glossed/issue/GLO-60) DataKit: 3 gaps | **Blocks GLO-15 from closing.** Needs a human, or explicit authorization — see §4 |
-| [GLO-56](https://linear.app/glossed/issue/GLO-56) who owns the shade/size pick | A decision, not code. Also blocks GLO-15; read it before starting GLO-16 |
-| [GLO-15](https://linear.app/glossed/issue/GLO-15) submission ladder | Search, barcode and near-match rungs merged. Create rung is not buildable (GLO-60) |
-| [GLO-47](https://linear.app/glossed/issue/GLO-47) product page · [GLO-19](https://linear.app/glossed/issue/GLO-19) import | Parallel-safe — different feature directories, untouched |
-| [GLO-14](https://linear.app/glossed/issue/GLO-14) catalog ingest | Server-only lane, parallel with all iOS work |
+| **[GLO-66](https://linear.app/glossed/issue/GLO-66) · [GLO-63](https://linear.app/glossed/issue/GLO-63) · [GLO-60](https://linear.app/glossed/issue/GLO-60)** — one door | **Start here.** Three tickets all want the frozen core opened, and it should open *once*. GLO-66 is the biggest: `ShelfRepository.items()` returns a variant id and a status, so **the shelf cannot render one row** and every screen built on it runs on fixtures. Wants a `security_invoker` view, so it is a migration ticket too |
+| [GLO-56](https://linear.app/glossed/issue/GLO-56) who owns the shade/size pick | A decision, not code, and it now blocks **three** screens: the ladder's search rung, import's `needsSize` lines, and the shelf's logging sheet |
+| [GLO-21](https://linear.app/glossed/issue/GLO-21) PR 1 only — `core/Tracking` | Scheduled last, needed first. Every feature ticket has event criteria and `core/` has no Tracking package, so four screens have shipped with no events at all. Splitting its PR 1 out is cheaper than retrofitting six packages — see the comment on the ticket |
+| [GLO-14](https://linear.app/glossed/issue/GLO-14) catalog ingest | **The last genuinely unblocked lane.** Server-only, parallel with all iOS work. Wants a migration slot and a `read-the-damn-docs` pass before any Claude API code |
+| [GLO-67](https://linear.app/glossed/issue/GLO-67) fit: multi-axis or one? · [GLO-68](https://linear.app/glossed/issue/GLO-68) ✅ · [GLO-69](https://linear.app/glossed/issue/GLO-69) the ✿ | Three design decisions found by building. GLO-67 is the substantive one: the kit's fit control is multi-axis, `item_fits` stores one row |
+| [GLO-16](https://linear.app/glossed/issue/GLO-16) shelf · [GLO-47](https://linear.app/glossed/issue/GLO-47) product page · [GLO-19](https://linear.app/glossed/issue/GLO-19) import | **Screens built to the frames.** What remains on each is blocked — `core/Media` + R2, the fit write, the Share Extension's App ID, events |
+| [GLO-62](https://linear.app/glossed/issue/GLO-62) ✅ · [GLO-65](https://linear.app/glossed/issue/GLO-65) ✅ | Ladder rework and the screen picker. Done |
+| [GLO-15](https://linear.app/glossed/issue/GLO-15) submission ladder | Rungs 0–2 merged and reworked to the frames. The create rung is not buildable (GLO-60) |
 | [GLO-48](https://linear.app/glossed/issue/GLO-48) catalog images + R2 | Presign done. The rest **needs a human with the Cloudflare account** — see §9 |
 
 **Blocked on a human, not on code:**
@@ -72,19 +70,26 @@ with Apple capability on the App ID gates [GLO-23](https://linear.app/glossed/is
 
 ## 2. What exists
 
-**61 PRs merged, all CI-green.** `main` is the only long-lived branch.
+**70 PRs merged, all CI-green.** `main` is the only long-lived branch.
 
 | Layer | State |
 |---|---|
-| Schema | 6 migrations, all applied to the hosted project. 49 pgTAP assertions. |
-| `core/DataKit` | **FROZEN** — see §4. Config, client, typed errors, 4 repositories. 23 tests. |
-| `core/DesignSystem` | Tokens, 3 bundled fonts, 28 primitives. 28 tests. `ProductMock` is what the frames draw; `TypographicTile` is the floor below it. No icon primitive yet ([GLO-64](https://linear.app/glossed/issue/GLO-64)). |
+| Schema | 6 migrations, all applied to the hosted project. 49 pgTAP assertions. No open migration PR — the slot is free, and three tickets want it. |
+| `core/DataKit` | **FROZEN** — see §4. 23 tests. Three tickets queued against it (GLO-60, GLO-63, GLO-66); open it once. |
+| `core/DesignSystem` | Tokens, 3 bundled fonts, 28 primitives, 31 tests. `ProductMock` is what the frames draw. No icon set ([GLO-64](https://linear.app/glossed/issue/GLO-64)); `Caveat` cannot draw the kit's ✿ ([GLO-69](https://linear.app/glossed/issue/GLO-69)). |
+| `core/Media`, `core/Tracking` | **Do not exist.** Media needs R2 (§9); Tracking is owned by GLO-21 and needed by everything. |
 | `features/Ranking` | Complete: engine, rules, session, view. 29 tests. |
-| `features/AddLadder` | Ladder, search rung, barcode rung, near-match rung — **all three built to the kit frames**. 78 tests. Create rung blocked (GLO-60); the rows' sub-slot is empty for want of data (GLO-63). |
-| `features/Shelf` | Bays, list, domain filter, sort, item sheet — **the whole screen, built to `G.Shelf`**. 35 tests. **Renders from fixtures only**: nothing in the frozen core can supply a row ([GLO-66](https://linear.app/glossed/issue/GLO-66)). |
-| `app/Glossed` | `#if DEBUG` screen picker — twelve states, two taps each. Release root is still `PlaceholderView` until onboarding (GLO-18). |
-| `supabase/functions` | `storage_presign` — scoped R2 PUT URLs. 14 Deno tests, run by the `functions · deno` CI job. **Not deployed** (§9). |
-| Other features | Not started — the bulk of what remains. |
+| `features/AddLadder` | Rungs 0–2, all built to the kit frames. 78 tests. Create rung blocked (GLO-60). |
+| `features/Shelf` | Bays, list, filter, sort, item sheet — the whole screen. 41 tests. |
+| `features/ProductPage` | Hero, evidence card, fit block, actions. 11 tests. **The only screen with a live data source** (`payoff_for_variant`). |
+| `features/Import` | Source pick, paste, per-line resolution, ladder handoff. 12 tests. |
+| `app/Glossed` | `#if DEBUG` screen picker — 16 states, two taps each. Release root is still `PlaceholderView` until onboarding (GLO-18). |
+| `supabase/functions` | `storage_presign` only. 14 Deno tests. **Not deployed** (§9). |
+
+**Every feature screen except the product page renders from fixtures**, because
+GLO-66 has not landed. That is deliberate and the seams are declared — each
+feature owns a protocol naming exactly what it needs — but it means *nothing in
+the app is wired to real data yet*.
 
 **Hosted Supabase**: project `glossed`, us-east-1. The project ref lives in the
 Supabase dashboard and in `.env`, deliberately not written down here — RLS is
@@ -97,16 +102,36 @@ and is local/staging only.
 ## 3. How this session worked (worth repeating)
 
 - Branches `feat/GLO-<n>-desc`, conventional commits, squash merge.
-- **PRs ≤5 files / 400 lines.** When one grew past that by acting on review
-  findings, it used `size-override` **with a written reason as a PR comment** —
-  the label is for that, not for convenience.
-- Migrations are a global lock: one open migration PR at a time, and the merged
-  SQL is applied to the hosted project before moving on.
-- CI changes ship as their own small PR rather than riding along with feature
-  work, so a gate is never quietly weakened inside an unrelated diff.
-- **The user authorized self-merge on green CI for that session only.** The
-  handbook default is a human read on every PR. Without explicit
-  authorization, do not self-merge.
+- **PRs ≤5 files / 400 lines.** `size-override` was used three times, each with
+  the reason written at the top of the PR body: one where splitting would have
+  separated a screen from the model it exists to render, one where any split
+  ships a non-compiling intermediate, one where 223 of the counted lines were a
+  file move that SwiftLint's own `file_length` rule forced. **The label is for
+  the case where splitting makes the review worse, not for convenience** — and
+  saying which of those it is, in the body, is the whole point.
+- **Stack PRs when one idea spans layers.** DesignSystem primitive → feature
+  model → feature view → picker entry, each its own PR, each retargeted at
+  `main` as the one below it merges. `gh pr edit <n> --base main` **before**
+  merging the parent, or GitHub closes the child and will not reopen it.
+- Migrations are a global lock: one open migration PR at a time.
+- **The user authorized self-merge on green CI for this session.** The handbook
+  default is a human read on every PR. Without explicit authorization, do not
+  self-merge.
+
+### The loop that worked
+
+For every screen, in this order:
+
+1. **Open the frame** (§0) and read it as source. Not the tokens — the frame.
+2. **Read the frame against the schema and the frozen core** *before* writing
+   anything. Three of this session's seven new tickets came from that step, and
+   each would otherwise have been discovered halfway through an implementation.
+3. Build the model first, with the rules as pure functions and the data source
+   behind a feature-owned protocol.
+4. Build the view to the frame's own numbers, named once rather than scattered.
+5. **Run it on a simulator and drive it.** Not a screenshot — tap the thing.
+6. Add the state to the debug picker (§5) so it stays caught.
+7. Say in the PR which frame it was built to, and where the two differ, why.
 
 ## 4. DataKit is frozen
 
@@ -201,19 +226,26 @@ the loss is real. Two things partly cover it:
   photo, not the name*.
 
   **There is now somewhere to look.** [GLO-65](https://linear.app/glossed/issue/GLO-65)
-  landed: debug builds open on a screen picker with twelve states, each carrying
-  a note saying what the state is *for*. Use it, and add to it — the entries are
-  the shape of every UI bug this project has actually had:
+  landed: debug builds open on a screen picker with **16 states**, each carrying
+  a note saying what the state is *for*. Use it, and add to it — an entry is
+  cheap and it is the only thing that keeps a state from silently regressing.
 
-  - the escape row nobody could pick out of a list,
-  - a near-match list where every product drew as the same pink dropper,
-  - a brand sticker wide enough to cross into the product name,
-  - a primary action sitting under the home indicator,
-  - copy telling a phone with no camera to point its camera.
+  **Every UI defect this project has had needed a particular state, and none of
+  them was expressible as an assertion:**
 
-  **None of those is expressible as an assertion.** A picker of happy paths
-  would have caught none of them either, which is why an entry names its state
-  rather than its screen.
+  | defect | why no test would have caught it |
+  |---|---|
+  | an escape row nobody could pick out of a list | it rendered correctly; it just did not stand out |
+  | a near-match list where every product drew as the same pink dropper | each row was individually right |
+  | a brand sticker running under the product name | only at one scale, with one long brand |
+  | a primary action under the home indicator | layout correct; the OS overlaps it |
+  | copy telling a phone with no camera to point its camera | the right string, for a different device |
+  | a shelf overflowing at five while half of it was empty | five items is what the kit says |
+  | a bay packed on one width and drawn at another | nine items fitted; the shelf was still short |
+
+  The last two are the ones to learn from: **both were found by looking at a
+  screen that already passed every test**, and the second was a bug I introduced
+  while fixing the first. A number used in two places has to be the same number.
 
 ## 6. CI economics
 
@@ -234,16 +266,35 @@ matters, and batching pushes is the single biggest lever.
 
 | Item | Where |
 |---|---|
-| Mid-session shelf changes desync a ranking session | [GLO-53](https://linear.app/glossed/issue/GLO-53) — decide with the screen that calls `apply` |
-| Hair-type reference photos are placeholders | [GLO-52](https://linear.app/glossed/issue/GLO-52) — must be real, reviewed by people with those hair types |
-| Category tree + chip vocabulary exist only in dev seeds | [GLO-51](https://linear.app/glossed/issue/GLO-51) — production needs them as a migration |
-| No branch protection on `main` | Now that the repo is public, protection is free — worth enabling |
+| **Nothing is wired to real data** | [GLO-66](https://linear.app/glossed/issue/GLO-66) — every screen but the product page renders from fixtures |
+| **No events fire anywhere** | [GLO-21](https://linear.app/glossed/issue/GLO-21) owns `core/Tracking` and is scheduled last; see the comment |
+| The shade/size pick has no owner | [GLO-56](https://linear.app/glossed/issue/GLO-56) — now blocking three screens |
+| Fit: multi-axis in the kit, one row in the schema | [GLO-67](https://linear.app/glossed/issue/GLO-67) — a real conflict, needs a decision |
+| The kit has no icon set in the app | [GLO-64](https://linear.app/glossed/issue/GLO-64) — five SF Symbols stand in so far |
+| `Caveat` cannot draw the kit's ✿ | [GLO-69](https://linear.app/glossed/issue/GLO-69) — verified in the font's `cmap` |
+| Category labels are singular *and* plural | [GLO-51](https://linear.app/glossed/issue/GLO-51) — "#2 of 5 cream blush" reads as a typo |
+| Mid-session shelf changes desync a ranking session | [GLO-53](https://linear.app/glossed/issue/GLO-53) |
+| Hair-type reference photos are placeholders | [GLO-52](https://linear.app/glossed/issue/GLO-52) |
+| Category tree + chip vocabulary exist only in dev seeds | [GLO-51](https://linear.app/glossed/issue/GLO-51) |
+| No branch protection on `main` | Free now the repo is public — worth enabling |
 | Numbers chosen, not validated | `docs/BACKLOG.md` — payoff n≥8, min-n 5, shrinkage k≈10 |
-| Nobody owns the shade/size pick | [GLO-56](https://linear.app/glossed/issue/GLO-56) — a search hit is a *product*, a shelf item is a *variant*. AddLadder or GLO-16's logging sheet? Blocks GLO-15 |
-| The shelf renders from fixtures only | [GLO-66](https://linear.app/glossed/issue/GLO-66) — the frozen core cannot supply one shelf row. Three tickets now want that door opened; open it once |
-| Two-char search floor duplicated | [GLO-55](https://linear.app/glossed/issue/GLO-55) — frozen DataKit and AddLadder each hard-code it. Drift one way silently poisons the queue GLO-14 reads |
-| Autocorrect fix lives at a call site | [GLO-57](https://linear.app/glossed/issue/GLO-57) — belongs in `GlossedInput`, next to `GlossedKeyboard`. Every future search field forgets it otherwise |
-| Orphaned cutouts accumulate | [GLO-54](https://linear.app/glossed/issue/GLO-54) — re-shoots write new keys by design; nothing collects the old ones |
+| Two-char search floor duplicated | [GLO-55](https://linear.app/glossed/issue/GLO-55) |
+| Autocorrect fix lives at a call site | [GLO-57](https://linear.app/glossed/issue/GLO-57) |
+| Orphaned cutouts accumulate | [GLO-54](https://linear.app/glossed/issue/GLO-54) |
+
+### The kit is not always ahead of the app
+
+Twice this session the frame was the thing that was wrong, not the port:
+
+- **[GLO-68](https://linear.app/glossed/issue/GLO-68)** — the kit's own bay holds
+  five and fills 56% of its 390px frame. Fixed in the app; **the kit still says
+  five**, so the next person reading `G.Shelf` will re-introduce it.
+- **[GLO-69](https://linear.app/glossed/issue/GLO-69)** — the kit's ✿ is not in
+  the typeface the kit specifies for it.
+
+`docs/DESIGN.md` says a divergence must be stated and justified. It should also
+say: **when the frame is wrong, change the frame.** Otherwise the app and the kit
+drift in the direction nobody chose.
 
 ## 8. Local setup
 
@@ -330,30 +381,40 @@ the review step this project leans on, so a silent miss means a PR merges with
 no review while the check mark says otherwise. Fixing it means editing a
 workflow, which agents may not do.
 
-## 12. What this session got wrong, so you don't repeat it
+## 12. What the last two sessions got wrong, so you don't repeat it
 
-Three failures, all the same shape — **acting on an assumption instead of
-checking**, and not saying out loud that it was an assumption.
+**Session one — three failures, all one shape: acting on an assumption instead
+of checking, and not saying out loud that it was an assumption.**
 
-**The design.** The kit was linked on the Linear project from the day it was
-created. The 403 from `WebFetch` was taken as "unreachable" and the whole
-submission ladder was built from the primitives. It opens fine in the browser
-pane; `screens.jsx` reads as source. One question would have caught it.
-→ [GLO-62](https://linear.app/glossed/issue/GLO-62), and §0 above.
+*The design.* The kit was linked from the day it was created. A 403 from
+`WebFetch` was taken as "unreachable" and the whole submission ladder was built
+from the primitives. → [GLO-62](https://linear.app/glossed/issue/GLO-62), §0.
 
-**The handoff.** The previous session's PR added the pointer to
-`docs/HANDOFF.md` without the file — a `git push -q` had failed silently and the
-merge went through empty. **Check `git show --stat HEAD` before pushing, and the
-PR's file list after.**
+*The handoff.* A `git push -q` failed silently and a docs PR merged empty.
+**Check `git show --stat HEAD` before pushing, and the PR's file list after.**
 
-**The blockers.** GLO-15's create rung was planned three times before anyone
-checked whether `CatalogRepository` could supply a `brandID` (it cannot) or
-whether a created product could reach the shelf (it cannot — nothing creates the
-variant, and `user_items.variant_id` is `not null`). Both were findable in a
-two-minute read of the frozen core. → [GLO-60](https://linear.app/glossed/issue/GLO-60).
+*The blockers.* GLO-15's create rung was planned three times before anyone
+checked whether the core could supply a `brandID` (it cannot) or whether a
+created product could reach the shelf (it cannot). Both were findable in a
+two-minute read. → [GLO-60](https://linear.app/glossed/issue/GLO-60).
 
-The counterweight worth keeping: the automated recap caught five real bugs, all
-one family — *a name claiming more certainty than the code can supply*. When it
-flagged something, checking it rather than agreeing with it was what found the
-actual defect twice (a test that could not fail the way it claimed; a
-determinism test that passed for the implementation it existed to prevent).
+**Session two — the same shape, twice, in smaller places.**
+
+*A fix for a bug that was not there.* I measured a ~5pt drift off a screenshot,
+concluded negative padding was widening the shelf, and rewrote it. The render
+was pixel-identical: the measurement was eyeball noise. Reverted, with the
+reasoning left in the source. **Measure with a test or with arithmetic, not with
+your eye on a scaled screenshot.**
+
+*A number used in two places, twice.* Packing the shelf reserved a 30pt slot and
+then drew the object at 24. Nine items fitted, the shelf was still short, and the
+rank stickers were back within touching distance — both of the things the slot
+existed to prevent. It passed every test.
+
+**What went right, and is worth copying:** reading the frame *against the schema
+and the frozen core* before writing anything. Three of the seven tickets this
+session opened came out of that step — GLO-63, GLO-66, GLO-67 — and each would
+otherwise have surfaced halfway through an implementation that had to be undone.
+
+The counterweight worth keeping: when a review flags something, **check it
+rather than agree with it.** That is what found the actual defect twice.
