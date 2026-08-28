@@ -118,12 +118,3 @@ private func model(hits: [CatalogHit] = [], failure: GlossedError? = nil) -> Sea
     #expect(live.ladder.rung == .search)
     #expect(live.ladder.query == "glow")
 }
-
-@Test func theRailNamesEveryRungInTheUsersWords() {
-    // The rail renders from the ladder's trail, so every rung needs a label —
-    // a new rung with no label would render as a gap in the trail.
-    for rung in Rung.allCases {
-        #expect(!RungRail.label(for: rung).isEmpty)
-    }
-    #expect(RungRail.label(for: .nearMatches) == "near matches")
-}

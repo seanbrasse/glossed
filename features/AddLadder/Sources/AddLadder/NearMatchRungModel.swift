@@ -45,9 +45,11 @@ public final class NearMatchRungModel {
     }
 
     /// The last rung before create, so this is the one place the way out should
-    /// say what it will actually do.
+    /// say what it will actually do — and the frame's own words for it are
+    /// "create it", which is also what the rail's fourth segment is called.
+    /// "Add it yourself" named the same rung twice, differently.
     private var escapePrompt: String {
-        "none of these — add it yourself"
+        "none of these — create it"
     }
 
     public func search() async {
