@@ -43,7 +43,8 @@ public struct ShelfView: View {
                         onClose: model.closeSheet,
                         onRemove: model.supportsRemoval ? { model.removeOpenItem() } : nil,
                         isRemoving: model.isRemoving,
-                        removeFailure: model.removeFailure?.userMessage
+                        removeFailure: model.removeFailure?.userMessage,
+                        chips: model.chips.supportsEditing ? model.chips : nil
                     )
                 }
             }

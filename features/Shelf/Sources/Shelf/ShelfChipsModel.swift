@@ -41,6 +41,13 @@ public final class ShelfChipsModel {
         self.store = store
     }
 
+    /// Whether edits actually persist. The sheet hides the section when they
+    /// would not — an editor that writes nowhere must not be offered (the
+    /// live store lands with GLO-16's DataKit opening).
+    public var supportsEditing: Bool {
+        store != nil
+    }
+
     public func open(_ item: ShelfItem) {
         self.item = item
         vocabulary = []

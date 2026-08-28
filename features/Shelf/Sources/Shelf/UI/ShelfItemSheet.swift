@@ -34,6 +34,9 @@ public struct ShelfItemSheet: View {
     /// native dialog would leave the design system's voice for the one action
     /// that most needs to feel deliberate.
     @State private var isConfirmingRemove = false
+    /// Nil hides the chips + note section — fixture states with no chips
+    /// model must not offer edits that write nowhere (GLO-16).
+    private let chips: ShelfChipsModel?
 
     public init(
         item: ShelfItem,
@@ -45,7 +48,8 @@ public struct ShelfItemSheet: View {
         onOpenProduct: @escaping () -> Void = {},
         onRemove: (() -> Void)? = nil,
         isRemoving: Bool = false,
-        removeFailure: String? = nil
+        removeFailure: String? = nil,
+        chips: ShelfChipsModel? = nil
     ) {
         self.item = item
         self.rankedInCategory = rankedInCategory
@@ -57,6 +61,7 @@ public struct ShelfItemSheet: View {
         self.onRemove = onRemove
         self.isRemoving = isRemoving
         self.removeFailure = removeFailure
+        self.chips = chips
     }
 
     public var body: some View {
@@ -92,6 +97,9 @@ public struct ShelfItemSheet: View {
             }
             if item.isAnchorCategory {
                 fitSection
+            }
+            if let chips {
+                ShelfChipsSection(model: chips)
             }
             actions
             if onRemove != nil {
