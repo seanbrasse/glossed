@@ -220,6 +220,9 @@ struct AppShell: View {
                 onClose: { ladderOpen = false },
                 onShelfChanged: { session.refreshShelf() }
             )
+            // Search rows and the variant sheet compose real cutout URLs
+            // from this — the same base the shelf reads with (GLO-83).
+            .environment(\.catalogImageBase, session.imageBase)
         }
     }
 }

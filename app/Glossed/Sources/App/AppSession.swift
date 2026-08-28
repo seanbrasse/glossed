@@ -25,7 +25,9 @@ final class AppSession {
     /// Where catalog cutouts are served from: the stack's public storage
     /// bucket. Composed from config, so the storage move (local → R2) is an
     /// env change here and nowhere else (GLO-74).
-    private var imageBase: URL?
+    /// Internal, not private: the shell hands it to the ladder as the
+    /// catalog-image environment (GLO-83) — same base the shelf composes with.
+    private(set) var imageBase: URL?
     /// The shelf tab's model. Rebuilt by `reloadShelf()` — the ladder calls
     /// that after landing something, so a new bottle appears without a
     /// relaunch.

@@ -61,12 +61,16 @@ public struct VariantPickSheet: View {
         .transition(.move(edge: .bottom))
     }
 
+    @Environment(\.catalogImageBase) private var imageBase
+
     private var header: some View {
         HStack(alignment: .top, spacing: 14) {
             ProductImage(
+                catalog: model.hit.catalogImageURL(base: imageBase),
                 kind: ProductMock.Kind.usual(forCategory: model.hit.categorySlug),
                 tint: ProductMock.tint(for: model.hit.name),
                 scale: 58,
+                maxWidth: 58,
                 rotation: .degrees(-3)
             )
             .frame(width: 58)
