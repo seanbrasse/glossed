@@ -1,10 +1,18 @@
-import { assert, assertEquals, assertMatch, assertStringIncludes } from "jsr:@std/assert@1";
+import {
+  assert,
+  assertEquals,
+  assertMatch,
+  assertStringIncludes,
+  assertThrows,
+} from "jsr:@std/assert@1";
 import {
   ALLOWED_CONTENT_TYPES,
   cutoutKey,
   MAX_UPLOAD_BYTES,
   presignPut,
+  r2Config,
   randomNonce,
+  resolvePublishableKey,
   validate,
 } from "./presign.ts";
 
@@ -85,4 +93,43 @@ Deno.test("the url points at the bucket and expires", async () => {
   assertStringIncludes(url, "https://acct.r2.cloudflarestorage.com/glossed-dev/");
   assertEquals(new URL(url).searchParams.get("X-Amz-Expires"), "300");
   assert(new URL(url).searchParams.get("X-Amz-Signature"));
+});
+
+const envFrom = (vars: Record<string, string>) => (name: string) => vars[name];
+
+Deno.test("the legacy publishable key is used when the platform sets it", () => {
+  assertEquals(
+    resolvePublishableKey(envFrom({ SUPABASE_ANON_KEY: "sb_publishable_legacy" })),
+    "sb_publishable_legacy",
+  );
+});
+
+Deno.test("the new key map resolves through the env var it names", () => {
+  // SUPABASE_PUBLISHABLE_KEYS maps a role to the *name* of the var holding the
+  // key, not to the key — reading it as the key itself is the mistake here.
+  const env = envFrom({
+    SUPABASE_PUBLISHABLE_KEYS: JSON.stringify({ default: "SB_PUBLISHABLE_DEFAULT" }),
+    SB_PUBLISHABLE_DEFAULT: "sb_publishable_new",
+  });
+  assertEquals(resolvePublishableKey(env), "sb_publishable_new");
+});
+
+Deno.test("an empty environment fails loudly rather than building a keyless client", () => {
+  assertThrows(() => resolvePublishableKey(envFrom({})));
+  assertThrows(() => resolvePublishableKey(envFrom({ SUPABASE_PUBLISHABLE_KEYS: "{}" })));
+});
+
+Deno.test("every R2 credential is required", () => {
+  const full = {
+    R2_ACCOUNT_ID: "acct",
+    R2_BUCKET: "glossed-dev",
+    R2_ACCESS_KEY_ID: "AKIAEXAMPLE",
+    R2_SECRET_ACCESS_KEY: "secret",
+  };
+  assertEquals(r2Config(envFrom(full)).bucket, "glossed-dev");
+  for (const missing of Object.keys(full)) {
+    const partial = { ...full } as Record<string, string>;
+    delete partial[missing];
+    assertThrows(() => r2Config(envFrom(partial)), Error, "R2 credentials missing");
+  }
 });

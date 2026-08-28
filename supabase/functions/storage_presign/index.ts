@@ -11,7 +11,14 @@
 // handler — decides whether the item is theirs.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { cutoutKey, PRESIGN_TTL_SECONDS, presignPut, validate } from "./presign.ts";
+import {
+  cutoutKey,
+  PRESIGN_TTL_SECONDS,
+  presignPut,
+  r2Config,
+  resolvePublishableKey,
+  validate,
+} from "./presign.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,29 +33,7 @@ function json(body: unknown, status: number): Response {
   });
 }
 
-/// The platform injects the publishable key under a name that changed with the
-/// new API-key scheme; accept either rather than fail at deploy time.
-function publishableKey(): string {
-  const legacy = Deno.env.get("SUPABASE_ANON_KEY");
-  if (legacy) return legacy;
-  const map = Deno.env.get("SUPABASE_PUBLISHABLE_KEYS");
-  if (map) {
-    const named = (JSON.parse(map) as Record<string, string>)["default"];
-    return Deno.env.get(named) ?? named;
-  }
-  throw new Error("no publishable key in the function environment");
-}
-
-function r2Config() {
-  const accountID = Deno.env.get("R2_ACCOUNT_ID");
-  const bucket = Deno.env.get("R2_BUCKET");
-  const accessKeyID = Deno.env.get("R2_ACCESS_KEY_ID");
-  const secretAccessKey = Deno.env.get("R2_SECRET_ACCESS_KEY");
-  if (!accountID || !bucket || !accessKeyID || !secretAccessKey) {
-    throw new Error("R2 credentials missing from the function environment");
-  }
-  return { accountID, bucket, accessKeyID, secretAccessKey };
-}
+const env = (name: string) => Deno.env.get(name);
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -73,7 +58,7 @@ Deno.serve(async (req: Request) => {
   if (rejection) return json({ error: rejection }, 400);
 
   try {
-    const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", publishableKey(), {
+    const supabase = createClient(env("SUPABASE_URL") ?? "", resolvePublishableKey(env), {
       global: { headers: { Authorization: authorization } },
     });
 
@@ -94,7 +79,7 @@ Deno.serve(async (req: Request) => {
 
     const key = cutoutKey(user.id, input.userItemID, input.contentType);
     const url = await presignPut(
-      r2Config(),
+      r2Config(env),
       key,
       input.contentType,
       input.contentLength,

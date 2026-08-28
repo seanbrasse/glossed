@@ -115,3 +115,35 @@ export async function presignPut(
   const signed = await signer.sign();
   return signed.url.toString();
 }
+
+/// A lookup rather than `Deno.env` directly, so the two resolvers below are
+/// testable — they are the pieces that decide, at deploy time, whether this
+/// function talks to the right project and the right bucket.
+export type Env = (name: string) => string | undefined;
+
+/// The platform injects the publishable key under a name that changed with the
+/// new API-key scheme, and `SUPABASE_PUBLISHABLE_KEYS` maps a role to the env
+/// var holding the key rather than to the key itself. Accept either shape, and
+/// fail loudly rather than construct a client with an empty key.
+export function resolvePublishableKey(env: Env): string {
+  const legacy = env("SUPABASE_ANON_KEY");
+  if (legacy) return legacy;
+
+  const map = env("SUPABASE_PUBLISHABLE_KEYS");
+  if (map) {
+    const named = (JSON.parse(map) as Record<string, string>)["default"];
+    if (named) return env(named) ?? named;
+  }
+  throw new Error("no publishable key in the function environment");
+}
+
+export function r2Config(env: Env): R2Config {
+  const accountID = env("R2_ACCOUNT_ID");
+  const bucket = env("R2_BUCKET");
+  const accessKeyID = env("R2_ACCESS_KEY_ID");
+  const secretAccessKey = env("R2_SECRET_ACCESS_KEY");
+  if (!accountID || !bucket || !accessKeyID || !secretAccessKey) {
+    throw new Error("R2 credentials missing from the function environment");
+  }
+  return { accountID, bucket, accessKeyID, secretAccessKey };
+}
