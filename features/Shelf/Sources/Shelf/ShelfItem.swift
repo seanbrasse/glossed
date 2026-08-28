@@ -113,28 +113,77 @@ public struct ShelfSection: Sendable, Equatable {
 /// rather than letting a row scroll sideways, because a shelf you have to
 /// scroll horizontally stops reading as a shelf.
 public struct ShelfBay: Identifiable, Sendable, Equatable {
-    /// Capacity of one bay, from `for (let k=0; k<items.length; k+=5)`.
-    public static let capacity = 5
+    /// The gap between two objects standing on the same shelf, from the kit.
+    public static let itemGap: CGFloat = 10
+
+    /// No object occupies less than this much shelf, however narrow it is drawn.
+    ///
+    /// A tube draws 17pt wide and its rank sticker is about 24 — "#100" nearer
+    /// 28. The sticker is centred on the object and is allowed to overhang it
+    /// (that is what a label does), but once bays are packed by width rather
+    /// than capped at five, two narrow neighbours put their stickers on top of
+    /// each other. This is the floor that keeps them apart, and it is the
+    /// shelf's business rather than `ProductMock`'s: the number depends on what
+    /// the labels say, and only the shelf knows that they are ranks.
+    public static let minimumSlot: CGFloat = 30
 
     public let id: String
     public let label: String
     public let items: [ShelfItem]
 
-    /// Chunks each category into bays, in the order the categories are given.
+    /// Chunks each category into bays that fill the shelf, in the order the
+    /// categories are given.
+    ///
+    /// A bay takes items until the next one would not fit, then starts a new
+    /// one. **Measured, not divided**: a bay holding a compact, a tube and a
+    /// jar has no single item width, so capacity is a running total.
     ///
     /// Empty categories produce no bay at all — an empty ground line labelled
     /// `blush` would claim you own blushes.
-    public static func bays(from sections: [ShelfSection]) -> [ShelfBay] {
+    ///
+    /// - Parameter width: the space inside a bay's own padding. Capacity — and
+    ///   so the `blush · 2` labels — therefore depends on the device, which is
+    ///   the honest behaviour for a shelf and is worth knowing before comparing
+    ///   two screenshots (GLO-68).
+    public static func bays(from sections: [ShelfSection], fittingWidth width: CGFloat) -> [ShelfBay] {
         sections.flatMap { section in
-            stride(from: 0, to: section.items.count, by: capacity).map { start in
-                let part = start / capacity
-                return ShelfBay(
-                    id: "\(section.slug)-\(start)",
+            chunks(of: section.items, fittingWidth: width).enumerated().map { part, items in
+                ShelfBay(
+                    id: "\(section.slug)-\(part)",
                     label: part == 0 ? section.label : "\(section.label) · \(part + 1)",
-                    items: Array(section.items[start ..< min(start + capacity, section.items.count)])
+                    items: items
                 )
             }
         }
+    }
+
+    /// The packing itself, kept separate so it can be checked without labels
+    /// or sections in the way.
+    ///
+    /// Every bay holds at least one item even when that item is wider than the
+    /// shelf. An object too big for its shelf should hang over the edge; a bay
+    /// that refused it would drop it from the screen entirely.
+    static func chunks(of items: [ShelfItem], fittingWidth width: CGFloat) -> [[ShelfItem]] {
+        var bays: [[ShelfItem]] = []
+        var current: [ShelfItem] = []
+        var used: CGFloat = 0
+
+        for item in items {
+            let slot = item.slotWidth
+            let needed = current.isEmpty ? slot : used + itemGap + slot
+            if !current.isEmpty, needed > width {
+                bays.append(current)
+                current = [item]
+                used = slot
+            } else {
+                current.append(item)
+                used = needed
+            }
+        }
+        if !current.isEmpty {
+            bays.append(current)
+        }
+        return bays
     }
 }
 
@@ -197,6 +246,16 @@ public extension ShelfItem {
     /// smaller than a compact and nothing is much taller than a bottle.
     static let smallestScale: CGFloat = 44
     static let largestScale: CGFloat = 88
+
+    /// How much shelf this object takes up: what it draws, or the floor that
+    /// keeps its rank sticker off its neighbour's — whichever is larger.
+    ///
+    /// Both the packing and the layout use this. They have to be the same
+    /// number: pack by the slot and render at the drawn width and the shelf
+    /// comes out short of full, with the stickers back where they started.
+    var slotWidth: CGFloat {
+        max(ProductMock.drawnWidth(kind: packaging, scale: drawnScale), ShelfBay.minimumSlot)
+    }
 
     /// `kindH` in `G.Shelf`.
     static func kitScale(_ packaging: ProductMock.Kind) -> CGFloat {
