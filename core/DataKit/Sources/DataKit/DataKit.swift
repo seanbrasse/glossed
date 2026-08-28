@@ -49,14 +49,16 @@ public struct GlossedConfig: Sendable {
 /// exports it: every query in the app goes through DataKit's repositories, so
 /// there is exactly one place session handling can be got wrong.
 public actor GlossedClient {
-    private let client: SupabaseClient
+    /// Nonisolated because `SupabaseClient` is itself Sendable — the protection
+    /// here is access level, not isolation: nothing outside DataKit can see it.
+    private nonisolated let client: SupabaseClient
 
     public init(config: GlossedConfig) {
         client = SupabaseClient(supabaseURL: config.supabaseURL, supabaseKey: config.publishableKey)
     }
 
     /// Internal-only access for repositories inside this module.
-    var supabase: SupabaseClient {
+    nonisolated var supabase: SupabaseClient {
         client
     }
 
