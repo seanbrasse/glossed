@@ -173,7 +173,7 @@ Three profiles, kept separate (PRD §11): **body facts filter** (anchors+fit, sk
 
 ## 9. iOS app structure (screens ↔ kit)
 
-Three tabs + plus drawer. Every screen exists in the kit (`screens.jsx`); build to it.
+Three tabs + plus drawer. Every screen exists in the kit ([`screens.jsx`, screen map](https://claude.ai/design/p/38230b94-09d2-4776-9d21-be0722ba54f2?file=ui_kits%2Fglossed-app%2Fscreen-map.html) — opening instructions in [`DESIGN.md`](../DESIGN.md)); **build to the frame**. If you cannot open it, stop and say so rather than inferring the layout from the primitives.
 
 | Feature module | Screens (kit names) |
 |---|---|

@@ -2,6 +2,8 @@
 
 **Resuming work?** Start with [`HANDOFF.md`](HANDOFF.md) — current state, next tickets, and the traps.
 
+**Building a screen?** [`DESIGN.md`](DESIGN.md) is where the design kit lives and how to open it. The kit decides layout, order and copy; the primitives only decide how things look.
+
 Read in this order:
 
 1. [`domain.md`](domain.md) — vocabulary, entities, lifecycles, permission matrix, data classification, retention. The schema's source of truth.
@@ -16,4 +18,4 @@ Read in this order:
 
 Spec depth is deliberate: Phase 1 is build-ready; 1.5/2/3/4 pin the architecture, schema shapes, and hard rules so nothing in Phase 1 blocks them. Each gets its build-ready pass (full DDL, screen inventory, ticket breakdown) at phase entry, informed by Phase-1 data and the design kit's coverage of those surfaces.
 
-Source inputs: PRD v2.0 (`~/Downloads/glossed-prd-v2.0.md`), Greenfield Handbook (`~/Downloads/GREENFIELD_HANDBOOK_1.md` — fork into `docs/HANDBOOK.md` when the repo is initialized), and the GLOSSED design system + UI kit (Claude Design project: tokens, 26 components, `screens.jsx`, screen map).
+Source inputs: PRD v2.0 (`~/Downloads/glossed-prd-v2.0.md`), Greenfield Handbook (`~/Downloads/GREENFIELD_HANDBOOK_1.md` — fork into `docs/HANDBOOK.md` when the repo is initialized), and the GLOSSED design system + UI kit ([Claude Design project](https://claude.ai/design/p/38230b94-09d2-4776-9d21-be0722ba54f2): tokens, 26 components, `screens.jsx`, screen map — see [`DESIGN.md`](DESIGN.md)).
