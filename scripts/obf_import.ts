@@ -88,6 +88,11 @@ function candidate(slug: string, domain: string, p: ObfProduct): Candidate | nul
   if (!/^\d{8,14}$/.test(gtin)) return null;
   const name = clean(p.product_name ?? "", 200);
   if (name.length < 2) return null;
+  // GLO-84: OBF sometimes files the barcode (or other digit runs) as the
+  // product name — Sean hit "3606000537750" as a search result. A name that
+  // is nothing but digits and separators names nothing; and a name that IS
+  // the record's own code is the same mistake with certainty.
+  if (/^[\d\s.,-]+$/.test(name) || name === gtin) return null;
   // OBF's brands field is comma-separated; the first entry is the brand.
   const brand = clean((p.brands ?? "").split(",")[0] ?? "", 80);
   if (brand.length < 2) return null;

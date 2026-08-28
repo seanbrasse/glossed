@@ -146,6 +146,9 @@ function candidate(brand: string, p: ShopifyProduct): Candidate | null {
   if (!slug) return null;
   const name = clean((p.title ?? "").toLowerCase(), 200);
   if (name.length < 2) return null;
+  // GLO-84's guard, mirrored: store-authored titles make this unlikely, but
+  // a digits-only title names nothing wherever it came from.
+  if (/^[\d\s.,-]+$/.test(name)) return null;
   // Which option position carries the shade, per this product's own schema.
   const shadePosition = (p.options ?? [])
     .find((o) => /^(shade|colou?r)$/i.test(o.name ?? ""))?.position;
