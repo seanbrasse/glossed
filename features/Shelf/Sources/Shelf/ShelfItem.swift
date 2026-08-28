@@ -35,6 +35,14 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
     public let packaging: ProductMock.Kind
     /// `variants.height_mm`. Nullable in the schema and unset by the seed.
     public let heightMM: Double?
+    /// `products.benefit_line` — the one sentence the sheet leads with.
+    public let benefitLine: String?
+    public let status: ItemStatus
+    /// `user_items.started_on`. Set for things with a wear-in period, which is
+    /// what turns the status line into "week 3".
+    public let startedOn: Date?
+    /// Personal scope: yours alone until three people log the same product.
+    public let isPersonalScope: Bool
     /// Position within its category, when the category has been ranked. Nil is
     /// ordinary — a category under its unlock threshold has no order yet.
     public let rank: Int?
@@ -54,6 +62,10 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
         variant: String? = nil,
         packaging: ProductMock.Kind,
         heightMM: Double? = nil,
+        benefitLine: String? = nil,
+        status: ItemStatus = .own,
+        startedOn: Date? = nil,
+        isPersonalScope: Bool = false,
         rank: Int? = nil,
         loggedAt: Date? = nil
     ) {
@@ -66,6 +78,10 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
         self.variant = variant
         self.packaging = packaging
         self.heightMM = heightMM
+        self.benefitLine = benefitLine
+        self.status = status
+        self.startedOn = startedOn
+        self.isPersonalScope = isPersonalScope
         self.rank = rank
         self.loggedAt = loggedAt
     }
@@ -123,6 +139,33 @@ public struct ShelfBay: Identifiable, Sendable, Equatable {
 }
 
 public extension ShelfItem {
+    /// What the sheet writes after the variant: "week 3" while something is
+    /// wearing in, otherwise the status itself.
+    ///
+    /// The week is not stored. `ShelfRepository.week(startedOn:loggedOn:)` in
+    /// the frozen core already owns that arithmetic — and it has to, because
+    /// `item_chips.week` is stamped by the same rule. Two implementations of
+    /// "which week is this" would let a chip say week 1 while the shelf says
+    /// week 2 about the same product on the same day.
+    func statusLabel(on day: Date = Date()) -> String {
+        guard let week = ShelfRepository.week(startedOn: startedOn, loggedOn: day) else {
+            return ShelfItem.label(for: status)
+        }
+        return "week \(week)"
+    }
+
+    /// Lowercase, per the kit's voice. An exhaustive switch rather than a
+    /// `rawValue` tidy-up, so a new status is a compile error here instead of
+    /// `want_to_try` appearing on a shelf with its underscore showing.
+    static func label(for status: ItemStatus) -> String {
+        switch status {
+        case .wantToTry: "want to try"
+        case .own: "own"
+        case .finished: "finished"
+        case .repurchased: "repurchased"
+        }
+    }
+
     /// How tall to draw this object, in `ProductMock`'s scale units.
     ///
     /// **The ratios are compressed, and the name says drawn rather than real.**

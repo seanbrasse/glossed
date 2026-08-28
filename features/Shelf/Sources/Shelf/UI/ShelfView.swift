@@ -17,6 +17,20 @@ public struct ShelfView: View {
     }
 
     public var body: some View {
+        page
+            .overlay {
+                if let item = model.openItem {
+                    ShelfItemSheet(
+                        item: item,
+                        rankedInCategory: model.rankedCount(inCategoryOf: item),
+                        onClose: model.closeSheet
+                    )
+                }
+            }
+            .animation(Tokens.Motion.pop(Tokens.Motion.med), value: model.openItem)
+    }
+
+    private var page: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 heading
@@ -28,13 +42,13 @@ public struct ShelfView: View {
                 controls
                 switch model.viewMode {
                 case .shelf:
-                    ShelfBayView(bays: model.bays, onTap: onTapItem)
+                    ShelfBayView(bays: model.bays, onTap: tapped)
                 case .list:
                     ShelfListView(
                         sections: model.shownSections,
                         openSection: model.openSection,
                         onToggleSection: model.toggleSection,
-                        onTapItem: onTapItem
+                        onTapItem: tapped
                     )
                 }
             }
@@ -43,6 +57,15 @@ public struct ShelfView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Tokens.Ground.milk)
+    }
+
+    /// The sheet is the shelf's own answer to a tap; `onTapItem` is for whatever
+    /// contains the shelf and wants to know as well. Both fire, and neither
+    /// swallows the other — a host that navigated away would otherwise leave a
+    /// sheet open behind it.
+    private func tapped(_ item: ShelfItem) {
+        model.open(item)
+        onTapItem(item)
     }
 
     private var heading: some View {
