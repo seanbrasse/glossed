@@ -11,6 +11,7 @@
 // the acceptance criterion that makes a feed inspectable before it lands.
 
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { resolveSecretKey } from "../_shared/credentials.ts";
 import {
   afterFailure,
   backoffSeconds,
@@ -28,19 +29,6 @@ const json = (body: unknown, status: number): Response =>
     status,
     headers: { "Content-Type": "application/json" },
   });
-
-// The modern env contract is a JSON dictionary of secret keys; the legacy
-// single-value variable still arrives on older stacks. Take either.
-export function resolveSecretKey(env: (name: string) => string | undefined): string {
-  const dict = env("SUPABASE_SECRET_KEYS");
-  if (dict) {
-    const parsed = JSON.parse(dict) as Record<string, string>;
-    if (parsed.default) return parsed.default;
-  }
-  const legacy = env("SUPABASE_SERVICE_ROLE_KEY");
-  if (legacy) return legacy;
-  throw new Error("no service credential in the environment");
-}
 
 async function loadFeed(): Promise<FeedRow[]> {
   const url = new URL("./fixture_feed.json", import.meta.url);
