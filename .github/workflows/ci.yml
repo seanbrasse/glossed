@@ -67,9 +67,15 @@ jobs:
           set -o pipefail
           xcodebuild build -project Glossed.xcodeproj -scheme Glossed \
             -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
-      - name: Package tests
+      - name: Package tests (every package under core/)
         run: |
-          cd core/DesignSystem && swift test
+          set -e
+          for pkg in core/*/Package.swift; do
+            dir=$(dirname "$pkg")
+            echo "::group::swift test $dir"
+            (cd "$dir" && swift test)
+            echo "::endgroup::"
+          done
 
   db:
     name: db · isolation suite
