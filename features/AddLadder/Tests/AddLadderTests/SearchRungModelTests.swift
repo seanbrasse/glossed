@@ -81,9 +81,14 @@ private func model(hits: [CatalogHit] = [], failure: GlossedError? = nil) -> Sea
 @MainActor
 @Test func theModelDoesNotCallAMissWhenTheUserIsStillTyping() async {
     let live = model()
-    live.query = "l"
-    await live.search()
-    #expect(live.isMiss == false)
+    for stillTyping in ["l", " a ", "  ", "\tb"] {
+        // Whitespace is why the model must not re-derive this from query.count:
+        // " a " is three characters and one letter. The rung tidies before it
+        // decides, so the rung's verdict is the only one.
+        live.query = stillTyping
+        await live.search()
+        #expect(live.isMiss == false, "\"\(stillTyping)\" is typing, not a miss")
+    }
 }
 
 @MainActor

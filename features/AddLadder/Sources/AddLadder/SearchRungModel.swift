@@ -40,7 +40,11 @@ public final class SearchRungModel {
         didSet { ladder.refine(query: query) }
     }
 
-    private var hits: [CatalogHit] = []
+    /// The rung's own answer, kept whole. Deriving `isMiss` from the query
+    /// again here would be a second implementation of the same rule, and the
+    /// two disagree the moment whitespace is involved — `" a "` is three
+    /// characters and one letter.
+    private var result = SearchRung.Result(hits: [], isMiss: false)
     private let rung: SearchRung
     private let domain: Domain?
 
@@ -54,20 +58,20 @@ public final class SearchRungModel {
     /// Always ends with the way out. A rung with nothing to show is still a rung
     /// the user can leave, so this list is never empty.
     public var options: [LadderOption] {
-        hits.map(LadderOption.match) + [.noneOfThese(prompt: escapePrompt)]
+        result.hits.map(LadderOption.match) + [.noneOfThese(prompt: escapePrompt)]
     }
 
     /// Names what happens next rather than just refusing: at the search rung the
     /// next rung is the scanner, so say so.
     private var escapePrompt: String {
-        hits.isEmpty ? "none of these — scan the barcode" : "none of these"
+        result.isEmpty ? "none of these — scan the barcode" : "none of these"
     }
 
-    /// True only when a real query came back empty. A query too short to search
-    /// is not a miss, and neither is a failure.
+    /// True only when a real query came back empty. A query too short to
+    /// search is not a miss, and neither is a failure — this is the rung's own
+    /// verdict, not a second guess at it.
     public var isMiss: Bool {
-        failure == nil && !isSearching && hits.isEmpty
-            && query.count >= SearchRung.minimumQueryLength
+        failure == nil && !isSearching && result.isMiss
     }
 
     public func search() async {
@@ -75,9 +79,9 @@ public final class SearchRungModel {
         failure = nil
         defer { isSearching = false }
         do {
-            hits = try await rung.typeahead(query, domain: domain).hits
+            result = try await rung.typeahead(query, domain: domain)
         } catch {
-            hits = []
+            result = SearchRung.Result(hits: [], isMiss: false)
             failure = error
         }
     }
