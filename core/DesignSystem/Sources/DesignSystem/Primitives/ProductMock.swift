@@ -25,27 +25,78 @@ public struct ProductMock: View {
     private let tint: Color
     private let scale: CGFloat
     private let rotation: Angle
+    private let label: String?
 
     /// - Parameter scale: the kit's `h`. A drawing scale, **not** the rendered
     ///   height: the stacked kinds overlap their cap by 2pt, so a dropper drawn
     ///   at 50 stands 39pt tall. Callers that need an exact box should give this
     ///   view a frame.
+    /// - Parameter label: a short sticker across the object's waist — the shelf
+    ///   puts `#1` there. Two or three characters; it does not wrap and does not
+    ///   shrink the drawing to fit, because a mock that resizes to its label
+    ///   stops being comparable to the one beside it.
     public init(
         kind: Kind = .tube,
         tint: Color,
         scale: CGFloat = 96,
-        rotation: Angle = .degrees(0)
+        rotation: Angle = .degrees(0),
+        label: String? = nil
     ) {
         self.kind = kind
         self.tint = tint
         self.scale = scale
         self.rotation = rotation
+        self.label = label
     }
 
     public var body: some View {
-        shape
+        drawing
             .rotationEffect(rotation)
-            .accessibilityHidden(true)
+    }
+
+    /// Unlabelled, the mock is decoration and says nothing a screen reader has
+    /// not already heard: whatever row it sits in carries the brand and the
+    /// name. Labelled, the sticker is the only thing on it that is readable at
+    /// all, and on the shelf it is the item's rank — so that is what it says.
+    @ViewBuilder
+    private var drawing: some View {
+        if let label {
+            shape
+                .overlay(alignment: .center) { sticker(label) }
+                .accessibilityElement()
+                .accessibilityLabel(ProductMock.spoken(label))
+        } else {
+            shape.accessibilityHidden(true)
+        }
+    }
+
+    /// The kit centres this at 54% of the object's height — a shade below the
+    /// middle, which is where a label sits on a real bottle rather than exactly
+    /// halfway up it. Offset from centre rather than measured, because the
+    /// drawn height varies by kind and 4% of it is under half a point.
+    private func sticker(_ text: String) -> some View {
+        Text(text)
+            .font(Typography.mono(7.5))
+            .foregroundStyle(Tokens.Ink.primary)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.vertical, 1)
+            .padding(.horizontal, 4)
+            .background(Tokens.Ground.card)
+            .clipShape(RoundedRectangle(cornerRadius: 3))
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .strokeBorder(Tokens.Ink.primary, lineWidth: 1)
+            )
+            .offset(y: scale * 0.033)
+    }
+
+    /// `#2` read aloud as "hash two" is noise. Only the shelf uses this today
+    /// and its labels are ranks, so the `#` becomes the word that explains it.
+    nonisolated static func spoken(_ label: String) -> String {
+        let trimmed = label.trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasPrefix("#") else { return trimmed }
+        return "ranked \(trimmed.dropFirst())"
     }
 
     @ViewBuilder

@@ -48,3 +48,19 @@ import Testing
     // tile and its drawn mock start disagreeing about its colour.
     #expect(ProductMock.tints.count != TypographicTile.tints.count)
 }
+
+@Test func aRankLabelIsReadAloudAsARankRatherThanAsPunctuation() {
+    // "#2" spoken as "hash two" tells a screen-reader user nothing. Every
+    // label the shelf sets is a rank, so the `#` becomes the word for it.
+    #expect(ProductMock.spoken("#1") == "ranked 1")
+    #expect(ProductMock.spoken("#12") == "ranked 12")
+    #expect(ProductMock.spoken(" #3 ") == "ranked 3")
+}
+
+@Test func aLabelThatIsNotARankIsSpokenAsItself() {
+    // The sticker is a general slot; only the shelf's use of it is ranks. A
+    // caller that puts something else there must not have it prefixed with a
+    // claim about ranking that is not true.
+    #expect(ProductMock.spoken("new") == "new")
+    #expect(ProductMock.spoken("") == "")
+}

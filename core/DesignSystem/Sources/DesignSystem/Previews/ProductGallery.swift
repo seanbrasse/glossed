@@ -1,5 +1,18 @@
 import SwiftUI
 
+/// The kit's own per-kind heights, which is how a shelf reads as a shelf: a
+/// compact is visibly smaller than a bottle even before real dimensions exist.
+private func shelfHeight(_ kind: ProductMock.Kind) -> CGFloat {
+    switch kind {
+    case .compact: 44
+    case .jar: 50
+    case .tube: 62
+    case .mist: 66
+    case .dropper: 68
+    case .bottle: 74
+    }
+}
+
 #Preview("product mock — the drawn product, one shape per packaging") {
     VStack(alignment: .leading, spacing: Tokens.Space.s5) {
         Text("EVERY KIND THE KIT DRAWS").eyebrow()
@@ -16,6 +29,18 @@ import SwiftUI
             ForEach(ProductMock.Kind.allCases, id: \.self) { kind in
                 ProductMock(kind: kind, tint: ProductMock.tint(for: kind.rawValue), scale: 50)
                     .frame(width: 46)
+            }
+        }
+        Text("ON THE SHELF · PER-KIND HEIGHT, RANK STICKER, ONE GROUND LINE").eyebrow()
+        HStack(alignment: .bottom, spacing: 10) {
+            ForEach(Array(ProductMock.Kind.allCases.enumerated()), id: \.element) { index, kind in
+                ProductMock(
+                    kind: kind,
+                    tint: ProductMock.tint(for: kind.rawValue),
+                    scale: shelfHeight(kind),
+                    rotation: .degrees([-2, 1.5, -1, 2, -1.5][index % 5]),
+                    label: "#\(index + 1)"
+                )
             }
         }
     }
