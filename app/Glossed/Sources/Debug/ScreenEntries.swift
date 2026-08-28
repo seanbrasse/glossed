@@ -3,6 +3,7 @@
     import AddLadder
     import DataKit
     import DesignSystem
+    import Import
     import ProductPage
     import Shelf
     import SwiftUI
@@ -222,6 +223,68 @@
                     evidence: PayoffEvidence(exactShadeCount: 52, withFitCount: 2, evidenceBacked: true)
                 )
             ))
+        }
+    }
+
+    @MainActor
+    enum ImportEntries {
+        static let sourcePick = ScreenEntry(
+            id: "import-sources",
+            title: "import · pick a source",
+            note: "three cards, one tint each — the state before anyone has pasted anything"
+        ) {
+            ImportView(model: ImportModel(parser: StubImportParser()))
+        }
+
+        static let parsed = ScreenEntry(
+            id: "import-parsed",
+            title: "import · the kit's messy list",
+            note: "'3 of 5 matched outright' and 'add 4 to your shelf' on one screen — two counts, on purpose"
+        ) {
+            ParsedOnLaunch(
+                parser: StubImportParser(ImportFixtures.kitOutcome),
+                note: nil
+            )
+        }
+
+        static let nothingMatched = ScreenEntry(
+            id: "import-no-matches",
+            title: "import · nothing matched",
+            note: "five misses is a full ladder handoff, not an error — every row offers 'fix →'"
+        ) {
+            ParsedOnLaunch(parser: StubImportParser(), note: nil)
+        }
+
+        static let parseFailed = ScreenEntry(
+            id: "import-parse-failed",
+            title: "import · the parse failed",
+            note: "must NOT list five misses: a parse that did not happen says nothing about the catalog"
+        ) {
+            ParsedOnLaunch(parser: StubImportParser(failure: .offline), note: nil)
+        }
+
+        /// The parse runs on appear so the catalog can offer its result as a
+        /// state rather than as something you have to trigger first.
+        private struct ParsedOnLaunch: View {
+            let parser: StubImportParser
+            let note: String?
+            @State private var model: ImportModel?
+
+            var body: some View {
+                Group {
+                    if let model {
+                        ImportView(model: model)
+                    } else {
+                        Color.clear
+                    }
+                }
+                .task {
+                    let fresh = ImportModel(parser: parser, text: ImportFixtures.paste)
+                    fresh.source = .notes
+                    await fresh.parse()
+                    model = fresh
+                }
+            }
         }
     }
 #endif

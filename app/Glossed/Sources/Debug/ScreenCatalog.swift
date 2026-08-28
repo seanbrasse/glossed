@@ -37,6 +37,10 @@
             ProductEntries.thinSample,
             ProductEntries.lookupFailed,
             ProductEntries.notAnAnchor,
+            ImportEntries.sourcePick,
+            ImportEntries.parsed,
+            ImportEntries.nothingMatched,
+            ImportEntries.parseFailed,
             GalleryEntries.productMock
         ]
     }
