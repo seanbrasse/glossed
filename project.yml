@@ -12,6 +12,8 @@ settings:
 packages:
   DesignSystem:
     path: core/DesignSystem
+  DataKit:
+    path: core/DataKit
 targets:
   Glossed:
     type: application
@@ -19,6 +21,7 @@ targets:
     sources: [app/Glossed/Sources]
     dependencies:
       - package: DesignSystem
+      - package: DataKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.glossed.app
