@@ -1,2 +1,6 @@
-/// Placeholder — tokens and primitives land with issue #3.
-public enum DesignSystem {}
+/// Entry point: call once at app launch.
+public enum DesignSystem {
+    public static func bootstrap() {
+        Typography.registerFonts()
+    }
+}
