@@ -19,6 +19,10 @@ Running log of known-open work and decisions deferred on purpose. Anything here 
 
 ## Open — infrastructure & process
 
+- [ ] **Dev machine disk is critically full** (~1GB free of 460GB, Aug 27 2026). Local Supabase/Docker cannot run until space is freed — `supabase start` needs ~4GB of images. Until then the CI `db` job is the only database verification. (Colima VM from the first attempt was corrupted by the full disk and deleted.)
+- [ ] **No branch protection on `main`** — requires GitHub Pro on private repos. Protection is procedural (CLAUDE.md: agents never push to main, human merges every PR). Enable real protection if the repo goes public or the plan upgrades.
+- [ ] **`ANTHROPIC_API_KEY` repo secret not set** — the automated visual-recap workflow skips until it exists (Settings → Secrets → Actions). The hosted interactive /visual-recap also needs the Plan MCP connector, which isn't connected in the build environment; the CI comment recap is the working substitute.
+
 - [ ] Fork the Greenfield Handbook into `docs/HANDBOOK.md`, fill the project card, delete non-applying sections.
 - [ ] `docs/runbook.md` — deploy, rollback, restore drill steps, common failures, NCMEC runbook (draft due in Phase 1.5).
 - [ ] Root + per-directory agent instruction files (CLAUDE.md tree) once code exists; DataKit + migrations marked do-not-touch.
