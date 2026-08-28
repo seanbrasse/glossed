@@ -47,7 +47,14 @@ public struct LadderOptionRow: View {
             // drawing; a real cutout lands on top of it when R2 exists.
             ProductMock(
                 kind: LadderOptionRow.packaging(for: hit.categorySlug),
-                tint: ProductMock.tint(for: hit.categorySlug),
+                // Seeded on the name, not the category. Seeding both on the
+                // category made every blush in the list the same pink dropper,
+                // which is visible the moment you look at rung 2 — a screen
+                // whose entire instruction is "check the photo, not the name",
+                // told to people looking at photos that cannot differ. The
+                // colour is still decoration and still claims nothing about the
+                // real product; it just stops being the same decoration twice.
+                tint: ProductMock.tint(for: hit.name),
                 scale: LadderCard.mockScale
             )
             .frame(width: LadderCard.thumbWidth)
