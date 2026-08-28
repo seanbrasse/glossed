@@ -50,6 +50,13 @@ public struct GlossedButtonStyle: ButtonStyle {
     let size: Size
     let block: Bool
 
+    /// The kit's own disabled recipe (`components/glossed-lib.js` Button):
+    /// the whole sticker fades to 45% and stops answering presses — shadow
+    /// and border stay, so it still reads as the same object, just inert.
+    /// GLO-76: without this a disabled button was pixel-identical to an
+    /// enabled one.
+    @Environment(\.isEnabled) private var isEnabled
+
     public init(_ variant: Variant = .primary, size: Size = .md, block: Bool = false) {
         self.variant = variant
         self.size = size
@@ -57,7 +64,7 @@ public struct GlossedButtonStyle: ButtonStyle {
     }
 
     public func makeBody(configuration: Configuration) -> some View {
-        let pressed = configuration.isPressed
+        let pressed = configuration.isPressed && isEnabled
         let shadow = pressed ? 0 : Tokens.Shadow.lg
         configuration.label
             .font(.system(size: size.font, weight: .bold))
@@ -74,6 +81,7 @@ public struct GlossedButtonStyle: ButtonStyle {
                     .offset(x: shadow, y: shadow)
             )
             .offset(x: pressed ? Tokens.Shadow.lg : 0, y: pressed ? Tokens.Shadow.lg : 0)
+            .opacity(isEnabled ? 1 : 0.45)
             .animation(Tokens.Motion.pop(), value: pressed)
     }
 }

@@ -13,6 +13,10 @@ import SwiftUI
                 Button("leaderboard") {}.buttonStyle(.glossed(.secondary))
                 Button("sign in with apple") {}.buttonStyle(.glossed(.ink, block: true))
                 Button("following") {}.buttonStyle(.glossed(.mint, size: .sm))
+                // GLO-76: the kit's disabled recipe — 45% on the whole
+                // sticker, press ignored. Enabled and disabled side by side
+                // is the whole check.
+                Button("add to shelf") {}.buttonStyle(.glossed(.primary)).disabled(true)
             }
 
             ChipGroup([
