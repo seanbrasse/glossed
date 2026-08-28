@@ -68,10 +68,12 @@ jobs:
           set -o pipefail
           xcodebuild build -project Glossed.xcodeproj -scheme Glossed \
             -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
-      - name: Package tests (every package under core/)
+      - name: Package tests (every package under core/ and features/)
         run: |
           set -e
-          for pkg in core/*/Package.swift; do
+          for pkg in core/*/Package.swift features/*/Package.swift; do
+            # an unmatched glob stays literal in bash, so skip what does not exist
+            [ -e "$pkg" ] || continue
             dir=$(dirname "$pkg")
             echo "::group::swift test $dir"
             (cd "$dir" && swift test)
