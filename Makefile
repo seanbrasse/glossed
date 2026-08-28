@@ -36,4 +36,6 @@ functions-test:
 	deno check supabase/functions/*/*.ts
 	deno lint supabase/functions
 	deno fmt --check --line-width=100 supabase/functions
-	deno test --allow-net --allow-import supabase/functions
+	# --allow-read is scoped to the functions tree: tests read committed fixtures
+	# (feed_diff/fixture_feed.json), never the repo at large.
+	deno test --allow-net --allow-import --allow-read=supabase/functions supabase/functions
