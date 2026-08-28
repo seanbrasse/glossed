@@ -1,0 +1,49 @@
+{
+  "source": "fixture",
+  "note": "Committed stand-in until the Rakuten/Impact publisher accounts are approved (GLO-14 prereq chore). Shapes match the planner's FeedRow. The rows deliberately cover every plan kind against the local seed: a GTIN update, a delisting, a rename that must queue, a genuinely new product, and a noise row.",
+  "rows": [
+    {
+      "gtin": "810086012350",
+      "brand": "fenty beauty",
+      "name": "pro filt'r soft matte",
+      "category_slug": "foundation",
+      "domain": "makeup",
+      "shade_code": "240",
+      "size_ml": 32,
+      "price_cents": 4200,
+      "currency": "USD",
+      "availability": "in_stock"
+    },
+    {
+      "gtin": "810086012343",
+      "brand": "fenty beauty",
+      "name": "pro filt'r soft matte",
+      "category_slug": "foundation",
+      "domain": "makeup",
+      "shade_code": "220",
+      "delisted": true
+    },
+    {
+      "brand": "rhode",
+      "name": "pineapple refresh cleanser",
+      "category_slug": "cleanser",
+      "domain": "skincare",
+      "size_ml": 150,
+      "price_cents": 3200
+    },
+    {
+      "brand": "rhode",
+      "name": "glazing milk",
+      "category_slug": "moisturizer",
+      "domain": "skincare",
+      "size_ml": 150,
+      "price_cents": 3000
+    },
+    {
+      "brand": "",
+      "name": "mystery row",
+      "category_slug": "blush",
+      "domain": "makeup"
+    }
+  ]
+}
