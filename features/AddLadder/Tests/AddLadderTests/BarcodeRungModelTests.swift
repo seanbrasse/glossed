@@ -134,3 +134,43 @@ private func model(
     live.availabilityChanged(to: .ready)
     #expect(live.message == "not in the catalog yet — noted")
 }
+
+/// Holds a lookup open so a test can act while the rung is mid-flight.
+private actor GatedVariants: VariantLookup {
+    private var waiting: CheckedContinuation<Void, Never>?
+    private var isOpen = false
+
+    func variant(gtin _: String) async throws(GlossedError) -> Variant? {
+        if !isOpen {
+            await withCheckedContinuation { waiting = $0 }
+        }
+        return nil
+    }
+
+    func open() {
+        isOpen = true
+        waiting?.resume()
+        waiting = nil
+    }
+}
+
+@MainActor
+@Test func theCameraStatusDoesNotSpeakOverALookupAlreadyInFlight() async {
+    // The rung re-checks availability whenever it reappears, which can land
+    // while a scan is still resolving. The code being read is the more specific
+    // thing to be saying, so it has to win.
+    let catalog = GatedVariants()
+    let live = BarcodeRungModel(catalog: catalog)
+    let scan = Task { await live.scanned("0810086012343") }
+    while !live.isResolving {
+        await Task.yield()
+    }
+
+    live.availabilityChanged(to: .permissionDenied)
+    #expect(live.message == nil, "nothing to say yet — the lookup has not answered")
+
+    await catalog.open()
+    await scan.value
+    #expect(live.message == "not in the catalog yet — noted")
+    #expect(live.availability == .permissionDenied)
+}

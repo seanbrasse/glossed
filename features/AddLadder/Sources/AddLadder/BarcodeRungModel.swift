@@ -69,6 +69,12 @@ public final class BarcodeRungModel {
 
     /// A payload from the scanner. Safe to call on every frame.
     public func scanned(_ payload: String) async {
+        // The guard and the assignment must stay together, above the first
+        // `await`. This type is main-actor isolated and Swift will not suspend
+        // it between two synchronous statements, which is the whole reason one
+        // label held for thirty frames is one lookup. Insert an `await` between
+        // these two lines and the dedupe silently stops working, with nothing
+        // from the compiler to say so.
         guard !ladder.isResolved, handled != payload else { return }
         handled = payload
         isResolving = true
@@ -111,10 +117,20 @@ public final class BarcodeRungModel {
     /// constructor argument.
     public func availabilityChanged(to new: ScannerAvailability) {
         availability = new
-        // Only speak for the scanner. A message about a code we just read is
-        // about that code, and an availability check should not wipe it.
-        if !isResolving, failure == nil, handled == nil {
+        if !hasSomethingToSayAboutACode {
             message = new == .ready ? nil : new.explanation
         }
+    }
+
+    /// Whether anything more specific than the camera's status is on screen.
+    ///
+    /// A message about a code we just read is both more specific and more
+    /// recent than one about the camera, so it wins — the rung re-checks
+    /// availability whenever it reappears, and without this "not in the catalog
+    /// yet — noted" would vanish exactly as the user looks up to read it.
+    /// Named once here because it is three independently-mutated fields
+    /// standing in for one idea, and a fourth would otherwise be easy to forget.
+    private var hasSomethingToSayAboutACode: Bool {
+        isResolving || failure != nil || handled != nil
     }
 }
