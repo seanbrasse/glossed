@@ -137,11 +137,22 @@ public struct CatalogHit: Codable, Sendable, Identifiable, Hashable {
     public let categorySlug: String
     public let domain: Domain
     public let scope: CatalogScope
+    /// How many face-offs this product has been through, across everyone.
+    /// **Nil means unknown, not zero** — an absent aggregate row is not the
+    /// claim "nobody has tried this", and a card must omit the evidence line
+    /// rather than write `n = 0` (GLO-63).
+    public let faceOffCount: Int?
+    /// The shade-or-size line — "joy · 7.5ml". Supplied only when the product
+    /// has exactly one variant: a three-shade foundation cannot say which
+    /// shade a search row is, and naming one of three is worse than naming none.
+    public let variantLabel: String?
 
     enum CodingKeys: String, CodingKey {
         case id, name, domain, scope
         case brandName = "brand_name"
         case categorySlug = "category_slug"
+        case faceOffCount = "n_face_offs"
+        case variantLabel = "variant_label"
     }
 }
 
@@ -207,6 +218,18 @@ public struct ShelfRow: Codable, Sendable, Identifiable, Hashable {
         case loggedAt = "logged_at"
         case rankPosition = "rank_position"
         case rankedInCategory = "ranked_in_category"
+    }
+}
+
+/// What `create_personal_product` returns: the product, and the variant that
+/// makes it loggable. Both, or neither — the two inserts are one statement.
+public struct CreatedProduct: Codable, Sendable, Hashable {
+    public let productID: UUID
+    public let variantID: UUID
+
+    enum CodingKeys: String, CodingKey {
+        case productID = "product_id"
+        case variantID = "variant_id"
     }
 }
 

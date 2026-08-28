@@ -16,11 +16,11 @@ public struct SearchRung: Sendable {
     /// Below this the user is still typing, not searching, and a query that
     /// short must never be recorded as demand.
     ///
-    /// It must match `CatalogRepository.search`'s own floor, which silently
-    /// returns nothing below it: raise DataKit's and not this one, and queries
-    /// in the gap get recorded as demand nobody expressed. DataKit is frozen,
-    /// so the constant cannot be shared today — GLO-55 moves it there.
-    public static let minimumQueryLength = 2
+    /// Read from DataKit rather than restated. `CatalogRepository.search`
+    /// silently returns nothing below its own floor, so a floor that drifts up
+    /// there alone would record queries in the gap as demand nobody expressed
+    /// (GLO-55).
+    public static let minimumQueryLength = CatalogRepository.minimumQueryLength
 
     /// Passed explicitly rather than leaning on the repository's default.
     public static let resultLimit = 20
