@@ -35,7 +35,10 @@ intent the frames alone do not — read them.
 cross-origin iframe on `*.claudeusercontent.com`, and navigating to that origin
 directly returns an empty document — it only renders inside its parent frame.
 
-What works: the **browser pane**, reading visually.
+Two routes work, and the second one is the one to use.
+
+**Looking at it.** The **browser pane**, reading visually — for the rendered
+frames, which is what the screen map is for.
 
 ```
 preview_start   url: <the deep link above>
@@ -43,32 +46,72 @@ resize_window   preset: desktop      # the canvas renders too small at large vie
 computer        action: screenshot   # then scroll and screenshot
 ```
 
-`get_page_text` and `javascript_tool` both come back empty on the **screen map**
-for the same cross-origin reason, so that one is screenshots and scrolling.
+The frames themselves are drawn inside the cross-origin iframe, so that part is
+screenshots and scrolling — `get_page_text` and `javascript_tool` see the
+surrounding page, not the canvas.
 
-### Reading the screens as source — do this instead
+### Reading the files as source — do this instead
 
-`screens.jsx` opens in a code viewer whose content lives in a `<textarea>` in
-the **parent** document, which is same-origin and therefore readable. This is
-far better than screenshots: exact copy, exact sizes, exact tokens, no squinting.
+Ask the project's own API for the file. It returns the bytes, exactly: exact
+copy, exact sizes, exact tokens, no squinting and no scrolling.
+
+Open any page of the project in the browser pane first — the call is
+same-origin and rides the session's cookies.
 
 ```
-preview_start   url: https://claude.ai/design/p/38230b94-09d2-4776-9d21-be0722ba54f2?file=ui_kits%2Fglossed-app%2Fscreens.jsx
+preview_start   url: https://claude.ai/design/p/38230b94-09d2-4776-9d21-be0722ba54f2
 ```
 
-Then pull one screen by symbol — offsets shift whenever the kit is edited, so
-search rather than hard-coding a number:
+Then, in `javascript_tool`:
+
+```js
+(async () => {
+  const r = await fetch('/design/anthropic.omelette.api.v1alpha.OmeletteService/GetFile', {
+    method: 'POST', credentials: 'include',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({projectId: '38230b94-09d2-4776-9d21-be0722ba54f2',
+                          path: 'ui_kits/glossed-app/screens.jsx'})});
+  const {content} = await r.json();                     // base64
+  window.__SRC = new TextDecoder().decode(Uint8Array.from(atob(content), c => c.charCodeAt(0)));
+  return window.__SRC.length;                           // ~108,000
+})()
+```
+
+`ListFiles` takes the same `{projectId, path}` and lists a directory, so the
+whole kit is walkable — `tokens/colors.css`, `components/glossed-lib.js` (where
+the shared components live), `ui_kits/glossed-app/screen-map.html`.
+
+Stash the source on `window` as above, then pull one screen by symbol. Offsets
+shift whenever the kit is edited, so search rather than hard-coding a number:
 
 ```js
 (() => {
-  const s = document.querySelector('textarea').value;
+  const s = window.__SRC;
   const start = s.indexOf('G.Shelf = function');       // ← the screen you want
   const next  = s.indexOf('G.', start + 3);
   return s.slice(start, next);
 })()
 ```
 
-Results are truncated per call, so a long screen needs a couple of slices.
+Results are truncated per call, so a long screen needs a couple of slices —
+`s.slice(start, start + 3500)`, then continue from there.
+
+**Read `screen-map.html` too, not just `screens.jsx`.** The frames say what a
+screen looks like; the map's `note=` captions say why, and they are the half a
+`.jsx` file cannot carry. Fetch it the same way and search for the row you want.
+
+#### What does not work, so nobody re-derives it
+
+- `WebFetch` — **403** on every Claude Design URL.
+- Navigating straight to `*.claudeusercontent.com` — empty document; it only
+  renders inside its parent frame.
+- Reading the code viewer's `<textarea>` from the pane, which is what this file
+  used to say. The viewer now renders in a **cross-origin** frame, so
+  `javascript_tool` sees the chat panel and not a character of the file. It
+  returns an empty string rather than an error, which looks exactly like "the
+  kit is unreachable" — the assumption that produced GLO-62. `read_page` can
+  see the viewer, but only the lines currently scrolled into view.
+- Clicking **Copy** and pasting — clipboard reads are denied to the pane.
 
 ### The screens
 
@@ -86,11 +129,13 @@ inventory.
 | Ranking | `FaceOff` |
 | Profile | `Profile` `Privacy` |
 | Phase 2 | `Feed` |
-| Shared | `Mock` — the product stand-in; `kind` is one of dropper/bottle/compact/tube/jar |
+| Shared | `Mock` — the product stand-in; `kind` is dropper/bottle/compact/tube/jar, falling through to `mist` |
 
 `G.Mock` is worth knowing about: the kit draws products as tinted vector shapes
-by `kind`, not photographs. Until R2 has real images, that is closer to the
-intended look than a typographic tile — and it is what the frames actually show.
+by `kind`, not photographs. It is **ported** as `ProductMock` in DesignSystem
+([#56](https://github.com/seanbrasse/glossed/pull/56)) — so a screen that needs
+a product on it has the frame's own drawing available and should not reach for
+`TypographicTile`, which is the floor for a product whose packaging is unknown.
 
 ## The other two source documents are not in the repo
 

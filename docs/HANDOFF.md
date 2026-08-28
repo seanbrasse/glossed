@@ -10,6 +10,27 @@ file is only about state.
 and — more importantly — how to read `screens.jsx` **as source**, which gives
 you exact copy, sizes and tokens instead of a screenshot to squint at.
 
+The route in `DESIGN.md` (read the code viewer's `<textarea>`) **no longer
+works**: the viewer moved into a cross-origin frame that the browser pane's
+`javascript_tool` cannot reach. What works, and what GLO-62 was built from, is
+the project's own API, called from the pane with the session's cookies:
+
+```js
+// with any page of the design project open in the browser pane
+const r = await fetch('/design/anthropic.omelette.api.v1alpha.OmeletteService/GetFile', {
+  method: 'POST', credentials: 'include',
+  headers: {'content-type': 'application/json'},
+  body: JSON.stringify({projectId: '38230b94-09d2-4776-9d21-be0722ba54f2',
+                        path: 'ui_kits/glossed-app/screens.jsx'})});
+const {content} = await r.json();                       // base64
+const src = new TextDecoder().decode(Uint8Array.from(atob(content), c => c.charCodeAt(0)));
+```
+
+`ListFiles` takes `{projectId, path}` and lists a directory. `screen-map.html`
+comes back the same way, captions included — which is the part the frames alone
+do not carry. Both are exact, both are ~100KB, and slicing by symbol
+(`src.indexOf('G.Shelf = function')`) is how to read one screen at a time.
+
 This is not a nicety. An earlier session could not reach the kit, built the
 whole submission ladder from the primitives instead, and produced screens that
 use every token correctly and look nothing like the design. That is
@@ -31,8 +52,10 @@ Next tickets, in dependency order:
 
 | Ticket | Why it is next |
 |---|---|
-| [GLO-62](https://linear.app/glossed/issue/GLO-62) ladder rework | **Start here.** The chrome landed in [#53](https://github.com/seanbrasse/glossed/pull/53); the rows still do not match the frame. Small, visible, and it proves the frame-first loop works before it is applied to a bigger surface |
-| [GLO-16](https://linear.app/glossed/issue/GLO-16) shelf + cutouts | The biggest genuinely-free work. Unblocked by GLO-48's presign ([#37](https://github.com/seanbrasse/glossed/pull/37)). The ticket now carries the bay view's exact geometry |
+| [GLO-16](https://linear.app/glossed/issue/GLO-16) shelf + cutouts | **Start here.** The biggest genuinely-free work. Unblocked by GLO-48's presign ([#37](https://github.com/seanbrasse/glossed/pull/37)). The ticket carries the bay view's exact geometry, and `ProductMock` (#56) is the primitive its bays are made of |
+| [GLO-65](https://linear.app/glossed/issue/GLO-65) a way to run a screen | Small, and it pays for itself on the next UI ticket. The app root is still `PlaceholderView`, so every look at a screen costs a throwaway edit — see §5 |
+| [GLO-63](https://linear.app/glossed/issue/GLO-63) three facts the catalog withholds | The ladder's rows are shipped with an empty sub-slot because of it. Server-side; wants a migration slot |
+| [GLO-62](https://linear.app/glossed/issue/GLO-62) ladder rework | **Done for what exists.** Rungs 0–2 rebuilt to the frames: [#56](https://github.com/seanbrasse/glossed/pull/56) `ProductMock`, [#57](https://github.com/seanbrasse/glossed/pull/57) the rows, [#58](https://github.com/seanbrasse/glossed/pull/58) rung 0, [#61](https://github.com/seanbrasse/glossed/pull/61) rung 1, [#60](https://github.com/seanbrasse/glossed/pull/60) rung 2. Rungs 3–4 were never built, and belong to GLO-15 when GLO-60 unblocks it |
 | [GLO-60](https://linear.app/glossed/issue/GLO-60) DataKit: 3 gaps | **Blocks GLO-15 from closing.** Needs a human, or explicit authorization — see §4 |
 | [GLO-56](https://linear.app/glossed/issue/GLO-56) who owns the shade/size pick | A decision, not code. Also blocks GLO-15; read it before starting GLO-16 |
 | [GLO-15](https://linear.app/glossed/issue/GLO-15) submission ladder | Search, barcode and near-match rungs merged. Create rung is not buildable (GLO-60) |
@@ -48,15 +71,15 @@ with Apple capability on the App ID gates [GLO-23](https://linear.app/glossed/is
 
 ## 2. What exists
 
-**48 PRs merged, all CI-green.** `main` is the only long-lived branch.
+**53 PRs merged, all CI-green.** `main` is the only long-lived branch.
 
 | Layer | State |
 |---|---|
 | Schema | 6 migrations, all applied to the hosted project. 49 pgTAP assertions. |
 | `core/DataKit` | **FROZEN** — see §4. Config, client, typed errors, 4 repositories. 23 tests. |
-| `core/DesignSystem` | Tokens, 3 bundled fonts, 27 primitives. 20 tests. `TypographicTile` is the image fallback floor — nothing consumes it yet. |
+| `core/DesignSystem` | Tokens, 3 bundled fonts, 28 primitives. 26 tests. `ProductMock` is what the frames draw; `TypographicTile` is the floor below it. No icon primitive yet ([GLO-64](https://linear.app/glossed/issue/GLO-64)). |
 | `features/Ranking` | Complete: engine, rules, session, view. 29 tests. |
-| `features/AddLadder` | Ladder, search rung, barcode rung, near-match rung. 74 tests. **Screens need rework to the kit — GLO-62.** Create rung blocked. |
+| `features/AddLadder` | Ladder, search rung, barcode rung, near-match rung — **all three built to the kit frames**. 78 tests. Create rung blocked (GLO-60); the rows' sub-slot is empty for want of data (GLO-63). |
 | `supabase/functions` | `storage_presign` — scoped R2 PUT URLs. 14 Deno tests, run by the `functions · deno` CI job. **Not deployed** (§9). |
 | Other features | Not started — the bulk of what remains. |
 
@@ -167,6 +190,19 @@ the loss is real. Two things partly cover it:
   found by looking at the screen, not by a test: a doubled heading, iOS
   autocapitalising a brand name into a miss, a rung that never searched on
   appear, and copy instructing a phone that cannot scan to scan.
+
+  It held on the next session too. GLO-62's rework was looked at four times and
+  the two defects that came out of it were both invisible to tests: an escape
+  row nobody could pick out of a list, and a near-match list whose products all
+  drew as the same pink dropper — on the screen whose eyebrow says *check the
+  photo, not the name*.
+
+  **The cost is that there is nowhere to look.** `app/Glossed` is still
+  `PlaceholderView`, so each of those four looks meant hand-writing an entry
+  point and a fake repository into `GlossedApp.swift`, then remembering to
+  revert it. A review step that costs an uncommitted edit is a review step that
+  gets skipped silently. [GLO-65](https://linear.app/glossed/issue/GLO-65) is a
+  `#if DEBUG` screen picker, and it is smaller than the ticket it unblocks.
 
 ## 6. CI economics
 
