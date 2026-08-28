@@ -23,6 +23,10 @@ public final class ShelfModel {
     public var selectedDomains: Set<Domain>
     public var sort: ShelfSort
     public var viewMode: ShelfViewMode
+    /// Find-what-I-own (GLO-73). Filters live over brand, name, variant and
+    /// the bay label; empty means no filter. It queries the shelf, never the
+    /// catalog — finding a product to *add* is the ladder's job.
+    public var searchQuery = ""
     /// Which category is expanded in the list view. One at a time, as the kit
     /// has it — an accordion where everything can be open is a long list with
     /// extra taps in it.
@@ -192,7 +196,9 @@ public final class ShelfModel {
             .items.count { $0.rank != nil } ?? 0
     }
 
-    /// The sections currently on, in their given order, each internally sorted.
+    /// The sections currently on, in their given order, each internally
+    /// sorted, holding only what matches the search. A bay with no matches
+    /// drops out whole — an empty bay would read as an empty shelf.
     public var shownSections: [ShelfSection] {
         sections
             .filter { selectedDomains.contains($0.domain) }
@@ -201,9 +207,19 @@ public final class ShelfModel {
                     slug: section.slug,
                     label: section.label,
                     domain: section.domain,
-                    items: ShelfModel.ordered(section.items, by: sort)
+                    items: ShelfModel.ordered(
+                        section.items.filter { $0.matches(searchQuery) },
+                        by: sort
+                    )
                 )
             }
+            .filter { !$0.items.isEmpty }
+    }
+
+    /// A real query found nothing. Distinct from "every domain off": the empty
+    /// state has to say the search came up dry, not show a bare shelf.
+    public var searchCameUpEmpty: Bool {
+        !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty && shownSections.isEmpty
     }
 
     /// The bays, for a shelf of the given inside width.
@@ -234,64 +250,6 @@ public final class ShelfModel {
             selectedDomains.remove(domain)
         } else {
             selectedDomains.insert(domain)
-        }
-    }
-
-    /// Ordering within a bay.
-    ///
-    /// Every case is a total order with an explicit tiebreak, because SwiftUI
-    /// re-sorts on every redraw and an unstable comparator makes a shelf shuffle
-    /// itself while you look at it.
-    ///
-    /// `nonisolated` because it is arithmetic on an array and nothing about it
-    /// belongs to the main actor — the same reason `TypographicTile.tintIndex`
-    /// is. It also means the ordering rules can be tested without a `@MainActor`
-    /// test, which is what they are: rules, not screen state.
-    nonisolated static func ordered(_ items: [ShelfItem], by sort: ShelfSort) -> [ShelfItem] {
-        switch sort {
-        case .favorite: items.sorted(by: bestFirst)
-        case .recent: items.sorted(by: newestFirst)
-        case .brand: items.sorted(by: alphabeticalByBrand)
-        }
-    }
-
-    /// Unranked items sort after ranked ones rather than at #0. A category
-    /// below its unlock threshold has no order yet, and putting those first
-    /// would read as "these are your favourites".
-    private nonisolated static func bestFirst(_ lhs: ShelfItem, _ rhs: ShelfItem) -> Bool {
-        knownFirst(lhs.rank, rhs.rank, tiebreak: lhs.name < rhs.name) { $0 < $1 }
-    }
-
-    /// Newest first, and an item with no date sorts last — the joined read that
-    /// carries `created_at` does not exist yet (GLO-66), and a missing date
-    /// guessed as "now" would park it at the top of the shelf as if it had just
-    /// been logged.
-    private nonisolated static func newestFirst(_ lhs: ShelfItem, _ rhs: ShelfItem) -> Bool {
-        knownFirst(lhs.loggedAt, rhs.loggedAt, tiebreak: lhs.name < rhs.name) { $0 > $1 }
-    }
-
-    private nonisolated static func alphabeticalByBrand(_ lhs: ShelfItem, _ rhs: ShelfItem) -> Bool {
-        switch lhs.brand.localizedCaseInsensitiveCompare(rhs.brand) {
-        case .orderedAscending: true
-        case .orderedDescending: false
-        case .orderedSame: lhs.name < rhs.name
-        }
-    }
-
-    /// Two optionals ordered by `isBefore`, with anything unknown last and a
-    /// stated tiebreak. Shared because "we do not know" must sort the same way
-    /// for every column, or two sorts disagree about where the same item goes.
-    private nonisolated static func knownFirst<T>(
-        _ lhs: T?,
-        _ rhs: T?,
-        tiebreak: @autoclosure () -> Bool,
-        isBefore: (T, T) -> Bool
-    ) -> Bool {
-        switch (lhs, rhs) {
-        case let (left?, right?): isBefore(left, right) || (!isBefore(right, left) && tiebreak())
-        case (nil, .some): false
-        case (.some, nil): true
-        case (nil, nil): tiebreak()
         }
     }
 }
