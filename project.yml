@@ -14,6 +14,8 @@ packages:
     path: core/DesignSystem
   DataKit:
     path: core/DataKit
+  Tracking:
+    path: core/Tracking
   Ranking:
     path: features/Ranking
   AddLadder:
@@ -32,6 +34,7 @@ targets:
     dependencies:
       - package: DesignSystem
       - package: DataKit
+      - package: Tracking
       - package: Ranking
       - package: AddLadder
       - package: Shelf
