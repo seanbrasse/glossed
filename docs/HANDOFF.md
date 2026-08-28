@@ -103,12 +103,17 @@ acting on them pushes the PR past 400 lines, that is what `size-override` with a
 written reason is for — trimming the reasoning the review asked for to hit a
 number defeats the point of both.
 
-Two mechanical facts:
+Three mechanical facts:
 - It **refuses to run on any PR that modifies workflow files** (a sound guard:
   otherwise a PR could rewrite the workflow to exfiltrate the key). Workflow
   changes cannot test themselves; the next feature PR is the check.
 - It triggers only on `opened` / `reopened` / `ready_for_review`. A push does not
   retrigger it — close and reopen if you need a fresh one.
+- **A green `recap` check does not prove a recap was posted.** Seen once on
+  [#43](https://github.com/seanbrasse/glossed/pull/43): the agent spent its turns
+  working out how to pipe a body into `gh pr comment`, left a stub comment, and
+  exited green. Look for the comment, not the check mark; close and reopen to
+  get a real one.
 
 ## 6. CI economics
 
