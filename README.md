@@ -21,3 +21,10 @@ Working app with seeded data — if that's not true, it's a P1 bug against this 
 | `make test` | Xcode unit tests |
 | `make db-reset` | rebuild local DB from migrations + seed |
 | `make db-test` | pgTAP suite incl. isolation tests |
+
+## License
+
+Source-available, not open source — see [LICENSE](LICENSE). The code is public
+so it can be read and evaluated; it is not licensed for reuse. Bundled fonts
+(Bricolage Grotesque, Space Mono, Caveat) are SIL Open Font License and carry
+their own terms.
