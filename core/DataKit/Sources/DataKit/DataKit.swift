@@ -80,6 +80,18 @@ public actor GlossedClient {
         try? await client.auth.session.user.id
     }
 
+    /// Email/password sign-in. The path GLO-23's auth flows will use, and the
+    /// one the DEBUG picker uses today against the local seed — which is why
+    /// it lands ahead of the flows: nothing can drive a live read without a
+    /// session, and every screen was fixture-fed until something could sign in.
+    public func signIn(email: String, password: String) async throws(GlossedError) {
+        do {
+            _ = try await client.auth.signIn(email: email, password: password)
+        } catch {
+            throw GlossedError.from(error)
+        }
+    }
+
     public func signOut() async throws(GlossedError) {
         do {
             try await client.auth.signOut()

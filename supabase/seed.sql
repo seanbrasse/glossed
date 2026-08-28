@@ -1,13 +1,32 @@
 -- Deterministic seed (handbook §5.1): two users, four domains, every catalog
 -- lifecycle state, including the ugly ones. Local/staging only — never prod.
 
--- Two local auth users (password: "password" — local only)
-insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data)
+-- Two local auth users (password: "password" — local only).
+--
+-- The token and timestamp columns are set to empty/now, not left NULL:
+-- GoTrue scans them into non-nullable Go types, and a NULL there fails
+-- every password grant with "Database error querying schema" — which reads
+-- like a broken stack, not a broken seed. Found the day the first live
+-- sign-in was attempted (GLO-23 debug entry). The identities rows are what
+-- make an email user signable-in at all.
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+                        raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+                        confirmation_token, recovery_token, email_change_token_new,
+                        email_change_token_current, email_change, phone_change, phone_change_token,
+                        reauthentication_token)
 values
     ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-     'maya@local.test', extensions.crypt('password', extensions.gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{}'),
+     'maya@local.test', extensions.crypt('password', extensions.gen_salt('bf')), now(),
+     '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '', '', '', '', ''),
     ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-     'juli@local.test', extensions.crypt('password', extensions.gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{}');
+     'juli@local.test', extensions.crypt('password', extensions.gen_salt('bf')), now(),
+     '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '', '', '', '', '');
+
+insert into auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
+select gen_random_uuid(), u.id,
+       jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true),
+       'email', u.id::text, now(), now(), now()
+from auth.users u;
 
 -- Category tree slice: one per domain + wear-in variety (tech/01 §1.1)
 insert into categories (id, domain, slug, label, wear_in_days, is_anchor, rank_unlock_min) values
@@ -93,3 +112,19 @@ insert into experience_chips (domain, slug, label, valence) values
     ('haircare', 'weighed-hair-down',  'weighed my hair down','dislike'),
     ('fragrance','lasts-6h',           'lasts 6h',           'like'),
     ('fragrance','fades-fast',         'fades fast',         'dislike');
+
+-- maya's starting shelf: enough for the LIVE picker state to draw something
+-- real after a reset — four domains, a rank, and two wear-ins. Deliberately
+-- only variants the pgTAP suites do not themselves log for maya (01/02/04/08
+-- are theirs), so a suite run against a seeded database cannot collide with
+-- the unique (user_id, variant_id).
+insert into user_items (user_id, variant_id, status, started_on, client_id) values
+    ('00000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000003', 'own', null, '11111111-aaaa-4aaa-8aaa-000000000001'),
+    ('00000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000005', 'own', current_date - 14, '11111111-aaaa-4aaa-8aaa-000000000002'),
+    ('00000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000006', 'own', null, '11111111-aaaa-4aaa-8aaa-000000000003'),
+    ('00000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000007', 'own', null, '11111111-aaaa-4aaa-8aaa-000000000004'),
+    ('00000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000009', 'own', current_date - 27, '11111111-aaaa-4aaa-8aaa-000000000005');
+
+insert into rank_positions (user_id, category_id, user_item_id, position)
+select '00000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', id, 1
+from user_items where client_id = '11111111-aaaa-4aaa-8aaa-000000000001';

@@ -62,10 +62,16 @@ values ('50000000-0000-0000-0000-000000000031', '00000000-0000-0000-0000-0000000
         '40000000-0000-0000-0000-000000000004', 'ffffffff-0000-0000-0000-000000000001');
 reset role;
 select refresh_user_facts();
+-- shelf_size is compared to the live count rather than a literal: the seed
+-- owns how many items maya starts with, and this test owns only that the
+-- snapshot counts them correctly.
 select results_eq($$
     select age_bracket, shelf_size, two_domain, minor from user_facts
     where user_id = '00000000-0000-0000-0000-000000000001'
-$$, $$ values ('25-34', 1, true, false) $$,
+$$, $$ select '25-34',
+              (select count(*)::int from user_items
+                where user_id = '00000000-0000-0000-0000-000000000001' and deleted_at is null),
+              true, false $$,
    'the snapshot derives brackets and counts, never raw dates');
 
 -- Partitions: this month and next exist; a far month does not until ensured.
