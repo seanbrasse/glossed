@@ -201,6 +201,20 @@ public struct ShelfRow: Codable, Sendable, Identifiable, Hashable {
     /// Whether this category's shade is meant to match skin — the gate on the
     /// item sheet's fit section (GLO-16).
     public let isAnchor: Bool
+    /// The variant's newest catalog cutout, as a storage-relative key
+    /// ("<variant_id>/cut512.png"), or nil. The app composes the URL from its
+    /// own config — DataKit carries the fact, not the bucket (GLO-74).
+    public let catalogImageKey: String?
+    /// The cutout's pixel size. The shelf packs bays by drawn width, and a
+    /// photo's width is its aspect times the drawn height — packing on the
+    /// mock's width while rendering a photo's is GLO-68's overlap again.
+    public let catalogImageWidth: Int?
+    public let catalogImageHeight: Int?
+    /// The variant's volume. Rides the row because with `height_mm` unset
+    /// (every imported variant) the shelf can still scale by it — a 236ml
+    /// pump should tower over a 30ml foundation. The estimate is the shelf's
+    /// rule; the row just carries the number.
+    public let sizeML: Double?
 
     private let startedOnRaw: String?
 
@@ -222,6 +236,10 @@ public struct ShelfRow: Codable, Sendable, Identifiable, Hashable {
         case rankPosition = "rank_position"
         case rankedInCategory = "ranked_in_category"
         case isAnchor = "is_anchor"
+        case catalogImageKey = "catalog_image_key"
+        case catalogImageWidth = "catalog_image_width"
+        case catalogImageHeight = "catalog_image_height"
+        case sizeML = "size_ml"
     }
 }
 

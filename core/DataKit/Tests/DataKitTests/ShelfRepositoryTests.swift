@@ -47,10 +47,16 @@ import Testing
      "scope":"canonical","benefit_line":"one dot, blends forever",
      "variant_label":"joy · 7.5ml","height_mm":70,"status":"own",
      "started_on":"2026-08-01","note":null,"cutout_r2_key":null,
-     "logged_at":"2026-08-01T12:00:00Z","rank_position":2,"ranked_in_category":5,"is_anchor":false}
+     "logged_at":"2026-08-01T12:00:00Z","rank_position":2,"ranked_in_category":5,"is_anchor":false,
+     "catalog_image_key":"00000000-0000-0000-0000-0000000000a2/cut512.png",
+     "catalog_image_width":219,"catalog_image_height":372,"size_ml":236}
     """#.utf8)
     let row = try PostgrestClient.Configuration.jsonDecoder.decode(ShelfRow.self, from: raw)
 
+    #expect(row.catalogImageKey == "00000000-0000-0000-0000-0000000000a2/cut512.png")
+    #expect(row.catalogImageWidth == 219)
+    #expect(row.catalogImageHeight == 372)
+    #expect(row.sizeML == 236)
     #expect(row.id == row.userItemID)
     #expect(row.brandName == "rare beauty")
     #expect(row.categoryLabel == "blush")
