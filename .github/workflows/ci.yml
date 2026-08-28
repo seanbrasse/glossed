@@ -72,6 +72,8 @@ jobs:
         run: |
           set -e
           for pkg in core/*/Package.swift features/*/Package.swift; do
+            # an unmatched glob stays literal in bash, so skip what does not exist
+            [ -e "$pkg" ] || continue
             dir=$(dirname "$pkg")
             echo "::group::swift test $dir"
             (cd "$dir" && swift test)
