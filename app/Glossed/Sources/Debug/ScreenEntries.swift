@@ -52,6 +52,28 @@
             ShelfView(model: ShelfModel(sections: ShelfFixtures.sections, selectedDomains: []))
         }
 
+        static let anchorSheet = ScreenEntry(
+            id: "shelf-anchor-sheet",
+            title: "shelf · item sheet, anchor category",
+            note: "the fit section only anchors get — a saved two-axis answer (too light + too pink) "
+                + "and the exact-shade evidence line. GLO-67's control, on the sheet"
+        ) {
+            AnchorSheetOnLaunch()
+        }
+
+        private struct AnchorSheetOnLaunch: View {
+            var body: some View {
+                ShelfItemSheet(
+                    item: ShelfFixtures.anchorFoundation,
+                    rankedInCategory: 3,
+                    fit: [.tooLight, .tooPink],
+                    exactShadeCount: 12,
+                    onClose: {}
+                )
+                .background(Tokens.Ground.milk)
+            }
+        }
+
         /// The sheet is model state, so it opens by tapping. Doing that here on
         /// appear means the catalog can offer the sheet as a state of its own
         /// rather than as a thing you have to find first.

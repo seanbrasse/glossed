@@ -30,7 +30,8 @@ public extension ShelfItem {
             startedOn: row.startedOn,
             isPersonalScope: row.scope == .personal,
             rank: row.rankPosition,
-            loggedAt: row.loggedAt
+            loggedAt: row.loggedAt,
+            isAnchorCategory: row.isAnchor
         )
     }
 }

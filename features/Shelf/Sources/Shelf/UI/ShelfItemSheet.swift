@@ -15,19 +15,31 @@ public struct ShelfItemSheet: View {
     private let onClose: () -> Void
     private let onRank: () -> Void
     private let onOpenProduct: () -> Void
+    /// How many people wear this exact shade — the anchor section's evidence
+    /// line. Nil omits the line: an absent aggregate is not a claim of zero,
+    /// and nothing reads `agg_variant_stats` for the sheet yet (GLO-63 family).
+    private let exactShadeCount: Int?
+    private let onFitChanged: (Set<FitAnswer>) -> Void
+    @State private var fit: Set<FitAnswer>
 
     public init(
         item: ShelfItem,
         rankedInCategory: Int,
+        fit: Set<FitAnswer> = [],
+        exactShadeCount: Int? = nil,
         onClose: @escaping () -> Void,
         onRank: @escaping () -> Void = {},
-        onOpenProduct: @escaping () -> Void = {}
+        onOpenProduct: @escaping () -> Void = {},
+        onFitChanged: @escaping (Set<FitAnswer>) -> Void = { _ in }
     ) {
         self.item = item
         self.rankedInCategory = rankedInCategory
+        _fit = State(initialValue: fit)
+        self.exactShadeCount = exactShadeCount
         self.onClose = onClose
         self.onRank = onRank
         self.onOpenProduct = onOpenProduct
+        self.onFitChanged = onFitChanged
     }
 
     public var body: some View {
@@ -60,6 +72,9 @@ public struct ShelfItemSheet: View {
                     .lineSpacing(3)
                     .foregroundStyle(Tokens.Ink.primary)
                     .padding(.top, 12)
+            }
+            if item.isAnchorCategory {
+                fitSection
             }
             actions
         }
@@ -150,6 +165,33 @@ public struct ShelfItemSheet: View {
             }
         }
         .padding(.top, 7)
+    }
+
+    /// The frame's anchor section: the fit control above an evidence line,
+    /// behind a hairline. Only for anchor categories — shade is only evidence
+    /// where a shade is meant to match skin. One stated divergence: the kit
+    /// draws FitControl at a small size here; the port has one size, and
+    /// inventing a second is a DesignSystem PR, not a sheet detail.
+    private var fitSection: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            FitControl(
+                selection: Binding(
+                    get: { fit },
+                    set: { newValue in
+                        fit = newValue
+                        onFitChanged(newValue)
+                    }
+                )
+            )
+            if let exactShadeCount {
+                EvidenceLine(n: exactShadeCount, label: "people wear this exact shade")
+            }
+        }
+        .padding(.top, 12)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Tokens.Ground.line).frame(height: 1.5)
+        }
+        .padding(.top, 14)
     }
 
     private var closeButton: some View {

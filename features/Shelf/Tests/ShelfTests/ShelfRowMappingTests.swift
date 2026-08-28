@@ -26,7 +26,8 @@ private func row(
      "benefit_line":null,"variant_label":"joy · 7.5ml","height_mm":70,
      "status":"own","started_on":null,"note":null,"cutout_r2_key":null,
      "logged_at":"2026-08-01T12:00:00Z",
-     "rank_position":\(rank.map(String.init) ?? "null"),"ranked_in_category":0}
+     "rank_position":\(rank.map(String.init) ?? "null"),"ranked_in_category":0,
+     "is_anchor":\(category == "foundation")}
     """
     return try JSONDecoder.postgrest.decode(ShelfRow.self, from: Data(raw.utf8))
 }
@@ -40,6 +41,11 @@ private func row(
     #expect(item.rank == 2)
     #expect(item.isPersonalScope == false)
     #expect(item.loggedAt != nil)
+    #expect(item.isAnchorCategory == false)
+}
+
+@Test func anAnchorCategoryRowGatesTheFitSection() throws {
+    #expect(try ShelfItem(row: row(category: "foundation")).isAnchorCategory)
 }
 
 @Test func packagingComesFromThePrimitivesTable() throws {

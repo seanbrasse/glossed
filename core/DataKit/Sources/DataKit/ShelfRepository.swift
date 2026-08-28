@@ -83,6 +83,22 @@ public struct ShelfRepository: Sendable {
         return days / 7 + 1
     }
 
+    /// The user's current fit answer for one item, as a set (GLO-67). The
+    /// read half of `captureFit` — without it the control cannot show its
+    /// saved state, only overwrite it.
+    public func fits(itemID: UUID) async throws(GlossedError) -> Set<Fit> {
+        _ = try await client.requireUserID()
+        let rows: [FitOnlyRow] = try await run {
+            try await client.supabase
+                .from("item_fits")
+                .select("fit")
+                .eq("user_item_id", value: itemID.uuidString)
+                .execute()
+                .value
+        }
+        return Set(rows.map(\.fit))
+    }
+
     /// Fit is captured at log time, on every log of an anchor-category product —
     /// most people log in five seconds and never rank (PRD §05).
     ///
@@ -192,6 +208,10 @@ struct ItemChipRow: Encodable, Sendable {
         case userItemID = "user_item_id"
         case experienceChipID = "experience_chip_id"
     }
+}
+
+struct FitOnlyRow: Decodable, Sendable {
+    let fit: Fit
 }
 
 struct CaptureFitParams: Encodable, Sendable {
