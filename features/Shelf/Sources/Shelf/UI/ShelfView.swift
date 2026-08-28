@@ -30,7 +30,10 @@ public struct ShelfView: View {
                             get: { model.openFit },
                             set: { model.fitChanged(to: $0) }
                         ),
-                        onClose: model.closeSheet
+                        onClose: model.closeSheet,
+                        onRemove: model.supportsRemoval ? { model.removeOpenItem() } : nil,
+                        isRemoving: model.isRemoving,
+                        removeFailure: model.removeFailure?.userMessage
                     )
                 }
             }
