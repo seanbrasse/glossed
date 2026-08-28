@@ -146,6 +146,14 @@ public struct CatalogHit: Codable, Sendable, Identifiable, Hashable {
     /// has exactly one variant: a three-shade foundation cannot say which
     /// shade a search row is, and naming one of three is worse than naming none.
     public let variantLabel: String?
+    /// The product's newest catalog cutout (0016) — storage-relative, the
+    /// caller composes the URL. Nil is "no image", which the render chain
+    /// answers with the drawn mock; it is never a broken image (GLO-83).
+    public let catalogImageKey: String?
+    /// The image's pixel size, so a row can reserve the right width before
+    /// the photo loads — same reason the shelf row carries them (0015).
+    public let catalogImageWidth: Int?
+    public let catalogImageHeight: Int?
 
     enum CodingKeys: String, CodingKey {
         case id, name, domain, scope
@@ -153,6 +161,9 @@ public struct CatalogHit: Codable, Sendable, Identifiable, Hashable {
         case categorySlug = "category_slug"
         case faceOffCount = "n_face_offs"
         case variantLabel = "variant_label"
+        case catalogImageKey = "catalog_image_key"
+        case catalogImageWidth = "catalog_image_width"
+        case catalogImageHeight = "catalog_image_height"
     }
 }
 

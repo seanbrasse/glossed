@@ -58,6 +58,25 @@ import Testing
     let hit = try PostgrestClient.Configuration.jsonDecoder.decode(CatalogHit.self, from: raw)
     #expect(hit.faceOffCount == nil)
     #expect(hit.variantLabel == "150ml")
+    // Pre-0016 rows carry no image fields at all; absent decodes as nil —
+    // "no image", answered by the drawn mock, never a broken image.
+    #expect(hit.catalogImageKey == nil)
+}
+
+@Test func aHitCarriesItsCatalogImageWhenTheSearchNamesOne() throws {
+    // 0016's ride-along (GLO-83): key + pixel size, so a row can reserve the
+    // right width before the photo loads.
+    let raw = Data(#"""
+    {"id":"00000000-0000-0000-0000-0000000000b1","name":"pineapple refresh",
+     "brand_name":"rhode","category_slug":"cleanser","domain":"skincare",
+     "scope":"canonical","n_face_offs":null,"variant_label":"150ml",
+     "catalog_image_key":"00000000-0000-0000-0000-0000000000c1/cut512.png",
+     "catalog_image_width":512,"catalog_image_height":512}
+    """#.utf8)
+    let hit = try PostgrestClient.Configuration.jsonDecoder.decode(CatalogHit.self, from: raw)
+    #expect(hit.catalogImageKey == "00000000-0000-0000-0000-0000000000c1/cut512.png")
+    #expect(hit.catalogImageWidth == 512)
+    #expect(hit.catalogImageHeight == 512)
 }
 
 @Test func fitAnswersMatchTheDatabaseEnum() {
