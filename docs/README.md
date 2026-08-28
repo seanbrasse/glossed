@@ -1,5 +1,7 @@
 # GLOSSED — docs
 
+**Resuming work?** Start with [`HANDOFF.md`](HANDOFF.md) — current state, next tickets, and the traps.
+
 Read in this order:
 
 1. [`domain.md`](domain.md) — vocabulary, entities, lifecycles, permission matrix, data classification, retention. The schema's source of truth.
