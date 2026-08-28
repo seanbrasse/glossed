@@ -2,6 +2,23 @@ import DataKit
 import DesignSystem
 import SwiftUI
 
+/// Where catalog image keys become URLs, set once by the app shell. Nil —
+/// previews, fixtures, a shell without config — renders the drawn mock,
+/// which is the chain's floor anyway (GLO-83).
+public extension EnvironmentValues {
+    @Entry var catalogImageBase: URL?
+}
+
+public extension CatalogHit {
+    /// The hit's cutout as a fetchable URL, or nil when either half is
+    /// missing. Composition lives with the consumer because the key is
+    /// storage-relative on purpose — moving the bucket touches no schema.
+    func catalogImageURL(base: URL?) -> URL? {
+        guard let base, let catalogImageKey else { return nil }
+        return base.appending(path: catalogImageKey)
+    }
+}
+
 /// One row of a rung's option list, built to the `card` and `noneOfThese`
 /// helpers inside `G.AddLadder` in the kit's `screens.jsx`.
 ///
@@ -39,23 +56,23 @@ public struct LadderOptionRow: View {
         .accessibilityLabel(accessibilityLabel)
     }
 
+    @Environment(\.catalogImageBase) private var imageBase
+
     @ViewBuilder
     private var thumb: some View {
         switch option {
         case let .match(hit):
-            // The kit draws products, never photographs. `ProductMock` is that
-            // drawing; a real cutout lands on top of it when R2 exists.
-            ProductMock(
+            // The real cutout when the catalog has one (GLO-83 — "check the
+            // photo" finally means a photo); the drawn mock stands in below.
+            // Tint seeded on the name, not the category: seeding on the
+            // category made every blush in the list the same pink dropper,
+            // on the one screen whose instruction is "check the photo".
+            ProductImage(
+                catalog: hit.catalogImageURL(base: imageBase),
                 kind: LadderOptionRow.packaging(for: hit.categorySlug),
-                // Seeded on the name, not the category. Seeding both on the
-                // category made every blush in the list the same pink dropper,
-                // which is visible the moment you look at rung 2 — a screen
-                // whose entire instruction is "check the photo, not the name",
-                // told to people looking at photos that cannot differ. The
-                // colour is still decoration and still claims nothing about the
-                // real product; it just stops being the same decoration twice.
                 tint: ProductMock.tint(for: hit.name),
-                scale: LadderCard.mockScale
+                scale: LadderCard.mockScale,
+                maxWidth: LadderCard.thumbWidth
             )
             .frame(width: LadderCard.thumbWidth)
         case .noneOfThese:
