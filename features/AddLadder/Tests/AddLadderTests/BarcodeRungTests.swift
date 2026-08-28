@@ -112,3 +112,15 @@ private struct FailingVariants: VariantLookup {
         throw GlossedError(.offline, userMessage: "no connection — try again in a sec.")
     }
 }
+
+@Test func theSeededGTINsAreValidAndDistinct() {
+    // Asserting the algorithm is not the same as asserting the fixtures. These
+    // are the exact values in supabase/seed.sql; the old ones failed this, and
+    // a naive fix collapses all three onto one code that `variants.gtin`'s
+    // unique constraint would then reject.
+    let seeded = ["0810086012343", "0810086012350", "0810086012367"]
+    for gtin in seeded {
+        #expect(GTIN.normalize(gtin) == gtin, "\(gtin) is in seed.sql and must scan")
+    }
+    #expect(Set(seeded).count == seeded.count)
+}
