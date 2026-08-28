@@ -198,3 +198,76 @@ private func model(
     live.toggle(.haircare)
     #expect(live.viewMode == .list)
 }
+
+// MARK: - The item sheet
+
+@MainActor
+@Test func theRankDenominatorCountsOnlyWhatHasBeenRanked() {
+    // "#1 of 5" when three of the five have never been compared claims a
+    // comparison nobody made. That is the star rating this product does not
+    // have, spelled differently.
+    let ranked = [item("a", rank: 1), item("b", rank: 2)]
+    let unranked = [item("c"), item("d"), item("e")]
+    let live = model([section("blush", domain: .makeup, items: ranked + unranked)])
+    #expect(live.rankedCount(inCategoryOf: ranked[0]) == 2)
+}
+
+@MainActor
+@Test func theDenominatorIgnoresTheDomainFilter() {
+    // Turning off a domain does not change where a product placed, and a sheet
+    // opened from a filtered shelf must not renumber it.
+    let items = [item("a", rank: 1), item("b", rank: 2)]
+    let live = model([section("blush", domain: .makeup, items: items)], domains: [])
+    #expect(live.bays.isEmpty)
+    #expect(live.rankedCount(inCategoryOf: items[0]) == 2)
+}
+
+@MainActor
+@Test func anItemInNoKnownCategoryGetsNoDenominatorRatherThanAWrongOne() {
+    let live = model([section("blush", domain: .makeup, items: [item("a", rank: 1)])])
+    let orphan = ShelfItem(
+        id: UUID(), brand: "x", name: "y", categorySlug: "unknown", categoryLabel: "unknown",
+        domain: .makeup, packaging: .tube, rank: 1
+    )
+    #expect(live.rankedCount(inCategoryOf: orphan) == 0)
+}
+
+@MainActor
+@Test func openingAnItemAndClosingItAgainLeavesNothingBehind() {
+    let live = model([section("blush", domain: .makeup, items: [item("a")])])
+    #expect(live.openItem == nil)
+    live.open(item("a"))
+    #expect(live.openItem != nil)
+    live.closeSheet()
+    #expect(live.openItem == nil)
+}
+
+// MARK: - The status line
+
+@Test func somethingWearingInReadsAsAWeekRatherThanAsAStatus() {
+    // "week 3" is the fact that matters while a product is being worn in;
+    // "own" is true and says nothing.
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    let wearing = ShelfItem(
+        id: UUID(), brand: "rhode", name: "pineapple refresh",
+        categorySlug: "cleanser", categoryLabel: "cleanser", domain: .skincare,
+        packaging: .bottle, status: .own, startedOn: start
+    )
+    #expect(wearing.statusLabel(on: start.addingTimeInterval(15 * 86400)) == "week 3")
+    #expect(wearing.statusLabel(on: start) == "week 1")
+}
+
+@Test func withNoStartDateTheStatusIsTheStatus() {
+    #expect(item("a").statusLabel() == "own")
+}
+
+@Test func everyStatusHasLowercaseCopyAndNoUnderscore() {
+    // `want_to_try` reaching a shelf with its underscore showing is the shape
+    // of bug a rawValue tidy-up produces the first time a case is added.
+    for status in [ItemStatus.wantToTry, .own, .finished, .repurchased] {
+        let label = ShelfItem.label(for: status)
+        #expect(!label.contains("_"))
+        #expect(label == label.lowercased())
+    }
+    #expect(ShelfItem.label(for: .wantToTry) == "want to try")
+}
