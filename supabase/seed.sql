@@ -36,7 +36,12 @@ insert into categories (id, domain, slug, label, wear_in_days, is_anchor, rank_u
     ('10000000-0000-0000-0000-000000000004', 'skincare', 'serum',      'serums + actives', 56, false, 3),
     ('10000000-0000-0000-0000-000000000005', 'skincare', 'moisturizer','moisturizer',      14, false, 3),
     ('10000000-0000-0000-0000-000000000006', 'haircare', 'styler',     'stylers',          0,  false, 3),
-    ('10000000-0000-0000-0000-000000000007', 'fragrance','fragrance',  'fragrance',        0,  false, 3);
+    ('10000000-0000-0000-0000-000000000007', 'fragrance','fragrance',  'fragrance',        0,  false, 3),
+    -- GLO-81: the Shopify fill needs a home for lip products (rhode's whole
+    -- flagship line) — the one addition to the tech/01 §1.1 slice, flagged
+    -- for the tree workshop. Not an anchor: lip shades are preference, not
+    -- skin-match evidence.
+    ('10000000-0000-0000-0000-000000000008', 'makeup',   'lip',        'lip',              0,  false, 3);
 
 insert into brands (id, name, normalized_name) values
     ('20000000-0000-0000-0000-000000000001', 'fenty beauty', 'fenty beauty'),
