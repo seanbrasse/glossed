@@ -102,4 +102,19 @@ public final class BarcodeRungModel {
     public func noneOfThese() {
         ladder.noneOfThese()
     }
+
+    /// The camera's answer, once the system has given one.
+    ///
+    /// Availability is not fixed for the life of the screen: the first check
+    /// may have to ask the user, and someone can flip the switch in Settings
+    /// and come back. Re-reading it is why this is a method rather than a
+    /// constructor argument.
+    public func availabilityChanged(to new: ScannerAvailability) {
+        availability = new
+        // Only speak for the scanner. A message about a code we just read is
+        // about that code, and an availability check should not wipe it.
+        if !isResolving, failure == nil, handled == nil {
+            message = new == .ready ? nil : new.explanation
+        }
+    }
 }

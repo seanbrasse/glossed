@@ -112,3 +112,25 @@ private func model(
     await live.scanned(goodGTIN)
     #expect(live.isScanning == false)
 }
+
+@MainActor
+@Test func permissionGrantedMidScreenStartsTheCamera() {
+    // The first check has to ask, so the screen starts blocked and unblocks.
+    let live = model(availability: .permissionDenied)
+    #expect(live.isScanning == false)
+    live.availabilityChanged(to: .ready)
+    #expect(live.isScanning)
+    #expect(live.message == nil)
+}
+
+@MainActor
+@Test func anAvailabilityCheckDoesNotWipeWhatWeJustSaidAboutACode() async {
+    // The rung re-checks availability when the screen reappears. If that
+    // clobbered the message, "not in the catalog yet — noted" would vanish
+    // exactly when the user looked up from the label to read it.
+    let live = model()
+    await live.scanned("0810086012343")
+    #expect(live.message == "not in the catalog yet — noted")
+    live.availabilityChanged(to: .ready)
+    #expect(live.message == "not in the catalog yet — noted")
+}
