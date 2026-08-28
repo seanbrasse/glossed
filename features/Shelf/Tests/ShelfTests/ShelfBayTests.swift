@@ -18,7 +18,10 @@ private func item(_ name: String, packaging: ProductMock.Kind = .bottle, heightM
 }
 
 private func section(_ slug: String, _ label: String, count: Int) -> ShelfSection {
-    ShelfSection(slug: slug, label: label, items: (0 ..< count).map { item("\(slug) \($0)") })
+    ShelfSection(
+        slug: slug, label: label, domain: .makeup,
+        items: (0 ..< count).map { item("\(slug) \($0)") }
+    )
 }
 
 // MARK: - Bays

@@ -1,0 +1,150 @@
+import DataKit
+import DesignSystem
+import Foundation
+import Testing
+@testable import Shelf
+
+private let epoch = Date(timeIntervalSince1970: 1_700_000_000)
+
+private func item(
+    _ name: String,
+    brand: String = "rare beauty",
+    rank: Int? = nil,
+    daysAgo: Double? = nil
+) -> ShelfItem {
+    ShelfItem(
+        id: UUID(),
+        brand: brand,
+        name: name,
+        categorySlug: "blush",
+        categoryLabel: "blush",
+        domain: .makeup,
+        packaging: .dropper,
+        rank: rank,
+        loggedAt: daysAgo.map { epoch.addingTimeInterval(-$0 * 86400) }
+    )
+}
+
+private func section(_ slug: String, domain: Domain, items: [ShelfItem] = [item("x")]) -> ShelfSection {
+    ShelfSection(slug: slug, label: slug, domain: domain, items: items)
+}
+
+@MainActor
+private func model(
+    _ sections: [ShelfSection],
+    domains: Set<Domain> = Set(ShelfModel.domains),
+    sort: ShelfSort = .favorite
+) -> ShelfModel {
+    ShelfModel(sections: sections, selectedDomains: domains, sort: sort)
+}
+
+// MARK: - The domain filter
+
+@MainActor
+@Test func onlyTheSelectedDomainsGetBays() {
+    let live = model(
+        [section("blush", domain: .makeup), section("cleanser", domain: .skincare)],
+        domains: [.makeup]
+    )
+    #expect(live.bays.map(\.label) == ["blush"])
+}
+
+@MainActor
+@Test func theCountFollowsTheFilterRatherThanTheShelf() {
+    // A count that ignored the filter would contradict the bays under it.
+    let live = model(
+        [
+            section("blush", domain: .makeup, items: [item("a"), item("b")]),
+            section("cleanser", domain: .skincare, items: [item("c")])
+        ],
+        domains: [.makeup]
+    )
+    #expect(live.shownItemCount == 2)
+    live.toggle(.skincare)
+    #expect(live.shownItemCount == 3)
+}
+
+@MainActor
+@Test func turningEveryDomainOffLeavesAShelfWithNoBaysAndNoCrash() {
+    let live = model([section("blush", domain: .makeup)], domains: [])
+    #expect(live.bays.isEmpty)
+    #expect(live.shownItemCount == 0)
+}
+
+@MainActor
+@Test func theFragranceNoteAppearsOnlyWhileFragranceIsOn() {
+    let live = model([section("scent", domain: .fragrance)], domains: [.makeup])
+    #expect(live.showsFragranceNote == false)
+    live.toggle(.fragrance)
+    #expect(live.showsFragranceNote)
+}
+
+@MainActor
+@Test func theDomainOrderIsTheKitsRatherThanTheEnumsDeclarationOrder() {
+    // `Domain.allCases` order is a schema detail; this one is a design choice
+    // and the filter reads left to right.
+    #expect(ShelfModel.domains.map(\.rawValue) == ["makeup", "skincare", "haircare", "fragrance"])
+    #expect(Set(ShelfModel.domains) == Set(Domain.allCases))
+}
+
+// MARK: - Ordering
+
+@Test func favouriteOrdersByRankAndParksTheUnrankedAtTheEnd() {
+    // Unranked ahead of ranked would read as "these are your favourites",
+    // which is the one thing this sort must not say about them.
+    let ordered = ShelfModel.ordered(
+        [item("c", rank: 3), item("unranked"), item("a", rank: 1), item("b", rank: 2)],
+        by: .favorite
+    )
+    #expect(ordered.map(\.name) == ["a", "b", "c", "unranked"])
+}
+
+@Test func recentPutsTheNewestFirstAndTheUndatedLast() {
+    // A missing date guessed as "now" would park an item at the top of the
+    // shelf as though it had just been logged.
+    let ordered = ShelfModel.ordered(
+        [item("old", daysAgo: 30), item("undated"), item("new", daysAgo: 1)],
+        by: .recent
+    )
+    #expect(ordered.map(\.name) == ["new", "old", "undated"])
+}
+
+@Test func brandOrdersAlphabeticallyIgnoringCase() {
+    let ordered = ShelfModel.ordered(
+        [item("x", brand: "rhode"), item("y", brand: "Glossier"), item("z", brand: "byoma")],
+        by: .brand
+    )
+    #expect(ordered.map(\.brand) == ["byoma", "Glossier", "rhode"])
+}
+
+@Test func everySortIsStableWhenTheKeysTie() {
+    // SwiftUI re-sorts on every redraw. A comparator that leaves ties
+    // undecided makes the shelf shuffle itself while someone is looking at it,
+    // which reads as a bug and hides the ordering the sort is meant to show.
+    for sort in ShelfSort.allCases {
+        let tied = [item("c"), item("a"), item("b")]
+        let once = ShelfModel.ordered(tied, by: sort).map(\.name)
+        let twice = ShelfModel.ordered(ShelfModel.ordered(tied, by: sort), by: sort).map(\.name)
+        #expect(once == ["a", "b", "c"])
+        #expect(once == twice)
+    }
+}
+
+@MainActor
+@Test func changingTheSortReordersTheBaysAndNotJustAListSomewhere() {
+    // The fixture is built so the three sorts disagree — a shelf that ordered
+    // its bays once and then ignored the pills would pass a weaker version of
+    // this test without doing anything.
+    let live = model(
+        [section("blush", domain: .makeup, items: [
+            item("ranked-second", brand: "alpha", rank: 2, daysAgo: 1),
+            item("ranked-first", brand: "zed", rank: 1, daysAgo: 30)
+        ])],
+        domains: [.makeup]
+    )
+    #expect(live.bays[0].items.map(\.name) == ["ranked-first", "ranked-second"])
+    live.sort = .brand
+    #expect(live.bays[0].items.map(\.name) == ["ranked-second", "ranked-first"])
+    live.sort = .recent
+    #expect(live.bays[0].items.map(\.name) == ["ranked-second", "ranked-first"])
+}

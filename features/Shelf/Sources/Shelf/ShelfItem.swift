@@ -33,6 +33,11 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
     /// Position within its category, when the category has been ranked. Nil is
     /// ordinary — a category under its unlock threshold has no order yet.
     public let rank: Int?
+    /// `user_items.created_at` — when this landed on the shelf, which is what
+    /// "recent" sorts by. Optional because the joined read that supplies it does
+    /// not exist yet (GLO-66); an item with no date sorts last rather than
+    /// pretending to be new.
+    public let loggedAt: Date?
 
     public init(
         id: UUID,
@@ -43,7 +48,8 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
         domain: Domain,
         packaging: ProductMock.Kind,
         heightMM: Double? = nil,
-        rank: Int? = nil
+        rank: Int? = nil,
+        loggedAt: Date? = nil
     ) {
         self.id = id
         self.brand = brand
@@ -54,18 +60,25 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
         self.packaging = packaging
         self.heightMM = heightMM
         self.rank = rank
+        self.loggedAt = loggedAt
     }
 }
 
 /// One category's worth of items, before they are cut into bays.
+///
+/// The domain is on the section rather than read off its first item: a category
+/// belongs to exactly one domain, and deriving it from an item means an empty
+/// category has no domain at all and quietly disappears from every filter.
 public struct ShelfSection: Sendable, Equatable {
     public let slug: String
     public let label: String
+    public let domain: Domain
     public let items: [ShelfItem]
 
-    public init(slug: String, label: String, items: [ShelfItem]) {
+    public init(slug: String, label: String, domain: Domain, items: [ShelfItem]) {
         self.slug = slug
         self.label = label
+        self.domain = domain
         self.items = items
     }
 }
