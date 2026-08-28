@@ -19,6 +19,32 @@ public struct ProductMock: View {
     /// the kit falls through to, so it is the default here too.
     public enum Kind: String, CaseIterable, Sendable {
         case tube, bottle, dropper, jar, compact, mist
+
+        /// What a category is usually sold in — the silhouette the kit drew
+        /// for that kind of product.
+        ///
+        /// A guess, and labelled one: the catalog records no packaging
+        /// (GLO-14 owns adding it), so this reads the category. It is
+        /// deliberately not a claim about the individual product — a powder
+        /// blush in a compact still draws as a dropper.
+        ///
+        /// Lives on the primitive because two features (the ladder's match
+        /// rows, the shelf's bays) draw products by category and features may
+        /// not import each other. Two copies of this table is how the same
+        /// product comes to draw as two shapes on two screens.
+        ///
+        /// Unknown slugs fall through to `tube`, the kit's own fallthrough —
+        /// a category we have never seen gets the generic shape rather than a
+        /// confident wrong one.
+        public static func usual(forCategory slug: String) -> Kind {
+            switch slug {
+            case "blush", "serum": .dropper
+            case "foundation", "cleanser", "styler": .bottle
+            case "moisturizer": .jar
+            case "fragrance": .mist
+            default: .tube
+            }
+        }
     }
 
     private let kind: Kind
