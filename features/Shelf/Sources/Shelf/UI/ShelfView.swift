@@ -23,6 +23,13 @@ public struct ShelfView: View {
                     ShelfItemSheet(
                         item: item,
                         rankedInCategory: model.rankedCount(inCategoryOf: item),
+                        // Reads the model's copy, writes through the model —
+                        // which is where a change is persisted and where a
+                        // failed save falls back.
+                        fit: Binding(
+                            get: { model.openFit },
+                            set: { model.fitChanged(to: $0) }
+                        ),
                         onClose: model.closeSheet
                     )
                 }
