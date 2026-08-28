@@ -145,6 +145,12 @@ public struct PayoffEvidence: Codable, Sendable {
     public let withFitCount: Int
     public let evidenceBacked: Bool
 
+    public init(exactShadeCount: Int, withFitCount: Int, evidenceBacked: Bool) {
+        self.exactShadeCount = exactShadeCount
+        self.withFitCount = withFitCount
+        self.evidenceBacked = evidenceBacked
+    }
+
     enum CodingKeys: String, CodingKey {
         case exactShadeCount = "n_exact_shade"
         case withFitCount = "n_with_fit"
