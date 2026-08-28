@@ -1,7 +1,7 @@
 -- search_catalog respects personal scope; record_failed_search counts demand.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(7);
+select plan(9);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -30,6 +30,24 @@ reset role;
 select is(
     (select user_count from failed_searches where lower(query) = 'glow recipe dew drops'),
     2, 'a repeat search bumps the count instead of inserting again');
+
+
+-- the image ride-along (0016): the newest catalog image across the
+-- product's variants comes back, and a product with none says null rather
+-- than inventing one. The seed carries no image rows, so this creates one
+-- inside the rolled-back transaction.
+reset role;
+insert into variant_images (variant_id, kind, r2_key, width, height)
+select v.id, 'catalog', v.id::text || '/cut512.png', 512, 512
+from variants v join products p on p.id = v.product_id
+where p.name = 'soft pinch liquid blush' limit 1;
+select test_as('00000000-0000-0000-0000-000000000001');
+select ok(
+    exists(select 1 from search_catalog('soft pinch') where catalog_image_key is not null),
+    'a product with a catalog image returns its key');
+select ok(
+    exists(select 1 from search_catalog('flaxseed') where catalog_image_key is null),
+    'a product with no image says null, not a made-up key');
 
 select * from finish();
 rollback;
