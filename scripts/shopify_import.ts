@@ -257,6 +257,47 @@ async function runSQL(statements: string): Promise<string> {
   return new TextDecoder().decode(out.stdout);
 }
 
+/// The shade token some stores put in the title: "bright fix eye brightener
+/// — almond butter". Em-dash with spaces, store-authored and consistent.
+const SHADE_SUFFIX = /^(.{2,}?) — (.+)$/;
+
+/// GLO-85's collapse: a store that models every shade as its own product
+/// (fenty: 562 rows) becomes one product per franchise with shade variants —
+/// the shape rare beauty already arrives in, and the shape the variant-pick
+/// sheet exists for. Only groups of two or more collapse: a lone em-dash
+/// title keeps its full name, because there the suffix may be identity
+/// ("peptide lip tint honey mango" is one product), and collapsing on a
+/// single sighting is how the wrong-franchise class of bug starts.
+function collapseShades(candidates: Candidate[]): Candidate[] {
+  const byBase = new Map<string, Candidate[]>();
+  const out: Candidate[] = [];
+  for (const c of candidates) {
+    const match = c.name.match(SHADE_SUFFIX);
+    if (match) {
+      const key = `${c.slug}|${match[1].trim()}`;
+      byBase.set(key, [...byBase.get(key) ?? [], c]);
+    } else {
+      out.push(c);
+    }
+  }
+  for (const [key, group] of byBase) {
+    if (group.length === 1) {
+      out.push(group[0]);
+      continue;
+    }
+    const base = key.split("|")[1];
+    const variants = group.flatMap((member) => {
+      const shade = (member.name.match(SHADE_SUFFIX)?.[2] ?? "")
+        .replace(/^#/, "").trim();
+      // The title's shade names the variant unless the store's own option
+      // schema already did — the option is the stronger claim.
+      return member.variants.map((v) => ({ ...v, shade: v.shade ?? (shade || null) }));
+    });
+    out.push({ slug: group[0].slug, brand: group[0].brand, name: base, variants });
+  }
+  return out;
+}
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 let fetched = 0;
@@ -266,15 +307,14 @@ const chunks: string[] = [];
 
 for (const [host, brand] of Object.entries(STORES)) {
   if (onlyStore && host !== onlyStore) continue;
-  let storeUsable = 0;
+  const storeCandidates: Candidate[] = [];
   for (let page = 1; page <= 8; page++) {
     const products = await fetchPage(host, page);
     fetched += products.length;
     for (const p of products) {
       const c = candidate(brand, p);
       if (c) {
-        chunks.push(sql(c));
-        storeUsable++;
+        storeCandidates.push(c);
       } else if (!EXCLUDED.test(`${p.product_type ?? ""} ${p.title ?? ""}`)) {
         const key = (p.product_type ?? "(none)").toLowerCase();
         unmappedTypes.set(key, (unmappedTypes.get(key) ?? 0) + 1);
@@ -283,8 +323,17 @@ for (const [host, brand] of Object.entries(STORES)) {
     if (products.length < PAGE_SIZE) break;
     await sleep(FETCH_INTERVAL_MS);
   }
-  usable += storeUsable;
-  console.log(`${host}: ${storeUsable} usable products`);
+  const collapsed = collapseShades(storeCandidates);
+  for (const c of collapsed) {
+    chunks.push(sql(c));
+  }
+  usable += collapsed.length;
+  console.log(
+    `${host}: ${collapsed.length} products` +
+      (collapsed.length < storeCandidates.length
+        ? ` (${storeCandidates.length} rows — per-shade titles collapsed)`
+        : ""),
+  );
   await sleep(FETCH_INTERVAL_MS);
 }
 
