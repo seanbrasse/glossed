@@ -1,0 +1,28 @@
+Copyright (c) 2026 Sean Brasse. All rights reserved.
+
+GLOSSED is source-available, not open source. The source is published so it can
+be read, reviewed, and learned from — and so the engineering behind it can be
+evaluated by people considering working with me.
+
+You MAY:
+  - view, read, and study this source code
+  - reference it in discussion, review, education, or commentary
+  - quote short excerpts with attribution
+
+You MAY NOT, without prior written permission:
+  - use this code, in whole or in part, in any product or service
+  - copy, modify, merge, publish, distribute, sublicense, or sell it
+  - create derivative works from it
+  - use it to train machine-learning models
+
+No trademark rights are granted. "GLOSSED" and the associated brand, wordmark,
+and design system are not licensed by this document.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Permission requests: seanbrasse@gmail.com
