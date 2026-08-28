@@ -7,8 +7,11 @@ let package = Package(
     products: [
         .library(name: "Ranking", targets: ["Ranking"])
     ],
+    dependencies: [
+        .package(path: "../../core/DesignSystem")
+    ],
     targets: [
-        .target(name: "Ranking"),
+        .target(name: "Ranking", dependencies: [.product(name: "DesignSystem", package: "DesignSystem")]),
         .testTarget(name: "RankingTests", dependencies: ["Ranking"])
     ]
 )

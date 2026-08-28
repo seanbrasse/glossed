@@ -20,8 +20,8 @@ public enum RankingEngine {
         /// The ordered list the candidate is being placed into.
         public let list: [ItemID]
         /// Inclusive bounds of where the candidate could still land.
-        public private(set) var low: Int
-        public private(set) var high: Int
+        public internal(set) var low: Int
+        public internal(set) var high: Int
         public private(set) var comparisonsMade: Int
 
         /// Four is the cap: past that, the questions stop feeling like play and
