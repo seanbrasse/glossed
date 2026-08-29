@@ -7,14 +7,19 @@ import SwiftUI
 /// Built from the design system (Sean, Aug 29: no frames for 1.5).
 public struct OwnProfileView: View {
     @State private var model: OwnProfileModel
+    @State private var viewing: SuggestedPerson?
     private let onClaimHandle: () -> Void
     private let onOpenPrivacy: () -> Void
 
+    private let suggestionsStore: ViewedProfileStore
+
     public init(
         store: OwnProfileStore,
+        suggestionsStore: ViewedProfileStore,
         onClaimHandle: @escaping () -> Void,
         onOpenPrivacy: @escaping () -> Void
     ) {
+        self.suggestionsStore = suggestionsStore
         _model = State(wrappedValue: OwnProfileModel(store: store))
         self.onClaimHandle = onClaimHandle
         self.onOpenPrivacy = onOpenPrivacy
@@ -32,6 +37,7 @@ public struct OwnProfileView: View {
                     } else {
                         counts
                         badgeSection
+                        SuggestedPeopleCard(store: suggestionsStore) { viewing = $0 }
                         privacyLink
                     }
                 }
@@ -44,6 +50,12 @@ public struct OwnProfileView: View {
             if let message = model.errorMessage {
                 Toast(message).padding(.bottom, Tokens.Space.s8)
             }
+        }
+        // A suggestion carries the user id the follow graph needs — the only
+        // place a client legitimately holds one for someone else, since
+        // public_profile deliberately does not return it.
+        .sheet(item: $viewing) { person in
+            ViewedProfileView(store: suggestionsStore, handle: person.handle, userID: person.userID)
         }
     }
 
