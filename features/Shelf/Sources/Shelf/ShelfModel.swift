@@ -45,6 +45,7 @@ public final class ShelfModel {
 
     let sections: [ShelfSection]
     private let fitStore: ShelfFitStore?
+    let likeStore: ShelfLikeStore?
     private let lifecycle: ShelfLifecycleStore?
     /// Fires the lifecycle events (GLO-72, tech/06) when a write *lands* —
     /// an event is a fact, the ladder's rule. Nil in fixtures and tests that
@@ -61,6 +62,7 @@ public final class ShelfModel {
         viewMode: ShelfViewMode = .shelf,
         openSection: String? = nil,
         fitStore: ShelfFitStore? = nil,
+        likeStore: ShelfLikeStore? = nil,
         lifecycle: ShelfLifecycleStore? = nil,
         chipStore: ShelfChipStore? = nil,
         tracker: Tracker? = nil,
@@ -72,6 +74,7 @@ public final class ShelfModel {
         self.viewMode = viewMode
         self.openSection = openSection
         self.fitStore = fitStore
+        self.likeStore = likeStore
         self.lifecycle = lifecycle
         self.tracker = tracker
         chips = ShelfChipsModel(store: chipStore)
@@ -92,6 +95,13 @@ public final class ShelfModel {
     /// Empty while the load is in flight — an unanswered control, which is
     /// what the truth is until the read says otherwise.
     public private(set) var openFit: Set<FitAnswer> = []
+    /// "Would you buy it again?" for the open item (GLO-87). Nil is
+    /// unanswered, which is a real state and not a missing one.
+    ///
+    /// `internal(set)` rather than `private(set)` only because the behaviour
+    /// lives in `ShelfRepurchase.swift` — still read-only to anything outside
+    /// the package, which is the part that matters.
+    public internal(set) var openRepurchase: RepurchaseAnswer?
 
     /// The last set the store confirmed. A failed save falls back here, so the
     /// control never keeps showing an answer that did not persist.
@@ -104,6 +114,10 @@ public final class ShelfModel {
     /// Internal, not private: tests await these to order the async work.
     var fitLoadTask: Task<Void, Never>?
     var fitSaveTask: Task<Void, Never>?
+    var likeLoadTask: Task<Void, Never>?
+    var likeSaveTask: Task<Void, Never>?
+    var persistedRepurchase: RepurchaseAnswer?
+    var repurchaseEdited = false
 
     public func open(_ item: ShelfItem) {
         openItem = item
@@ -116,6 +130,8 @@ public final class ShelfModel {
         persistedStatus = item.status
         chips.open(item)
         fitLoadTask?.cancel()
+        likeLoadTask?.cancel()
+        loadRepurchase(for: item)
         guard item.isAnchorCategory, let fitStore else { return }
         fitLoadTask = Task { [id = item.id] in
             guard let saved = try? await fitStore.load(id) else { return }
