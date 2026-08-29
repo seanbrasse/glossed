@@ -62,6 +62,9 @@ public struct LadderFlowView: View {
     private let catalog: any LadderCatalog
     private let shelf: any ItemLogging
     private let tracker: Tracker?
+    /// Nil leaves the barcode rung exactly as it was (GLO-93): fixture
+    /// states and environments without the function keep the old behaviour.
+    private let fill: (any BarcodeFilling)?
     private let onClose: () -> Void
     /// Something landed on the shelf — the host should reload it.
     private let onShelfChanged: () -> Void
@@ -73,6 +76,7 @@ public struct LadderFlowView: View {
         catalog: any LadderCatalog,
         shelf: any ItemLogging,
         tracker: Tracker? = nil,
+        fill: (any BarcodeFilling)? = nil,
         query: String = "",
         onClose: @escaping () -> Void = {},
         onShelfChanged: @escaping () -> Void = {},
@@ -81,6 +85,7 @@ public struct LadderFlowView: View {
         self.catalog = catalog
         self.shelf = shelf
         self.tracker = tracker
+        self.fill = fill
         self.onClose = onClose
         self.onShelfChanged = onShelfChanged
         self.onLogged = onLogged
@@ -163,7 +168,7 @@ public struct LadderFlowView: View {
         switch (step, ladder.rung) {
         case let (.search(model), .barcode):
             carriedQuery = model.ladder.query
-            step = .barcode(BarcodeRungModel(catalog: catalog))
+            step = .barcode(BarcodeRungModel(catalog: catalog, fill: fill))
         case (.barcode, .nearMatches):
             // The barcode ladder carries the scanned code but never a query;
             // re-injecting the carried words keeps both.
