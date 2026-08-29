@@ -110,7 +110,7 @@ Phase 1 test pass** — see §5 — which produced GLO-145/146/147/148.
 
 | Layer | State |
 |---|---|
-| Schema | **32 migrations** (0020–0031 landed in session 10 by the Phase-1.5 lane: privacy core, public read layer, handles, swatches, reports, and **GLO-145's `user_shade_anchor` status filter**). Slot is held by the 1.5 session — route DDL through them, do not open a second migration PR. |
+| Schema | **32 migrations** (0020–0032 landed in session 10 by the Phase-1.5 lane: privacy core, public read layer, handles, swatches, reports, and **GLO-145's `user_shade_anchor` status filter**). Slot is held by the 1.5 session — route DDL through them, do not open a second migration PR. |
 | Catalog data | **3,203 products / 9,019 variants / 7,625 images / 497 brands / 22 categories**, local-only; **2,112 pending merge_candidates**, image queue ZERO. (Products fell from 3,349 because GLO-113 collapsed westman's 167 rows into 24 real lines — a drop that is a *gain*.) Every image meets the standard (OBF's 588 sub-800px purged, GLO-104). Search knows what things ARE: product_type/tags/origin live on 1,836+ rows — "korean sunscreen", "lipgloss", "retinol" all answer. Restore recipe: §9 — now SIX scripts. Maya's shelf carries drive-drift rows — fine for dev; a pgTAP run wants a reset + ping. |
 | `core/DataKit` | **Frozen, and session 10 needed no opening at all** — #192's members turned out to cover the live chip store, the repurchase signal and the product page. 44 tests. |
 | `core/DesignSystem` | + `YesNoControl` (a question you can leave unanswered — `Segmented` always has one option selected, which is right for a status and wrong for a question), scaling `ProductSticker`. 42 tests. |
@@ -130,7 +130,7 @@ quoting a stale one. `core/Media` is NOT among them: it is named in
 both CLAUDE.md files but **has never existed** (GLO-148).
 
 The sentence that is true about all of it: **the app is live against the
-local stack only** — hosted has all 19 migrations and no data, no
+local stack only** — hosted has all 32 migrations and no data, no
 functions, no storage; and the catalog's future sources (feeds, Beauty
 API) are all account-gated on Sean, not code-gated.
 
