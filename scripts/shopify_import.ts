@@ -86,6 +86,33 @@ const STORES: Record<string, string> = {
   "dedcool.com": "dedcool",
   "snif.co": "snif",
   "boysmells.com": "boy smells",
+  // GLO-97 tranche 2 (probed Aug 29, incl. per-host convention checks —
+  // none is title-is-shade; huda/morphe/supergoop/versed use the
+  // "(Shade)"-suffix option the widened matcher covers):
+  "hudabeauty.com": "huda beauty",
+  "anastasiabeverlyhills.com": "anastasia beverly hills",
+  "morphe.com": "morphe",
+  "us.laneige.com": "laneige",
+  "us.innisfree.com": "innisfree",
+  "theinkeylist.com": "the inkey list",
+  "eadem.co": "eadem",
+  "ellisbrooklyn.com": "ellis brooklyn",
+  "www.phlur.com": "phlur",
+  "54thrones.com": "54 thrones",
+  "the7virtues.com": "the 7 virtues",
+  "yepoda.com": "yepoda",
+  "tatcha.com": "tatcha",
+  "supergoop.com": "supergoop",
+  "firstaidbeauty.com": "first aid beauty",
+  "farmacybeauty.com": "farmacy",
+  "herocosmetics.us": "hero",
+  "peachandlily.com": "peach & lily",
+  "starface.world": "starface",
+  "necessaire.com": "necessaire",
+  "oseamalibu.com": "osea",
+  "cocokind.com": "cocokind",
+  "innbeautyproject.com": "inn beauty project",
+  "versedskin.com": "versed",
 };
 
 /// product_type (lowercased) → our category slug. Only what we can place —
@@ -95,9 +122,10 @@ const STORES: Record<string, string> = {
 /// fill. Keyed on exact type; the regex fallback below catches phrasing
 /// variants ("Liquid Blush", "Gel Cleanser").
 const TYPE_RULES: [RegExp, string][] = [
-  // "lippie" is ColourPop's house word for lip (lippie stix / lippie pencil,
-  // ~90 products) — \blip\b misses it on the word boundary (GLO-94 tally).
-  [/\blip\b|lippie|lipstick|lip\s?(gloss|oil|balm|liner|butter|cream|tint|treatment|makeup)/i, "lip"],
+  // "lippie" is ColourPop's house word for lip (~90 products) and "Lips" is
+  // huda's (36) — \blip\b misses both on the word boundary, one letter each
+  // (GLO-94/97 tallies). The boundary bites the same way twice.
+  [/\blips?\b|lippie|lipstick|lip\s?(gloss|oil|balm|liner|butter|cream|tint|treatment|makeup)/i, "lip"],
   [/\bblush\b|lip & cheek|\bcheek\b/i, "blush"],
   [/foundation|skin tint/i, "foundation"],
   [/cleanser|face wash|facial wash|makeup remover/i, "cleanser"],
@@ -214,8 +242,13 @@ function candidate(brand: string, p: ShopifyProduct, titleIsShade = false): Cand
   // a digits-only title names nothing wherever it came from.
   if (/^[\d\s.,-]+$/.test(name)) return null;
   // Which option position carries the shade, per this product's own schema.
+  // Two option-name conventions carry shades: the plain word, and the
+  // product-prefixed suffix huda/morphe/supergoop/versed use —
+  // "#FauxFilter Concealer (Shade)". The suffix form is unambiguous; a
+  // missed match here silently collapses a shaded line to one variant,
+  // which is how huda would have lost every shade (GLO-97 probe).
   const shadePosition = (p.options ?? [])
-    .find((o) => /^(shade|colou?r)$/i.test(o.name ?? ""))?.position;
+    .find((o) => /^(shade|colou?r)$|\((shade|colou?r)\)\s*$/i.test(o.name ?? ""))?.position;
   const sizePosition = (p.options ?? [])
     .find((o) => /^size$/i.test(o.name ?? ""))?.position;
   const fallbackImage = (p.images ?? [])[0]?.src ?? null;
