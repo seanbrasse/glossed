@@ -103,7 +103,7 @@ function is buildable today; its food mostly is not:
 |---|---|---|
 | user signals — items, like_state, chips, ranks | **live** (171-chip vocabulary, 22/22 categories; chip editor live) | growing with use |
 | `product_attributes` — the vector's dimensions | **1 of 3,204 products.** Vocabulary: 4 rows. | `inci_raw` exists for 683 products; **zero parsed; no enrichment script exists** (tech/01 §4 step 3 was specified, never built). One Deno script + an attribute vocabulary away |
-| `agg_*` cohort means (Stage 0 + shrinkage target) | **no writer** (GLO-157) | writer must be cohort-shaped from day one; min-n before render |
+| `agg_*` cohort means (Stage 0 + shrinkage target) | **live** — 0036/0037 (`refresh_variant_stats`, cohort-shaped, GLO-157), 0038 (`refresh_rank_scores`, GLO-174), 0039 (`refresh_shade_cooccurrence`, GLO-175); all hourly, service-role, min-n picked (`min_n_chip_claims()` = 5) | wire the shrinkage target to the caller's cohort mean when a surface needs it |
 | variant structured facts (shade_hex, strength_pct, price) | populated | derivable attributes ("finish", "strength band") — later, same pipeline |
 
 Build order that follows: **(1)** the RPC — correct against empty feeders,
