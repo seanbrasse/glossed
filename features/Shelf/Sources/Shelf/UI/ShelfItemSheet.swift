@@ -8,11 +8,11 @@ import SwiftUI
 /// the shelf stays visible behind it, so the thing you are reading about is
 /// still in the row you tapped. Coming back is a dismissal, not a navigation.
 public struct ShelfItemSheet: View {
-    private let item: ShelfItem
+    let item: ShelfItem
     /// How many products in this category carry a rank. The badge is `#2 of 5`
     /// and both halves have to come from the same place, or a shelf says you
     /// are second of five while showing you three things.
-    private let rankedInCategory: Int
+    let rankedInCategory: Int
     private let onClose: () -> Void
     private let onRank: () -> Void
     /// Nil hides "full page" entirely (GLO-151). The button shipped wired to
@@ -43,8 +43,8 @@ public struct ShelfItemSheet: View {
     /// The live status (the model's optimistic copy) and its change handler —
     /// nil handler hides the icons and detail, the no-fake-writes rule again
     /// (GLO-72 → GLO-87).
-    private let status: ItemStatus?
-    private let onStatusChange: ((ItemStatus) -> Void)?
+    let status: ItemStatus?
+    let onStatusChange: ((ItemStatus) -> Void)?
 
     public init(
         item: ShelfItem,
@@ -76,9 +76,13 @@ public struct ShelfItemSheet: View {
         self.onStatusChange = onStatusChange
     }
 
+    /// What the sheet's content measured on the last layout pass (GLO-160).
+    /// Zero until the first measurement lands.
+    @State private var contentHeight: CGFloat = 0
+
     /// The status the sheet renders everywhere: the optimistic pick the
     /// moment it is tapped, the row's truth otherwise.
-    private var liveStatus: ItemStatus {
+    var liveStatus: ItemStatus {
         status ?? item.status
     }
 
@@ -102,9 +106,11 @@ public struct ShelfItemSheet: View {
     }
 
     public var body: some View {
-        ZStack(alignment: .bottom) {
-            scrim
-            sheet
+        GeometryReader { geo in
+            ZStack(alignment: .bottom) {
+                scrim
+                boundedSheet(available: geo.size.height - ShelfSheetHeight.topGap)
+            }
         }
         .ignoresSafeArea()
         .accessibilityAddTraits(.isModal)
@@ -119,6 +125,27 @@ public struct ShelfItemSheet: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("close")
+    }
+
+    /// The sheet, held to the screen (GLO-160).
+    ///
+    /// Scrolls only when it has to: `resolved` hands back the content's own
+    /// height whenever that fits, so a sheet that fits today is laid out
+    /// exactly as it is today. The card is drawn behind the *content* rather
+    /// than behind the scroll view, which is what keeps a short sheet a short
+    /// card resting on the bottom edge instead of a full-height panel.
+    private func boundedSheet(available: CGFloat) -> some View {
+        ScrollView {
+            sheet
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(key: ShelfSheetHeightKey.self, value: geo.size.height)
+                    }
+                )
+        }
+        .frame(height: ShelfSheetHeight.resolved(content: contentHeight, available: available))
+        .onPreferenceChange(ShelfSheetHeightKey.self) { contentHeight = $0 }
+        .scrollBounceBehavior(.basedOnSize)
     }
 
     private var sheet: some View {
@@ -173,82 +200,6 @@ public struct ShelfItemSheet: View {
         .transition(.move(edge: .bottom))
     }
 
-    private var grabber: some View {
-        Capsule()
-            .fill(Tokens.Ground.line)
-            .frame(width: 44, height: 4)
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, 12)
-            .accessibilityHidden(true)
-    }
-
-    private var header: some View {
-        HStack(alignment: .top, spacing: 14) {
-            // Bigger than anywhere else and tilted: this is the one screen
-            // where the object itself is the subject rather than a thumbnail.
-            ProductImage(
-                catalog: item.catalogImageURL,
-                kind: item.packaging,
-                tint: ProductMock.tint(for: item.name),
-                scale: 82,
-                rotation: .degrees(-3),
-                label: item.brand
-            )
-            // The slot is as wide as the drawing scale, not as wide as the
-            // drawing. A brand sticker is wider than the bottle it is stuck to
-            // — that is what a label looks like — and without a reserved slot
-            // it runs under the product name and makes the title unreadable.
-            // Very long brands still overflow; capping the sticker itself
-            // belongs in `ProductMock`, not here.
-            .frame(width: 82)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(item.brand).eyebrow()
-                Text(item.name)
-                    .font(Typography.display(21))
-                    .tracking(-0.42)
-                    .foregroundStyle(Tokens.Ink.primary)
-                    .padding(.top, 3)
-                    .padding(.bottom, 2)
-                Text(statusLine).meta()
-                badges
-                // The two icons on the product (GLO-87): saved / tried,
-                // right where the object is the subject.
-                if let onStatusChange {
-                    ShelfTriedIcons(status: liveStatus, onChange: onStatusChange)
-                        .padding(.top, 4)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            closeButton
-        }
-    }
-
-    /// "joy · 7.5ml · week 3", and just the status when there is no variant —
-    /// never a stray separator standing in for a size we do not have (GLO-63).
-    private var statusLine: String {
-        // The optimistic status wins, so the header agrees with the icons
-        // the moment one is tapped (salvaged from #157).
-        let label = (status != nil && status != item.status)
-            ? ShelfItem.label(for: liveStatus) : item.statusLabel()
-        return [item.variant, label]
-            .compactMap(\.self)
-            .joined(separator: " · ")
-    }
-
-    private var badges: some View {
-        HStack(spacing: 6) {
-            // Rank is always relative and always says of-what. A bare "#2" is
-            // the star rating this product does not have.
-            if let rank = item.rank, rankedInCategory > 0 {
-                Badge("#\(rank) of \(rankedInCategory)", tone: .cherry)
-            }
-            if item.isPersonalScope {
-                Badge("yours only", tone: .lilac)
-            }
-        }
-        .padding(.top, 7)
-    }
-
     /// The frame's anchor section: the fit control above an evidence line,
     /// behind a hairline. Only for anchor categories — shade is only evidence
     /// where a shade is meant to match skin. One stated divergence: the kit
@@ -268,7 +219,7 @@ public struct ShelfItemSheet: View {
         .padding(.top, 14)
     }
 
-    private var closeButton: some View {
+    var closeButton: some View {
         Button(action: onClose) {
             Text("×")
                 .font(Typography.mono(16))
