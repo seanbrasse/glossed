@@ -140,6 +140,230 @@ insert into experience_chips (domain, slug, label, valence) values
     ('fragrance','lasts-6h',           'lasts 6h',           'like'),
     ('fragrance','fades-fast',         'fades fast',         'dislike');
 
+-- GLO-154: five of the ten launch chips are filed domain-wide but describe one
+-- category. Narrowing is safe — `item_chips` FKs the chip id, not its scope, so
+-- an already-applied chip keeps its label; only the picker narrows. Slugs are
+-- left alone on purpose: renaming them would sever the one thing a slug is for.
+update experience_chips set category_id = (select id from categories where slug = 'foundation')  where slug = 'oxidized-on-me';
+update experience_chips set category_id = (select id from categories where slug = 'concealer')   where slug = 'creased-by-2pm';
+update experience_chips set category_id = (select id from categories where slug = 'serum')       where slug = 'purged-then-cleared';
+update experience_chips set category_id = (select id from categories where slug = 'moisturizer') where slug = 'pilled-under-makeup';
+update experience_chips set category_id = (select id from categories where slug = 'styler')      where slug = 'no-crunch';
+-- The five that stay domain-wide are the five that are true of every category
+-- in their domain: lasted all day · broke me out · weighed my hair down ·
+-- lasts 6h · fades fast.
+
+-- The per-category vocabulary (GLO-154, reasoning in docs/research/chip-vocabulary.md).
+-- `category_id` is a single FK and `slug` is unique, so a chip true of two
+-- categories is duplicated under a category-prefixed slug sharing the label —
+-- harmless for aggregates, which key `chip_counts` per variant, and a variant
+-- belongs to exactly one category.
+insert into experience_chips (domain, category_id, slug, label, valence)
+select c.domain, c.id, v.slug, v.label, v.valence::chip_valence
+from (values
+    -- makeup ────────────────────────────────────────────────────────────────
+    -- foundation is deliberately dislike-heavy: it succeeds by being
+    -- unremarkable and fails in five specific, nameable ways.
+    ('foundation',  'foundation-looked-like-skin',      'looked like skin',              'like'),
+    ('foundation',  'foundation-no-powder-needed',      'didn''t need powder',           'like'),
+    ('foundation',  'foundation-buildable',             'buildable without cake',        'like'),
+    ('foundation',  'foundation-separated-over-oil',    'separated over my oil',         'dislike'),
+    ('foundation',  'foundation-clung-to-dry-patches',  'clung to dry patches',          'dislike'),
+    ('foundation',  'foundation-flashback',             'flashback in photos',           'dislike'),
+    ('foundation',  'foundation-transferred',           'transferred onto everything',   'dislike'),
+
+    ('concealer',   'concealer-covered-without-cake',   'covered without cake',          'like'),
+    ('concealer',   'concealer-brightened',             'brightened under my eyes',      'like'),
+    ('concealer',   'concealer-no-setting-needed',      'stayed without setting powder', 'like'),
+    ('concealer',   'concealer-oxidized',               'oxidized on me',                'dislike'),
+    ('concealer',   'concealer-dragged',                'dragged on my skin',            'dislike'),
+    ('concealer',   'concealer-set-too-fast',           'set before I could blend',      'dislike'),
+    ('concealer',   'concealer-didnt-cover',            'didn''t cover my circles',      'dislike'),
+
+    ('blush',       'blush-blended-easily',             'blended easily',                'like'),
+    ('blush',       'blush-true-to-pan',                'true to the pan',               'like'),
+    ('blush',       'blush-buildable',                  'hard to overdo',                'like'),
+    ('blush',       'blush-patchy-over-foundation',     'patchy over foundation',        'dislike'),
+    ('blush',       'blush-too-pigmented',              'one tap was too much',          'dislike'),
+    ('blush',       'blush-faded-by-noon',              'faded by noon',                 'dislike'),
+    ('blush',       'blush-moved-my-base',              'moved the foundation under it', 'dislike'),
+
+    ('bronzer',     'bronzer-warmth-not-mud',           'warmth, not mud',               'like'),
+    ('bronzer',     'bronzer-blended-seamlessly',       'blended seamlessly',            'like'),
+    ('bronzer',     'bronzer-buildable-depth',          'built up without going muddy',  'like'),
+    ('bronzer',     'bronzer-went-orange',              'went orange on me',             'dislike'),
+    ('bronzer',     'bronzer-read-grey',                'read grey on me',               'dislike'),
+    ('bronzer',     'bronzer-patchy',                   'grabbed in patches',            'dislike'),
+    ('bronzer',     'bronzer-chalky',                   'chalky in the pan',             'dislike'),
+
+    ('highlighter', 'highlighter-glow-not-glitter',     'glow, not glitter',             'like'),
+    ('highlighter', 'highlighter-smooth-over-texture',  'sat smooth over texture',       'like'),
+    ('highlighter', 'highlighter-photographed-well',    'photographed well',             'like'),
+    ('highlighter', 'highlighter-glittery',             'more glitter than glow',        'dislike'),
+    ('highlighter', 'highlighter-emphasized-pores',     'emphasized my pores',           'dislike'),
+    ('highlighter', 'highlighter-patchy-over-base',     'patchy over my base',           'dislike'),
+    ('highlighter', 'highlighter-disappeared',          'disappeared by lunch',          'dislike'),
+
+    ('eyeshadow',   'eyeshadow-blended-easily',         'blended with no effort',        'like'),
+    ('eyeshadow',   'eyeshadow-one-swipe-payoff',       'one swipe payoff',              'like'),
+    ('eyeshadow',   'eyeshadow-no-primer-needed',       'held without primer',           'like'),
+    ('eyeshadow',   'eyeshadow-creased',                'creased on my lids',            'dislike'),
+    ('eyeshadow',   'eyeshadow-patchy-without-primer',  'patchy without primer',         'dislike'),
+    ('eyeshadow',   'eyeshadow-fallout',                'fallout under my eyes',         'dislike'),
+    ('eyeshadow',   'eyeshadow-went-muddy',             'went muddy when I blended',     'dislike'),
+    ('eyeshadow',   'eyeshadow-sheer-payoff',           'barely showed up',              'dislike'),
+
+    ('eyeliner',    'eyeliner-sharp-line',              'sharp line, first try',         'like'),
+    ('eyeliner',    'eyeliner-didnt-budge',             'didn''t budge',                 'like'),
+    ('eyeliner',    'eyeliner-stayed-on-waterline',     'stayed on my waterline',        'like'),
+    ('eyeliner',    'eyeliner-transferred-to-lid',      'transferred to my upper lid',   'dislike'),
+    ('eyeliner',    'eyeliner-dragged',                 'dragged on my lid',             'dislike'),
+    ('eyeliner',    'eyeliner-skipped',                 'skipped and dried out',         'dislike'),
+    ('eyeliner',    'eyeliner-left-my-waterline',       'gone from my waterline by noon','dislike'),
+
+    ('mascara',     'mascara-held-a-curl',              'held my curl all day',          'like'),
+    ('mascara',     'mascara-separated-lashes',         'separated, no clumps',          'like'),
+    ('mascara',     'mascara-came-off-easily',          'came off without scrubbing',    'like'),
+    ('mascara',     'mascara-flaked',                   'flaked onto my cheeks',         'dislike'),
+    ('mascara',     'mascara-smudged-under-eyes',       'smudged under my eyes',         'dislike'),
+    ('mascara',     'mascara-clumped',                  'clumped on the second coat',    'dislike'),
+    ('mascara',     'mascara-dropped-my-curl',          'dropped my curl',               'dislike'),
+    ('mascara',     'mascara-dried-out-fast',           'dried out within a month',      'dislike'),
+
+    ('brow',        'brow-matched-my-hair',             'matched my hair',               'like'),
+    ('brow',        'brow-hairlike-strokes',            'hairlike, not drawn on',        'like'),
+    ('brow',        'brow-stayed-all-day',              'still there at the end of day', 'like'),
+    ('brow',        'brow-too-warm',                    'too red on me',                 'dislike'),
+    ('brow',        'brow-too-grey',                    'too grey on me',                'dislike'),
+    ('brow',        'brow-wore-off',                    'wore off by afternoon',         'dislike'),
+    ('brow',        'brow-hard-to-control',             'too much product, too fast',    'dislike'),
+
+    ('lip',         'lip-comfortable-all-day',          'comfortable all day',           'like'),
+    ('lip',         'lip-faded-evenly',                 'faded evenly',                  'like'),
+    ('lip',         'lip-one-coat-opaque',              'opaque in one coat',            'like'),
+    ('lip',         'lip-dried-me-out',                 'dried my lips out',             'dislike'),
+    ('lip',         'lip-feathered',                    'feathered past my lip line',    'dislike'),
+    ('lip',         'lip-transferred',                  'transferred onto everything',   'dislike'),
+    ('lip',         'lip-sticky',                       'sticky — hair stuck to it',     'dislike'),
+    ('lip',         'lip-patchy-on-dry-lips',           'patchy on dry lips',            'dislike'),
+
+    -- skincare ──────────────────────────────────────────────────────────────
+    ('cleanser',    'cleanser-clean-not-tight',         'clean, not tight',              'like'),
+    ('cleanser',    'cleanser-took-off-spf',            'took off spf in one pass',      'like'),
+    ('cleanser',    'cleanser-gentle-enough-daily',     'gentle enough twice a day',     'like'),
+    ('cleanser',    'cleanser-stripped-me',             'left my skin tight',            'dislike'),
+    ('cleanser',    'cleanser-stung-my-eyes',           'stung my eyes',                 'dislike'),
+    ('cleanser',    'cleanser-left-a-film',             'left a film',                   'dislike'),
+    ('cleanser',    'cleanser-didnt-remove-makeup',     'didn''t get my makeup off',     'dislike'),
+
+    -- serum carries the 56-day wear-in, so "nothing after 8 weeks" is a fact
+    -- the gate makes sayable — and it is the most useful thing an active can
+    -- tell a stranger.
+    ('serum',       'serum-faded-my-marks',             'faded my dark marks',           'like'),
+    ('serum',       'serum-smoothed-texture',           'my texture smoothed out',       'like'),
+    ('serum',       'serum-layered-clean',              'layered clean under everything','like'),
+    ('serum',       'serum-stung',                      'stung going on',                'dislike'),
+    ('serum',       'serum-pilled',                     'pilled under everything else',  'dislike'),
+    ('serum',       'serum-never-absorbed',             'tacky, never absorbed',         'dislike'),
+    ('serum',       'serum-nothing-after-8-weeks',      'nothing after 8 weeks',         'dislike'),
+
+    ('moisturizer', 'moisturizer-absorbed-fast',        'absorbed fast',                 'like'),
+    ('moisturizer', 'moisturizer-held-all-day',         'still hydrated at bedtime',     'like'),
+    ('moisturizer', 'moisturizer-layered-clean',        'sat well under makeup',         'like'),
+    ('moisturizer', 'moisturizer-too-heavy',            'too heavy, sat on top',         'dislike'),
+    ('moisturizer', 'moisturizer-not-enough-in-winter', 'not enough in winter',          'dislike'),
+    ('moisturizer', 'moisturizer-clogged-me',           'clogged my pores',              'dislike'),
+
+    -- the white-cast pair is the clearest case for splitting an axis rather
+    -- than reaching for a neutral: the same product casts on one person and
+    -- not another, so the valence carries the personal half.
+    ('sunscreen',   'sunscreen-no-white-cast',          'no white cast on me',           'like'),
+    ('sunscreen',   'sunscreen-invisible-under-makeup', 'invisible under makeup',        'like'),
+    ('sunscreen',   'sunscreen-reapplied-easily',       'reapplied over makeup fine',    'like'),
+    ('sunscreen',   'sunscreen-white-cast',             'white cast on me',              'dislike'),
+    ('sunscreen',   'sunscreen-stung-my-eyes',          'stung my eyes',                 'dislike'),
+    ('sunscreen',   'sunscreen-pilled',                 'pilled under makeup',           'dislike'),
+    ('sunscreen',   'sunscreen-greasy',                 'greasy all day',                'dislike'),
+    ('sunscreen',   'sunscreen-smelled-bad',            'smelled like sunscreen',        'dislike'),
+
+    ('toner',       'toner-calmed-redness',             'calmed my redness',             'like'),
+    ('toner',       'toner-smoothed-texture',           'smoothed my texture',           'like'),
+    ('toner',       'toner-absorbed-fast',              'absorbed instantly',            'like'),
+    ('toner',       'toner-stung',                      'stung going on',                'dislike'),
+    ('toner',       'toner-dried-me-out',               'dried me out',                  'dislike'),
+    ('toner',       'toner-sticky',                     'left my skin sticky',           'dislike'),
+    ('toner',       'toner-no-difference',              'no difference either way',      'dislike'),
+
+    ('mask',        'mask-instant-glow',                'glowy right after',             'like'),
+    ('mask',        'mask-calmed-a-flare',              'calmed a flare-up',             'like'),
+    ('mask',        'mask-drew-out-congestion',         'drew out congestion',           'like'),
+    ('mask',        'mask-stung',                       'stung the whole time',          'dislike'),
+    ('mask',        'mask-left-me-red',                 'left me red for hours',         'dislike'),
+    ('mask',        'mask-dried-tight',                 'dried down painfully tight',    'dislike'),
+    ('mask',        'mask-hard-to-remove',              'a fight to rinse off',          'dislike'),
+
+    -- the arc pair: "purged then cleared" (narrowed to serum above, duplicated
+    -- here) has an opposite that is not "did not purge".
+    ('treatment',   'treatment-purged-then-cleared',    'purged then cleared',           'like'),
+    ('treatment',   'treatment-faded-my-marks',         'faded my dark marks',           'like'),
+    ('treatment',   'treatment-worth-the-retinization', 'worth the retinization',        'like'),
+    ('treatment',   'treatment-texture-smoothed',       'my texture smoothed out',       'like'),
+    ('treatment',   'treatment-purge-never-cleared',    'purged and never cleared',      'dislike'),
+    ('treatment',   'treatment-peeled-for-weeks',       'peeled for weeks',              'dislike'),
+    ('treatment',   'treatment-burned',                 'burned going on',               'dislike'),
+    ('treatment',   'treatment-sun-sensitive',          'made me sun-sensitive',         'dislike'),
+
+    ('eye',         'eye-depuffed',                     'depuffed in the morning',       'like'),
+    ('eye',         'eye-smoothed-concealer',           'concealer sat better over it',  'like'),
+    ('eye',         'eye-absorbed-fast',                'absorbed fast',                 'like'),
+    ('eye',         'eye-milia',                        'gave me milia',                 'dislike'),
+    ('eye',         'eye-pilled-under-concealer',       'pilled under concealer',        'dislike'),
+    ('eye',         'eye-stung-my-eyes',                'stung my eyes',                 'dislike'),
+    ('eye',         'eye-too-heavy',                    'too heavy for daytime',         'dislike'),
+    ('eye',         'eye-no-difference',                'no difference in a month',      'dislike'),
+
+    -- haircare ──────────────────────────────────────────────────────────────
+    ('shampoo',     'shampoo-clean-not-stripped',       'clean, not stripped',           'like'),
+    ('shampoo',     'shampoo-calmed-my-scalp',          'calmed my scalp',               'like'),
+    ('shampoo',     'shampoo-lathered-well',            'lathered with barely any',      'like'),
+    ('shampoo',     'shampoo-color-held',               'my color held',                 'like'),
+    ('shampoo',     'shampoo-stripped-my-hair',         'stripped my hair',              'dislike'),
+    ('shampoo',     'shampoo-scalp-itch',               'scalp itched after',            'dislike'),
+    ('shampoo',     'shampoo-faded-my-color-fast',      'faded my color fast',           'dislike'),
+    ('shampoo',     'shampoo-tangled-my-hair',          'tangled it into knots',         'dislike'),
+
+    ('conditioner', 'conditioner-detangled-easily',     'detangled in one pass',         'like'),
+    ('conditioner', 'conditioner-soft-not-greasy',      'soft, not greasy',              'like'),
+    ('conditioner', 'conditioner-slip-in-the-shower',   'real slip in the shower',       'like'),
+    ('conditioner', 'conditioner-greasy-roots',         'greasy roots by day two',       'dislike'),
+    ('conditioner', 'conditioner-no-slip',              'not enough slip to detangle',   'dislike'),
+    ('conditioner', 'conditioner-did-nothing',          'rinsed out to nothing',         'dislike'),
+    ('conditioner', 'conditioner-built-up',             'built up over a week',          'dislike'),
+
+    ('styler',      'styler-held-in-humidity',          'held in humidity',              'like'),
+    ('styler',      'styler-defined-without-stiffness', 'defined, not stiff',            'like'),
+    ('styler',      'styler-second-day-hair',           'second-day hair still good',    'like'),
+    ('styler',      'styler-crunchy-cast',              'crunchy cast',                  'dislike'),
+    ('styler',      'styler-flaked',                    'flaked white',                  'dislike'),
+    ('styler',      'styler-frizz-by-hour-3',           'frizz by hour 3',               'dislike'),
+    ('styler',      'styler-sticky',                    'sticky to the touch',           'dislike'),
+
+    -- fragrance ─────────────────────────────────────────────────────────────
+    -- longevity (the two domain-wide chips) and projection are independent
+    -- axes: a scent can last nine hours and never leave a two-inch radius.
+    -- "turned on my skin" is the most personal fact in the domain, and so the
+    -- one a stranger most needs cohort-matched.
+    ('fragrance',   'fragrance-projected',              'projected across the room',     'like'),
+    ('fragrance',   'fragrance-drydown-beat-the-open',  'the drydown beat the opening',  'like'),
+    ('fragrance',   'fragrance-got-compliments',        'got compliments',               'like'),
+    ('fragrance',   'fragrance-smells-like-nothing-else','smells like nothing else I own','like'),
+    ('fragrance',   'fragrance-skin-scent-only',        'stayed a skin scent',           'dislike'),
+    ('fragrance',   'fragrance-turned-on-my-skin',      'turned on my skin',             'dislike'),
+    ('fragrance',   'fragrance-gave-me-a-headache',     'gave me a headache',            'dislike'),
+    ('fragrance',   'fragrance-smells-generic',         'smells like everything else',   'dislike')
+) as v(category, slug, label, valence)
+join categories c on c.slug = v.category;
+
 -- maya's starting shelf: enough for the LIVE picker state to draw something
 -- real after a reset — four domains, a rank, and two wear-ins. Deliberately
 -- only variants the pgTAP suites do not themselves log for maya (01/02/04/08
