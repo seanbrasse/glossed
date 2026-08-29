@@ -90,6 +90,18 @@ public struct DiscoverView: View {
                 basisLine(pick)
             }
         }
+        .contextMenu {
+            if model.supportsDismissal, pick.basis != .exploration {
+                // the wander is exempt: dismissing curiosity would teach
+                // the engine from a row that never claimed to know you
+                Button("not for me", role: .destructive) {
+                    model.dismiss(pick, reason: "not_for_me")
+                }
+                Button("already own it") {
+                    model.dismiss(pick, reason: "own_it")
+                }
+            }
+        }
     }
 
     private func basisLine(_ pick: DiscoverHit) -> some View {

@@ -109,3 +109,62 @@ private actor CapturingPoster: EventPosting {
     let names = await poster.posted.map(\.name)
     #expect(names.filter { $0 == "rec_impression" }.count == 2)
 }
+
+// ── the dismissal (GLO-181's client half) ───────────────────────────────────
+
+@MainActor
+@Test func aDismissalLeavesOptimisticallyAndReportsWhatWasSent() async throws {
+    let pick = try hit("gone", basis: "taste", n: 1)
+    let kept = try hit("stays", basis: "popular", n: 6)
+    actor Written { var rows: [(UUID, String?)] = []; func add(_ row: (UUID, String?)) {
+        rows.append(row)
+    } }
+    let written = Written()
+    let poster = CapturingPoster()
+    let tracker = Tracker(poster: poster)
+    let model = DiscoverModel(
+        store: DiscoverStore(
+            feed: { _ in [pick, kept] },
+            crosswalk: { _ in [] },
+            dismiss: { id, reason in await written.add((id, reason)) }
+        ),
+        tracker: tracker
+    )
+    model.load()
+    await model.loadTask?.value
+    model.dismiss(pick, reason: "not_for_me")
+    #expect(model.picks == [kept]) // gone before the write returns
+    await model.dismissTask?.value
+    try await Task.sleep(for: .milliseconds(50))
+    await tracker.flush()
+    // the sweep session's lesson: assert what was SENT, not that something was
+    let row = try #require(await written.rows.first)
+    #expect(row.0 == pick.hit.id)
+    #expect(row.1 == "not_for_me")
+    let dismissed = await poster.posted.filter { $0.name == "rec_dismissed" }
+    #expect(dismissed.count == 1)
+}
+
+@MainActor
+@Test func aFailedDismissalPutsTheRowBack() async throws {
+    let pick = try hit("bounces", basis: "taste", n: 1)
+    let model = DiscoverModel(
+        store: DiscoverStore(
+            feed: { _ in [pick] },
+            crosswalk: { _ in [] },
+            dismiss: { _, _ in throw URLError(.timedOut) }
+        )
+    )
+    model.load()
+    await model.loadTask?.value
+    model.dismiss(pick, reason: nil)
+    #expect(model.picks.isEmpty)
+    await model.dismissTask?.value
+    #expect(model.picks == [pick]) // the fit-section contract
+}
+
+@MainActor
+@Test func noWritePathMeansNoGesture() {
+    let model = DiscoverModel(store: DiscoverStore(feed: { _ in [] }, crosswalk: { _ in [] }))
+    #expect(!model.supportsDismissal) // an editor that writes nowhere is not offered
+}

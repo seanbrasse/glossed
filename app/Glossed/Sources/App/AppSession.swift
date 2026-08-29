@@ -80,8 +80,9 @@ final class AppSession {
         let repository = ShelfRepository(client: client)
         guard let rows = try? await repository.shelf() else { return }
         discoverModel = DiscoverModel(
-            store: .repository(AggregatesRepository(client: client)),
-            imageBase: imageBase
+            store: .repository(AggregatesRepository(client: client), taste: TasteRepository(client: client)),
+            imageBase: imageBase,
+            tracker: tracker
         )
         shelfModel = ShelfModel(
             sections: ShelfSection.grouped(from: rows, imageBase: imageBase),

@@ -113,6 +113,36 @@ public final class DiscoverModel {
         Task { await tracker.track(.recTapped(slot: Self.slot(for: pick.basis), productID: pick.hit.id)) }
     }
 
+    /// Whether the dismiss gesture is offered at all — no store, no write,
+    /// no gesture (the chips rule: an editor that writes nowhere must not
+    /// be offered).
+    public var supportsDismissal: Bool {
+        store?.dismiss != nil
+    }
+
+    /// "Not for me." Optimistic: the row leaves now and comes back only if
+    /// the write fails — the fit section's contract. The event fires only
+    /// after the write lands: rec_dismissed measures dismissals that exist,
+    /// not taps that bounced.
+    public func dismiss(_ pick: DiscoverHit, reason: String?) {
+        guard let dismiss = store?.dismiss,
+              let index = picks.firstIndex(of: pick) else { return }
+        picks.remove(at: index)
+        dismissTask = Task { [tracker] in
+            do {
+                try await dismiss(pick.hit.id, reason)
+                await tracker?.track(.recDismissed(
+                    slot: Self.slot(for: pick.basis), productID: pick.hit.id, reason: reason
+                ))
+            } catch {
+                guard !Task.isCancelled else { return }
+                picks.insert(pick, at: min(index, picks.count))
+            }
+        }
+    }
+
+    var dismissTask: Task<Void, Never>?
+
     public func tappedCrosswalk(_ row: CrosswalkHit) {
         guard let tracker else { return }
         Task { await tracker.track(.recTapped(slot: .crosswalk, productID: row.hit.id)) }
