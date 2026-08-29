@@ -26,6 +26,12 @@ struct AppShell: View {
     @State private var ladderOpen = false
     /// One line naming the ticket for a drawer option that is not built yet.
     @State private var notice: String?
+    /// The row the ladder just wrote, held until the cover dismisses — asking
+    /// "did it fit?" under a closing full-screen cover is a question nobody
+    /// sees.
+    @State private var pendingLog: LoggedShelfItem?
+    /// Non-nil while the fit prompt is up: the shelf row it writes to.
+    @State private var fitPromptItemID: UUID?
 
     var body: some View {
         content
@@ -107,8 +113,33 @@ struct AppShell: View {
             }
         }
         .animation(Tokens.Motion.pop(Tokens.Motion.med), value: drawerOpen)
-        .fullScreenCover(isPresented: $ladderOpen) {
+        .fullScreenCover(isPresented: $ladderOpen, onDismiss: askFitIfAnchor) {
             ladderFlow
+        }
+        .overlay {
+            if let itemID = fitPromptItemID, let client = session.client {
+                FitPromptCard(
+                    store: .repository(ShelfRepository(client: client)),
+                    itemID: itemID,
+                    onDone: { fitPromptItemID = nil }
+                )
+            }
+        }
+    }
+
+    /// The anchor gate, checked after the cover closes: no category (the
+    /// matched-barcode gap) or a non-anchor category means no prompt, and a
+    /// failed category read skips quietly — the prompt is a follow-up ask,
+    /// not a claim, and blocking the shelf over it would cost more than the
+    /// missed answer.
+    private func askFitIfAnchor() {
+        guard let logged = pendingLog else { return }
+        pendingLog = nil
+        guard let categoryID = logged.categoryID, let client = session.client else { return }
+        Task {
+            let categories = await (try? CatalogRepository(client: client).categories(domain: nil)) ?? []
+            guard categories.first(where: { $0.id == categoryID })?.isAnchor == true else { return }
+            fitPromptItemID = logged.userItemID
         }
     }
 
@@ -228,7 +259,8 @@ struct AppShell: View {
                 shelf: ShelfRepository(client: client),
                 tracker: session.tracker,
                 onClose: { ladderOpen = false },
-                onShelfChanged: { session.refreshShelf() }
+                onShelfChanged: { session.refreshShelf() },
+                onLogged: { pendingLog = $0 }
             )
             // Search rows and the variant sheet compose real cutout URLs
             // from this — the same base the shelf reads with (GLO-83).
