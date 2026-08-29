@@ -512,7 +512,7 @@ create table profile_badges (
 );
 ```
 
-Regulated-class data may be *published by the user's own explicit act* — that is what "hideable badges" in the original §2 meant. The rule Regulated data never escapes is about logs, analytics props, and vendors, not about the user's own choice to wear their shade on their profile. All three flags default false; the badges are the only path by which `skin_type`, the anchor variant, and `hair_pattern` reach another human, and they still never reach an event prop (§2.3).
+Regulated-class data may be *published by the user's own explicit act* — that is what "hideable badges" in the original §2 meant. (`show_anchor` additionally waits on [GLO-145](https://linear.app/glossed/issue/GLO-145): it publishes anchor evidence, and the view feeding it currently admits never-worn products — see §3.5.) The rule Regulated data never escapes is about logs, analytics props, and vendors, not about the user's own choice to wear their shade on their profile. All three flags default false; the badges are the only path by which `skin_type`, the anchor variant, and `hair_pattern` reach another human, and they still never reach an event prop (§2.3).
 
 ### 3.5 Following and suggested people
 
@@ -526,7 +526,8 @@ returns table (user_id uuid, handle text, display_name text, reason text, reason
 language sql stable security definer set search_path = public as $$ ... $$;
 ```
 
-- Candidate set: users sharing your **anchor variant with an agreeing fit** (the `user_shade_anchor` view already produces this), then same-domain/same-skin-type as the weaker fallback.
+- Candidate set: users sharing your **anchor variant with an agreeing fit**, from the `user_shade_anchor` view, then same-domain/same-skin-type as the weaker fallback.
+- ⚠️ **That view is not trustworthy yet, and 1.5 is where it stops being a private problem.** [GLO-145](https://linear.app/glossed/issue/GLO-145) found `user_shade_anchor` filters `c.is_anchor` and `deleted_at` but **not status**, so a fit captured on a `want_to_try` item becomes anchor evidence for a product the person has never worn — verified in psql on `9688e0a`, not inferred. In Phase 1 that corrupts a match. Here it corrupts **a sentence said to a stranger about someone**: this card's contract is a named reason, and the anchor badge (§3.4) publishes the same evidence on a profile. Both surfaces inherit the defect and neither may ship before GLO-145's view fix lands. If a 1.5 RPC has to run before that, it filters status itself and says so in a comment — silent inheritance is how a false claim gets shipped with a straight face.
 - Excluded, by the query and asserted in tests: not `discoverable` · minors · blocked in either direction · muted · already followed · yourself.
 - **The reason is named and carries its n**: "wears fenty 240 · ranks 14 things." A suggestion with no reason does not render. That is the design rule (one person with a reason, never a three-avatar grid) and the evidence rule (`EvidenceLine`) meeting on the same card.
 - The Phase-2 `G.Feed` frame contains a follow button and "shade-twin cards." **It is not the reference for this card**: shade twins were removed in design review (`domain.md` §1, "Shade claim"), and the frame predates that. Build the suggestion card from the design system per the no-frames route (§8).
