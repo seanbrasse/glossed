@@ -738,6 +738,12 @@ Verified against the kit on Aug 29 2026 by pulling `screens.jsx` and `screen-map
 
 So: **one 1.5 screen has a frame, one has a stale frame, and 32 have none.**
 
+> **RULED, Sean, Aug 29: no frames for 1.5 — build from the design system.** Phase 1's no-frames route (GLO-16, Aug 28) extends to this phase. Every screen below is built from `core/DesignSystem` tokens and components, and Sean workshops it in the PR rather than against a frame.
+>
+> The `Frame` column stays because it still says something true — where a frame exists it is worth *looking at* — but it is now reference, not specification. In particular the two `v15` frames' missing `discoverable` row is **superseded, not a gap to fill**: `discoverable` ships as designed in §1.2, and the frame is the thing that is out of date.
+>
+> This unblocks the 17 UI tickets that were waiting on it. The design rules that replace the frame are the ones already binding everywhere else: tokens only, no raw colours or magic spacing, one pop moment per screen, lowercase copy, mono for counts, eyebrows the only uppercase — and every claim carries its n via `EvidenceLine`, with no stars anywhere.
+
 | # | Screen | Ticket | Frame |
 |---|---|---|---|
 | 1 | Privacy scope matrix (four rows + `everything` master reading *mixed*) | GLO-25 | **exists** — `G.Privacy`, 2 map frames |
