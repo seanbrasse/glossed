@@ -140,6 +140,89 @@ public struct ShelfRepository: Sendable {
         }
     }
 
+    /// The chips the user has put on one item, with the vocabulary row embedded
+    /// so the sheet renders labels without a second read. The read half of
+    /// `applyChip` — without it the sheet can only add, never show what is
+    /// already there.
+    public func chips(itemID: UUID) async throws(GlossedError) -> [AppliedChip] {
+        _ = try await client.requireUserID()
+        return try await run {
+            try await client.supabase
+                .from("item_chips")
+                .select("id, week, freetext, experience_chips(id, domain, category_id, slug, label, valence)")
+                .eq("user_item_id", value: itemID.uuidString)
+                .order("created_at")
+                .execute()
+                .value
+        }
+    }
+
+    /// Takes a chip back off an item. A hard delete on purpose: unlike a shelf
+    /// entry, nothing points at an `item_chips` row, and a soft-deleted chip
+    /// would still occupy the `(user_item_id, experience_chip_id)` unique key —
+    /// so re-applying a chip you removed would conflict instead of working.
+    public func removeChip(itemID: UUID, chipID: UUID) async throws(GlossedError) {
+        _ = try await client.requireUserID()
+        try await run {
+            _ = try await client.supabase
+                .from("item_chips")
+                .delete()
+                .eq("user_item_id", value: itemID.uuidString)
+                .eq("experience_chip_id", value: chipID.uuidString)
+                .execute()
+        }
+    }
+
+    /// The item's free-text note. `nil` clears it, and clearing has to actually
+    /// reach the database as a null — see `NoteUpdate` for why that needs an
+    /// explicit encoder.
+    public func updateNote(itemID: UUID, to note: String?) async throws(GlossedError) {
+        _ = try await client.requireUserID()
+        let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        // An all-whitespace note is a cleared note, not a note made of spaces.
+        let normalized = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        try await run {
+            _ = try await client.supabase
+                .from("user_items")
+                .update(NoteUpdate(note: normalized))
+                .eq("id", value: itemID.uuidString)
+                .execute()
+        }
+    }
+
+    /// The item's pre-ranking like signal, or nil when it has never been set.
+    ///
+    /// Reads `user_items` directly rather than the shelf view: `like_state` is
+    /// not among the view's columns, and appending it is a migration this call
+    /// deliberately does not require. A missing row and a null column both come
+    /// back nil — the sheet treats them the same way, as "no answer yet".
+    public func likeState(itemID: UUID) async throws(GlossedError) -> LikeState? {
+        _ = try await client.requireUserID()
+        let rows: [LikeStateRow] = try await run {
+            try await client.supabase
+                .from("user_items")
+                .select("like_state")
+                .eq("id", value: itemID.uuidString)
+                .execute()
+                .value
+        }
+        return rows.first?.likeState
+    }
+
+    /// Sets the pre-ranking like signal. `nil` clears it back to no answer,
+    /// which is a different fact from `.neutral` — one is "never asked", the
+    /// other is "asked, and they shrugged".
+    public func updateLikeState(itemID: UUID, to state: LikeState?) async throws(GlossedError) {
+        _ = try await client.requireUserID()
+        try await run {
+            _ = try await client.supabase
+                .from("user_items")
+                .update(LikeStateUpdate(likeState: state?.rawValue))
+                .eq("id", value: itemID.uuidString)
+                .execute()
+        }
+    }
+
     /// Soft delete — a shelf entry other rows point at is never hard-deleted.
     public func remove(itemID: UUID) async throws(GlossedError) {
         _ = try await client.requireUserID()
@@ -192,52 +275,5 @@ public struct LogDraft: Sendable {
             note: note,
             clientID: clientID.uuidString
         )
-    }
-}
-
-struct LogRow: Encodable, Sendable {
-    let userID: String
-    let variantID: String
-    let status: String
-    let startedOn: String?
-    let note: String?
-    let clientID: String
-
-    enum CodingKeys: String, CodingKey {
-        case status, note
-        case userID = "user_id"
-        case variantID = "variant_id"
-        case startedOn = "started_on"
-        case clientID = "client_id"
-    }
-}
-
-struct ItemChipRow: Encodable, Sendable {
-    let userID: String
-    let userItemID: String
-    let experienceChipID: String
-    let week: Int?
-
-    enum CodingKeys: String, CodingKey {
-        case week
-        case userID = "user_id"
-        case userItemID = "user_item_id"
-        case experienceChipID = "experience_chip_id"
-    }
-}
-
-struct FitOnlyRow: Decodable, Sendable {
-    let fit: Fit
-}
-
-struct CaptureFitParams: Encodable, Sendable {
-    let userItemID: String
-    let fits: [String]
-    let season: String?
-
-    enum CodingKeys: String, CodingKey {
-        case userItemID = "p_user_item_id"
-        case fits = "p_fits"
-        case season = "p_season"
     }
 }

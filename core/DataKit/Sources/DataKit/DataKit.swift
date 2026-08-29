@@ -120,6 +120,36 @@ public actor GlossedClient {
         }
     }
 
+    /// Same transport as `invokeEdgeFunction`, but hands back the response body
+    /// as raw bytes — for functions whose ANSWER is the point rather than the
+    /// side effect (GLO-93's catalog enrichment: you call it to get a product
+    /// back, not to record that you asked).
+    ///
+    /// `Data` and not a decoded type on purpose. DataKit stays ignorant of
+    /// payload shapes — the body goes out opaque and comes back opaque, and the
+    /// feature that knows what the function returns owns the decoding. The SDK
+    /// offers a `Decodable` overload; taking it would drag every upstream
+    /// response shape through the frozen core and make each new function a core
+    /// opening.
+    ///
+    /// A distinct NAME rather than an overload on the return type: with both
+    /// spelled `invokeEdgeFunction`, a call whose result is discarded resolves
+    /// by inference, and the compiler would quietly pick for you at every call
+    /// site. Non-2xx and relay failures throw, mapped like every other call.
+    public func invokeEdgeFunctionForData(_ name: String, jsonBody: Data) async throws(GlossedError) -> Data {
+        do {
+            return try await client.functions.invoke(
+                name,
+                options: FunctionInvokeOptions(
+                    headers: ["Content-Type": "application/json"],
+                    body: jsonBody
+                )
+            ) { data, _ in data }
+        } catch {
+            throw GlossedError.from(error)
+        }
+    }
+
     /// Auth state for the app shell to observe: emits on sign-in, sign-out,
     /// and token refresh.
     public nonisolated func authStates() -> AsyncStream<AuthState> {
