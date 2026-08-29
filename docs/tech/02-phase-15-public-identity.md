@@ -580,10 +580,14 @@ language sql stable security definer set search_path = public as $$ ... $$;
 - Filters read the *viewer's own* profile for defaults; the filter values themselves are Regulated and must not ride in the `routine_browsed` event beyond `filter_kind`.
 - Owner must be `discoverable` — browse is a surfacing surface, and §1.3's asymmetry applies to it exactly as it does to suggestions.
 
-**Trending** — ownership/log velocity over a trailing window, overall and per skin type, rendered as cutout stickers. Aggregate, so it reads the identifier-free `agg_*` tables (0004), never `user_items` directly.
+**Trending** — ownership/log velocity over a trailing window, overall and per skin type, rendered as cutout stickers. Aggregate, so the client read path touches only identifier-free rows, never `user_items` directly.
+
+> **Corrected in build (0030, GLO-127).** This section originally said trending reads `agg_*` from 0004. It cannot: `agg_variant_stats.owners` is a cumulative count with no time dimension, and velocity is a derivative — there is no window to take. 0030 adds `agg_trending` (variant × skin-type cohort × `n_logs` × `window_days`) and `refresh_trending()`. The rule this section was protecting is intact — `trending()` reads only the aggregate; the refresh job reads `user_items` because that is what an aggregate is, and it is service-role only. Separately: `agg_variant_stats` turns out to have no writer at all (`BACKLOG.md`), which is a Phase-1 gap.
 
 - **Min-n applies and is rendered, not hidden**: a row below the threshold says "not enough yet · k of N" the way the leaderboard does (`tech/01` §3), rather than vanishing.
-- The window and the per-skin-type threshold are **numbers to tune with real data** — they join `docs/BACKLOG.md`'s "Aggregate min-n per surface" row rather than being invented here.
+- The window and the per-skin-type threshold are **numbers to tune with real data**. 0030 ships them as `trending_window_days()` = 30 and `min_n_trending()` = 5 — constant functions, the auditable-threshold pattern from ADR 0006, chosen so tuning is one line rather than a grep. Both remain untuned and both are flagged as provisional in `COMMENT ON` and in `docs/BACKLOG.md`.
+- `want_to_try` is excluded from the count: §4 asks for *ownership* velocity, and Sean's Aug 29 ruling keeps `want_to_try` unpublished. A wishlist-velocity surface would be a different feature wearing this one's name.
+- Minors' logs **are** counted, deliberately. The minors lock is about attribution; an unattributed "37 people in 30 days" attributes nothing, which is the same reason `agg_variant_stats` counts them. If that ever changes it changes for every aggregate at once.
 - Trending is *products*, not people. Nothing in it is scope-gated, because nothing in it is attributed.
 
 ---
