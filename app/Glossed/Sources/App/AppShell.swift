@@ -24,6 +24,11 @@ struct AppShell: View {
     @State private var tab = ShellTab.shelf
     @State private var drawerOpen = false
     @State private var ladderOpen = false
+    /// Regenerated every time the drawer opens the ladder: the cover keeps
+    /// its content's identity across presentations, so without this a second
+    /// "add a product" resumes the first trip — stale query, stale rung, and
+    /// a reused log idempotency key across two distinct intentions (GLO-96).
+    @State private var ladderTrip = UUID()
     /// One line naming the ticket for a drawer option that is not built yet.
     @State private var notice: String?
     /// The row the ladder just wrote, held until the cover dismisses — asking
@@ -197,6 +202,7 @@ struct AppShell: View {
                     tint: .mint
                 ) {
                     drawerOpen = false
+                    ladderTrip = UUID()
                     ladderOpen = true
                 },
                 .init(
@@ -265,6 +271,8 @@ struct AppShell: View {
             // Search rows and the variant sheet compose real cutout URLs
             // from this — the same base the shelf reads with (GLO-83).
             .environment(\.catalogImageBase, session.imageBase)
+            // One trip per presentation — see `ladderTrip`.
+            .id(ladderTrip)
         }
     }
 }
