@@ -26,6 +26,8 @@ packages:
     path: features/ProductPage
   Import:
     path: features/Import
+  Privacy:
+    path: features/Privacy
 targets:
   Glossed:
     type: application
@@ -40,6 +42,7 @@ targets:
       - package: Shelf
       - package: ProductPage
       - package: Import
+      - package: Privacy
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.glossed.app

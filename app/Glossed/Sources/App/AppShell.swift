@@ -23,6 +23,7 @@ struct AppShell: View {
     /// the shelf is the honest landing.
     @State private var tab = ShellTab.shelf
     @State private var drawerOpen = false
+    @State var privacyOpen = false
     @State private var ladderOpen = false
     /// Regenerated every time the drawer opens the ladder: the cover keeps
     /// its content's identity across presentations, so without this a second
@@ -122,6 +123,7 @@ struct AppShell: View {
             }
         }
         .animation(Tokens.Motion.pop(Tokens.Motion.med), value: drawerOpen)
+        .privacySheet(isPresented: $privacyOpen, client: session.client)
         .fullScreenCover(isPresented: $ladderOpen, onDismiss: askFitIfAnchor) {
             ladderFlow
         }
@@ -178,13 +180,13 @@ struct AppShell: View {
         case .discover:
             unbuiltTab("discover", ticket: "GLO-20", line: "picked for you, from your anchor")
         case .you:
-            unbuiltTab("you", ticket: "GLO-21", line: "profile · collections · settings")
+            youTab
         }
     }
 
     /// An unbuilt tab names its ticket. The tab exists because the nav is the
     /// kit's; the screen does not, and pretending otherwise helps nobody.
-    private func unbuiltTab(_ name: String, ticket: String, line: String) -> some View {
+    func unbuiltTab(_ name: String, ticket: String, line: String) -> some View {
         VStack(spacing: Tokens.Space.s2) {
             Text(name).font(Typography.display(30)).foregroundStyle(Tokens.Ink.primary)
             Text(line).meta()
