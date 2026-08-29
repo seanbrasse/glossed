@@ -87,16 +87,16 @@ public final class VariantPickModel {
 }
 
 extension Variant {
-    /// The shade-or-size line — "joy · 7.5ml", "150ml". The client-side twin
-    /// of the database's `variant_label()` (migration 0007): same separator,
-    /// same trailing-zero trim, so a sheet row and a shelf row agree.
-    ///
-    /// Known gap, stated: `variant_label()` also renders `strength_pct`
-    /// ("10% · 30ml") and `Variant` does not decode that column — a DataKit
-    /// opening tracked on GLO-56. One catalog row is affected today.
+    /// The shade-strength-size line — "joy · 7.5ml", "10% · 30ml", "150ml".
+    /// The client-side twin of the database's `variant_label()` (migration
+    /// 0007): same field order, same separator, same trailing-zero trim, so
+    /// a sheet row and a shelf row agree. The strength gap this used to
+    /// state is closed — `Variant.strengthPct` decodes since the session-7
+    /// opening (#147, GLO-56).
     public var pickLabel: String? {
+        let strength = strengthPct.map { Variant.trimmed($0) + "%" }
         let size = sizeML.map { Variant.trimmed($0) + "ml" }
-        let parts = [shadeCode, size].compactMap(\.self)
+        let parts = [shadeCode, strength, size].compactMap(\.self)
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
