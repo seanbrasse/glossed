@@ -137,6 +137,10 @@ const STORES: Record<string, string> = {
   "respire.co": "respire",
   "fmillerskincare.com": "f. miller",
   "helloklean.com": "hello klean",
+  // Re-probed Aug 29 at Sean's drugstore ask: the one open storefront in
+  // that tier (elf/maybelline/nyx/LRP/cetaphil are corporate platforms —
+  // recorded closed on GLO-99; that tier is Beauty API / feeds work).
+  "revlon.com": "revlon",
 };
 
 /// product_type (lowercased) → our category slug. Only what we can place —
