@@ -1,6 +1,7 @@
 import AddLadder
 import DataKit
 import DesignSystem
+import Privacy
 import Shelf
 import SwiftUI
 
@@ -23,6 +24,7 @@ struct AppShell: View {
     /// the shelf is the honest landing.
     @State private var tab = ShellTab.shelf
     @State private var drawerOpen = false
+    @State private var privacyOpen = false
     @State private var ladderOpen = false
     /// Regenerated every time the drawer opens the ladder: the cover keeps
     /// its content's identity across presentations, so without this a second
@@ -122,6 +124,11 @@ struct AppShell: View {
             }
         }
         .animation(Tokens.Motion.pop(Tokens.Motion.med), value: drawerOpen)
+        .sheet(isPresented: $privacyOpen) {
+            if let client = session.client {
+                PrivacyView(store: .live(PrivacyRepository(client: client)))
+            }
+        }
         .fullScreenCover(isPresented: $ladderOpen, onDismiss: askFitIfAnchor) {
             ladderFlow
         }
@@ -178,7 +185,16 @@ struct AppShell: View {
         case .discover:
             unbuiltTab("discover", ticket: "GLO-20", line: "picked for you, from your anchor")
         case .you:
-            unbuiltTab("you", ticket: "GLO-21", line: "profile · collections · settings")
+            // The profile itself is GLO-21 and unbuilt. Privacy (GLO-119) is
+            // built, so it gets a door rather than waiting for the room — an
+            // unreachable screen is a screen nobody can check.
+            VStack(spacing: Tokens.Space.s4) {
+                unbuiltTab("you", ticket: "GLO-21", line: "profile · collections · settings")
+                if session.client != nil {
+                    Button("privacy") { privacyOpen = true }
+                        .buttonStyle(.glossed(.secondary))
+                }
+            }
         }
     }
 
