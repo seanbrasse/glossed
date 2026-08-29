@@ -42,6 +42,12 @@ struct AppShell: View {
     /// than in `Shelf` because a feature cannot import another feature: the
     /// shelf hands the tap up, and the app owns the crossing.
     @State var openProduct: ShelfItem?
+    /// A discover row opening as a page (GLO-20). Distinct from
+    /// `openProduct` because there is no ShelfItem — the fit control stays
+    /// read-only via the nil `userItemID`, exactly the case ProductPageItem
+    /// documented before this path existed.
+    @State var openCatalogPage: CatalogPage?
+    @State var catalogVariantChoice: CatalogVariantChoice?
     /// Non-nil while the fit prompt is up: the shelf row it writes to.
     @State private var fitPromptItemID: UUID?
 
