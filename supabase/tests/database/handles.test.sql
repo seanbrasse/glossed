@@ -119,8 +119,13 @@ select is((select count(*)::int from handles where user_id = :'maya'), 0,
     'juli cannot read maya''s handle row directly — the public path is GLO-121''s RPC');
 select is((select count(*)::int from public_texts where user_id = :'maya'), 0,
     'juli cannot read maya''s text');
-select is((select count(*)::int from reserved_handles), 0,
-    'reserved_handles is unreadable by clients — enumerating it is a gift to squatters');
+-- Before 0024 this was a count returning 0 (privilege held, RLS filtered it
+-- away). After 0024 authenticated holds NO privilege, so it RAISES instead.
+-- That is a strictly better failure mode — denied at the privilege layer rather
+-- than the policy layer — and the assertion has to match reality, not the
+-- reverse. Asserting a count here would now be asserting the weaker guarantee.
+select throws_ok($$ select count(*) from reserved_handles $$, '42501', null,
+    'reserved_handles is DENIED to clients at the privilege layer, not merely filtered by RLS — enumerating it is a gift to squatters');
 
 -- ---------------------------------------------------------------------------
 -- Badges default off. They are the only path Regulated data reaches a human.
