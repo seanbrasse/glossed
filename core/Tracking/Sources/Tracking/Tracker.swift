@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 // The client half of tech/06 §2: a buffered queue in front of an injected
 // transport. The rules, verbatim from the spec, each carried by a test:
@@ -44,6 +45,19 @@ public protocol EventPosting: Sendable {
     func post(_ batch: [QueuedEvent]) async throws
 }
 
+/// What a dropped batch tells whoever is watching: how many events died and
+/// what killed them. Never the events themselves — a drop notice is a
+/// diagnostic, and props can carry regulated data (domain.md §5).
+public typealias DropObserver = @Sendable (Int, any Error) -> Void
+
+/// The reason a batch died when nothing threw: the queue filled and the
+/// oldest events made way. It is not a transport failure, but it is a drop,
+/// and a counter that omitted it would lie by exactly the omission this
+/// ticket is about.
+public struct TrackerOverCapacity: Error, Equatable, Sendable {
+    public let cap: Int
+}
+
 /// The `track()` wrapper. An actor: events arrive from any screen.
 public actor Tracker {
     /// Above this the queue flushes itself rather than waiting for the app
@@ -54,14 +68,49 @@ public actor Tracker {
     /// behavior is worth more than a backlog nobody could deliver.
     public static let capacity = 500
 
+    /// The default voice for a dropped batch (GLO-147): a line in the unified
+    /// log in DEBUG, and nothing whatsoever in release. The drop is correct —
+    /// the silence around it is not: without a word, a drive cannot tell
+    /// working instrumentation from instrumentation that is stone dead, and
+    /// driving is how we find defects.
+    ///
+    /// `Logger` and not `print` for one reason, learned the hard way: `print`
+    /// goes to stdout, which is only visible if the app was launched with
+    /// `simctl launch --console`, and the project's own launch recipe does
+    /// not. A signal a driver cannot reach is the bug this ticket is about
+    /// wearing a different coat. This one shows up in
+    /// `xcrun simctl spawn <udid> log stream --predicate
+    /// 'subsystem == "com.glossed.tracking"'` however the app was started.
+    ///
+    /// `String(describing:)` and not `localizedDescription`, also learned by
+    /// looking: an `Error` with no `LocalizedError` conformance renders as
+    /// "The operation couldn't be completed. (DataKit.GlossedError error 1.)",
+    /// which names neither the status nor the endpoint. A reason a driver
+    /// cannot read is the same defect this ticket is about. Only the
+    /// transport's error is ever printed — never an event or its props, which
+    /// can carry regulated data (domain.md §5).
+    public static let logDropObserver: DropObserver = { count, error in
+        #if DEBUG
+            let reason = String(describing: error)
+            Logger(subsystem: "com.glossed.tracking", category: "drops")
+                .error("analytics dropped \(count, privacy: .public) event(s): \(reason, privacy: .public)")
+        #endif
+    }
+
     private let poster: EventPosting
     private let screenProvider: @Sendable () -> String?
+    private let onDrop: DropObserver
     private var queue: [QueuedEvent] = []
     private var isFlushing = false
 
-    public init(poster: EventPosting, screen: @escaping @Sendable () -> String? = { nil }) {
+    public init(
+        poster: EventPosting,
+        screen: @escaping @Sendable () -> String? = { nil },
+        onDrop: @escaping DropObserver = Tracker.logDropObserver
+    ) {
         self.poster = poster
         screenProvider = screen
+        self.onDrop = onDrop
     }
 
     /// The one call sites make. Never throws, never blocks the caller on IO.
@@ -74,7 +123,10 @@ public actor Tracker {
             occurredAt: occurredAt
         ))
         if queue.count > Tracker.capacity {
-            queue.removeFirst(queue.count - Tracker.capacity)
+            let shed = queue.count - Tracker.capacity
+            queue.removeFirst(shed)
+            droppedCount += shed
+            onDrop(shed, TrackerOverCapacity(cap: Tracker.capacity))
         }
         if queue.count >= Tracker.flushThreshold {
             Task { await flush() }
@@ -96,7 +148,12 @@ public actor Tracker {
             try await poster.post(batch)
         } catch {
             // Dropped, deliberately. Not re-queued: a dead endpoint would grow
-            // the queue until the cap ate the *newest* session's events.
+            // the queue until the cap ate the *newest* session's events. Said
+            // out loud, though (GLO-147) — a silent drop is indistinguishable
+            // from working instrumentation, and the observer costs nothing in
+            // release.
+            droppedCount += batch.count
+            onDrop(batch.count, error)
         }
     }
 
@@ -104,4 +161,9 @@ public actor Tracker {
     public var pendingCount: Int {
         queue.count
     }
+
+    /// How many events this tracker has thrown away, cumulative. The number a
+    /// drive can check when it wants to know whether "no events" means the
+    /// code is wrong or the endpoint is simply not there.
+    public private(set) var droppedCount = 0
 }
