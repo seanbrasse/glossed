@@ -30,8 +30,11 @@ extension ShelfRepository: ItemLogging {}
 /// duplicate.
 public struct CreateRung: Sendable {
     public enum Outcome: Sendable, Equatable {
-        /// Both writes landed; the ladder can resolve.
-        case shelved(CreatedProduct)
+        /// Both writes landed; the ladder can resolve. The shelf row rides
+        /// along because the fit prompt (GLO-16) is keyed by it — a log that
+        /// discards its row forces whoever asks "did it fit?" to re-query for
+        /// a fact this call just held.
+        case shelved(CreatedProduct, UserItem)
         /// The product exists, the shelf row does not. The caller keeps the
         /// product and retries the log alone — never the create.
         case createdButNotShelved(CreatedProduct, GlossedError)
@@ -64,8 +67,8 @@ public struct CreateRung: Sendable {
             try await catalog.createPersonalProduct(draft)
         }
         do {
-            _ = try await shelf.log(LogDraft(variantID: created.variantID, clientID: clientID))
-            return .shelved(created)
+            let item = try await shelf.log(LogDraft(variantID: created.variantID, clientID: clientID))
+            return .shelved(created, item)
         } catch {
             return .createdButNotShelved(created, error)
         }

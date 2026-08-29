@@ -37,6 +37,10 @@ public final class CreateRungModel {
     public private(set) var isWorking = false
     public private(set) var failure: GlossedError?
 
+    /// The shelf row the create door wrote, kept for the host: the fit prompt
+    /// needs its id, and by resolution time the write that returned it is over.
+    public private(set) var loggedItem: UserItem?
+
     /// A create that landed while its shelf log did not (the GLO-15 quiet
     /// failure). Held so a retry resumes at the log instead of creating twice.
     private var createdButNotShelved: CreatedProduct?
@@ -132,9 +136,10 @@ public final class CreateRungModel {
         )
         do {
             switch try await rung.createAndLog(draft, resuming: createdButNotShelved, clientID: logClientID) {
-            case let .shelved(created):
+            case let .shelved(created, item):
                 failure = nil
                 createdButNotShelved = nil
+                loggedItem = item
                 ladder.created(productID: created.productID)
                 // Fired on the write landing, not the tap — an event is a
                 // fact. Created products are personal scope by construction.

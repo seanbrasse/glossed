@@ -80,8 +80,8 @@ private struct StubShelf: ItemLogging {
 
     func log(_ draft: LogDraft) async throws(GlossedError) -> UserItem {
         try await probe.recordLog(draft)
-        // The model never reads the returned row; a decoded fixture would be
-        // testing the fixture.
+        // The model keeps this row (the fit prompt is keyed by it), so the
+        // stub's row carries the draft's variant — the one fact a test reads.
         let raw = Data("""
         {"id":"\(UUID().uuidString)","user_id":"\(UUID().uuidString)",
          "variant_id":"\(draft.variantID.uuidString)","status":"own",
@@ -193,6 +193,8 @@ private func probeAndFilledModel(
     #expect(live.ladder.rung == .confirm)
     #expect(live.ladder.resolution == .created(productID: probe.created.productID))
     #expect(live.confirmedMeta?.variant == "joy · 2.5ml mini")
+    // The shelf row survives the write — the host's fit prompt is keyed by it.
+    #expect(live.loggedItem?.variantID == probe.created.variantID)
 }
 
 @MainActor
@@ -273,12 +275,14 @@ private func probeAndFilledModel(
 
     #expect(live.failure != nil)
     #expect(live.ladder.resolution == nil)
+    #expect(live.loggedItem == nil, "no shelf row landed, so none to prompt about")
     #expect(await probe.createdDrafts.count == 1)
 
     await probe.set(failLog: false)
     await live.create()
 
     #expect(live.ladder.rung == .confirm)
+    #expect(live.loggedItem != nil)
     #expect(await probe.createdDrafts.count == 1)
     let logs = await probe.loggedDrafts
     #expect(logs.count == 1)
