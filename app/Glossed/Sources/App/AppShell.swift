@@ -264,6 +264,11 @@ struct AppShell: View {
                 catalog: CatalogRepository(client: client),
                 shelf: ShelfRepository(client: client),
                 tracker: session.tracker,
+                // GLO-93: a scanned miss asks the catalog-fill function
+                // before the ladder falls through. The function itself
+                // fails closed (no key, exhausted budget, unreachable all
+                // answer "nothing to add"), so wiring it is unconditional.
+                fill: BarcodeFillService(client: client),
                 onClose: { ladderOpen = false },
                 onShelfChanged: { session.refreshShelf() },
                 onLogged: { pendingLog = $0 }

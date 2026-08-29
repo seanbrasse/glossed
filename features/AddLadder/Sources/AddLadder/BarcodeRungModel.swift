@@ -46,10 +46,23 @@ public final class BarcodeRungModel {
     /// this every frame would fire another lookup.
     private var handled: String?
     private let rung: BarcodeRung
+    /// GLO-93's courtesy: nil means the fill is not wired (fixture states,
+    /// no key deployed), and the rung behaves exactly as it always has.
+    private let fill: (any BarcodeFilling)?
 
-    public init(catalog: any VariantLookup, availability: ScannerAvailability = .ready) {
+    /// What the fill said about the scanned code, for the create rung to
+    /// pre-fill from. Nil whenever the fill was not wired, not reached, or
+    /// had nothing — the create rung's own fields are the fallback.
+    public private(set) var suggestion: BarcodeFillSuggestion?
+
+    public init(
+        catalog: any VariantLookup,
+        availability: ScannerAvailability = .ready,
+        fill: (any BarcodeFilling)? = nil
+    ) {
         rung = BarcodeRung(catalog: catalog)
         self.availability = availability
+        self.fill = fill
         ladder = Ladder(entry: .barcode)
         message = availability == .ready ? nil : availability.explanation
     }
@@ -89,7 +102,21 @@ public final class BarcodeRungModel {
                 message = nil
                 ladder.matched(variantID: variant.id)
             case let .unknownCode(gtin):
-                message = "not in the catalog yet — noted"
+                // The catalog missed; ask the fill before moving on. Awaited
+                // rather than fired-and-forgotten: the create rung two rungs
+                // down needs the answer, and the call is one budgeted lookup
+                // against a function that fails closed (GLO-93).
+                suggestion = await fill?.suggestion(gtin: gtin)
+                if let name = suggestion?.name, ladder.query.isEmpty {
+                    // Ride the existing seam: `query` is already carried to
+                    // the create rung as its pre-filled name. A scan-entered
+                    // ladder has no query of its own, and a query the user
+                    // actually typed always outranks a suggestion.
+                    ladder.refine(query: name)
+                }
+                message = suggestion?.found == true
+                    ? "found it — details carried forward"
+                    : "not in the catalog yet — noted"
                 ladder.scanMissed(gtin: gtin)
             case .misread:
                 // Not a miss and not a match, so nothing is recorded and the
