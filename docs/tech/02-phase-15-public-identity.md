@@ -812,7 +812,27 @@ This is the grid that keeps the logic from forking, and it tests the schema rath
 
 Every PR is ≤5 files / ≤400 lines unless it says otherwise. **Two PRs need the migration slot, and the slot is a global lock across every session** — 25.1 and 25.2 are strictly sequential, and each is a separate acquisition. That is a scheduling cost, stated here rather than discovered later.
 
-Swift PRs follow the pattern this codebase has proven twice (`ShelfFitStore`, `ShelfChipStore`): a **feature-side closure seam** first, so the model and the screen are fully testable and drivable in picker states with `core/DataKit` untouched, and live wiring becomes one `repository(_:)` factory when the core opens. No 1.5 PR assumes a DataKit opening; where one would help, the ticket says so as an ask, not a dependency.
+Swift PRs follow the pattern this codebase has proven twice (`ShelfFitStore`, `ShelfChipStore`): a **feature-side closure seam** first, so the model and the screen are fully testable and drivable in picker states with `core/DataKit` untouched, and live wiring becomes one `repository(_:)` factory once the core supplies the call. No 1.5 PR *builds* against a DataKit opening — but every one of them eventually *wires* against one, and that bill is itemised below rather than discovered per-ticket.
+
+### 10.1 The Phase-1.5 DataKit opening bundle
+
+`core/DataKit` opened once already (#192 — chips, notes, like state, and `invokeEdgeFunctionForData`). That does **not** cover 1.5, and the reason is structural: **every RPC in DataKit is a bespoke, typed repository method** — `search_catalog`, `near_matches`, `capture_fit` — and there is no generic `rpc(name:params:)` on the public surface. That is deliberate (`DataKit.swift`: "every query in the app goes through DataKit's repositories, so there is exactly one place session handling can be got wrong"), and it means a new RPC is a new method, every time.
+
+1.5 introduces roughly **nineteen calls that do not exist**, across four new repository files:
+
+| Repository | Calls | For |
+|---|---|---|
+| `PrivacyRepository` | `scopes()` · `setScope(surface:to:)` · `setAllScopes(to:)` · `setDiscoverable(_:)` | GLO-25 5/5 |
+| `SocialRepository` | `claimHandle(_:)` · `myHandle()` · `publicProfile(handle:)` · `follow` / `unfollow` · `suggestedPeople(limit:)` · `badges()` / `setBadge(_:to:)` · `block` / `unblock` / `blockedUsers()` · `mute` / `unmute` · `report(...)` · `setPublicText(kind:subjectID:body:)` | GLO-27, GLO-31 |
+| `BrowseRepository` | `browseRoutines(...)` · `trending(...)` | GLO-28 |
+| `SwatchRepository` | `swatches(variantID:)` · `postSwatch(...)` · `mySwatches()` | GLO-29 |
+
+Two things follow, and both are cheaper to know now than to hit later:
+
+- **The upload half is already open.** `invokeEdgeFunctionForData` (#192) is exactly what GLO-29's presign call needs — swatch upload needs no new opening, only the swatch *rows* do.
+- **This is a bigger ask than Phase 1's opening bundle**, which was four chip calls plus `like_state` plus one invoke. Openings are per-session authorizations, so nineteen methods across four files wants to be **one deliberate bundle**, sized and approved in advance — not nineteen separate asks discovered one screen at a time. `docs/HANDOFF.md` §8 already carries "planned against a core that couldn't supply" as a scar; this section exists so 1.5 does not re-earn it.
+
+The seam-first pattern still holds and is still the right first move: it keeps each Swift PR small, testable, and mergeable while the bundle is being negotiated. It just is not a substitute for the bundle.
 
 ### GLO-25 — privacy scope matrix + `can_view` (the gate) · 5 PRs
 
@@ -904,6 +924,7 @@ Acceptance: a report survives the deletion of its subject's account with persona
 | 6 | **`want_to_try` is never published** (§2.1). | Publishing a wishlist is a disclosure nobody requested; a user who wants to share one publishes a collection. |
 | 7 | **The migration slot, twice.** 25.1 and 25.2 are sequential acquisitions of a global lock. | Sean declined the slot the night this was written. Nothing in 1.5 starts until it opens. |
 | 8 | **Trending window + per-skin-type min-n.** Not invented here; they join `BACKLOG.md`'s open-numbers list. | Phase 1's data is what tunes them, and it now exists. |
+| 9 | **The 1.5 DataKit opening bundle** — ~19 methods across four new repository files (§10.1). | Openings are per-session authorizations. Nineteen methods wants one sized, approved bundle, not nineteen asks found one screen at a time. |
 
 ---
 
