@@ -18,11 +18,33 @@ public enum ShelfSizeClass: CaseIterable, Sendable {
     case small, medium, large
 
     /// Drawn height, in `ProductMock`'s scale units. Inside the kit's band.
+    ///
+    /// Capped so nothing can reach the category label (GLO-149, Sean's call:
+    /// words above the images, images kept to a size that cannot overlap
+    /// them). The three were 44 / 60 / 78, which put a `large` item's top 1pt
+    /// below the bay's own top and straight through the label.
+    ///
+    /// Three constraints meet in these numbers and only one of them is the
+    /// label, which is why they are not a simple scale-down:
+    ///
+    /// 1. **The label band.** Nothing may draw taller than what the bay has
+    ///    left once the words have their room — `ShelfBayView.itemHeightCap`.
+    /// 2. **The packing floor.** A `small` item's slot is its drawn width,
+    ///    `height × 0.8`. Shrink it and compacts pack the same number per bay
+    ///    as tubes do — a size class that still exists in the type system and
+    ///    no longer exists on screen. An existing test caught exactly this on
+    ///    the first attempt at the cap; it puts `small` above 40.3.
+    /// 3. **The kit's 1.5× distinction.** `large` reads as more than half
+    ///    again the height of `small`, so it must clear 63.
+    ///
+    /// 42 / 54 / 66 is the smallest set satisfying all three, which is what
+    /// keeps the bay's growth to 5pt instead of the ~19 that reserving the
+    /// band without a cap would have cost. A test holds each constraint.
     public var height: CGFloat {
         switch self {
-        case .small: 44
-        case .medium: 60
-        case .large: 78
+        case .small: 42
+        case .medium: 54
+        case .large: 66
         }
     }
 

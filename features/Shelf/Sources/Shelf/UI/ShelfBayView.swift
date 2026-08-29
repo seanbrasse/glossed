@@ -69,7 +69,7 @@ public struct ShelfBayView: View {
         static let uprightTopInset: CGFloat = 8
         static let uprightBottomInset: CGFloat = 10
 
-        static let bayMinHeight: CGFloat = 82
+        static let bayMinHeight: CGFloat = 87
         static let bayHorizontalPadding: CGFloat = 14
         static let bayBottomPadding: CGFloat = 3
         static let itemGap: CGFloat = 10
@@ -82,6 +82,9 @@ public struct ShelfBayView: View {
 
         static let labelLeading: CGFloat = 34
         static let labelTop: CGFloat = 3
+        /// The band the label owns at the top of every bay (GLO-149). Sized to
+        /// the chip — 10.5pt mono plus its padding — with air under it.
+        static let labelBand: CGFloat = 18
 
         /// The kit's five tilts. Nothing on a real shelf is perfectly straight.
         static let tilts: [Double] = [-2, 1.5, -1, 2, -1.5]
@@ -140,7 +143,16 @@ public struct ShelfBayView: View {
             // already spans the padded width and overlaps both uprights.
             .padding(.horizontal, Frame.bayHorizontalPadding)
             .padding(.bottom, Frame.bayBottomPadding)
-            .frame(maxWidth: .infinity, minHeight: Frame.bayMinHeight, alignment: .bottomLeading)
+            // The band the label owns, taken out of the bay rather than added
+            // to it: the bay is the height it always was, and the items are
+            // capped to what is left. Growing the bay instead would have cost
+            // roughly one shelf per screen.
+            .frame(
+                maxWidth: .infinity,
+                minHeight: Frame.bayMinHeight - Frame.labelBand,
+                alignment: .bottomLeading
+            )
+            .padding(.top, Frame.labelBand)
 
             ground
             Color.clear.frame(height: Frame.gapBetweenBays)
@@ -210,6 +222,14 @@ public struct ShelfBayView: View {
         }
         .accessibilityHidden(true)
     }
+
+    /// The tallest anything on a shelf may draw: what is left of the bay once
+    /// the label has its band and the items have their footing. Nothing reads
+    /// this at render time — `ShelfSizeClass.height` carries the real numbers,
+    /// because the drawn height is also the packing width's input and both
+    /// have to be constants. This is the number those must not exceed, and a
+    /// test says so out loud (GLO-149).
+    static let itemHeightCap: CGFloat = Frame.bayMinHeight - Frame.labelBand - Frame.bayBottomPadding
 
     /// Which way this object leans.
     ///
