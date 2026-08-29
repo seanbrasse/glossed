@@ -6,10 +6,12 @@ Where Phase 1 stands, what to do next, and what this session learned. Read
 **Two lanes ran concurrently all session and both merged into main.** This
 file is written by the **Phase-1 journal lane** (shelf, sheet, product page,
 ladder, the state sweep). The **Phase-1.5 lane** landed migrations 0033–0040,
-five DataKit repositories, and `docs/tech/07`; its two PRs are still open
-([#259](https://github.com/seanbrasse/glossed/pull/259),
-[#261](https://github.com/seanbrasse/glossed/pull/261)) and **are not this
-lane's to merge or speak for**. Where a number below belongs to them it says so.
+five DataKit repositories, `docs/tech/07`, and — while this very file sat in
+review — the privacy screen ([#259](https://github.com/seanbrasse/glossed/pull/259))
+and the discover opening ([#261](https://github.com/seanbrasse/glossed/pull/261)).
+Their [#263](https://github.com/seanbrasse/glossed/pull/263) is still open and is
+**not this lane's to merge or speak for**. Where a number below belongs to them it
+says so.
 
 ## 0. Read this first
 
@@ -62,6 +64,17 @@ survives. Confirm the iOS job actually queued before walking away. **A
 docs-only PR skipping iOS is correct, not the bug** — the discriminator is
 whether the PR touches `.swift` files, so check the file list, not the badge.
 
+**A FULL DISK takes your shell away entirely, and it is what wedges Docker.**
+This happened on Aug 29: the volume hit zero free bytes, and the Bash tool
+stopped running *any* command — it must create an output file before it runs,
+so even `rm -rf .build` returned `ENOSPC` instead of freeing the space. There
+is no working around it from inside the session; a human has to clear the
+volume. The same event left the Docker daemon split-brain (the db container
+`healthy` per `ps`, `not running` per `exec`) and cost the other lane a
+restart. **Check `df -h /` before a long build, and treat SwiftPM `.build`
+directories across worktrees as the first thing to delete** — they are
+regenerable and they are what fills it.
+
 **Docker/colima can wedge under heavy image i/o, and the daemon then holds
 CONTRADICTORY state** — `docker ps` said healthy while `inspect` said exited,
 with i/o errors on the container's own metadata files. Trust neither, check
@@ -69,7 +82,9 @@ both; `colima restart` is the remedy when metadata i/o fails (volumes
 survived; rule out disk-full first — it was 11%). After ANY killed queue
 consumer: jobs it claimed stay orphaned as `running` — requeue them, and
 crash-window `failed` rows with attempts=1 are infra casualties identifiable
-by timestamp, also requeue.
+by timestamp, also requeue. **Confirmed live on Aug 29** — the disk-full event
+above reproduced the split-brain exactly as described, which is the first time
+this note has caught its own case rather than described a past one.
 
 **Never `--delete-branch` in merge automation** (killed #159 through a reused
 watcher script). Delete branches only after a stack fully lands, by hand.
@@ -131,22 +146,25 @@ aggregate writers, the discover read path), five DataKit repositories
 |---|---|
 | Schema | **40 migration files; 29 applied to the local DB (§0).** 0033–0040 landed this stretch, all but 0033 by the 1.5 lane. The slot is theirs — route DDL through them, do not open a second migration PR. **Hosted was not checked by this session**; the 1.5 lane applies there and is the authority on it |
 | Catalog data | **3,206 products / 9,019 variants / 7,625 images / 497 brands / 22 categories**, local-only; **2,112 pending merge_candidates**, image queue ZERO. (Counted just now against the local DB.) Every image meets the standard (OBF's 588 sub-800px purged, GLO-104). Search knows what things ARE: product_type/tags/origin live on 1,836+ rows. Restore recipe: §9 — now SEVEN scripts. Maya's shelf carries drive-drift rows — fine for dev; a pgTAP run wants a reset + ping |
-| `core/DataKit` | **Frozen. This lane needed no opening at all.** 79 tests — up from 44 because the 1.5 lane spent its own opening on four new repositories |
+| `core/DataKit` | **Frozen. This lane needed no opening at all.** **83 tests** — up from 44 because the 1.5 lane spent its own openings on five repositories plus the discover models |
 | `core/DesignSystem` | + `YesNoControl` (a question you can leave unanswered — `Segmented` always has one option selected, which is right for a status and wrong for a question), scaling `ProductSticker`. 42 tests |
 | `core/Tracking` | track() real, and **a dropped batch now says so** — `os.Logger` on `com.glossed.tracking` in DEBUG, plus `droppedCount` (GLO-147). 15 tests |
 | `features/Shelf` | + fit gated on tried (GLO-145), live chip + note store (GLO-16), "would you buy it again?" (GLO-87), a bounded scrolling sheet (GLO-160), the label band and scale-down (GLO-149/155), four named empty states (GLO-166). 133 tests |
 | `features/ProductPage` | + the catalog image (GLO-153), and the fit answer now persists and is offered only where a `userItemID` exists to persist it to (GLO-47/165). 20 tests |
 | `features/AddLadder` | + GLO-93's scan-miss fill (`BarcodeFilling`/`BarcodeFillSuggestion` live HERE, not in DataKit), the 40-shade fixture and its cap guard (GLO-168). 108 tests |
+| `features/Privacy` | **New, and the ninth package** — landed by the 1.5 lane in #259 after this handoff was first written. Four surfaces, one derived summary. 11 tests |
 | `features/Ranking` / `features/Import` | Untouched this stretch. 29 / 12 tests |
 | `app/` | Tracker wiring, fit-at-log seam + FitPromptCard (the prompt lives HERE, not in Shelf), catalogImageBase, and `AppShellProductPage` — closing the page re-opens the sheet so it re-reads `item_fits` |
 | `web/landing/` | Static landing page for the affiliate applications. On main, NOT deployed (§7) |
 | `scripts/` | shopify_import, obf_import (+ `--brands`), shopify_images, catalog_images, obf_requalify, brand_merge, merge_feeder, **inci_enrich** (new, GLO-170) |
 | `supabase/functions` | **7 functions, 82 deno tests, all passing, none deployed**; nothing serves them by default and the silence is dangerous (§0) |
 
-**Verified totals, session 11 (every command actually run just now on main at
-`69cd9e6`): 438 Swift tests across 8 packages** — DataKit 79, DesignSystem 42,
-Tracking 15, Shelf 133, AddLadder 108, Ranking 29, ProductPage 20, Import 12 —
-**plus 82 deno.** **pgTAP was NOT run and this file quotes no number for it**
+**Verified totals, session 11 (every command actually run): 453 Swift tests
+across 9 packages** — DataKit 83, DesignSystem 42, Tracking 15, Shelf 133,
+AddLadder 108, Ranking 29, ProductPage 20, Import 12, **Privacy 11** — **plus
+82 deno.** The first eight were counted on `69cd9e6`; DataKit and Privacy were
+re-counted after #259 and #261 landed mid-review. **Nine, not eight** — if you
+copy the sweep loop from §9, copy the current one. **pgTAP was NOT run and this file quotes no number for it**
 (§0: the local DB is 11 migrations behind, so any result would be drift).
 `core/Media` is NOT among the packages: it is named in both CLAUDE.md files but
 **has never existed** ([GLO-148](https://linear.app/glossed/issue/GLO-148)).
@@ -431,7 +449,16 @@ accessibility drive and an error. *The stale `.build` scar recurred* —
 .build` and its 108 tests passed. *And a rebase conflicted with my own
 already-merged doc PR* — the cheap move is `git rebase --abort`, re-branch off
 current main, and reapply; resolving a conflict against yourself is slower and
-riskier than redoing a small edit.
+riskier than redoing a small edit. *And this handoff grew a stale row inside
+fifteen minutes.* Between writing it and its PR going green, the 1.5 lane
+landed two PRs, one of which added a **ninth Swift package** — so §2's table,
+§9's sweep loop and the header's "their PRs are still open" were all wrong
+before anyone read them. The loop in §9 would have skipped `features/Privacy`
+in silence, which is the §8 scar from session 9 recurring against the very
+document that records it. **A handoff written while other lanes are merging is
+stale on arrival: re-check its counts at merge time, not just at write time**,
+and give any enumerating loop an explicit "MISSING" branch so the next drift
+announces itself.
 
 ## 9. Local setup
 
@@ -439,8 +466,10 @@ riskier than redoing a small edit.
 make setup && make dev
 # the full sweep (§5) — run ALL of these, not just the package you touched:
 for p in core/DataKit core/DesignSystem core/Tracking features/Shelf \
-         features/AddLadder features/Ranking features/ProductPage features/Import; do
-  (cd $p && swift test)   # 438 total; rm -rf .build first if a package "won't compile" (§8)
+         features/AddLadder features/Ranking features/ProductPage \
+         features/Import features/Privacy; do
+  [ -d "$p" ] || { echo "MISSING: $p"; continue; }   # never skip silently (§8)
+  (cd $p && swift test)   # 453 total; rm -rf .build first if a package "won't compile" (§8)
 done
 make functions-test       # 82 deno tests
 # supabase test db        # DO NOT trust the result until you reset (§0): the local
