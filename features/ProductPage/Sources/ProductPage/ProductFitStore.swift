@@ -56,6 +56,13 @@ public struct ProductFitStore: Sendable {
         )
     }
 
+    /// A store for the debug picker: records nothing, returns nothing, and
+    /// exists so a fixture state can still show the fit block now that the
+    /// block is gated on being answerable (GLO-165). Not `nil`, because nil
+    /// is how the real app says "this page cannot save" — a fixture is not
+    /// making that claim, it is just not wired to a database.
+    public static let picker = ProductFitStore(load: { _ in [] }, save: { _, _ in })
+
     /// The control's vocabulary as the column stores it. Case by case, so a
     /// new `fit_enum` value is a compile error here rather than an answer that
     /// silently never persists.

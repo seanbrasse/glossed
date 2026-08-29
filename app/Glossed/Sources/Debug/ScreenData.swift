@@ -235,7 +235,8 @@
             packaging: .compact,
             isAnchor: true,
             rank: 2,
-            rankedInCategory: 5
+            rankedInCategory: 5,
+            userItemID: UUID() // GLO-165: the fit block needs an answerable row
         )
 
         /// Not an anchor, so no fit block and no confidence meter — the shape of

@@ -35,7 +35,13 @@ public struct ProductPageView: View {
                     .underline()
                 hero
                 evidenceCard
-                if model.product.isAnchor {
+                // Anchor *and* answerable (GLO-165). The control shipped
+                // visible whenever the category was an anchor, so on a page
+                // with no shelf row behind it the answer moved on screen and
+                // was never written — a fake write, which is what GLO-72 and
+                // GLO-151 exist to prevent. `canCaptureFit` was already on the
+                // model and already tested; the view simply never read it.
+                if model.product.isAnchor, model.canCaptureFit {
                     fitBlock
                 }
                 actions
