@@ -394,6 +394,10 @@ Three consequences for 1.5 code, all of them reviewable:
 - **The moderation Edge Functions (§7) must not log their payloads.** A bio going to a moderation model is Confidential text in transit; a `console.log(payload)` in a Deno function puts it in the Supabase log, which is the same disclosure as a Sentry breadcrumb wearing a different hat. Log the decision and the content hash, never the content.
 - **Sentry breadcrumbs**: no screen that renders a profile, a badge, or a swatch may attach its model to a breadcrumb. Identifiers only, as everywhere else.
 
+**Before relying on any of these, know that an event firing is currently unfalsifiable while driving.** [GLO-147](https://linear.app/glossed/issue/GLO-147): `track_ingest` returns 503 when nothing is serving functions locally, the `Tracker` then drops the batch **by design** (analytics must never cost UX — `tech/06` §2), and the drop is silent everywhere. A drive looks identical whether instrumentation works or is entirely dead.
+
+Several 1.5 tickets carry acceptance criteria of the form *"`scope_changed` fires with `via_master`"*. **Those cannot be checked by driving alone.** Verifying an event in 1.5 means: a session-scoped `supabase functions serve` running (announced like a simulator borrow, output never `/dev/null`'d — `HANDOFF.md` §0), then a psql check that the row landed in `events`. Ticking the box off a drive alone proves nothing in either direction.
+
 New 1.5 events, extending `tech/06` §3's "Phase 1.5+ additions" with their exact props:
 
 | Event | Props | Reads |
