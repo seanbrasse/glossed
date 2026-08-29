@@ -28,6 +28,13 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const CONTAINER = Deno.env.get("GLOSSED_DB_CONTAINER") ?? "supabase_db_glossed";
 const BUCKET = "catalog";
 const MAX_DIMENSION = 512;
+/// GLO-104 (Sean's ruling, Aug 29): OBF images only when they meet the
+/// standard. OBF is user photos; the cheap honest proxy for "packshot, not
+/// phone snap" is source resolution — under this floor the drawn mock is
+/// better than the photo. Shopify sources are studio packshots and skip
+/// the gate.
+const OBF_HOST = "https://images.openbeautyfacts.org/";
+const OBF_MIN_SOURCE_SIDE = 800;
 const TOOL = "scripts/CatalogCutout/.build/release/CatalogCutout";
 
 if (!SERVICE_KEY) {
@@ -149,6 +156,27 @@ async function process(job: Job, scratch: string): Promise<boolean> {
     return false;
   }
   await Deno.writeFile(raw, new Uint8Array(await response.arrayBuffer()));
+
+  if (job.url.startsWith(OBF_HOST)) {
+    const probe = await new Deno.Command("sips", {
+      args: ["-g", "pixelWidth", "-g", "pixelHeight", raw],
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    const text = new TextDecoder().decode(probe.stdout);
+    const w = Number(text.match(/pixelWidth: (\d+)/)?.[1] ?? 0);
+    const h = Number(text.match(/pixelHeight: (\d+)/)?.[1] ?? 0);
+    if (Math.min(w, h) < OBF_MIN_SOURCE_SIDE) {
+      // Dead, not failed: the source is the problem, and a re-run should
+      // skip it until a better photo exists (same shape as person-in-frame).
+      await psql(`
+update ingest_jobs set state = 'dead',
+       last_error = 'OBF source ${w}x${h} under the ${OBF_MIN_SOURCE_SIDE}px standard (GLO-104)',
+       updated_at = now()
+ where id = '${job.id}';`);
+      return false;
+    }
+  }
 
   const tool = await new Deno.Command(TOOL, {
     args: [raw, cut, String(MAX_DIMENSION)],
