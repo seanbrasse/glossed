@@ -57,7 +57,24 @@ Convention: `object_action` lowercase snake, past tense; props are ids + enums o
 | `restricted_action_blocked` | surface, action (photo_post/contact_sync/…) | how many minors hit which gates, how often — the "limited functionality" experience, measured |
 
 ### Phase 1.5+ additions
-`scope_changed` (surface, from, to, via_master) · `profile_published` · `follow_added` · `swatch_posted` · `link_card_opened` (server-side) · `report_filed` — plus Phase 2: `look_posted`, `comment_posted`, `feed_session` (depth as *count of taps*, not dwell), `gap_card_{shown,accepted,dismissed}` (reason — the learning loop), `stylist_query` (tools_used, answered bool).
+Full table with props in `tech/02` §2.3, which is the source of truth for 1.5; this list must not drift from it.
+
+| Event | Props | Reads |
+|---|---|---|
+| `scope_changed` | surface, from, to, via_master | how the matrix is really used; whether the master is the actual control |
+| `discoverable_toggled` | to | the one asymmetry's uptake |
+| `handle_claimed` | — (**no handle text**) | publish funnel step 1 |
+| `profile_published` | surfaces_public (count) | conversion into public identity |
+| `follow_added` / `follow_removed` | followed_id | graph growth and churn |
+| `suggestion_shown` / `suggestion_tapped` | reason_kind (anchor/fit/domain) | whether *named* reasons beat unnamed ones |
+| `routine_browsed` | slot, filter_kind | filter usage — `filter_kind`, never the filter's value |
+| `swatch_posted` | variant_id, state | post rate; pending→public latency |
+| `swatch_reported` / `report_filed` | subject_kind, reason | moderation load |
+| `link_card_opened` | target_kind, resolved | server-side; CTR |
+
+Phase 2 adds: `look_posted`, `comment_posted`, `feed_session` (depth as *count of taps*, not dwell), `gap_card_{shown,accepted,dismissed}` (reason — the learning loop), `stylist_query` (tools_used, answered bool).
+
+**Structural note (1.5).** `tech/02` §2.3 adds `events_no_regulated_props`, a CHECK on `events` rejecting free-text and identity prop keys (`bio`, `handle`, `display_name`, `phone`, `email`, `birthday`, `age`) and body facts `user_facts` already holds (`tone_band`, `skin_type`, `hair_pattern`, `concerns`, `anchor_shade`). It deliberately does **not** ban `fit` / `fits`: §1's posture is about egress, and Phase 1's own `onb_anchor_captured` and `fit_captured` carry them into our own Postgres by design.
 
 ### Age bracket: rules of use
 

@@ -357,13 +357,23 @@ alter table events add constraint events_no_regulated_props check (
     not (props ?| array[
         'tone_band', 'tone_band_at_capture', 'skin_type', 'hair_pattern', 'concerns',
         'birth_year_month', 'birthday', 'age', 'phone', 'email',
-        'bio', 'handle', 'display_name', 'anchor_shade', 'fit', 'fits'
+        'bio', 'handle', 'display_name', 'anchor_shade'
     ]));
 ```
 
 Add it `not valid` and `validate constraint` in a second statement when this reaches hosted: the local `events` table already carries rows from Phase 1's tracking work, and a validating `ALTER` takes an `ACCESS EXCLUSIVE` lock while it scans every partition. The constraint binds new writes either way.
 
-Note what that list does *not* contain: `variant_id`, `category_id`, `user_id`, `followed_id`, `surface`, `scope`. Identifiers are the allowed currency. The analysis that wants "swatches posted, by tone band" runs `events ⋈ user_facts` inside our own Postgres — the join `tech/06` §1 exists to keep local.
+**The boundary this encodes is egress, not storage** — and getting that backwards is why an earlier draft of this list was wrong. `domain.md` §5's rule is that Regulated data never reaches *a log, an analytics prop sent outward, a breadcrumb, or a vendor*. It is not a rule against our own Postgres: `user_facts` (0011) deliberately stores `tone_band`, `skin_type` and `hair_pattern` precisely so the `events ⋈ user_facts` join stays in-house (`tech/06` §1).
+
+So the list bans two things and not a third:
+
+- **Free text and direct identity** — `bio`, `handle`, `display_name`, `phone`, `email`, `birthday`, `age`. These have no analytical use and every one of them is a disclosure if a prop ever reaches a log line.
+- **Body facts that `user_facts` already holds** — `tone_band`, `skin_type`, `hair_pattern`, `concerns`, `anchor_shade`, `tone_band_at_capture`. Duplicating them into `props` buys nothing the join does not already give, and doubles the surface that has to stay in-house.
+- **Not `fit` / `fits`.** An earlier draft banned these, which would have been a latent break: `Event.swift` already declares `onbAnchorCaptured(…, fit:)` → `"fit"` and `fitCaptured(fits:)` → `"fits"`. Neither has a call site *yet*, so the constraint would have passed CI, passed review, and then failed the day someone wired the fit events under a Phase-1 ticket — with an error pointing at a 1.5 migration. Fit is Regulated and stays in-house like the rest; it is not banned from `props`.
+
+Note what the list also does not contain: `variant_id`, `category_id`, `user_id`, `followed_id`, `surface`, `scope`. Identifiers are the allowed currency.
+
+One consequence to carry forward rather than resolve here: because `props` legitimately holds Regulated values, **`events` inherits Regulated classification for retention and deletion**, and `domain.md` §6's deletion list does not name `events` explicitly. That is a Phase-1 gap this spec surfaces but does not fix — it belongs on `BACKLOG.md`, not in a 1.5 migration.
 
 Three consequences for 1.5 code, all of them reviewable:
 
@@ -383,6 +393,7 @@ New 1.5 events, extending `tech/06` §3's "Phase 1.5+ additions" with their exac
 | `suggestion_shown` / `suggestion_tapped` | reason_kind (anchor/fit/domain) | whether named reasons beat unnamed ones |
 | `swatch_posted` | variant_id, state | post rate; pending→public latency |
 | `swatch_reported` / `report_filed` | subject_kind, reason | moderation load |
+| `routine_browsed` | slot, filter_kind | whether browse filters get used at all — `filter_kind`, never the filter's value |
 | `link_card_opened` | target_kind, resolved bool | server-side; CTR |
 | `restricted_action_blocked` | surface, action | already exists — minors hitting 1.5 gates |
 
@@ -721,7 +732,7 @@ So: **one 1.5 screen has a frame, one has a stale frame, and 32 have none.**
 
 Phase 1's isolation suite is the model: 125 assertions, pgTAP, `begin … rollback`, `test_as(uid)` setting `request.jwt.claims`. 1.5's suite extends it to **pairs** — Phase 1 only ever had to prove that nobody sees anything.
 
-**Target: ≥ 170 assertions across 7 files.** The count is a floor, not a budget.
+**Target: ≥ 171 assertions across 7 files.** The count is a floor, not a budget.
 
 **Fixtures live inside the test transaction, not in `seed.sql`.** The grid needs nine actors; the seed has two. Inserting the extra `auth.users` rows inside each test's transaction (rolled back at the end) keeps the seed unchanged — which matters, because a seed change means a `supabase db reset`, and the restore is six scripts and roughly fifty minutes on a database three sessions share.
 
@@ -795,14 +806,14 @@ All three badge flags default false (3); each badge appears only when its flag i
 
 Insert requires the variant on your own shelf (2); a minor cannot insert (1); `pending_review` is unreadable by a stranger and by a mutual (2); `public` is readable by a stranger (1); a blocked viewer cannot read a public swatch (1); `removed` is unreadable (1); the owner reads their own pending swatch (1); changing `profiles.tone_band` does not move an existing swatch's `tone_band_at_capture` (1); a report can be filed against a swatch (1).
 
-### 9.9 Grid H — the shape of the thing · 20 assertions
+### 9.9 Grid H — the shape of the thing · 21 assertions
 
 This is the grid that keeps the logic from forking, and it tests the schema rather than the data:
 
 - Every SELECT policy on the 1.5 public set either restricts to the owner or names `can_view` — a single assertion over `pg_policies.qual` that goes red the day someone hand-rolls a predicate (1).
 - No public read policy exists on `profiles`, `item_fits`, `item_chips`, or `face_offs` (4).
 - The three-argument `can_view` is not executable by `authenticated` (1); neither are `is_blocked`, `is_mutual_follow`, or `is_minor_user` (3).
-- `events_no_regulated_props` rejects an insert carrying each of `tone_band`, `skin_type`, `hair_pattern`, `bio`, `fit` (5).
+- `events_no_regulated_props` rejects an insert carrying each of `tone_band`, `skin_type`, `hair_pattern`, `bio`, `display_name` (5) — **and accepts one carrying `fit` and `fits`**, which is the assertion that stops the ban list creeping back over Phase-1's own events (1).
 - A fresh `privacy_scopes` row defaults to `just_you` on all four surfaces and `discoverable = false` (5).
 - `collection_is_visible` refuses in the same three cases and the same order as `can_view` — owner, block, minor (1).
 
@@ -931,7 +942,7 @@ Acceptance: a report survives the deletion of its subject's account with persona
 ## 12. Definition of done
 
 - [ ] Scope matrix live, RLS enforced by `can_view()`, and grid H proving no policy forks the logic
-- [ ] Viewer-pair suite at ≥170 assertions, green, with the Phase-1 125 untouched
+- [ ] Viewer-pair suite at ≥171 assertions, green, with the Phase-1 125 untouched
 - [ ] Minors locked private on the read path, the write path, and the graph
 - [ ] Handles, public profiles, following, suggested people with named reasons and their n
 - [ ] Routines browse; trending with min-n rendered rather than hidden

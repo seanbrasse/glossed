@@ -16,6 +16,7 @@ Running log of known-open work and decisions deferred on purpose. Anything here 
 - [ ] Trending window length + per-skin-type min-n (Phase 1.5). `tech/02` §4 leaves both open on purpose; Phase-1 log velocity is what sizes them.
 - [ ] Shrinkage constant k≈10 in Stage-1 recs. `tech/01` §8.
 - [ ] Dedupe auto-band confidence thresholds (watch merge-queue depth). `tech/01` §4.
+- [ ] **`events` is not named in the deletion list.** `props` legitimately carries Regulated values (`fit`/`fits` on Phase-1's own events, in-house by design), so `events` inherits Regulated classification — but `domain.md` §6's account-deletion list does not mention it. Surfaced while writing `tech/02` §2.3; a Phase-1 gap, not a 1.5 one, and not fixable inside a 1.5 migration.
 - [ ] Capture-guide friction vs cutout quality (PRD §19.19) — instrument `cutout_captured` retake rate first.
 
 ## Open — blocked on Sean (Phase 1.5 entry)
