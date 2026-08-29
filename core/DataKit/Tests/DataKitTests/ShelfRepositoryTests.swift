@@ -129,3 +129,103 @@ import Testing
     #expect(json["p_user_item_id"] as? String == "50000000-0000-0000-0000-000000000021")
     #expect(json["p_fits"] as? [String] == ["too_light", "too_pink"])
 }
+
+// MARK: - The GLO-16 / GLO-87 opening (chips, notes, like state)
+
+@Test func clearingANoteEncodesAnExplicitNullRatherThanDroppingTheKey() throws {
+    // The trap this guards: Swift synthesizes `encodeIfPresent` for optional
+    // properties, so a synthesized encoder emits `{}` for a nil note. PostgREST
+    // treats a PATCH with no keys as a successful no-op — the request returns
+    // 2xx, every layer above reports success, and the note is still there.
+    let cleared = try JSONSerialization.jsonObject(
+        with: JSONEncoder().encode(NoteUpdate(note: nil))
+    ) as? [String: Any]
+    #expect(cleared?.keys.contains("note") == true)
+    #expect(cleared?["note"] is NSNull)
+
+    let set = try JSONSerialization.jsonObject(
+        with: JSONEncoder().encode(NoteUpdate(note: "smells like pennies"))
+    ) as? [String: Any]
+    #expect(set?["note"] as? String == "smells like pennies")
+}
+
+@Test func clearingLikeStateEncodesAnExplicitNullAndTheColumnName() throws {
+    let cleared = try JSONSerialization.jsonObject(
+        with: JSONEncoder().encode(LikeStateUpdate(likeState: nil))
+    ) as? [String: Any]
+    #expect(cleared?.keys.contains("like_state") == true)
+    #expect(cleared?["like_state"] is NSNull)
+
+    let disliked = try JSONSerialization.jsonObject(
+        with: JSONEncoder().encode(LikeStateUpdate(likeState: LikeState.disliked.rawValue))
+    ) as? [String: Any]
+    #expect(disliked?["like_state"] as? Int == -1)
+}
+
+@Test func likeStateRawValuesMatchTheColumnsCheckConstraint() {
+    // `like_state smallint check (like_state between -1 and 1)` — 0002. A case
+    // added with any other raw value would fail at write time, not compile time.
+    #expect(LikeState.allCases.map(\.rawValue).sorted() == [-1, 0, 1])
+}
+
+@Test func aMissingLikeStateDecodesAsNoAnswerRatherThanNeutral() throws {
+    // Never-asked and asked-and-shrugged are different facts, and the column is
+    // nullable precisely so they stay different.
+    let unanswered = try JSONDecoder().decode(LikeStateRow.self, from: Data(#"{"like_state":null}"#.utf8))
+    #expect(unanswered.likeState == nil)
+
+    let shrugged = try JSONDecoder().decode(LikeStateRow.self, from: Data(#"{"like_state":0}"#.utf8))
+    #expect(shrugged.likeState == .neutral)
+}
+
+@Test func appliedChipDecodesThePostgrestEmbeddedResourceShape() throws {
+    // The embedded row arrives under the joined TABLE's name, not the property's
+    // — if `chips(itemID:)`'s select list and this key ever drift, the sheet
+    // comes back empty rather than wrong, which is the failure hardest to spot.
+    let json = Data("""
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "week": 3,
+      "freetext": null,
+      "experience_chips": {
+        "id": "22222222-2222-2222-2222-222222222222",
+        "domain": "skincare",
+        "category_id": null,
+        "slug": "broke-me-out",
+        "label": "broke me out",
+        "valence": "dislike"
+      }
+    }
+    """.utf8)
+
+    let applied = try JSONDecoder().decode(AppliedChip.self, from: json)
+    #expect(applied.week == 3)
+    #expect(applied.freetext == nil)
+    #expect(applied.chip.slug == "broke-me-out")
+    #expect(applied.chip.valence == .dislike)
+    #expect(applied.chip.domain == .skincare)
+    // Null category_id is the domain-wide chip — not a decode failure.
+    #expect(applied.chip.categoryID == nil)
+}
+
+@Test func experienceChipDecodesACategoryScopedRow() throws {
+    let json = Data("""
+    {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "domain": "makeup",
+      "category_id": "44444444-4444-4444-4444-444444444444",
+      "slug": "oxidized",
+      "label": "oxidized",
+      "valence": "dislike"
+    }
+    """.utf8)
+
+    let chip = try JSONDecoder().decode(ExperienceChip.self, from: json)
+    #expect(chip.categoryID?.uuidString == "44444444-4444-4444-4444-444444444444")
+    #expect(chip.label == "oxidized")
+}
+
+@Test func chipValenceCoversExactlyWhatTheEnumTypeDeclares() {
+    // `create type chip_valence as enum ('like', 'dislike')` — 0001.
+    #expect(Set(ChipValence.allCases.map(\.rawValue)) == ["like", "dislike"])
+}

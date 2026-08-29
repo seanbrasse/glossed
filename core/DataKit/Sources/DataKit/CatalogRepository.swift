@@ -119,6 +119,29 @@ public struct CatalogRepository: Sendable {
         }
     }
 
+    /// The experience-chip vocabulary a user picks from. Reference data, so it
+    /// sits here beside `categories(domain:)` rather than on the shelf: the
+    /// list is the same for everyone, and only the *applying* is personal.
+    ///
+    /// A chip with a null `category_id` applies to its whole domain; a non-null
+    /// one narrows to a single category. Passing `categoryID` returns both —
+    /// the domain-wide chips AND that category's own — because a foundation
+    /// should offer "broke me out" as well as "oxidized", and filtering to an
+    /// exact category match would silently drop the general half.
+    public func chipVocabulary(
+        domain: Domain? = nil,
+        categoryID: UUID? = nil
+    ) async throws(GlossedError) -> [ExperienceChip] {
+        try await run {
+            let table = client.supabase.from("experience_chips").select()
+            let byDomain = domain.map { table.eq("domain", value: $0.rawValue) } ?? table
+            let scoped = categoryID.map {
+                byDomain.or("category_id.is.null,category_id.eq.\($0.uuidString)")
+            } ?? byDomain
+            return try await scoped.order("label").execute().value
+        }
+    }
+
     /// Every empty search names exactly which product is missing, weighted by
     /// demand — the highest-value catalog signal we will ever have (tech/01 §4).
     public func recordFailedSearch(_ query: String, domain: Domain?) async {
