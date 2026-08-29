@@ -45,6 +45,7 @@
             CreateRungEntry.confirmed,
             VariantPickEntry.shades,
             VariantPickEntry.soleVariant,
+            VariantPickEntry.manyShades,
             VariantPickEntry.loadFailed,
             VariantPickEntry.noVariants,
             ProductEntries.backed,

@@ -34,6 +34,24 @@
             sheet(variants: [stubVariant(sizeML: 150)])
         }
 
+        /// The state GLO-88 was found in, and the one the picker never had.
+        ///
+        /// Forty shades is not a stress test — `pro filt'r` ships fifty. The
+        /// sheet grew past the screen here and took the confirm with it, which
+        /// is a pick you can start and never finish. GLO-110's acceptance
+        /// criteria ask for exactly this fixture; without it the regression is
+        /// only reachable by finding a real forty-shade product.
+        static let manyShades = ScreenEntry(
+            id: "variant-sheet-40",
+            title: "logging sheet · forty shades",
+            note: "GLO-88's own case: the list scrolls inside a capped viewport and the sheet "
+                + "stops growing — the confirm has to stay reachable at any shade count"
+        ) {
+            sheet(variants: (1 ... 40).map { index in
+                stubVariant(shade: "\(100 + index * 5)", hex: "#C89A6E", sizeML: 32)
+            })
+        }
+
         static let loadFailed = ScreenEntry(
             id: "variant-sheet-failed",
             title: "logging sheet · variants didn't load",
