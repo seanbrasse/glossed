@@ -4,7 +4,7 @@ Running log of known-open work and decisions deferred on purpose. Anything here 
 
 ## Open — specs to write later
 
-- [ ] **Phase 1.5 build-ready spec** — full DDL, screen inventory (design kit only covers the privacy frames today), viewer-pair RLS test grid, ticket breakdown. Write at phase entry, informed by Phase-1 data. (`tech/02` currently pins architecture + hard rules only.)
+- [x] **Phase 1.5 build-ready spec** — written ([GLO-114](https://linear.app/glossed/issue/GLO-114)). `tech/02` now carries full DDL, the 34-row screen inventory, the ≥170-assertion viewer-pair grid, and the PR plan behind GLO-25/27–31. Two things it deliberately did not decide are now open rows below: the share domain and frames for 1.5.
 - [ ] **Phase 2 build-ready spec** — same treatment; moderation stack needs vendor selection (cloud image moderation, text moderation) + cost quotes before entry. Design kit needs looks/feed/comments coverage beyond the one Feed frame.
 - [ ] **Phase 3 build-ready spec** — same; neighbor-pipeline offline-eval harness design; push-notification infra detail (APNs setup runbook).
 - [ ] **Phase 4** — remains outline-by-design until scale/funding exists.
@@ -13,9 +13,17 @@ Running log of known-open work and decisions deferred on purpose. Anything here 
 
 - [ ] Onboarding payoff evidence threshold (currently n ≥ 8 for the exact shade — a chosen starting point, not validated). `tech/01` §2.
 - [ ] Aggregate min-n per surface (leaderboard face-off min is 5 per design; other aggregate views need their own thresholds). `tech/01` §1.3.
+- [ ] Trending window length + per-skin-type min-n (Phase 1.5). `tech/02` §4 leaves both open on purpose; Phase-1 log velocity is what sizes them.
 - [ ] Shrinkage constant k≈10 in Stage-1 recs. `tech/01` §8.
 - [ ] Dedupe auto-band confidence thresholds (watch merge-queue depth). `tech/01` §4.
+- [ ] **`events` is not named in the deletion list.** `props` legitimately carries Regulated values (`fit`/`fits` on Phase-1's own events, in-house by design), so `events` inherits Regulated classification — but `domain.md` §6's account-deletion list does not mention it. Surfaced while writing `tech/02` §2.3; a Phase-1 gap, not a 1.5 one, and not fixable inside a 1.5 migration.
 - [ ] Capture-guide friction vs cutout quality (PRD §19.19) — instrument `cutout_captured` retake rate first.
+
+## Open — blocked on Sean (Phase 1.5 entry)
+
+- [ ] **The share domain.** `glossed.app` is taken (GLO-89's finding). `glossed.beauty` ($1.99/yr) and `getglossed.app` ($9.99/yr) were available at check time. [GLO-30](https://linear.app/glossed/issue/GLO-30) cannot start without it, and minted share URLs are irreversible — `tech/02` §6.1.
+- [ ] **The Phase-1.5 DataKit opening bundle** — ~19 methods across four new repository files (`PrivacyRepository`, `SocialRepository`, `BrowseRepository`, `SwatchRepository`). Every DataKit RPC is a bespoke typed method by design, so each 1.5 RPC is a new one. Openings are per-session authorizations — this wants one sized bundle, not nineteen asks. `tech/02` §10.1.
+- [ ] **Frames for Phase 1.5.** 32 of 34 screens have no kit frame; the one that exists (`G.Privacy`) is missing the `discoverable` row. Supply frames, or extend Phase 1's no-frames ruling (GLO-16, Aug 28) to 1.5 — `tech/02` §8.
 
 ## Open — infrastructure & process
 
@@ -26,6 +34,7 @@ Running log of known-open work and decisions deferred on purpose. Anything here 
 - [ ] Fork the Greenfield Handbook into `docs/HANDBOOK.md`, fill the project card, delete non-applying sections.
 - [ ] `docs/runbook.md` — deploy, rollback, restore drill steps, common failures, NCMEC runbook (draft due in Phase 1.5).
 - [ ] Root + per-directory agent instruction files (CLAUDE.md tree) once code exists; DataKit + migrations marked do-not-touch.
+- [ ] **Moderation queue UI decision point** — v0 is Supabase Studio only (`tech/02` §7), with GLO-31 5/5's runbook as the interface. Revisit when working the queue costs more than ~an hour a week, or when more than one person reviews. Same shape as the analytics-UI row below, and the same rule: build the surface when the manual path hurts, not before.
 - [ ] Analytics UI decision point: revisit when weekly SQL review exceeds ~an hour or funnels need self-serve exploration — candidates + rules in `tech/06` §1. Postgres events table stays the source of truth regardless.
 - [ ] Affiliate feed publisher-account applications (Rakuten/Impact) — lead time unknown, apply early in Phase 1.
 - [ ] Licensed catalog snapshot: get quotes but do not buy until hit-rate data says to (ADR 0003).
