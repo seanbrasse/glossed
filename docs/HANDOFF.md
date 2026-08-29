@@ -15,20 +15,35 @@ says so.
 
 ## 0. Read this first
 
-**The local database is ELEVEN migrations behind the repo, and nothing warns
-you.** Verified just now: `supabase_migrations.schema_migrations` holds **29**
-rows while `supabase/migrations/` holds **40 files**. `affinity_for_user`
-(0035) exists; `refresh_agg_variant_stats` (0036), `refresh_agg_rank_scores`
-(0038) and `discover_feed` (0040) **do not**. The 1.5 lane has been applying
-DDL to *hosted* as it lands, and the local stack drifted behind.
+**`supabase_migrations.schema_migrations` UNDER-REPORTS. It says 29; the
+schema is at 40. Do not infer applied-state from that table.** Every object
+from migrations 0030–0040 is present — verified by name, all eleven at once:
 
-The consequence is precisely §5's trap wearing a new coat: **`supabase test db`
-will red, and every red will be drift rather than defect.** Do not conclude
-anything from a local pgTAP run, and do not "fix" a function that is simply
-not applied here, until you have run `supabase db reset` (ping the other
-session first — §4) and re-seeded (§9, ~50 min). This session did **not** run
-pgTAP for exactly this reason, so **there is no current local assertion count
-in this file.** Getting one is a reset, not a query.
+```
+affinity_for_user  anchor_badge  crosswalk_for_user  discover_for_user
+ensure_events_partition  payoff_for_variant  refresh_rank_scores
+refresh_shade_cooccurrence  refresh_trending  refresh_variant_stats
+suggested_people
+```
+
+The 1.5 lane applies DDL without stamping the tracking table, so the row
+count lags the schema by however much they have landed. **The local pgTAP
+baseline is therefore trustworthy: 546 assertions / 1 known failure
+(`shelf_view` 14)**, reproduced by the 1.5 lane after the Aug 29 colima
+restart and matching the pre-event run exactly.
+
+**I got this exactly backwards first, and the first version of this file
+shipped the error** — worth knowing because the mistake is cheap to repeat.
+I read `count(*) from schema_migrations` = 29 against 40 files, then probed
+`pg_proc` for `discover_feed` and `refresh_agg_variant_stats`, got zeros, and
+concluded eleven migrations were unapplied. **Both names were invented rather
+than read out of the migration files** — the real ones are
+`discover_for_user` and `refresh_variant_stats`. A wrong name in a `count(*)`
+returns 0 and reads exactly like absence. That is session 8's `queued`/
+`pending` scar in a new costume, and it turned a bookkeeping gap into a
+fabricated eleven-migration deficit that told every future session to
+distrust a good baseline and burn ~50 minutes on a reset it did not need.
+**Grep the object name out of the migration file before you query for it.**
 
 **"Verify before you file" has a second half that cost more than the first: a
 red you dismiss is a defect you own.** This stretch talked itself out of five
@@ -144,7 +159,7 @@ aggregate writers, the discover read path), five DataKit repositories
 
 | Layer | State |
 |---|---|
-| Schema | **40 migration files; 29 applied to the local DB (§0).** 0033–0040 landed this stretch, all but 0033 by the 1.5 lane. The slot is theirs — route DDL through them, do not open a second migration PR. **Hosted was not checked by this session**; the 1.5 lane applies there and is the authority on it |
+| Schema | **40 migration files, all applied locally — `schema_migrations` says 29 and is under-reporting (§0).** 0033–0040 landed this stretch, all but 0033 by the 1.5 lane. The slot is theirs — route DDL through them, do not open a second migration PR. **Hosted was not checked by this session**; the 1.5 lane applies there and is the authority on it |
 | Catalog data | **3,206 products / 9,019 variants / 7,625 images / 497 brands / 22 categories**, local-only; **2,112 pending merge_candidates**, image queue ZERO. (Counted just now against the local DB.) Every image meets the standard (OBF's 588 sub-800px purged, GLO-104). Search knows what things ARE: product_type/tags/origin live on 1,836+ rows. Restore recipe: §9 — now SEVEN scripts. Maya's shelf carries drive-drift rows — fine for dev; a pgTAP run wants a reset + ping |
 | `core/DataKit` | **Frozen. This lane needed no opening at all.** **83 tests** — up from 44 because the 1.5 lane spent its own openings on five repositories plus the discover models |
 | `core/DesignSystem` | + `YesNoControl` (a question you can leave unanswered — `Segmented` always has one option selected, which is right for a status and wrong for a question), scaling `ProductSticker`. 42 tests |
@@ -152,25 +167,34 @@ aggregate writers, the discover read path), five DataKit repositories
 | `features/Shelf` | + fit gated on tried (GLO-145), live chip + note store (GLO-16), "would you buy it again?" (GLO-87), a bounded scrolling sheet (GLO-160), the label band and scale-down (GLO-149/155), four named empty states (GLO-166). 133 tests |
 | `features/ProductPage` | + the catalog image (GLO-153), and the fit answer now persists and is offered only where a `userItemID` exists to persist it to (GLO-47/165). 20 tests |
 | `features/AddLadder` | + GLO-93's scan-miss fill (`BarcodeFilling`/`BarcodeFillSuggestion` live HERE, not in DataKit), the 40-shade fixture and its cap guard (GLO-168). 108 tests |
-| `features/Privacy` | **New, and the ninth package** — landed by the 1.5 lane in #259 after this handoff was first written. Four surfaces, one derived summary. 11 tests |
+| `features/Privacy` | Landed by the 1.5 lane in [#259](https://github.com/seanbrasse/glossed/pull/259). Four surfaces, one derived summary. 11 tests |
+| `features/Profile` | Landed by the 1.5 lane in [#265](https://github.com/seanbrasse/glossed/pull/265) — the handle claim screen. 11 tests |
+| `features/Discover` | Landed by the 1.5 lane in [#263](https://github.com/seanbrasse/glossed/pull/263) — picks, crosswalk, the wander. 5 tests |
 | `features/Ranking` / `features/Import` | Untouched this stretch. 29 / 12 tests |
 | `app/` | Tracker wiring, fit-at-log seam + FitPromptCard (the prompt lives HERE, not in Shelf), catalogImageBase, and `AppShellProductPage` — closing the page re-opens the sheet so it re-reads `item_fits` |
 | `web/landing/` | Static landing page for the affiliate applications. On main, NOT deployed (§7) |
 | `scripts/` | shopify_import, obf_import (+ `--brands`), shopify_images, catalog_images, obf_requalify, brand_merge, merge_feeder, **inci_enrich** (new, GLO-170) |
 | `supabase/functions` | **7 functions, 82 deno tests, all passing, none deployed**; nothing serves them by default and the silence is dangerous (§0) |
 
-**Verified totals, session 11 (every command actually run): 453 Swift tests
-across 9 packages** — DataKit 83, DesignSystem 42, Tracking 15, Shelf 133,
-AddLadder 108, Ranking 29, ProductPage 20, Import 12, **Privacy 11** — **plus
-82 deno.** The first eight were counted on `69cd9e6`; DataKit and Privacy were
-re-counted after #259 and #261 landed mid-review. **Nine, not eight** — if you
-copy the sweep loop from §9, copy the current one. **pgTAP was NOT run and this file quotes no number for it**
-(§0: the local DB is 11 migrations behind, so any result would be drift).
+**Verified totals — 469 Swift tests across 11 packages, all counted at
+`7114918`** (DataKit 83, DesignSystem 42, Tracking 15, Shelf 133, AddLadder
+108, Ranking 29, ProductPage 20, Import 12, Privacy 11, Profile 11, Discover
+5) — **plus 82 deno.**
+
+**Do not trust that number; re-measure it.** It went 438 → 453 → 469 and the
+package count went 8 → 9 → 11 *while this file was being written*, because
+the 1.5 lane is landing a package roughly every twenty minutes. The count is
+stamped with the commit it was taken at for exactly that reason. **§9's sweep
+loop discovers packages by glob rather than listing them** — copy that loop,
+never a list, because a list cannot notice a package that did not exist when
+it was written. **pgTAP: 546 assertions / 1 known failure (`shelf_view` 14)** — the 1.5
+lane's number, reproduced after the Aug 29 colima restart; this lane ran only
+`discover_rpcs.test.sql` (12, pass) to settle the §0 question.
 `core/Media` is NOT among the packages: it is named in both CLAUDE.md files but
 **has never existed** ([GLO-148](https://linear.app/glossed/issue/GLO-148)).
 
 The sentence that is true about all of it: **the app is live against the local
-stack only, and the local stack is now behind the repo.** Hosted has the
+stack only.** Hosted has the
 schema and no data, no functions, no storage; the catalog's future sources
 (feeds, Beauty API) are account-gated on Sean, not code-gated.
 
@@ -226,10 +250,13 @@ wrong-franchise trap is what an automatic matcher falls into), and **the OBF
 image gate** (800px source floor) is a standard, not a bug — deleting it
 re-admits phone photos.
 
-Standing, and now sharper: `supabase test db` runs against the **live local
-DB**, which is currently 11 migrations behind (§0). Reset before trusting a
-local red, **ping the other session before resetting**, and budget the restore
-(§9, seven scripts, ~50 min).
+Standing: `supabase test db` runs against the **live local DB** — there is no
+shadow database, only `postgres`. So a red can still be drive-drift from
+seeded rows someone's drive mutated. Check row timestamps and `is_seeded`
+before resetting; **ping the other session before you reset**, and budget the
+restore (§9, seven scripts, ~50 min). Current baseline: **546 assertions / 1
+known failure (`shelf_view` 14)**, held by the 1.5 lane and reproduced after
+the Aug 29 colima restart.
 
 New: **the events partitions.** Migration 0033 fixed a real leak — `anon`
 could SELECT every partition, demonstrated with `set role anon`, not inferred.
@@ -281,7 +308,7 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | The shelf is unusable at accessibility text sizes; three candidate fixes written, none picked | [GLO-172](https://linear.app/glossed/issue/GLO-172) |
 | Chips render alphabetically, so likes and dislikes interleave — a feel question for Sean | [GLO-156](https://linear.app/glossed/issue/GLO-156) |
 | The Fit ↔ FitAnswer mapping is duplicated in two features with no legal shared home | [GLO-164](https://linear.app/glossed/issue/GLO-164) |
-| The local DB is 11 migrations behind the repo; no pgTAP number is trustworthy until it is reset | §0 |
+| `schema_migrations` under-reports (29 rows, schema at 40) — cosmetic, but it reads as an eleven-migration deficit and cost this session a wrong §0 | §0 |
 | Beauty API sandbox key → function secret. Client wiring is DONE (#194); the key is all that stands between the wired path and a live drive | [GLO-93](https://linear.app/glossed/issue/GLO-93) / §7 |
 | Vercel deploy of `web/landing/` → the channel URL → GLO-90/91 applications | [GLO-89](https://linear.app/glossed/issue/GLO-89) / §7 |
 | GLO-85 queue consumer, sized for FEED-arrival (the inverted canary: 5 cross-source pairs total — OBF-drugstore and Shopify-DTC barely intersect) | [GLO-85](https://linear.app/glossed/issue/GLO-85) → GLO-14 |
@@ -458,24 +485,43 @@ in silence, which is the §8 scar from session 9 recurring against the very
 document that records it. **A handoff written while other lanes are merging is
 stale on arrival: re-check its counts at merge time, not just at write time**,
 and give any enumerating loop an explicit "MISSING" branch so the next drift
-announces itself.
+announces itself. **That remedy was wrong, and it failed within the hour.** A
+MISSING branch catches a package that was *deleted*; what actually kept
+happening was packages being *added* — Privacy, then Discover, then Profile,
+three in about an hour, taking the count 8 → 9 → 11 and the totals 438 → 453
+→ 469. No hardcoded list can notice a package that did not exist when the list
+was written. **The fix is discovery, not enumeration**: §9's loop now globs
+`core/*/` and `features/*/` and tests anything with a `Package.swift`. The
+general shape — *when a list keeps going stale, stop maintaining the list and
+derive it* — is worth more than either count.
+
+*And the stale `.build` scar recurred, now with a nameable trigger.* Four
+packages "failed to compile" against main with `cannot find type
+'DiscoverHit' in scope` — a type that plainly exists in `DataKit/Discover.swift`.
+DataKit's own tests passed at the same moment, which is the tell. `rm -rf
+.build` in the four dependents and all 469 tests pass. **The trigger is
+specific enough to predict: whenever DataKit gains a type, every dependent
+package with a warm cache will report that type as missing.** After any
+DataKit change, clean the dependents before believing a single one of them is
+broken.
 
 ## 9. Local setup
 
 ```bash
 make setup && make dev
 # the full sweep (§5) — run ALL of these, not just the package you touched:
-for p in core/DataKit core/DesignSystem core/Tracking features/Shelf \
-         features/AddLadder features/Ranking features/ProductPage \
-         features/Import features/Privacy; do
-  [ -d "$p" ] || { echo "MISSING: $p"; continue; }   # never skip silently (§8)
-  (cd $p && swift test)   # 453 total; rm -rf .build first if a package "won't compile" (§8)
+# Packages are DISCOVERED, never listed (§8): three appeared in one hour and a
+# hardcoded list cannot notice a package that did not exist when it was written.
+for p in $(ls -d core/*/ features/*/ | sed 's:/$::'); do
+  [ -f "$p/Package.swift" ] || continue
+  echo "== $p"; (cd $p && swift test)   # 469 total at 7114918
 done
 make functions-test       # 82 deno tests
-# supabase test db        # DO NOT trust the result until you reset (§0): the local
-#                         # DB is at migration 0029 and the repo is at 0040.
-docker exec supabase_db_glossed psql -U postgres -tAc \
-  "select count(*) from supabase_migrations.schema_migrations;"   # tells you how far behind
+supabase test db          # 546 assertions / 1 known failure (shelf_view 14)
+# schema_migrations UNDER-REPORTS (§0) — it says 29, the schema is at 40. To ask
+# whether a migration landed, grep its object name out of the file and look for
+# THAT, never a name you remembered:
+grep -oE "create (or replace )?function [a-z_.]+" supabase/migrations/<file>.sql
 ```
 
 **`psql` is not on this machine's PATH.** Every psql line in this file goes
