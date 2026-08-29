@@ -82,6 +82,23 @@ public struct CatalogRepository: Sendable {
         }
     }
 
+    /// The dedupe middle band's own question (0018): candidates near the
+    /// query — or near a missed scan's GS1 prefix — each carrying the reason
+    /// it qualified. Distinct from `search_catalog`: that asks "what matches",
+    /// this asks "what might she be confusing this with".
+    public func nearMatches(
+        _ query: String,
+        domain: Domain? = nil,
+        gtin: String? = nil
+    ) async throws(GlossedError) -> [NearMatch] {
+        try await run {
+            try await client.supabase
+                .rpc("near_matches", params: NearMatchParams(query: query, pDomain: domain?.rawValue, pGtin: gtin))
+                .execute()
+                .value
+        }
+    }
+
     public func variants(productID: UUID) async throws(GlossedError) -> [Variant] {
         try await run {
             try await client.supabase
@@ -137,6 +154,18 @@ public struct CatalogRepository: Sendable {
             )
         }
         return first
+    }
+
+    private struct NearMatchParams: Encodable {
+        let query: String
+        let pDomain: String?
+        let pGtin: String?
+
+        enum CodingKeys: String, CodingKey {
+            case query = "q"
+            case pDomain = "p_domain"
+            case pGtin = "p_gtin"
+        }
     }
 
     private func run<T>(_ work: () async throws -> T) async throws(GlossedError) -> T {
