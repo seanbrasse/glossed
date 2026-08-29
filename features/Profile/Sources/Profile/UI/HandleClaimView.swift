@@ -51,22 +51,8 @@ public struct HandleClaimView: View {
 
     private var field: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s2) {
-            // TWO THINGS, and the field is wrong without either.
-            //
-            // The binding normalises on SET and reads the model on GET, so
-            // SwiftUI re-reads the corrected value and the field redisplays
-            // it. Mutating `typed` inside its own `didSet` — the previous
-            // approach — updates the model but leaves TextField's internal
-            // buffer alone, so the field showed "Maya_k" while the header and
-            // the claim both said "maya_k".
-            //
-            // `.textInputAutocapitalization(.never)` stops the keyboard
-            // fighting that on every first character. It is iOS-only and this
-            // package also builds for macOS, hence the guard.
-            //
-            // Found by driving the simulator. No unit test could have seen it:
-            // the divergence was between the model and a text field's private
-            // state, and the model was correct throughout.
+            // Normalising in the binding rather than in `typed`'s didSet:
+            // mutating it there leaves TextField's own buffer stale (GLO-183).
             handleField
                 .autocorrectionDisabled()
                 .onChange(of: model.typed) { _, _ in scheduleCheck() }
@@ -77,6 +63,7 @@ public struct HandleClaimView: View {
         }
     }
 
+    /// iOS-only modifier; this package also builds for macOS.
     private var handleField: some View {
         let binding = Binding(
             get: { model.typed },
