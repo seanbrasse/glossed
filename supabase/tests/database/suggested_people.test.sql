@@ -9,7 +9,7 @@
 -- shared local database's drive state.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(23);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -166,6 +166,27 @@ select is((select count(*)::int from suggested_people()
 
 select is((select reason_kind from suggested_people() where user_id = :'juli'), 'skin_type',
     'and falls back to the weaker skin-type reason, which they DID opt into');
+
+-- Sean's ruling (GLO-167): consent AND non-disclosure, not one traded for the
+-- other. The badge is why the row exists at all; this is why the sentence does
+-- not quote their profile back at a stranger.
+select is((select reason from suggested_people() where user_id = :'juli'),
+    'similar skin to yours',
+    'the skin reason says SIMILAR, never the value');
+
+-- Runs as superuser: this joins `profiles`, and under maya's own RLS the
+-- candidate's profile row is invisible, so the join would be empty and
+-- bool_and would return null — an assertion that passes nothing and fails
+-- confusingly. auth.uid() still reads the JWT claim, so the RPC still answers
+-- as maya.
+select fixture();
+select ok(
+    (select bool_and(position(pr.skin_type in sp.reason) = 0)
+       from suggested_people() sp
+       join profiles pr on pr.user_id = sp.user_id
+      where pr.skin_type is not null),
+    'NO reason string contains any candidate''s skin-type value. Asserted against the profile row rather than against the literal "combo", so re-interpolating skin_type into the sentence fails here whatever value a fixture happens to use');
+select test_as(:'maya');
 
 select fixture();
 update profile_badges set show_skin_type = false where user_id = :'juli';
