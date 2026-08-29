@@ -23,6 +23,16 @@ public typealias LadderCatalog = CatalogSearching & NearMatching & ProductCreati
 ///   writes the row — one write path, two doors.
 /// - A *matched barcode* is an exact variant (GLO-56: "barcode skips the
 ///   pick"), so it logs directly and hands back to the host.
+/// A shelf row the flow just wrote, with the category that classifies it.
+/// `categoryID` is nil when the door could not know one — the matched-barcode
+/// path, whose bare variant lookup carries no category (the same stated gap
+/// that leaves that door eventless, GLO-80). The host uses this to decide
+/// whether the log deserves a follow-up ask (the anchor fit prompt, GLO-16).
+public struct LoggedShelfItem: Sendable, Equatable {
+    public let userItemID: UUID
+    public let categoryID: UUID?
+}
+
 public struct LadderFlowView: View {
     enum Step {
         case search(SearchRungModel)
@@ -42,6 +52,7 @@ public struct LadderFlowView: View {
     @State private var isLoggingMatch = false
     @State private var matchLogFailure: GlossedError?
     @State private var hasNotifiedShelf = false
+    @State private var hasReportedLog = false
     /// What `item_logged` needs beyond the variant id, captured at pick time —
     /// by the time the ladder resolves, the hit that supplied them is gone.
     /// Nil on the matched-barcode path: a bare variant lookup carries no
@@ -54,6 +65,9 @@ public struct LadderFlowView: View {
     private let onClose: () -> Void
     /// Something landed on the shelf — the host should reload it.
     private let onShelfChanged: () -> Void
+    /// The row that landed, once per flow — richer than `onShelfChanged`
+    /// because the host's next question (fit) is about *this* row.
+    private let onLogged: (LoggedShelfItem) -> Void
 
     public init(
         catalog: any LadderCatalog,
@@ -61,13 +75,15 @@ public struct LadderFlowView: View {
         tracker: Tracker? = nil,
         query: String = "",
         onClose: @escaping () -> Void = {},
-        onShelfChanged: @escaping () -> Void = {}
+        onShelfChanged: @escaping () -> Void = {},
+        onLogged: @escaping (LoggedShelfItem) -> Void = { _ in }
     ) {
         self.catalog = catalog
         self.shelf = shelf
         self.tracker = tracker
         self.onClose = onClose
         self.onShelfChanged = onShelfChanged
+        self.onLogged = onLogged
         _step = State(initialValue: .search(SearchRungModel(catalog: catalog, query: query)))
         _carriedQuery = State(initialValue: query)
     }
@@ -168,6 +184,9 @@ public struct LadderFlowView: View {
         case .created:
             // The create rung logged the shelf row itself and shows its own
             // confirmation; the host only passes the news along, once.
+            if case let .create(model) = step, let item = model.loggedItem {
+                reportLogged(LoggedShelfItem(userItemID: item.id, categoryID: model.pickedCategory?.id))
+            }
             notifyShelfChanged()
         }
     }
@@ -179,7 +198,7 @@ public struct LadderFlowView: View {
         Task {
             defer { isLoggingMatch = false }
             do {
-                _ = try await shelf.log(LogDraft(variantID: variantID, clientID: matchClientID))
+                let item = try await shelf.log(LogDraft(variantID: variantID, clientID: matchClientID))
                 // Fired on the write landing, not the tap — an event is a
                 // fact. Context exists only when a pick supplied it (see
                 // `matchEventContext`); the barcode door logs eventless.
@@ -191,6 +210,7 @@ public struct LadderFlowView: View {
                         scope: context.scope
                     ))
                 }
+                reportLogged(LoggedShelfItem(userItemID: item.id, categoryID: matchEventContext?.categoryID))
                 notifyShelfChanged()
                 onClose()
             } catch {
@@ -203,6 +223,14 @@ public struct LadderFlowView: View {
         guard !hasNotifiedShelf else { return }
         hasNotifiedShelf = true
         onShelfChanged()
+    }
+
+    /// Once per flow, like `notifyShelfChanged` — a re-fired resolution change
+    /// must not turn one log into two fit prompts.
+    private func reportLogged(_ logged: LoggedShelfItem) {
+        guard !hasReportedLog else { return }
+        hasReportedLog = true
+        onLogged(logged)
     }
 
     private func cancelVariantPick() {
