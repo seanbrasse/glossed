@@ -675,7 +675,15 @@ create policy reports_read_own on reports for select to authenticated
     using (reporter_id = (select auth.uid()));
 ```
 
-There is **no `reviewer` role in the database today**. Moderation v0 is Supabase Studio plus a small internal table UI, both running as `service_role` (`tech/02` §7 as originally written). Adding an `authenticated` policy for reviewers would mean adding a role, and that is a Phase-2-sized change. The `reviewer` row in `domain.md` §4's matrix is satisfied by service access until then, and this document says so rather than leaving the gap for someone to fill with a policy.
+There is **no `reviewer` role in the database today**, and 1.5 does not add one. Adding an `authenticated` reviewer policy means adding a role, and that is a Phase-2-sized change. The `reviewer` row in `domain.md` §4's matrix is satisfied by `service_role` access until then, and this document says so rather than leaving the gap for someone to fill with a policy.
+
+**Moderation v0 is Supabase Studio, and nothing else.** An earlier draft of this section said "Studio plus a small internal table UI" — that second half was an unowned deliverable: it appears in no PR plan in §10, and tracing §8's rows to their tickets is how it surfaced. Deciding rather than leaving it dangling:
+
+- The queue is **one reviewer, two content types** (swatch images, and five kinds of `public_texts`). Studio's table editor handles that volume without ceremony.
+- A bespoke internal UI is a new surface with its own auth, its own deploy target, and its own maintenance — none of which 1.5 otherwise needs, and all of which would be built for a queue that may never get deep.
+- **The runbook is the interface** (GLO-31 5/5). A documented Studio procedure someone can follow beats an undocumented custom screen, and it is the artifact Phase 2 inherits either way.
+
+The trigger for revisiting is volume, not taste: when working the queue in Studio costs more than about an hour a week, or when more than one person reviews, a purpose-built surface starts paying for itself. That is a Phase-2 signal and sits on `BACKLOG.md` accordingly.
 
 **Text moderation at write time** covers bio, handle, collection titles, routine titles, and linked socials — all five kinds of `public_texts` (§3.2), through one Edge Function calling the Claude moderation prompt. It writes `state`, `model`, `verdict`, `decided_at` and **never logs `body`** (§2.3).
 
@@ -728,7 +736,7 @@ So: **one 1.5 screen has a frame, one has a stale frame, and 32 have none.**
 | 30 | Block confirm + blocked-list management | GLO-31 | no frame |
 | 31 | Mute control | GLO-31 | no frame |
 | 32 | Linked socials edit | GLO-31 | no frame |
-| 33 | Moderation queue (internal) | GLO-31 | no frame — Studio + internal UI by design, not a designed screen |
+| 33 | Moderation queue (internal) | GLO-31 | **not a screen** — Supabase Studio only in v0 (§7); the runbook is the interface. No frame needed and none wanted. |
 | 34 | Content removed / under review | GLO-31 | no frame |
 
 **The gap inside the frame that exists.** `G.Privacy` draws the four surface rows, the master, the per-row dots and the save button — and **no `discoverable` row**. The one asymmetry this phase has to state at the toggle has nowhere to live in the frame. Row 2 is therefore a real design question, not a formality, and it sits inside the one screen everybody would assume is covered.

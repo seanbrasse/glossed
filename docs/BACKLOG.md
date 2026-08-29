@@ -34,6 +34,7 @@ Running log of known-open work and decisions deferred on purpose. Anything here 
 - [ ] Fork the Greenfield Handbook into `docs/HANDBOOK.md`, fill the project card, delete non-applying sections.
 - [ ] `docs/runbook.md` — deploy, rollback, restore drill steps, common failures, NCMEC runbook (draft due in Phase 1.5).
 - [ ] Root + per-directory agent instruction files (CLAUDE.md tree) once code exists; DataKit + migrations marked do-not-touch.
+- [ ] **Moderation queue UI decision point** — v0 is Supabase Studio only (`tech/02` §7), with GLO-31 5/5's runbook as the interface. Revisit when working the queue costs more than ~an hour a week, or when more than one person reviews. Same shape as the analytics-UI row below, and the same rule: build the surface when the manual path hurts, not before.
 - [ ] Analytics UI decision point: revisit when weekly SQL review exceeds ~an hour or funnels need self-serve exploration — candidates + rules in `tech/06` §1. Postgres events table stays the source of truth regardless.
 - [ ] Affiliate feed publisher-account applications (Rakuten/Impact) — lead time unknown, apply early in Phase 1.
 - [ ] Licensed catalog snapshot: get quotes but do not buy until hit-rate data says to (ADR 0003).
