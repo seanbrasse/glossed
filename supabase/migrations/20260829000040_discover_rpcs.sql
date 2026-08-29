@@ -210,7 +210,7 @@ owned as (
     where ui.user_id = auth.uid() and ui.deleted_at is null
 )
 select pt.anchor_id,
-       (select b2.name || ' ' || coalesce(variant_label(av.shade_code, av.size_ml, av.strength_pct), '')
+       (select trim(b2.name || ' ' || coalesce(variant_label(av.shade_code, av.size_ml, av.strength_pct), ''))
         from variants av join products ap on ap.id = av.product_id join brands b2 on b2.id = ap.brand_id
         where av.id = pt.anchor_id),
        p.id, p.name, b.name, c.id, c.slug, p.domain, p.scope,
