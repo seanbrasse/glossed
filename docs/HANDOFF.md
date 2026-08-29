@@ -1,4 +1,4 @@
-# Session handoff — Aug 29 2026 (session 7 wrap: two-session mode, both queues settled)
+# Session handoff — Aug 29 2026 (session 8: the catalog tripled, the tree grew, everything else is Sean-gated)
 
 Where Phase 1 stands, what to do next, and what this session learned. Read
 `docs/README.md` first for the design; this file is only about state.
@@ -14,68 +14,86 @@ a passed check. The routine: rebase onto the base's exact tip, retarget,
 amend must come AFTER the retarget or the stale scope decision survives.
 Confirm the iOS job actually queued before walking away.
 
-**A `supabase functions serve` may still be running with a MOCK env.** The
-barcode_fill drive ran one from the dev worktree with
-`BEAUTY_API_KEY=test-key-123` and a fake upstream base; a second serve from
-the other worktree may have raced it, and whichever bound second errored
-silently into /dev/null. Both die with their sessions — but if functions
-answer strangely, kill any serve you find and restart clean (or
-`supabase stop/start` to re-bake the runtime, which has never served
-functions on its own — the container predates them all).
+**Docker/colima can wedge under heavy image i/o, and the daemon then holds
+CONTRADICTORY state** — `docker ps` said healthy while `inspect` said
+exited, with i/o errors on the container's own metadata files. Trust
+neither, check both; `colima restart` is the remedy when metadata i/o
+fails (volumes survived; rule out disk-full first — it was 11%). After ANY
+killed queue consumer: jobs it claimed stay orphaned as `running` —
+requeue them, and crash-window `failed` rows with attempts=1 are infra
+casualties identifiable by timestamp, also requeue. (Session 8's wedge
+recovered with zero data loss on exactly this checklist.)
+
+**Nothing serves functions locally right now.** The mock-env
+`functions serve` hazard from the last handoff is moot — both instances
+died with their sessions. The edge runtime container has still NEVER
+served functions on its own; start a clean session-scoped serve when you
+need one, announce it like a simulator borrow, and never /dev/null its
+output.
 
 **Never `--delete-branch` in merge automation** (killed #159 through a
 reused watcher script). Delete branches only after a stack fully lands, by
 hand.
 
-**Authorizations are per-session and all expired with session 7.** The
-session had: self-merge on green (12 PRs merged under it in the dev
-session alone), DataKit openings (#147's updateStatus/strengthPct/
-categoryID + #152's `invokeEdgeFunction`, one extended authorization), and
-Sean rulings recorded on tickets (GLO-80 categoryID, GLO-72 rank_positions,
-GLO-87 supersedes-pills + like_state-as-would-repurchase). Re-ask
-everything; rulings on tickets stand.
+**Authorizations are per-session and all expired with session 8.** The
+session had: self-merge on green (the shelf session merged #173–#189
+under it), the migration slot for 0019 (claimed in writing, applied to
+hosted at merge), and Sean rulings recorded on tickets — the category
+tree (GLO-102 + GLO-81's makeup half), the OBF image standard (GLO-104),
+the OBF brand mode's English-only rule (GLO-105), the bare filter chrome,
+the plus-outside-nav, and GLO-100's wishlist sketch. Re-ask everything;
+rulings on tickets stand. NO DataKit openings happened this stretch — the
+core stayed frozen through eighteen PRs.
 
 ## 1. Where to start
 
 Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 **GLO**, project **GLOSSED — Phase 1: The Journal**.
 
+**Everything unblocked is done. Every row below routes through Sean** —
+the next session's first real act is asking, not building.
+
 | Next | Why |
 |---|---|
-| [GLO-16](https://linear.app/glossed/issue/GLO-16) chips live-wiring | The whole chips+note surface is built and drivable in picker states — blocked ONLY on a DataKit opening (4 calls, the ask is on the ticket, still on Sean's desk). Wire inside GLO-87's tried gate (#160) |
-| [GLO-93](https://linear.app/glossed/issue/GLO-93) client wiring | `barcode_fill` is on main (#170), driven against a mock, license-cleared. Needs Sean's free Sandbox+Barcode key (function secret) AND a response-returning function call in DataKit (`invokeEdgeFunction` is fire-and-forget by design) — bundle that ask with like_state |
-| [GLO-87](https://linear.app/glossed/issue/GLO-87) slice 2 | Would-repurchase = a `like_state` rendering (Sean's ruling). Needs the view migration (slot is free) + a DataKit opening (decode + updateLikeState) — same opening ask as GLO-93's |
-| [GLO-89](https://linear.app/glossed/issue/GLO-89)–[92](https://linear.app/glossed/issue/GLO-92) source arc | Landing page is on main (`web/landing/`, #166) but the Vercel deploy is blocked on Sean (§7). GLO-90/91 (Rakuten/Impact applications) wait on that URL; GLO-92 (Beauty API archive gate) is runnable free anytime |
-| [GLO-85](https://linear.app/glossed/issue/GLO-85) adjudication | 364 pending pairs restored post-reset; `merge_feeder.ts --pending` is the surface; verdicts belong to GLO-14's function |
-| Workshop pass (Sean) | FitPromptCard (no kit frame — built to G.OnbBuild's spirit), variant sheet's 6-row inline / 5.5-row viewport numbers, GLO-87's icon pair, bay left-align's upright overlap (#155 note) |
+| The DataKit opening bundle | ONE ask covers three tickets: chips live-wiring (4 calls, [GLO-16](https://linear.app/glossed/issue/GLO-16)), like_state decode + updateLikeState ([GLO-87](https://linear.app/glossed/issue/GLO-87) slice 2, view migration slot is free), and a response-returning function call ([GLO-93](https://linear.app/glossed/issue/GLO-93) client wiring) |
+| Beauty API key + Vercel project | The drugstore tier's REAL coverage (The Ordinary sits at 9 rows — its honest open-world ceiling) and the GLO-89→90/91 affiliate arc both start at Sean's keyboard |
+| Workshop pass (Sean) | Accumulated: FitPromptCard, variant sheet 6-row/5.5 viewport, GLO-87 icons, bay-upright overlap, GLO-100's two open questions (wishlist log → fit prompt? toggle's home?), concealer-anchor call (flagged in the seed), new categories' wear-in numbers, essence→toner mapping |
+| [GLO-85](https://linear.app/glossed/issue/GLO-85) queue consumer | 3,264 pending after the feeder; tonight's finding INVERTED the canary: only FIVE cross-source pairs (OBF-drugstore and Shopify-DTC barely intersect) — size the consumer for feed-arrival, not for tonight |
+| [GLO-84](https://linear.app/glossed/issue/GLO-84) | Foreign-name decision now PARTIALLY sidestepped (brand mode is English-only by construction) but the category crawl still imports what it finds — the ruling still matters there |
 
-**Done since the #163 handoff — 7 PRs #164–#170, zero open, main verified
-at `02b6a94`.** Shelf session: fit-at-log (#164/#165,
-GLO-16's anchor-gated prompt), variant-sheet viewport cap (#167, GLO-88
-closed), lifecycle events end-to-end (#168/#169 — `item_status_changed` /
-`item_removed` in the enum, tech/06 registry, shelf firing, psql-verified;
-GLO-72 closed). Dev session: landing page (#166, GLO-89), `barcode_fill`
-(#170, GLO-93 slice 1). Earlier in session 7, same day: #145–#162 (see
-git log; GLO-80/85/86 closed, GLO-56's strength gap closed).
+**Done in session 8 — 18 PRs #172–#189, zero open, main verified at
+`20bca4b`.** The catalog arc (both sessions): storefronts 12→64
+(#172/#175/#177/#184 — GLO-94/97/99 + revlon), the colourpop
+title-is-shade fix (#174, GLO-95), the category tree 8→22 (#183 GLO-102
+skincare/hair + #186 GLO-81 makeup, both Sean-ruled), search-by-what-it-IS
+(#181/#182, GLO-101 — migration 0019 hosted: product_type/tags/origin +
+token-AND search_catalog), the OBF image standard (#185, GLO-104 — 800px
+source floor, 588 purged, kept 0), OBF brand mode (#188, GLO-105 —
+English-only drugstore pull, +279), brand consolidation (#189, GLO-106).
+The app arc (shelf session): ladder fresh-trip fix (#173, GLO-96),
+numeric shade sort (#176, GLO-98), bare filter chrome (#178/#179),
+plus-outside-nav (#180), wishlist ghosts (#187, GLO-100 proposal).
+Closed: GLO-94–99 + 100(proposal) + 101–106. The promo-name strip
+(GLO-103) rode #183.
 
 ## 2. What exists
 
 | Layer | State |
 |---|---|
-| Schema | **18 migrations**, all applied to hosted. **121 pgTAP assertions.** Slot free (like_state view migration is next in line). |
-| Catalog data | **1,114 products / 2,171 variants / 1,844 images**, local-only; **364 pending merge_candidates** (restored after the reset — the feeder is idempotent). Restore recipe: the FOUR scripts in §9 order (shopify_images is the one everyone forgets — Sean saw mocks when it was). Maya's shelf carries drive-drift rows (revlon colorstay finished + too_light, ouai oil, a soft-deleted fenty #190, 2 events rows) — fine for dev; a pgTAP run wants a reset + ping. |
-| `core/DataKit` | Frozen — all session openings merged (CatalogHit images/categoryID, updateStatus, strengthPct, NearMatch, invokeEdgeFunction). 37 tests. |
-| `core/DesignSystem` | Disabled buttons, ProductImage envelope + maxWidth. 38 tests. |
-| `core/Tracking` | **track() is real** (item_logged, item_status_changed, item_removed all flow to `events`, psql-verified). 11 tests. |
-| `features/Shelf` | Search, remove, buckets, chips+note (seamed), GLO-87 icons + tried-reveal + gated chips, the fit store/section, lifecycle events. 91 tests. |
-| `features/AddLadder` | Five rungs, variant-pick sheet (capped viewport), real images, near-match reasons. 96 tests. |
-| `app/` | Tracker wiring (AppSession/AppShell/TrackIngestPoster), fit-at-log seam + FitPromptCard (the prompt lives HERE, not in Shelf), catalogImageBase. |
-| `web/landing/` | **New**: static landing page (pitch + privacy + FTC disclosure + driven screenshots) for the affiliate applications. On main, NOT deployed (§7). |
-| `scripts/` | shopify_import (fill + collapse), obf_import, shopify_images, catalog_images, merge_feeder. |
-| `supabase/functions` | **6 functions, 56 deno tests**, none deployed. `barcode_fill` (#170): scan-miss → Beauty API GTIN lookup → create-rung pre-fill, never a catalog insert; budget = own audit_records count, gate 95 vs the Sandbox 100 hard cap; license verdict verbatim on GLO-93. |
+| Schema | **19 migrations**, all applied to hosted (0019 search-attrs at merge). **125 pgTAP assertions.** Slot free (like_state view migration is next in line). |
+| Catalog data | **3,349 products / 9,019 variants / 7,625 images / 497 brands / 22 categories**, local-only; **3,264 pending merge_candidates**, image queue ZERO. Every image meets the standard (OBF's 588 sub-800px purged, GLO-104). Search knows what things ARE: product_type/tags/origin live on 1,836+ rows — "korean sunscreen", "lipgloss", "retinol" all answer. Restore recipe: §9 — now SIX scripts. Maya's shelf carries drive-drift rows — fine for dev; a pgTAP run wants a reset + ping. |
+| `core/DataKit` | Frozen — and it STAYED frozen through all 18 of session 8's PRs (feature seams + app-layer composition covered everything). 37 tests. |
+| `core/DesignSystem` | + Segmented bare chrome, plus-outside-nav FloatingNav. 38 tests. |
+| `core/Tracking` | track() real (item_logged / item_status_changed / item_removed → `events`, psql-verified). 11 tests. |
+| `features/Shelf` | + wishlist ghosts (GLO-100: want-to-try off by default, bookmark toggle, search always finds), bare domain filter. 96 tests. |
+| `features/AddLadder` | + fresh-trip per presentation (GLO-96), numeric shade sort (GLO-98). 98 tests. |
+| `app/` | Tracker wiring, fit-at-log seam + FitPromptCard (the prompt lives HERE, not in Shelf), catalogImageBase. |
+| `web/landing/` | Static landing page for the affiliate applications. On main, NOT deployed (§7). |
+| `scripts/` | shopify_import (fill + collapse + title-is-shade + promo strip), obf_import (category crawl + **--brands** drugstore mode), shopify_images, catalog_images (+ OBF 800px gate), obf_requalify, brand_merge (curated), merge_feeder. |
+| `supabase/functions` | 6 functions, 56 deno tests, none deployed; nothing serves them locally right now (§0). |
 
 The sentence that is true about all of it: **the app is live against the
-local stack only** — hosted has all 18 migrations and no data, no
+local stack only** — hosted has all 19 migrations and no data, no
 functions, no storage; and the catalog's future sources (feeds, Beauty
 API) are all account-gated on Sean, not code-gated.
 
@@ -95,6 +113,17 @@ then built. The Beauty API's own docs reshaped the build twice: their
 category granularity killed the auto-insert plan, and their image guidance
 kept API images out of the cutout pipeline.
 
+Session 8's additions: **Sean steered live all night** (ten-plus rulings —
+tree, images, brand mode, filter chrome, nav, wishlist), and every ruling
+became a ticketed build the same hour with the veto trail on the ticket.
+**Claim work in writing BEFORE building** — his directives crossed the
+two sessions' lanes twice (GLO-87/#157 earlier, GLO-97 tonight) and both
+resolved bloodlessly only because the claim-then-check protocol ran
+first. And **probe a store's convention before it joins the map** — one
+page of products.json answers title-is-shade / "(Shade)"-suffix /
+typeless, and testing a clever inference against a live payload (the
+naturium counter-example) is the template.
+
 ## 4. Frozen or dangerous areas
 
 Unchanged: `core/DataKit` (openings per-session), `supabase/migrations/`
@@ -104,9 +133,15 @@ the image-host allowlist (barcode_fill's images.thebeautyapi.com is
 deliberately NOT a rung — their license says display-direct, don't
 re-host).
 
+New: **brand merges are curated, never inferred** (`brand_merge.ts` — the
+wrong-franchise trap is what an automatic matcher falls into; new
+spellings get added to its map by hand), and **the OBF image gate**
+(800px source floor) is a standard, not a bug — deleting it re-admits
+phone photos.
+
 Standing: `supabase test db` runs against the **live local DB** — reset
 before trusting a local red, ping the other session before resetting,
-budget the four-script restore (~40 min).
+budget the restore (§9, now six scripts, ~50 min).
 
 ## 5. How work gets reviewed
 
@@ -123,14 +158,14 @@ was proven by showing the mock's log stayed empty.
 
 | Thread | Where |
 |---|---|
-| Chips live-wiring opening (4 calls) — THE ask | GLO-16 |
-| Next DataKit opening bundle: like_state decode + updateLikeState + response-returning function call | GLO-87 / GLO-93 |
+| The DataKit opening bundle (chips 4-call + like_state + response-invoke) — THE ask | GLO-16 / GLO-87 / GLO-93 |
 | Beauty API sandbox key → function secret; then GLO-93 client wiring | GLO-93 / §7 |
 | Vercel deploy of `web/landing/` → the channel URL → GLO-90/91 applications | GLO-89 / §7 |
-| Fit-at-log's matched-barcode door: no prompt, no event (no category on a bare variant lookup) — same gap as GLO-80's barcode door | GLO-16 ticket note |
-| merge_candidates adjudication | GLO-85 → GLO-14 |
-| Workshop numbers: FitPromptCard, sheet 6-row/5.5 viewport, GLO-87 icons, bay-upright overlap | §1 last row |
-| lip category + tree workshop; OBF foreign names; krave maps 0 | GLO-81 / GLO-84 / GLO-79 |
+| GLO-85 queue consumer, sized for FEED-arrival (tonight's inverted canary: 5 cross-source pairs total — OBF-drugstore and Shopify-DTC barely intersect) | GLO-85 → GLO-14 |
+| Workshop accumulation: FitPromptCard, sheet 6-row/5.5, GLO-87 icons, bay-upright overlap, GLO-100's two questions, concealer-anchor, new wear-ins, essence→toner | §1 |
+| Fit-at-log's matched-barcode door: no prompt, no event (no category on a bare variant lookup) | GLO-16 ticket note |
+| Typeless storefronts (missha, murad, tatcha, supergoop at ~0 despite the tree) — feeds/Beauty-API bucket, not tree-gated | GLO-99 finding |
+| OBF foreign names (category crawl only — brand mode sidesteps); krave maps 0 | GLO-84 / GLO-79 |
 | `glossed.app` domain is TAKEN — tech/02's share-URL plan needs a new domain (glossed.beauty was $1.99 at check) | GLO-89 finding |
 
 ## 7. Blocked on a human, not on code
@@ -192,20 +227,51 @@ belongs to the branch that generated it: a stale project file "couldn't
 find" a file that was right there (regenerate with xcodegen after
 switching branches, before trusting a build error).
 
+**Session 8:** a dry-run that WRITES — brand_merge's first draft inserted
+into merge_candidates before checking the dry-run flag; a dry run must be
+read-only by construction, gate the writes, not the report. A ticket
+referenced in a PR is not a ticket that exists — GLO-106 rode a merged PR
+before anyone had filed it (caught when the status update bounced); file
+first, reference second. `psql ... returning` row-counting through string
+splits picked up a stray line and reported "1 queued" when the truth was
+0 — filter to the exact row value, and when a log claims a write, verify
+the table. OBF's crowd category tags are junk for popular brands
+("en:Cafffeine", empty — The Ordinary went 14→0 on tags alone); their
+NAMES are clean, so map from names with tight rules and never a generic
+cream/lotion catch. Stored image dims are not source quality — the
+pipeline caps at 512 and cutouts crop tight, so measure the SOURCE (sips)
+when quality is the question. Job states are `queued`, not `pending` — a
+wrong state name in a count query silently returns 0 and reads as "all
+done". `===` in a zsh line is a glob, not a separator. The colima wedge +
+contradictory-daemon-state checklist graduated to §0. Probe a third-party
+MCP's cheapest WRITE before building payloads (Vercel: reads fine, two
+create endpoints 403). The word-boundary regex scar bit TWICE in one
+night ('lippie', 'Lips') — when an unmapped tally shows a big family,
+suspect the boundary before the store. One products.json page answers a
+store's convention — probe BEFORE the host joins the map, and test clever
+inferences against a live payload (naturium: the general (brand,type)
+collapse would have eaten nine distinct serums). And claim work in
+writing BEFORE building — two lane-crossings tonight, both bloodless only
+because the claim ran first.
+
 ## 9. Local setup
 
 ```bash
 make setup && make dev
-supabase test db          # 121 assertions (fresh DB only — §4)
+supabase test db          # 125 assertions (fresh DB only — §4)
 make functions-test       # 56 deno tests
-# catalog data — all four, in this order:
+# catalog data — SIX scripts, in this order:
 deno run --allow-net --allow-run --allow-env scripts/shopify_import.ts
 deno run --allow-net --allow-run --allow-env scripts/obf_import.ts
+deno run --allow-net --allow-run --allow-env scripts/obf_import.ts --brands
 deno run --allow-net --allow-run --allow-env scripts/shopify_images.ts
 SUPABASE_SERVICE_ROLE_KEY=<legacy JWT from supabase status> \
-  deno run --allow-net --allow-run --allow-env --allow-read --allow-write scripts/catalog_images.ts --limit 4000
+  deno run --allow-net --allow-run --allow-env --allow-read --allow-write scripts/catalog_images.ts --limit 6000
+deno run --allow-run --allow-env scripts/brand_merge.ts
 # the merge queue's adjudication surface:
 deno run --allow-run --allow-env scripts/merge_feeder.ts --pending
+# (obf_requalify.ts is a one-off, already applied — rerun only if OBF
+# images somehow re-enter under the 800px floor)
 ```
 
 **The simulator canon: iPhone 16 Pro (iOS 18.0), UDID
