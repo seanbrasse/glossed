@@ -14,9 +14,9 @@ import SwiftUI
 ///   · empty is never blank — the screen explains how picks get made
 public struct DiscoverView: View {
     @State private var model: DiscoverModel
-    private let onOpenProduct: ((UUID) -> Void)?
+    private let onOpenProduct: ((CatalogHit) -> Void)?
 
-    public init(model: DiscoverModel, onOpenProduct: ((UUID) -> Void)? = nil) {
+    public init(model: DiscoverModel, onOpenProduct: ((CatalogHit) -> Void)? = nil) {
         _model = State(initialValue: model)
         self.onOpenProduct = onOpenProduct
     }
@@ -74,7 +74,10 @@ public struct DiscoverView: View {
                         name: pick.hit.name,
                         variant: pick.hit.variantLabel
                     ),
-                    onTap: { onOpenProduct?(pick.hit.id) },
+                    onTap: {
+                        model.tapped(pick)
+                        onOpenProduct?(pick.hit)
+                    },
                     thumb: {
                         ProductImage(
                             catalog: model.imageURL(for: pick.hit),
@@ -131,7 +134,10 @@ public struct DiscoverView: View {
         }
         .padding(.vertical, 2)
         .contentShape(Rectangle())
-        .onTapGesture { onOpenProduct?(row.hit.id) }
+        .onTapGesture {
+            model.tappedCrosswalk(row)
+            onOpenProduct?(row.hit)
+        }
     }
 
     // MARK: - states
