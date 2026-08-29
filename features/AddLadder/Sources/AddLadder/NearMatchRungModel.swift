@@ -52,6 +52,7 @@ public final class NearMatchRungModel {
         self.catalog = catalog
         self.ladder = ladder
         self.domain = domain
+        arrivedWithoutAName = ladder.query.isEmpty && ladder.scannedGTIN == nil
         query = ladder.query
     }
 
@@ -59,8 +60,43 @@ public final class NearMatchRungModel {
     /// scanned code. A missed scan alone is enough since 0018 — the maker
     /// band answers from the GTIN — so this no longer gates on the query
     /// alone.
-    public var needsAName: Bool {
+    ///
+    /// Live on purpose: it gates the *query*, and the moment someone types
+    /// there is something to ask with. Do not gate the field on it — see
+    /// `arrivedWithoutAName`.
+    public var hasNothingToAskWith: Bool {
         ladder.query.isEmpty && ladder.scannedGTIN == nil
+    }
+
+    /// Whether this rung was *entered* with nothing to ask with — the one
+    /// case where it has to ask for a name itself.
+    ///
+    /// Latched at init, and that is the whole point (GLO-176). This is a fact
+    /// about how we arrived, not about what is in the field right now, and
+    /// deriving it live made the field delete itself: the field binds `query`,
+    /// `query` writes through to `ladder`, so the first keystroke flipped the
+    /// condition and unmounted the input mid-edit — keyboard dismissed, the
+    /// rest of the name lost, and no way back, because a non-empty query can
+    /// never make it true again.
+    ///
+    /// One property was doing two jobs. Asking *"is there anything to search
+    /// with?"* is allowed to change as someone types; asking *"does this rung
+    /// owe the user a field?"* is not.
+    public let arrivedWithoutAName: Bool
+
+    /// Whether every candidate on screen actually has a catalog photo.
+    ///
+    /// The rung's instruction is "check the photo, not the name", and it is
+    /// comparative — it tells you to prefer one signal over another, so it
+    /// only earns its place when every row can be compared that way. A list
+    /// with no photos renders drawn `ProductMock`s, and 430 of the catalog's
+    /// 497 brands carry no catalog image at all (GLO-177), so this is the
+    /// common case rather than the tail.
+    ///
+    /// Empty is false, not vacuously true: an instruction to check photos
+    /// above zero candidates is the same lie in a quieter form.
+    public var everyCandidateHasAPhoto: Bool {
+        !matches.isEmpty && matches.allSatisfy { $0.hit.catalogImageKey != nil }
     }
 
     public var options: [LadderOption] {
@@ -76,7 +112,7 @@ public final class NearMatchRungModel {
     }
 
     public func search() async {
-        guard !needsAName else { return }
+        guard !hasNothingToAskWith else { return }
         isSearching = true
         defer { isSearching = false }
         do {

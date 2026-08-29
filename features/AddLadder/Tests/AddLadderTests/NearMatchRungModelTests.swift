@@ -5,11 +5,12 @@ import Testing
 
 /// Near matches the way the app really gets them — decoded off the wire,
 /// because `NearMatch` (like `CatalogHit`) has no public memberwise init.
-func nearMatch(name: String, why: String) throws -> NearMatch {
+func nearMatch(name: String, why: String, imageKey: String? = nil) throws -> NearMatch {
     let json = """
     {"id":"\(UUID().uuidString)","name":"\(name)","brand_name":"Glow Recipe",
      "category_id":"\(UUID().uuidString)",
      "category_slug":"serum","domain":"skincare","scope":"canonical",
+     "catalog_image_key":\(imageKey.map { "\"\($0)\"" } ?? "null"),
      "why":"\(why)"}
     """
     return try JSONDecoder().decode(NearMatch.self, from: Data(json.utf8))
@@ -52,7 +53,7 @@ private func model(
     ladder.noneOfThese()
     let live = model(ladder: ladder)
     #expect(live.query == "laneige lip mask")
-    #expect(live.needsAName == false)
+    #expect(live.arrivedWithoutAName == false)
 }
 
 @MainActor
@@ -66,7 +67,7 @@ private func model(
         nearMatch(name: "pro filt'r soft matte", why: "same maker as your scan")
     ])
     let live = NearMatchRungModel(catalog: probe, ladder: ladder)
-    #expect(!live.needsAName)
+    #expect(!live.arrivedWithoutAName)
     await live.search()
     #expect(await probe.askedGTINs == ["0810086012343"])
     #expect(live.options.count == 2)
@@ -75,7 +76,7 @@ private func model(
 @MainActor
 @Test func nothingTypedAndNothingScannedStillNeedsAName() {
     let live = model(ladder: Ladder(entry: .nearMatches, query: ""))
-    #expect(live.needsAName)
+    #expect(live.arrivedWithoutAName)
 }
 
 @MainActor
@@ -166,4 +167,110 @@ private func model(
     await live.search()
     #expect(live.failure == nil)
     #expect(live.isCandidateListTrustworthy)
+}
+
+// MARK: - GLO-176: the field must outlive the first keystroke
+
+@MainActor
+@Test func typingANameDoesNotTakeTheFieldAway() {
+    // The bug this replaces: `needsAName` was derived from `ladder.query`,
+    // the field binds `query`, and `query.didSet` writes through to the
+    // ladder — so one character unmounted the input mid-edit and the rest of
+    // the name went nowhere. Driven on the simulator by typing a single `l`.
+    let live = model(ladder: Ladder(entry: .nearMatches, query: ""))
+    #expect(live.arrivedWithoutAName)
+
+    live.query = "l"
+    #expect(live.arrivedWithoutAName, "one character must not remove the field")
+
+    live.query = "laneige lip mask"
+    #expect(live.arrivedWithoutAName, "nor must the rest of the name")
+
+    // And it cannot come back by clearing the field either — the rung owes a
+    // field for as long as it is on screen, not until the box is non-empty.
+    live.query = ""
+    #expect(live.arrivedWithoutAName)
+}
+
+@MainActor
+@Test func arrivingWithSomethingToAskWithNeverShowsTheField() {
+    var scanned = Ladder(entry: .barcode)
+    scanned.scanMissed(gtin: "0810086012343")
+    #expect(!NearMatchRungModel(catalog: FakeNearMatching(), ladder: scanned).arrivedWithoutAName)
+
+    var carried = Ladder(query: "laneige lip mask")
+    carried.noneOfThese()
+    carried.noneOfThese()
+    #expect(!model(ladder: carried).arrivedWithoutAName)
+}
+
+@MainActor
+@Test func theSearchGateStillMovesWithTheQuery() async throws {
+    // The other half of the split. `arrivedWithoutAName` is latched, but the
+    // guard on `search()` must stay live or a name typed here would never be
+    // asked — the field would sit there taking input that went nowhere, which
+    // is the same defect wearing the opposite costume.
+    let probe = try FakeNearMatching(matches: [
+        nearMatch(name: "lip sleeping mask", why: "similar name — check the shade and size")
+    ])
+    let live = NearMatchRungModel(catalog: probe, ladder: Ladder(entry: .nearMatches, query: ""))
+    #expect(live.hasNothingToAskWith)
+
+    await live.search()
+    #expect(await probe.askedGTINs.isEmpty, "nothing to ask with means nothing is asked")
+
+    live.query = "laneige lip mask"
+    #expect(!live.hasNothingToAskWith)
+    await live.search()
+    #expect(live.options.count == 2, "one candidate plus the way out")
+}
+
+// MARK: - GLO-177: "check the photo" only where there are photos
+
+@MainActor
+@Test func aListOfDrawingsDoesNotClaimToHavePhotos() async throws {
+    // 430 of the catalog's 497 brands carry no catalog image, and this rung
+    // gathers candidates by brand — so an all-drawings list is the ordinary
+    // case. Telling someone to check a photo, and in the same line not to
+    // trust the name, points them away from the reason lines that are the
+    // only thing actually disambiguating.
+    let live = try model(matches: [
+        nearMatch(name: "Watermelon Glow", why: "similar name — check the shade and size"),
+        nearMatch(name: "Dew Drops", why: "same brand — different product")
+    ])
+    await live.search()
+    #expect(live.isCandidateListTrustworthy, "the list is complete — that was never the problem")
+    #expect(!live.everyCandidateHasAPhoto)
+}
+
+@MainActor
+@Test func oneMissingPhotoIsEnoughToDropTheClaim() async throws {
+    // The instruction is comparative — "the photo, *not* the name" — so it
+    // only earns its place when every row can be compared that way.
+    let live = try model(matches: [
+        nearMatch(name: "Watermelon Glow", why: "similar name", imageKey: "a/cut512.png"),
+        nearMatch(name: "Dew Drops", why: "same brand — different product")
+    ])
+    await live.search()
+    #expect(!live.everyCandidateHasAPhoto)
+}
+
+@MainActor
+@Test func everyCandidatePhotographedEarnsTheInstruction() async throws {
+    let live = try model(matches: [
+        nearMatch(name: "Watermelon Glow", why: "similar name", imageKey: "a/cut512.png"),
+        nearMatch(name: "Dew Drops", why: "same brand", imageKey: "b/cut512.png")
+    ])
+    await live.search()
+    #expect(live.everyCandidateHasAPhoto)
+}
+
+@MainActor
+@Test func noCandidatesIsNotVacuouslyPhotographed() async {
+    // `allSatisfy` on an empty list is true, which would put "check the photo"
+    // above nothing at all — the same lie in a quieter form.
+    let live = model()
+    await live.search()
+    #expect(live.isCandidateListTrustworthy)
+    #expect(!live.everyCandidateHasAPhoto)
 }
