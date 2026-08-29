@@ -78,6 +78,10 @@ final class AppSession {
             sections: ShelfSection.grouped(from: rows, imageBase: imageBase),
             fitStore: .repository(repository),
             lifecycle: .repository(repository),
+            // GLO-16: the chip editor's five calls are all real now (#192),
+            // so the sheet writes to `item_chips` and the note column rather
+            // than stopping at the seam.
+            chipStore: .repository(shelf: repository, catalog: CatalogRepository(client: client)),
             tracker: tracker,
             onShelfChanged: { [weak self] in self?.refreshShelf() }
         )
