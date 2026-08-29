@@ -36,7 +36,7 @@ public final class ShelfModel {
     /// `ShelfChipsModel` for why it is composed rather than inlined here.
     public let chips: ShelfChipsModel
 
-    private let sections: [ShelfSection]
+    let sections: [ShelfSection]
     private let fitStore: ShelfFitStore?
     private let lifecycle: ShelfLifecycleStore?
     /// Fired after a lifecycle write lands — the host re-reads the shelf, the
@@ -99,6 +99,8 @@ public final class ShelfModel {
         fitEdited = false
         isRemoving = false
         removeFailure = nil
+        openStatus = item.status
+        persistedStatus = item.status
         chips.open(item)
         fitLoadTask?.cancel()
         guard item.isAnchorCategory, let fitStore else { return }
@@ -115,6 +117,11 @@ public final class ShelfModel {
     public func closeSheet() {
         chips.close()
         openItem = nil
+        openStatus = nil
+        if statusDirty {
+            statusDirty = false
+            onShelfChanged?()
+        }
         fitLoadTask?.cancel()
     }
 
@@ -135,8 +142,44 @@ public final class ShelfModel {
     /// open and on retry.
     public private(set) var removeFailure: GlossedError?
 
-    /// Internal, not private: tests await it to order the async work.
+    /// The open item's status as the sheet shows it — optimistic, reverted
+    /// on a failed write (GLO-72). Nil when no sheet is open.
+    public private(set) var openStatus: ItemStatus?
+    private var persistedStatus: ItemStatus?
+    /// A status write landed with the sheet open. The host re-read waits
+    /// for close: an immediate reload replaces the model and slams the
+    /// sheet shut (first-drive finding). Remove closes itself, so it
+    /// still notifies immediately.
+    private var statusDirty = false
+
+    /// Internal, not private: tests await these to order the async work.
     var removeTask: Task<Void, Never>?
+    var statusTask: Task<Void, Never>?
+
+    /// Moves the open item through the status enum. Optimistic; writes
+    /// chained so out-of-order saves cannot persist an older answer last;
+    /// failure reverts on screen. `rank_positions` deliberately untouched —
+    /// hidden immediately, compacted at the next rewrite (GLO-72).
+    public func statusChanged(to status: ItemStatus) {
+        guard let item = openItem, let lifecycle, status != openStatus else { return }
+        openStatus = status
+        statusTask = Task { [previous = statusTask, id = item.id] in
+            await previous?.value
+            do throws(GlossedError) {
+                try await lifecycle.updateStatus(id, status)
+                persistedStatus = status
+                if openItem?.id == id {
+                    statusDirty = true
+                } else {
+                    // Sheet closed mid-flight; its deferred notify is gone.
+                    onShelfChanged?()
+                }
+            } catch {
+                guard openItem?.id == id, openStatus == status else { return }
+                openStatus = persistedStatus
+            }
+        }
+    }
 
     /// Removes the open item from the shelf — a soft delete; the schema keeps
     /// the row, the app stops showing it. On success the sheet closes and the
@@ -187,21 +230,6 @@ public final class ShelfModel {
                 openFit = persistedFit
             }
         }
-    }
-
-    /// The denominator of "#2 of 5".
-    ///
-    /// Counts the *ranked* products in the category, not everything in it. A
-    /// category with five products where two have been compared is "#1 of 2" —
-    /// "of 5" would claim a comparison against three things nobody has looked
-    /// at, which is the same overstatement as a star rating.
-    ///
-    /// Counted across the whole category rather than the filtered view: turning
-    /// off a domain does not change where a product placed.
-    public func rankedCount(inCategoryOf item: ShelfItem) -> Int {
-        sections
-            .first { $0.slug == item.categorySlug }?
-            .items.count { $0.rank != nil } ?? 0
     }
 
     /// The sections currently on, in their given order, each internally

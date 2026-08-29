@@ -5,6 +5,21 @@ import Foundation
 // cleanly and stay testable without a @MainActor test.
 
 extension ShelfModel {
+    /// The denominator of "#2 of 5".
+    ///
+    /// Counts the *ranked* products in the category, not everything in it. A
+    /// category with five products where two have been compared is "#1 of 2" —
+    /// "of 5" would claim a comparison against three things nobody has looked
+    /// at, which is the same overstatement as a star rating.
+    ///
+    /// Counted across the whole category rather than the filtered view: turning
+    /// off a domain does not change where a product placed.
+    public func rankedCount(inCategoryOf item: ShelfItem) -> Int {
+        sections
+            .first { $0.slug == item.categorySlug }?
+            .items.count { $0.rank != nil } ?? 0
+    }
+
     /// Ordering within a bay.
     ///
     /// Every case is a total order with an explicit tiebreak, because SwiftUI
