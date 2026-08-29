@@ -1,4 +1,4 @@
-# Session handoff — Aug 29 2026 (session 8: the catalog tripled, the tree grew, everything else is Sean-gated)
+# Session handoff — Aug 29 2026 (session 9: the core opened and refroze, the scan path closed, Phase 1 got tested)
 
 Where Phase 1 stands, what to do next, and what this session learned. Read
 `docs/README.md` first for the design; this file is only about state.
@@ -24,73 +24,77 @@ requeue them, and crash-window `failed` rows with attempts=1 are infra
 casualties identifiable by timestamp, also requeue. (Session 8's wedge
 recovered with zero data loss on exactly this checklist.)
 
-**Nothing serves functions locally right now.** The mock-env
-`functions serve` hazard from the last handoff is moot — both instances
-died with their sessions. The edge runtime container has still NEVER
-served functions on its own; start a clean session-scoped serve when you
-need one, announce it like a simulator borrow, and never /dev/null its
-output.
+**Analytics fail SILENTLY and invisibly, and it is now a ticket
+([GLO-147](https://linear.app/glossed/issue/GLO-147)).** Nothing serves
+functions locally by default — the edge-runtime container has never
+served them — so `track_ingest` 503s and the Tracker drops every batch
+**by design** (tech/06 §2). Nothing surfaces that: no console error, no
+UI trace, no row. A drive looks identical whether instrumentation works
+or is stone dead. Session 9 nearly filed a false bug on exactly this.
+**Before you conclude anything about events, `curl` track_ingest and
+confirm 200.** Start a clean session-scoped serve when you need one,
+announce it like a simulator borrow, never /dev/null its output.
 
 **Never `--delete-branch` in merge automation** (killed #159 through a
 reused watcher script). Delete branches only after a stack fully lands, by
 hand.
 
-**Authorizations are per-session and all expired with session 8.** The
-session had: self-merge on green (the shelf session merged #173–#189
-under it), the migration slot for 0019 (claimed in writing, applied to
-hosted at merge), and Sean rulings recorded on tickets — the category
-tree (GLO-102 + GLO-81's makeup half), the OBF image standard (GLO-104),
-the OBF brand mode's English-only rule (GLO-105), the bare filter chrome,
-the plus-outside-nav, and GLO-100's wishlist sketch. Re-ask everything;
-rulings on tickets stand. NO DataKit openings happened this stretch — the
-core stayed frozen through eighteen PRs.
+**Authorizations are per-session and all expired with session 9.** The
+session had: self-merge on green, and **the DataKit opening bundle was
+GRANTED and is now SPENT** — #192 landed chips (4 calls), `likeState` /
+`updateLikeState`, and `invokeEdgeFunctionForData`; the core is **frozen
+again**. Re-ask everything; rulings on tickets stand.
 
 ## 1. Where to start
 
 Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 **GLO**, project **GLOSSED — Phase 1: The Journal**.
 
-**Everything unblocked is done. Every row below routes through Sean** —
-the next session's first real act is asking, not building.
+**The DataKit ask is SPENT — don't re-ask for it.** #192 delivered all
+three members and the core refroze. What is left splits cleanly: one
+real bug with a feature half anyone can take, and a pile that routes
+through Sean.
 
 | Next | Why |
 |---|---|
-| The DataKit opening bundle | ONE ask covers three tickets: chips live-wiring (4 calls, [GLO-16](https://linear.app/glossed/issue/GLO-16)), like_state decode + updateLikeState ([GLO-87](https://linear.app/glossed/issue/GLO-87) slice 2, view migration slot is free), and a response-returning function call ([GLO-93](https://linear.app/glossed/issue/GLO-93) client wiring) |
-| Beauty API key + Vercel project | The drugstore tier's REAL coverage (The Ordinary sits at 9 rows — its honest open-world ceiling) and the GLO-89→90/91 affiliate arc both start at Sean's keyboard |
-| Workshop pass (Sean) | Accumulated: FitPromptCard, variant sheet 6-row/5.5 viewport, GLO-87 icons, bay-upright overlap, GLO-100's two open questions (wishlist log → fit prompt? toggle's home?), concealer-anchor call (flagged in the seed), new categories' wear-in numbers, essence→toner mapping |
-| [GLO-85](https://linear.app/glossed/issue/GLO-85) queue consumer | 3,264 pending after the feeder; tonight's finding INVERTED the canary: only FIVE cross-source pairs (OBF-drugstore and Shopify-DTC barely intersect) — size the consumer for feed-arrival, not for tonight |
-| [GLO-84](https://linear.app/glossed/issue/GLO-84) | Foreign-name decision now PARTIALLY sidestepped (brand mode is English-only by construction) but the category crawl still imports what it finds — the ruling still matters there |
+| [GLO-145](https://linear.app/glossed/issue/GLO-145) — the fit gate | **The only unblocked bug with teeth.** A never-worn `want_to_try` item is asked "did the shade fit?", and the answer reaches `user_shade_anchor` (the view filters `is_anchor` + `deleted_at`, never status) — never-worn evidence feeding shade matching, on the same screen that promises "we only match shades people have actually worn". The UI half is ONE line (gate `fitSection` on `liveStatus.isTried`, GLO-87's own predicate) and needs no opening. The view half is a migration = Sean's slot |
+| Beauty API key + Vercel project | [GLO-93](https://linear.app/glossed/issue/GLO-93)'s scan path is now wired END TO END in code (#170 function, #194 client) — a free Sandbox+Barcode key flips it from its `not_configured` branch to real fills and enables the drive. The Vercel project (or create-rights) ships `web/landing/` and starts [GLO-90](https://linear.app/glossed/issue/GLO-90)/[91](https://linear.app/glossed/issue/GLO-91). Both are keyboard-minutes for Sean, weeks of queue time for the app |
+| Workshop pass (Sean) | Accumulated and unchanged: FitPromptCard, variant sheet 6-row/5.5 viewport, GLO-87 icons, bay-upright overlap, GLO-100's two questions, concealer-anchor, new categories' wear-ins, essence→toner. Plus new: [GLO-146](https://linear.app/glossed/issue/GLO-146)'s clipped helper line is a one-liner if a UI session is passing |
+| [GLO-147](https://linear.app/glossed/issue/GLO-147) — make analytics falsifiable | A DEBUG-only line on the Tracker's drop path. Small, and it makes every future drive's event claims trustworthy instead of unfalsifiable (§0) |
+| [GLO-85](https://linear.app/glossed/issue/GLO-85) queue consumer | 2,112 pending (down from 3,264 — GLO-113 fixed westman at the source). Still sized for FEED-arrival, not today: only ~5 cross-source pairs exist. **Do not start without Sean's word** — the catalog-lane assignment was relayed and then retracted in session 9 |
 
-**Done in session 8 — 18 PRs #172–#189, zero open, main verified at
-`20bca4b`.** The catalog arc (both sessions): storefronts 12→64
-(#172/#175/#177/#184 — GLO-94/97/99 + revlon), the colourpop
-title-is-shade fix (#174, GLO-95), the category tree 8→22 (#183 GLO-102
-skincare/hair + #186 GLO-81 makeup, both Sean-ruled), search-by-what-it-IS
-(#181/#182, GLO-101 — migration 0019 hosted: product_type/tags/origin +
-token-AND search_catalog), the OBF image standard (#185, GLO-104 — 800px
-source floor, 588 purged, kept 0), OBF brand mode (#188, GLO-105 —
-English-only drugstore pull, +279), brand consolidation (#189, GLO-106).
-The app arc (shelf session): ladder fresh-trip fix (#173, GLO-96),
-numeric shade sort (#176, GLO-98), bare filter chrome (#178/#179),
-plus-outside-nav (#180), wishlist ghosts (#187, GLO-100 proposal).
-Closed: GLO-94–99 + 100(proposal) + 101–106. The promo-name strip
-(GLO-103) rode #183.
+**Done in session 9 — 3 PRs #191/#192/#194, main verified at `9688e0a`,
+one PR open that is NOT ours ([#193](https://github.com/seanbrasse/glossed/pull/193), the Phase 1.5 spec).**
+[#191](https://github.com/seanbrasse/glossed/pull/191) westman's hyphen
+shades (GLO-113 — 167 flat rows → 24 lines, and the merge queue fell
+3,264 → 2,112 because that one family was a third of it);
+[#192](https://github.com/seanbrasse/glossed/pull/192) the DataKit
+opening bundle; [#194](https://github.com/seanbrasse/glossed/pull/194)
+GLO-93's client half (a scanned miss asks the fill, one budgeted call
+inside the frame-dedupe, fails closed on every branch). Then a **full
+Phase 1 test pass** — see §5 — which produced GLO-145/146/147/148.
 
 ## 2. What exists
 
 | Layer | State |
 |---|---|
 | Schema | **19 migrations**, all applied to hosted (0019 search-attrs at merge). **125 pgTAP assertions.** Slot free (like_state view migration is next in line). |
-| Catalog data | **3,349 products / 9,019 variants / 7,625 images / 497 brands / 22 categories**, local-only; **3,264 pending merge_candidates**, image queue ZERO. Every image meets the standard (OBF's 588 sub-800px purged, GLO-104). Search knows what things ARE: product_type/tags/origin live on 1,836+ rows — "korean sunscreen", "lipgloss", "retinol" all answer. Restore recipe: §9 — now SIX scripts. Maya's shelf carries drive-drift rows — fine for dev; a pgTAP run wants a reset + ping. |
-| `core/DataKit` | Frozen — and it STAYED frozen through all 18 of session 8's PRs (feature seams + app-layer composition covered everything). 37 tests. |
+| Catalog data | **3,203 products / 9,019 variants / 7,625 images / 497 brands / 22 categories**, local-only; **2,112 pending merge_candidates**, image queue ZERO. (Products fell from 3,349 because GLO-113 collapsed westman's 167 rows into 24 real lines — a drop that is a *gain*.) Every image meets the standard (OBF's 588 sub-800px purged, GLO-104). Search knows what things ARE: product_type/tags/origin live on 1,836+ rows — "korean sunscreen", "lipgloss", "retinol" all answer. Restore recipe: §9 — now SIX scripts. Maya's shelf carries drive-drift rows — fine for dev; a pgTAP run wants a reset + ping. |
+| `core/DataKit` | **Frozen again** — session 9's opening is spent (#192: chips 4-call, likeState/updateLikeState, `invokeEdgeFunctionForData(_:jsonBody:) -> Data`). 44 tests. |
 | `core/DesignSystem` | + Segmented bare chrome, plus-outside-nav FloatingNav. 38 tests. |
 | `core/Tracking` | track() real (item_logged / item_status_changed / item_removed → `events`, psql-verified). 11 tests. |
 | `features/Shelf` | + wishlist ghosts (GLO-100: want-to-try off by default, bookmark toggle, search always finds), bare domain filter. 96 tests. |
-| `features/AddLadder` | + fresh-trip per presentation (GLO-96), numeric shade sort (GLO-98). 98 tests. |
+| `features/AddLadder` | + GLO-93's scan-miss fill (`BarcodeFilling`/`BarcodeFillSuggestion` live HERE, not in DataKit — the core carries opaque bytes so the next function isn't another opening). 104 tests. |
 | `app/` | Tracker wiring, fit-at-log seam + FitPromptCard (the prompt lives HERE, not in Shelf), catalogImageBase. |
 | `web/landing/` | Static landing page for the affiliate applications. On main, NOT deployed (§7). |
 | `scripts/` | shopify_import (fill + collapse + title-is-shade + promo strip), obf_import (category crawl + **--brands** drugstore mode), shopify_images, catalog_images (+ OBF 800px gate), obf_requalify, brand_merge (curated), merge_feeder. |
-| `supabase/functions` | 6 functions, 56 deno tests, none deployed; nothing serves them locally right now (§0). |
+| `supabase/functions` | 6 functions, 56 deno tests, none deployed; nothing serves them by default and the silence is dangerous (§0, GLO-147). |
+
+**Verified totals, session 9 (each command actually run): 345 Swift tests
+across 8 packages** — DataKit 44, DesignSystem 38, Tracking 11, Shelf 96,
+AddLadder 104, Ranking 29, ProductPage 11, Import 12 — **plus 56 deno and
+125 pgTAP assertions.** `core/Media` is NOT among them: it is named in
+both CLAUDE.md files but **has never existed** (GLO-148).
 
 The sentence that is true about all of it: **the app is live against the
 local stack only** — hosted has all 19 migrations and no data, no
@@ -124,6 +128,18 @@ page of products.json answers title-is-shade / "(Shade)"-suffix /
 typeless, and testing a clever inference against a live payload (the
 naturium counter-example) is the template.
 
+Session 9's addition: **FOUR sessions ran at once, and peer sockets go
+stale.** A session that ends leaves a dead socket path; messaging it
+fails with ENOENT. Use `ListAgents` to get live addresses rather than
+reusing one from earlier in your own transcript. The protocol that held:
+announce the claim (files + tickets + whether you hold the slot or the
+simulator) BEFORE building, and answer other sessions' claims
+explicitly. It caught a duplicate GLO-97 run and a second handoff, both
+before either wasted work. **A relayed assignment is not an assignment** —
+session 9 was told (in good faith) that Sean had handed over the catalog
+lane, and the relay was retracted an hour later; work started on it was
+disclosed to Sean rather than quietly kept.
+
 ## 4. Frozen or dangerous areas
 
 Unchanged: `core/DataKit` (openings per-session), `supabase/migrations/`
@@ -145,25 +161,41 @@ budget the restore (§9, now six scripts, ~50 min).
 
 ## 5. How work gets reviewed
 
-Driving the build kept catching what nothing else did — this stretch: the
-40-shade sheet could strand you (pickable but confirm off-screen; drive the
-EXTREME fixture, not the sole-variant case), the status write slammed the
-sheet shut until defer-to-close, and Sean's own eyes caught the mock-image
-regression within minutes of it appearing. psql after every driven write
-remains the fastest truth check. For external APIs, the drive equivalent
-is a mock upstream + the audit-trail count — `barcode_fill`'s budget gate
-was proven by showing the mock's log stayed empty.
+Driving the build still catches what nothing else does, and session 9
+added a **full-sweep test pass** worth repeating verbatim:
+
+1. `swift test` in **every** package (not just the one you touched),
+2. `make functions-test`, then `supabase test db`,
+3. build + install + drive the core loops on the canon simulator,
+4. `psql` after every driven write,
+5. **verify before filing.** Three "defects" evaporated on inspection
+   this session: two packages that "failed to compile" (stale `.build`
+   caches — clean and they pass), two pgTAP reds (drive-drift, §4), and
+   missing analytics events (nothing was serving functions, §0). One
+   survived inspection and became GLO-145.
+
+The pass found one high-severity bug the whole automated suite missed
+(GLO-145: never-worn shade evidence), which is the argument for the
+drive. It cost about an hour. Its failure mode is that a drive proves
+nothing about events unless functions are actually served (§0).
+
+For external APIs the drive equivalent is a mock upstream + the audit
+count — `barcode_fill`'s budget gate was proven by the mock's log
+staying empty.
 
 ## 6. Open threads
 
 | Thread | Where |
 |---|---|
-| The DataKit opening bundle (chips 4-call + like_state + response-invoke) — THE ask | GLO-16 / GLO-87 / GLO-93 |
-| Beauty API sandbox key → function secret; then GLO-93 client wiring | GLO-93 / §7 |
+| ~~The DataKit opening bundle~~ **SPENT** (#192). What it unblocked and nobody has built yet: chips LIVE-wiring in the sheet (GLO-16) and GLO-87 slice 2's would-repurchase UI | GLO-16 / GLO-87 |
+| Beauty API sandbox key → function secret. Client wiring is DONE (#194); the key is all that stands between the wired path and a live drive | GLO-93 / §7 |
 | Vercel deploy of `web/landing/` → the channel URL → GLO-90/91 applications | GLO-89 / §7 |
 | GLO-85 queue consumer, sized for FEED-arrival (tonight's inverted canary: 5 cross-source pairs total — OBF-drugstore and Shopify-DTC barely intersect) | GLO-85 → GLO-14 |
 | Workshop accumulation: FitPromptCard, sheet 6-row/5.5, GLO-87 icons, bay-upright overlap, GLO-100's two questions, concealer-anchor, new wear-ins, essence→toner | §1 |
 | Fit-at-log's matched-barcode door: no prompt, no event (no category on a bare variant lookup) | GLO-16 ticket note |
+| Fit is offered on never-worn items and reaches the anchor view — UI half unblocked, view half needs the slot | GLO-145 |
+| Analytics drop invisibly; a DEBUG-only signal would make drives falsifiable | GLO-147 |
+| `core/Media` is documented in both CLAUDE.md files but has never existed | GLO-148 |
 | Typeless storefronts (missha, murad, tatcha, supergoop at ~0 despite the tree) — feeds/Beauty-API bucket, not tree-gated | GLO-99 finding |
 | OBF foreign names (category crawl only — brand mode sidesteps); krave maps 0 | GLO-84 / GLO-79 |
 | `glossed.app` domain is TAKEN — tech/02's share-URL plan needs a new domain (glossed.beauty was $1.99 at check) | GLO-89 finding |
@@ -175,7 +207,9 @@ was proven by showing the mock's log stayed empty.
 | Landing-page deploy (→ Rakuten/Impact applications) | Vercel MCP token cannot create projects (403, team role). Create an empty project named `glossed` OR raise the integration's role; the deploy payload is one command away | Sean |
 | Rakuten + Impact publisher accounts | Signups (GLO-90/91 carry the exact steps); need the channel URL above | Sean |
 | Beauty API key | Free Sandbox+Barcode signup at thebeautyapi.com → `BEAUTY_API_KEY` secret | Sean |
-| DataKit openings (chips 4-call; like_state + response-invoke) | Per-session authorization | Sean |
+| GLO-145's view half (exclude `want_to_try` from `user_shade_anchor`) | The migration slot is Sean's to grant — session 9 offered to cut it and was told the slot is his call, not free real estate | Sean |
+| Any DataKit opening | Per-session authorization. Session 9's bundle is spent and the core refroze | Sean |
+| GLO-85 queue consumer | Needs `ANTHROPIC_API_KEY` **and** Sean's direct word — a relayed hand-off of this lane was retracted | Sean |
 | R2, function secrets, Apple/Twilio, GLO-71's real fix | Unchanged from #163 | Sean / any human |
 
 ## 8. What went wrong, so you don't repeat it
@@ -254,12 +288,45 @@ collapse would have eaten nine distinct serums). And claim work in
 writing BEFORE building — two lane-crossings tonight, both bloodless only
 because the claim ran first.
 
+**Session 9:** *Three false defects in one hour, all killed by checking
+first — this is the section's whole thesis.* (a) Two packages "failed to
+compile" on main; the cause was **stale `.build` caches** holding a
+DataKit module from before #192 added `Chips.swift` — `rm -rf .build`
+and both pass, CI agreed all along. Clean before believing a package is
+broken. (b) Two pgTAP reds were drive-drift (§4), identified by checking
+row timestamps and `is_seeded`, not by re-running. (c) Shelf status
+changes emitted no events — **nothing was serving functions**, so the
+Tracker was correctly discarding batches; the fix was a serve, not a
+patch. In all three the wrong move was cheap and available. *A silent
+`cd` in a sweep loop turns "missing" into "empty":* `for p in …; do (cd
+$p 2>/dev/null && swift test); done` reported "core/Media: NO TESTS"
+for a package that **does not exist** (GLO-148) — if a loop can silently
+skip, make it print what it skipped. *Screenshot pixels ≠ points, again*
+— the 918-wide capture is 2.284× the 402pt frame; every tap this session
+was computed by dividing, and the one time it was not, the tap landed on
+the wrong row. *A peer socket goes stale when its session ends* — reusing
+an address from your own transcript gets ENOENT; `ListAgents` first.
+*A relayed assignment is not an assignment* — "Sean handed you the
+catalog lane" was retracted an hour later; the work already done got
+disclosed to Sean rather than buried, and the bigger item (the LLM
+adjudicator) had correctly not been started.
+
 ## 9. Local setup
 
 ```bash
 make setup && make dev
+# the full sweep (§5) — run ALL of these, not just the package you touched:
+for p in core/DataKit core/DesignSystem core/Tracking features/Shelf \
+         features/AddLadder features/Ranking features/ProductPage features/Import; do
+  (cd $p && swift test)   # 345 total; rm -rf .build first if a package "won't compile" (§8)
+done
 supabase test db          # 125 assertions (fresh DB only — §4)
 make functions-test       # 56 deno tests
+# before trusting ANY claim about events (§0):
+curl -s -o /dev/null -w '%{http_code}\n' -X POST \
+  http://127.0.0.1:54321/functions/v1/track_ingest \
+  -H "Authorization: Bearer <anon JWT>" -H 'Content-Type: application/json' -d '{"events":[]}'
+# 503 = nothing is serving; start `supabase functions serve` (announce it) before concluding
 # catalog data — SIX scripts, in this order:
 deno run --allow-net --allow-run --allow-env scripts/shopify_import.ts
 deno run --allow-net --allow-run --allow-env scripts/obf_import.ts
