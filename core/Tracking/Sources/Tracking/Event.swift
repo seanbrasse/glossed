@@ -52,9 +52,14 @@ public enum Event: Sendable, Equatable {
     case exportGenerated(itemCount: Int)
 
     // Recommendations (tap-through and dismissal only — never dwell)
-    case recImpression(slot: RecSlot, variantID: UUID)
-    case recTapped(slot: RecSlot, variantID: UUID)
-    case recDismissed(slot: RecSlot, variantID: UUID, reason: String?)
+    // Product-level, not variant-level: discover's picks are products
+    // (0040's rows carry product ids — a multi-shade foundation is one pick,
+    // not thirty), and logging a product id under a key named `variant_id`
+    // would be quiet dishonesty in the one pipeline built to be trusted.
+    // tech/06 §3's table is corrected in the same PR.
+    case recImpression(slot: RecSlot, productID: UUID)
+    case recTapped(slot: RecSlot, productID: UUID)
+    case recDismissed(slot: RecSlot, productID: UUID, reason: String?)
 
     // Failure + safety surfaces
     case errorShown(code: String, supportReference: String)
@@ -169,12 +174,12 @@ public extension Event {
             ["confidence_band": .string(confidenceBand), "retake": .bool(retake)]
         case let .exportGenerated(itemCount):
             ["item_count": .int(itemCount)]
-        case let .recImpression(slot, variantID), let .recTapped(slot, variantID):
-            ["slot": .string(slot.rawValue), "variant_id": .id(variantID)]
-        case let .recDismissed(slot, variantID, reason):
+        case let .recImpression(slot, productID), let .recTapped(slot, productID):
+            ["slot": .string(slot.rawValue), "product_id": .id(productID)]
+        case let .recDismissed(slot, productID, reason):
             [
                 "slot": .string(slot.rawValue),
-                "variant_id": .id(variantID),
+                "product_id": .id(productID),
                 "reason": .optional(reason)
             ].compacted()
         case let .errorShown(code, supportReference):
