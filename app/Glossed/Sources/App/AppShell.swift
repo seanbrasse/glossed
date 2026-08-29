@@ -187,18 +187,6 @@ struct AppShell: View {
         }
     }
 
-    /// An unbuilt tab names its ticket. The tab exists because the nav is the
-    /// kit's; the screen does not, and pretending otherwise helps nobody.
-    func unbuiltTab(_ name: String, ticket: String, line: String) -> some View {
-        VStack(spacing: Tokens.Space.s2) {
-            Text(name).font(Typography.display(30)).foregroundStyle(Tokens.Ink.primary)
-            Text(line).meta()
-            Badge("not built yet · \(ticket)", tone: .lilac)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Tokens.Ground.milk)
-    }
-
     // MARK: - The + drawer
 
     /// Scrim + the ported `ActionDrawer`, presented the way the item sheet is.
