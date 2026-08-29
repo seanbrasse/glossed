@@ -128,13 +128,15 @@ public struct ShelfBayView: View {
                     .accessibilityHint("opens this item")
                 }
             }
-            // Centred on the plank (a session-5 divergence from the kit's
-            // left alignment, Sean's call): one object mid-shelf reads as
-            // placed, not abandoned — and the first item stops standing on
-            // the left upright, which read as the frame slicing it.
+            // Left on the plank, per the kit. Session 5 centred this (one
+            // object mid-shelf "reads as placed"); Sean reversed it in
+            // session 7 — a lone item belongs at the start of its shelf.
+            // The old centring's other worry — the first item standing on
+            // the left upright — was never centring's to solve: a full bay
+            // already spans the padded width and overlaps both uprights.
             .padding(.horizontal, Frame.bayHorizontalPadding)
             .padding(.bottom, Frame.bayBottomPadding)
-            .frame(maxWidth: .infinity, minHeight: Frame.bayMinHeight, alignment: .bottom)
+            .frame(maxWidth: .infinity, minHeight: Frame.bayMinHeight, alignment: .bottomLeading)
 
             ground
             Color.clear.frame(height: Frame.gapBetweenBays)
