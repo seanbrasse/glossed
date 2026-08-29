@@ -153,8 +153,14 @@ language sql stable security definer set search_path = public as $$
        and exists (select 1 from follows where follower_id = p_b and followed_id = p_a);
 $$;
 
--- Shown here for readability; in the migration this block lands after every
--- helper below is defined, or the revoke names a function that does not exist yet.
+-- Creation order for this migration, and the reason:
+--   is_minor -> is_minor_user -> is_blocked -> is_mutual_follow
+--   -> can_view(3-arg) -> can_view(2-arg) -> triggers -> RLS -> this revoke block.
+-- can_view's 3-arg body is plpgsql, which is NOT resolved at CREATE FUNCTION
+-- time, so it *could* forward-reference the helpers. The 2-arg wrapper is
+-- `language sql` and IS resolved, so it must come after the 3-arg. Writing the
+-- whole file dependency-first costs nothing and removes the question. (The same
+-- trap bites §2.1 harder — see the ORDER MATTERS comment there.)
 revoke execute on function can_view(uuid, uuid, visibility_surface) from public;
 revoke execute on function is_blocked(uuid, uuid)                   from public;
 revoke execute on function is_mutual_follow(uuid, uuid)             from public;
@@ -275,6 +281,29 @@ Ships in 25.2. **No Phase-1 policy is modified.** Postgres ORs permissive polici
 -- collection_items, which carry their own RLS. Calling them from inside a policy
 -- on user_items without bypassing RLS is a mutual-recursion trap that resolves
 -- to "invisible" and reads exactly like a working privacy feature.
+-- ORDER MATTERS, and not for style. A `language sql` body is parsed and
+-- resolved at CREATE FUNCTION time (check_function_bodies defaults to on), so
+-- item_is_published cannot be created before collection_is_visible exists. A
+-- `language plpgsql` body is NOT resolved then — which is why can_view (0001,
+-- plpgsql) can forward-reference its helpers and this one cannot. Create in
+-- this order: column, then plpgsql helper, then sql helper, then policies.
+alter table collections add column visibility scope_enum not null default 'just_you';
+
+create or replace function collection_is_visible(p_collection uuid) returns boolean
+language plpgsql stable security definer set search_path = public as $$
+declare v_owner uuid; v_vis scope_enum;
+begin
+    select user_id, visibility into v_owner, v_vis
+      from collections where id = p_collection and deleted_at is null;
+    if v_owner is null then return false; end if;
+    if v_owner = (select auth.uid()) then return true; end if;
+    if is_blocked((select auth.uid()), v_owner) then return false; end if;
+    if is_minor_user(v_owner) then return false; end if;
+    if v_vis = 'public' then return true; end if;
+    if v_vis = 'friends' then return is_mutual_follow((select auth.uid()), v_owner); end if;
+    return false;
+end $$;
+
 create or replace function item_is_published(p_item uuid, p_owner uuid) returns boolean
 language sql stable security definer set search_path = public as $$
     select (can_view(p_owner, 'routines') and exists (
@@ -304,24 +333,6 @@ create policy routine_steps_public on routine_steps for select to anon, authenti
     using (exists (select 1 from routines r
                     where r.id = routine_id and r.deleted_at is null
                       and can_view(r.user_id, 'routines')));
-
--- Collections publish one at a time (§1.1). An added column, not a new surface.
-alter table collections add column visibility scope_enum not null default 'just_you';
-
-create or replace function collection_is_visible(p_collection uuid) returns boolean
-language plpgsql stable security definer set search_path = public as $$
-declare v_owner uuid; v_vis scope_enum;
-begin
-    select user_id, visibility into v_owner, v_vis
-      from collections where id = p_collection and deleted_at is null;
-    if v_owner is null then return false; end if;
-    if v_owner = (select auth.uid()) then return true; end if;
-    if is_blocked((select auth.uid()), v_owner) then return false; end if;
-    if is_minor_user(v_owner) then return false; end if;
-    if v_vis = 'public' then return true; end if;
-    if v_vis = 'friends' then return is_mutual_follow((select auth.uid()), v_owner); end if;
-    return false;
-end $$;
 
 create policy collections_public on collections for select to anon, authenticated
     using (collection_is_visible(id));
