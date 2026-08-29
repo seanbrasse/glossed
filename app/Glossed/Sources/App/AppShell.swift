@@ -18,6 +18,7 @@ struct AppShell: View {
     }
 
     @State private var session = AppSession()
+    @Environment(\.scenePhase) private var scenePhase
     /// The kit's tab 1 is discover, but discover is GLO-20 — until it exists
     /// the shelf is the honest landing.
     @State private var tab = ShellTab.shelf
@@ -29,6 +30,14 @@ struct AppShell: View {
     var body: some View {
         content
             .task { await session.boot() }
+            // Background AND foreground, per tech/06 §2 — background so a
+            // closed app loses nothing, foreground so a long-lived queue
+            // from last time goes out before new events pile on it.
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .background || phase == .active {
+                    session.flushTracker()
+                }
+            }
     }
 
     @ViewBuilder private var content: some View {
@@ -217,6 +226,7 @@ struct AppShell: View {
             LadderFlowView(
                 catalog: CatalogRepository(client: client),
                 shelf: ShelfRepository(client: client),
+                tracker: session.tracker,
                 onClose: { ladderOpen = false },
                 onShelfChanged: { session.refreshShelf() }
             )

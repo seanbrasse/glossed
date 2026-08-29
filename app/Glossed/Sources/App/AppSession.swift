@@ -2,6 +2,7 @@ import DataKit
 import Foundation
 import Observation
 import Shelf
+import Tracking
 
 /// The app's one session, and the data the shell hangs off it.
 ///
@@ -32,6 +33,10 @@ final class AppSession {
     /// that after landing something, so a new bottle appears without a
     /// relaunch.
     private(set) var shelfModel: ShelfModel?
+    /// The one Tracker (GLO-80): owned here, injected into features the way
+    /// repositories are. Events queue in memory and post to `track_ingest`
+    /// in batches; `flush()` fires on scene transitions from the shell.
+    private(set) var tracker: Tracker?
 
     func boot() async {
         #if DEBUG
@@ -46,6 +51,7 @@ final class AppSession {
                 let booted = GlossedClient(config: config)
                 try await booted.signIn(email: "maya@local.test", password: "password")
                 client = booted
+                tracker = Tracker(poster: TrackIngestPoster(client: booted))
                 imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
                 await reloadShelf()
                 phase = .ready
@@ -79,5 +85,12 @@ final class AppSession {
     /// The fire-and-forget shape the ladder's callback needs.
     func refreshShelf() {
         Task { await reloadShelf() }
+    }
+
+    /// Tech/06 §2's lifecycle rule: the queue flushes on background and
+    /// foreground. Fire-and-forget — a flush must never hold a transition.
+    func flushTracker() {
+        guard let tracker else { return }
+        Task { await tracker.flush() }
     }
 }
