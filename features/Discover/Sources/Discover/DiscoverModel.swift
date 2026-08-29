@@ -2,6 +2,7 @@ import DataKit
 import DesignSystem
 import Foundation
 import Observation
+import Tracking
 
 /// The discover tab's state (GLO-20). One load, two sections, and the copy
 /// for every basis — kept here rather than in the view because the words
@@ -23,11 +24,13 @@ public final class DiscoverModel {
 
     private let store: DiscoverStore?
     private let imageBase: URL?
+    private let tracker: Tracker?
     var loadTask: Task<Void, Never>?
 
-    public init(store: DiscoverStore?, imageBase: URL? = nil) {
+    public init(store: DiscoverStore?, imageBase: URL? = nil, tracker: Tracker? = nil) {
         self.store = store
         self.imageBase = imageBase
+        self.tracker = tracker
     }
 
     public func load() {
@@ -47,6 +50,7 @@ public final class DiscoverModel {
             picks = loadedPicks ?? []
             crosswalk = loadedPartners ?? []
             phase = picks.isEmpty && crosswalk.isEmpty ? .empty : .loaded
+            recordImpressions()
         }
     }
 
@@ -74,6 +78,44 @@ public final class DiscoverModel {
         case .popular: "people"
         case .exploration: nil
         }
+    }
+
+    /// tech/06's slot vocabulary, from the basis: Stage 1 rows are `picked`,
+    /// the population tiers are `stage0`, and the wander names itself. The
+    /// crosswalk's rows carry their own slot at the call site.
+    public nonisolated static func slot(for basis: DiscoverHit.Basis) -> RecSlot {
+        switch basis {
+        case .taste: .picked
+        case .shade, .everyone, .popular: .stage0
+        case .exploration: .exploration
+        }
+    }
+
+    /// One impression per row actually shown, fired when a load lands — not
+    /// per scroll, not per frame; dwell is never a signal here (tech/06).
+    private func recordImpressions() {
+        guard let tracker else { return }
+        let picked = picks
+        let partners = crosswalk
+        Task {
+            for pick in picked {
+                await tracker.track(.recImpression(slot: Self.slot(for: pick.basis), productID: pick.hit.id))
+            }
+            for row in partners {
+                await tracker.track(.recImpression(slot: .crosswalk, productID: row.hit.id))
+            }
+        }
+    }
+
+    /// The view reports a tap before handing the hit to whoever opens it.
+    public func tapped(_ pick: DiscoverHit) {
+        guard let tracker else { return }
+        Task { await tracker.track(.recTapped(slot: Self.slot(for: pick.basis), productID: pick.hit.id)) }
+    }
+
+    public func tappedCrosswalk(_ row: CrosswalkHit) {
+        guard let tracker else { return }
+        Task { await tracker.track(.recTapped(slot: .crosswalk, productID: row.hit.id)) }
     }
 
     /// Storage key → fetchable URL, the shelf's composition rule: nil base or

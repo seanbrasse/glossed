@@ -1,6 +1,7 @@
 import DataKit
 import Foundation
 import Testing
+import Tracking
 @testable import Discover
 
 // The model against a recording stub — the ShelfChips test shape.
@@ -69,4 +70,42 @@ private func hit(_ name: String, basis: String, n: Int) throws -> DiscoverHit {
     let bare = DiscoverModel(store: nil)
     #expect(based.imageURL(for: pick.hit) == nil) // no key → mock, never broken
     #expect(bare.imageURL(for: pick.hit) == nil)
+}
+
+// ── the events (GLO-20's last acceptance row) ───────────────────────────────
+
+private actor CapturingPoster: EventPosting {
+    private(set) var posted: [QueuedEvent] = []
+    func post(_ batch: [QueuedEvent]) async throws {
+        posted.append(contentsOf: batch)
+    }
+}
+
+@Test func slotsFollowTheStageVocabulary() {
+    // taste is the Stage-1 pick; the population tiers are stage0; the wander
+    // names itself. A new basis fails here before it misfiles an event.
+    #expect(DiscoverModel.slot(for: .taste) == .picked)
+    #expect(DiscoverModel.slot(for: .shade) == .stage0)
+    #expect(DiscoverModel.slot(for: .everyone) == .stage0)
+    #expect(DiscoverModel.slot(for: .popular) == .stage0)
+    #expect(DiscoverModel.slot(for: .exploration) == .exploration)
+}
+
+@MainActor
+@Test func aLoadFiresOneImpressionPerRowShown() async throws {
+    let picks = try [hit("a", basis: "taste", n: 1), hit("b", basis: "exploration", n: 0)]
+    let poster = CapturingPoster()
+    let tracker = Tracker(poster: poster)
+    let model = DiscoverModel(
+        store: DiscoverStore(feed: { _ in picks }, crosswalk: { _ in [] }),
+        tracker: tracker
+    )
+    model.load()
+    await model.loadTask?.value
+    // the impression task is fire-and-forget; give it one hop, then flush
+    await Task.yield()
+    try await Task.sleep(for: .milliseconds(50))
+    await tracker.flush()
+    let names = await poster.posted.map(\.name)
+    #expect(names.filter { $0 == "rec_impression" }.count == 2)
 }
