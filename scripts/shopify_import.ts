@@ -113,6 +113,30 @@ const STORES: Record<string, string> = {
   "cocokind.com": "cocokind",
   "innbeautyproject.com": "inn beauty project",
   "versedskin.com": "versed",
+  // GLO-99 tranche 3 (probed Aug 29): the K-beauty core, the retinol names,
+  // and the commerce-ui list's open storefronts. Convention checks ran per
+  // host — none is title-is-shade; the high Default-Title stores (murad 99%,
+  // anua 95%, mixsoon 97%, respire 98%) are honest single-SKU skincare, and
+  // tirtir's shaded cushions ride the "(Shade)"-suffix option matcher.
+  "beautyofjoseon.com": "beauty of joseon",
+  "cosrx.com": "cosrx",
+  "anua.us": "anua",
+  "skin1004.com": "skin1004",
+  "tirtir.us": "tirtir",
+  "medicube.us": "medicube",
+  "mixsoon.us": "mixsoon",
+  "torriden.us": "torriden",
+  "klairs.com": "klairs",
+  "roundlab.com": "round lab",
+  "misshaus.com": "missha",
+  "haruharuwonder.com": "haruharu wonder",
+  "sundayriley.com": "sunday riley",
+  "murad.com": "murad",
+  "herbivorebotanicals.com": "herbivore",
+  "orrisparis.com": "orris",
+  "respire.co": "respire",
+  "fmillerskincare.com": "f. miller",
+  "helloklean.com": "hello klean",
 };
 
 /// product_type (lowercased) → our category slug. Only what we can place —
