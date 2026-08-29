@@ -1,0 +1,15 @@
+-- 0027 · anon keeps SELECT on swatches and loses everything else. GLO-130 follow-up.
+--
+-- 0024 established the rule — privilege and policy must agree — and applied it
+-- to the eight tables that existed then. 0026 added `swatches` after it, so the
+-- table arrived with Supabase's default `grant all ... to anon, authenticated`
+-- and anon held INSERT, UPDATE and DELETE.
+--
+-- RLS denies all three today (no anon write policy exists), which is exactly
+-- the one-layer situation 0024 was written to end. Leaving it here would
+-- contradict the migration that established the rule.
+--
+-- SELECT stays: swatches_public_read is `to anon` on purpose, because the
+-- variant page and the web share pages read public swatches unauthenticated.
+-- This is a precision revoke, not a blanket one.
+revoke insert, update, delete, truncate, references, trigger on table swatches from anon;

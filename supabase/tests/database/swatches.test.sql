@@ -1,7 +1,7 @@
 -- Grid G · swatches (0026). GLO-130, docs/tech/02 §9.8.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(24);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -157,6 +157,17 @@ select ok(has_function_privilege('anon','viewer_blocked_by(uuid)','execute'),
     'viewer_blocked_by IS executable by anon — the public read policy names it and anon reads share pages');
 select ok(not has_function_privilege('anon','is_blocked(uuid,uuid)','execute'),
     'while the raw is_blocked stays revoked — the wrapper answers only about auth.uid()');
+
+-- Privilege and policy agree (the 0024 rule, applied to a table added after it).
+-- SELECT stays because swatches_public_read is `to anon`; the write verbs go.
+select ok(has_table_privilege('anon','public.swatches','select'),
+    'anon KEEPS select — the public read policy is `to anon` and share pages read swatches unauthenticated');
+select ok(not has_table_privilege('anon','public.swatches','insert'),
+    'anon has no INSERT privilege — RLS is the second layer, not the only one');
+select ok(not has_table_privilege('anon','public.swatches','update'),
+    'nor UPDATE');
+select ok(not has_table_privilege('anon','public.swatches','delete'),
+    'nor DELETE');
 
 select * from finish();
 rollback;
