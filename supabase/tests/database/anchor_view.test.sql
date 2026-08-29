@@ -124,12 +124,20 @@ update user_items set status = 'want_to_try' where id = :'ui_a';
 -- internal helper for public_profile, not a client-reachable function. Asserting
 -- it therefore means stepping out of the impersonated role.
 reset role;
-select is(anchor_badge(:'maya'), null,
+-- NAME THE SHADE, do not assert null. anchor_badge returns one value for the
+-- whole user, so `is null` silently depends on maya owning no other anchor
+-- anywhere in the database — and the shared local DB grows those. Asserting
+-- that THIS shade is not the badge tests the same property and cannot be
+-- broken by an unrelated row (GLO-161).
+select isnt(anchor_badge(:'maya'), 'fenty beauty 240',
     'anchor_badge ignores a want_to_try shade WITHOUT its own status filter — 0031 removed that workaround, so this passing proves the badge now inherits the view rather than duplicating it');
 
 update user_items set status = 'own' where id = :'ui_a';
-select isnt(anchor_badge(:'maya'), null,
-    'and an owned anchor shade still produces a badge');
+-- Newest fit wins (order by captured_at desc), so make this one newest rather
+-- than assuming no other anchor exists.
+update item_fits set captured_at = now() where user_item_id = :'ui_a';
+select is(anchor_badge(:'maya'), 'fenty beauty 240',
+    'and once it is owned, that same shade becomes the badge');
 
 select finish();
 rollback;

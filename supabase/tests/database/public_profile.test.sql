@@ -171,8 +171,12 @@ update profile_badges set show_anchor = true where user_id = :'maya';
 insert into item_fits (user_id, user_item_id, fit)
 values (:'maya', '50000000-0000-0000-0000-0000000000f2', 'too_light');
 select test_as(:'juli');
-select is((select badge_anchor from public_profile('maya_k')), null,
-    'a fit on a NEVER-WORN item does not become a public anchor badge — anchor_badge filters status itself rather than inheriting GLO-145');
+-- Names the shade rather than asserting null: badge_anchor is a single value
+-- for the whole user, so `is null` depends on maya owning no other anchor
+-- anywhere (GLO-161). The message is also updated — since 0031, anchor_badge
+-- no longer filters status itself; it inherits the fix from user_shade_anchor.
+select isnt((select badge_anchor from public_profile('maya_k')), 'fenty beauty 220',
+    'a fit on a NEVER-WORN item does not become a public anchor badge — since 0031 anchor_badge inherits this from user_shade_anchor instead of filtering status itself');
 
 select * from finish();
 rollback;
