@@ -76,11 +76,11 @@ public struct ShelfView: View {
                 if isSearchOpen {
                     searchField
                 }
-                if model.searchCameUpEmpty {
-                    // A designed dead end, not a blank shelf: say the search
-                    // came up dry and name the way onward.
-                    Text("nothing on your shelf matches — check the spelling, or add it with +")
+                if let empty = model.emptyState {
+                    // A designed dead end for every way in (GLO-166).
+                    Text(empty.message)
                         .meta()
+                        .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 6)
                 }
                 switch model.viewMode {
