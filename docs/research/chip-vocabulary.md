@@ -181,9 +181,23 @@ fixtures other sessions depend on are disturbed.
 
 `seed.sql` is local-only; a hosted project never runs it. So **no** reference
 data in this repo has a production path — categories included. That is a real
-gap, bigger than chips, and it wants its own ticket and Sean's ruling on
-whether reference data becomes a migration pattern. Solving it inside a
-vocabulary ticket would be the wrong place to set that precedent.
+gap, bigger than chips, and it wants Sean's ruling on whether reference data
+becomes a migration pattern. Solving it inside a vocabulary ticket would be the
+wrong place to set that precedent.
+
+**Since confirmed against hosted, and it is worse than "no path" — there is no
+data.** `glossed-phase-1-1fbaa3-cd` checked rather than inferring: hosted holds
+**zero** brands, products, variants, categories, and `experience_chips`, behind
+30 migrations of schema. Filed as GLO-158. The reason it matters here is that
+`categories` and `experience_chips` are not sample data, they are *vocabulary* —
+zero categories means no `is_anchor`, no `wear_in_days`, and nowhere to log a
+product; the 171 chips below do not exist there at all. And every consequence is
+**silent**: `payoff_for_variant()` returns `evidence_backed=false`, browse
+returns nothing, and each is indistinguishable from "correct, just early."
+
+Worth stating plainly: the status quo — seed stays local/CI, hosted gets
+populated by hand once — is a choice nobody made, and it starts rotting the
+moment someone edits `seed.sql`, which is what this document does.
 
 ## 5. The client needs no changes
 
