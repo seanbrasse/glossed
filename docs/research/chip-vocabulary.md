@@ -148,7 +148,63 @@ eyes" reads as a jumble rather than two groups. Flagged to
 `glo-145-fitsection-gate` and left alone here: it is a client ordering decision
 on a frozen-core query, and plausibly Sean's call on the section's feel.
 
-## 4. Where the rows live — `seed.sql`, not a migration
+## 4. Chips are relative facts — the conditioning clause is the product
+
+Sean's ruling (Aug 29), recorded here because it decides how everything
+downstream of this vocabulary gets built:
+
+> Different people like different products for different reasons — how a
+> product interacts with *their* skin, *their* other products. If people with
+> oily skin say a sunscreen breaks them out, someone with oily skin may want
+> to pass — and the same product may be right for someone else. Everything is
+> relative, which is what makes finding the right product hard. We help users
+> navigate that; we do not coerce anyone into buying anything.
+
+What this means, concretely:
+
+- **A chip is an observation, not a verdict.** "Broke me out" is a fact about
+  one product on one person's skin. It becomes *useful to a stranger* only
+  when conditioned on who reported it. The moat sentence has always carried
+  this clause — "rated by **people with my skin**" — and the clause is the
+  moat, not the counts.
+- **A chip count without its cohort is misleading by construction.** "42
+  people say broke me out" is a worse claim than "3 people with oily skin say
+  broke me out" even though the n is larger — the 42 may be 40 people whose
+  skin says nothing about yours. Render rule that follows: **a chip claim
+  names its cohort or renders as all-users explicitly, never ambiguously.**
+  This is the existing EvidenceLine rule (every claim carries its n) extended
+  one word: every claim carries its n *and whose n it is*.
+- **Similar, not identical.** The cohort is a neighborhood, not an exact
+  match. The min-n-or-roll-up rule (tech/01 §1.3: widen category → parent,
+  widen shade → band) is the mechanism — when your exact cohort is below
+  min-n, widen and say so, rather than showing nothing or showing everyone.
+- **A dislike is routing, not damnation.** "Weighed my hair down" from 3c
+  users is a *recommendation* for someone with fine 1a hair looking for hold.
+  Valence is per-reporter; the aggregate must keep the cohort attached
+  precisely so that one cohort's dislike can be another's signal.
+
+And what it decides about the open fit question (the sheet asks "did the
+shade fit?" only of foundation): **no new per-category structured fit axes.**
+The shade axis stays special because it is the color-identity primitive —
+anchors drive matching. For every other category, "did it fit me" *is* the
+chip system plus cohort conditioning: `sunscreen-white-cast` conditioned on
+tone band, `conditioner-greasy-roots` conditioned on hair pattern, are fit
+verdicts already. Building a second structured axis per category would
+duplicate the chip vocabulary into enums and freeze what should stay a
+living vocabulary.
+
+Where the schema stands against this today: `agg_variant_stats` is keyed
+`(variant_id, cohort_key)` with `cohort_key = tone_band:skin_type` — the
+right shape for makeup and skincare. Three gaps, tracked on GLO-157:
+**no writer** populates the table at all; **`hair_pattern` is not in the
+cohort key**, so haircare chips cannot be conditioned on the one axis that
+matters for them (profiles capture it; the aggregate cannot see it); and the
+only existing reader (`payoff_for_variant()`) reads the all-cohort row only.
+Fragrance is the honest hard case: "turned on my skin" is the most
+cohort-dependent fact in the product and we capture no skin-chemistry axis
+to condition it on — V1 ships it as an uncohorted observation, knowingly.
+
+## 5. Where the rows live — `seed.sql`, not a migration
 
 No migration in this repo has ever inserted into a reference table:
 
@@ -199,7 +255,7 @@ Worth stating plainly: the status quo — seed stays local/CI, hosted gets
 populated by hand once — is a choice nobody made, and it starts rotting the
 moment someone edits `seed.sql`, which is what this document does.
 
-## 5. The client needs no changes
+## 6. The client needs no changes
 
 `ShelfChipStore.repository(shelf:catalog:)` (live as of #210) resolves the
 item's category slug → id, then calls
