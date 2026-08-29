@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>glossed — the beauty journal that ranks</title>
+<meta name="description" content="glossed is a beauty journal for iPhone: log what you own, shelve it by category, rank it with quick face-offs, and see shade evidence from people who actually wear it. no stars, ever.">
+<style>
+  :root {
+    --milk: #f1efe9; --card: #ffffff; --ink: #1b1917; --ink-soft: #6f6a63;
+    --line: #dcd8cf; --cherry: #e23d5e; --cherry-deep: #b32040;
+    --lilac: #cfc4ec; --butter: #f4ead1; --pinkchip: #f6d7de;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--milk); color: var(--ink);
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.55;
+  }
+  .mono { font-family: "SF Mono", ui-monospace, Menlo, monospace; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+  header { padding: 26px 0 8px; display: flex; align-items: baseline; justify-content: space-between; }
+  .wordmark { font-weight: 800; font-size: 28px; letter-spacing: -0.5px; }
+  .eyebrow { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 11px;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); }
+  .hero { padding: 56px 0 30px; display: grid; grid-template-columns: 1.15fr 1fr; gap: 40px; align-items: center; }
+  .hero h1 { font-size: clamp(34px, 5.5vw, 54px); font-weight: 800; letter-spacing: -1.2px; line-height: 1.06; }
+  .hero h1 em { font-style: normal; color: var(--cherry); }
+  .hero p.lead { margin-top: 18px; font-size: 18px; color: var(--ink); max-width: 34ch; }
+  .badge { display: inline-block; background: var(--pinkchip); border: 1.5px solid var(--ink);
+    border-radius: 999px; padding: 3px 12px; font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 12px; margin-bottom: 18px; }
+  .phone { border: 2px solid var(--ink); border-radius: 26px; overflow: hidden; background: var(--card);
+    box-shadow: 6px 6px 0 var(--ink); max-width: 300px; margin: 0 auto; }
+  .phone img { display: block; width: 100%; height: auto; }
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; padding: 34px 0; }
+  .card { background: var(--card); border: 1.5px solid var(--ink); border-radius: 16px;
+    padding: 20px; box-shadow: 4px 4px 0 var(--ink); }
+  .card h3 { font-size: 17px; letter-spacing: -0.2px; margin-bottom: 8px; }
+  .card p { font-size: 14.5px; color: var(--ink-soft); }
+  .card .n { font-family: "SF Mono", ui-monospace, Menlo, monospace; color: var(--cherry-deep); }
+  section.evidence { background: var(--card); border-top: 1.5px solid var(--ink); border-bottom: 1.5px solid var(--ink);
+    padding: 44px 0; margin-top: 12px; }
+  .evidence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+  .evidence h2, .shots h2 { font-size: clamp(24px, 3.4vw, 32px); font-weight: 800; letter-spacing: -0.6px; margin-bottom: 12px; }
+  .evidence p { color: var(--ink); max-width: 46ch; margin-bottom: 12px; }
+  .rule-list { list-style: none; margin-top: 10px; }
+  .rule-list li { padding: 9px 0; border-top: 1.5px dashed var(--line); font-size: 15px; }
+  .rule-list li:first-child { border-top: 0; }
+  .shots { padding: 46px 0 12px; }
+  .shots .pair { display: flex; gap: 30px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+  .caption { text-align: center; font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); margin-top: 10px; }
+  .coming { text-align: center; padding: 48px 0 22px; }
+  .coming .big { font-size: clamp(22px, 3vw, 28px); font-weight: 800; letter-spacing: -0.5px; }
+  .coming p { color: var(--ink-soft); margin-top: 8px; }
+  footer { border-top: 1.5px solid var(--line); margin-top: 40px; padding: 22px 0 40px;
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+    font-size: 13px; color: var(--ink-soft); }
+  footer a { color: var(--ink); }
+  @media (max-width: 760px) {
+    .hero { grid-template-columns: 1fr; }
+    .cols { grid-template-columns: 1fr; }
+    .evidence-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="wordmark">glossed</div>
+      <div class="eyebrow">a beauty journal that ranks</div>
+    </header>
+
+    <section class="hero">
+      <div>
+        <span class="badge">for iPhone · in development</span>
+        <h1>your shelf, <em>ordered</em>.<br>no stars, ever.</h1>
+        <p class="lead">glossed is a journal for what you actually own and wear — logged in seconds,
+        shelved by category, and ranked the way you really decide: one honest comparison at a time.</p>
+      </div>
+      <div>
+        <div class="phone"><img src="assets/shelf.jpg" alt="the glossed shelf: real product cutouts standing on drawn shelves, grouped by category, with a #1 rank sticker"></div>
+        <div class="caption">the shelf — your products, standing on it</div>
+      </div>
+    </section>
+
+    <section class="cols">
+      <div class="card">
+        <h3>log it in five seconds</h3>
+        <p>search, scan a barcode, or snap it. every product lands as the exact shade and size you own —
+        a foundation is not one thing, it's <span class="n">40</span> shades, and yours is the one that matters.</p>
+      </div>
+      <div class="card">
+        <h3>rank with face-offs</h3>
+        <p>no ten-point scales. two products, one question — which one, honestly? a handful of face-offs
+        and your category has an order you'd actually defend.</p>
+      </div>
+      <div class="card">
+        <h3>evidence, not ratings</h3>
+        <p>every claim carries its number: "<span class="n">n = 12</span> people wear this exact shade."
+        if the data isn't there, glossed says nothing — a missing number is never dressed up as a zero.</p>
+      </div>
+    </section>
+
+    <section class="evidence">
+      <div class="wrap evidence-grid">
+        <div>
+          <h2>why no stars?</h2>
+          <p>a 4.3 tells you nothing: whose skin, what shade, how long, compared to what?
+          glossed replaces the star with three honest primitives:</p>
+          <ul class="rule-list">
+            <li><strong>face-offs</strong> — your own pairwise picks, the only rating you can't fudge</li>
+            <li><strong>fit</strong> — did the shade match? too light, too pink, just right — captured at log time</li>
+            <li><strong>chips</strong> — what actually happened: "purged then cleared", "creased by 2pm", "lasted all day"</li>
+          </ul>
+        </div>
+        <div>
+          <div class="phone"><img src="assets/sheet.jpg" alt="a product sheet in glossed: fenty pro filt'r shade 330, ranked #1, with the shade-fit question and a status control"></div>
+          <div class="caption">one product — its shade, its rank, its fit</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="coming">
+      <div class="big">coming to iPhone</div>
+      <p>glossed is in active development. TestFlight opens when the shelf is ready for company.</p>
+    </section>
+
+    <footer>
+      <div>© 2026 glossed</div>
+      <div>
+        <a href="privacy.html">privacy</a> &nbsp;·&nbsp;
+        <a href="disclosure.html">affiliate disclosure</a>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
