@@ -76,6 +76,18 @@ public struct ShelfItemSheet: View {
         status ?? item.status
     }
 
+    /// Fit is asked only of an anchor category that has actually been worn
+    /// (GLO-145). A want-to-try has no wear to report, so its answer is not
+    /// shade evidence — and the section's own line promises we only match
+    /// shades people have actually worn, which the ungated version stood
+    /// directly on top of and contradicted. The predicate is GLO-87's, the
+    /// same one the chips and status detail gate on; `liveStatus` and not
+    /// `item.status` so the section leaves the moment the bookmark is
+    /// tapped, rather than after the write settles.
+    var showsFit: Bool {
+        item.isAnchorCategory && liveStatus.isTried
+    }
+
     public var body: some View {
         ZStack(alignment: .bottom) {
             scrim
@@ -107,7 +119,7 @@ public struct ShelfItemSheet: View {
                     .foregroundStyle(Tokens.Ink.primary)
                     .padding(.top, 12)
             }
-            if item.isAnchorCategory {
+            if showsFit {
                 fitSection
             }
             // Chips render only for tried items (GLO-87): a want-to-try has
