@@ -109,6 +109,22 @@ import Testing
     ])
 }
 
+@Test func aNearMatchIsAHitPlusItsReason() throws {
+    // near_matches shares search_catalog's columns plus why (0018) — one
+    // row shape, one decoder: the hit decodes from the same flat row.
+    let raw = Data(#"""
+    {"id":"00000000-0000-0000-0000-0000000000b1","name":"soft pinch liquid blush",
+     "brand_name":"rare beauty","category_id":"10000000-0000-0000-0000-000000000001",
+     "category_slug":"blush","domain":"makeup","scope":"canonical",
+     "n_face_offs":null,"variant_label":null,
+     "why":"similar name — check the shade and size"}
+    """#.utf8)
+    let match = try PostgrestClient.Configuration.jsonDecoder.decode(NearMatch.self, from: raw)
+    #expect(match.hit.name == "soft pinch liquid blush")
+    #expect(match.why == "similar name — check the shade and size")
+    #expect(match.id == match.hit.id)
+}
+
 @Test func fitAnswersMatchTheDatabaseEnum() {
     // A mismatch between these and fit_enum is a bug that only shows up at
     // write time, so it is asserted here instead.

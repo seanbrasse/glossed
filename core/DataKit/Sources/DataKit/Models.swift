@@ -178,6 +178,31 @@ public struct CatalogHit: Codable, Sendable, Identifiable, Hashable {
     }
 }
 
+/// One near-match candidate: a hit plus the reason it is here (GLO-63).
+///
+/// `hit` decodes from the same flat row `near_matches` returns — the RPC
+/// shares `search_catalog`'s column set on purpose, so a near-match row and
+/// a search row stay one shape and one decoder. The `why` is the middle
+/// band's verdict, computed server-side; the client renders it verbatim and
+/// never invents one.
+public struct NearMatch: Decodable, Sendable, Identifiable, Hashable {
+    public let hit: CatalogHit
+    public let why: String
+
+    public var id: UUID {
+        hit.id
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case why
+    }
+
+    public init(from decoder: Decoder) throws {
+        hit = try CatalogHit(from: decoder)
+        why = try decoder.container(keyedBy: CodingKeys.self).decode(String.self, forKey: .why)
+    }
+}
+
 /// What `create_personal_product` returns: the product, and the variant that
 /// makes it loggable. Both, or neither — the two inserts are one statement.
 public struct CreatedProduct: Codable, Sendable, Hashable {
