@@ -112,6 +112,32 @@ struct VariantPickModelTests {
         #expect(!model.canConfirm)
     }
 
+    @Test func shadesReadInNumericOrderNotTextOrder() async throws {
+        // The wire arrives in Postgres text order — kylie's real failure
+        // ("1.5w, 10.5n, 10c, 10n, 1c") and fenty's #100-before-#98 (GLO-98).
+        let picked = try hit(name: "power plush longwear foundation")
+        let wireOrder = try ["1.5w", "10.5n", "10c", "10n", "1c", "2n"].map {
+            try variant(productID: picked.id, shade: $0)
+        }
+        let model = VariantPickModel(hit: picked, catalog: FakeVariantListing(variants: wireOrder))
+
+        await model.load()
+
+        // Known half-step: "10.5n" lands before "10c" (the dot compares under
+        // letters). The failure that mattered — whole numbers as text, 10
+        // before 2 — is gone; perfect decimal-shade order would need a shade
+        // grammar nobody has committed to.
+        #expect(model.variants.map(\.shadeCode) == ["1.5w", "1c", "2n", "10.5n", "10c", "10n"])
+    }
+
+    @Test func aLabelLessRowSortsUnderEveryNamedShade() throws {
+        let productID = UUID()
+        let named = try variant(productID: productID, shade: "#100")
+        let bare = try variant(productID: productID)
+        #expect(VariantPickModel.readsBefore(named, bare))
+        #expect(!VariantPickModel.readsBefore(bare, named))
+    }
+
     @Test func aProductWithNoVariantsIsEmptyOnlyAfterALoadSaysSo() async throws {
         let picked = try hit(name: "an unfilled catalog row")
         let model = VariantPickModel(hit: picked, catalog: FakeVariantListing())
