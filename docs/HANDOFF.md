@@ -1,4 +1,4 @@
-# Session handoff — Aug 28 2026 (session 6, merge-as-you-go)
+# Session handoff — Aug 28–29 2026 (session 6, both halves: solo run + two-session mode)
 
 Where Phase 1 stands, what to do next, and what this session learned. Read
 `docs/README.md` first for the design; this file is only about state.
@@ -6,17 +6,32 @@ Where Phase 1 stands, what to do next, and what this session learned. Read
 ## 0. Read this first
 
 **After retargeting a stacked PR to main, CI's scope job can silently reuse a
-stale decision and skip the iOS job** (GLO-71's bug, hit three times this
-session — #131, #133, #139). A skipped check is not a passed check. The
-routine that works: rebase onto the base's exact tip, push, **check that the
-iOS job actually queued**; if it shows `skipping`, `git commit --amend
---no-edit` for a fresh SHA and push again — the new run re-evaluates scope
-correctly. Read WHICH jobs ran before merging, every time.
+stale decision and skip (or outright fail) the iOS job** — GLO-71's bug, hit
+SEVEN times across both sessions today. A skipped check is not a passed
+check. The routine: rebase onto the base's exact tip, retarget, **then**
+`git commit --amend --no-edit` for a fresh SHA and push — the amend must
+come AFTER the retarget or the stale scope decision survives. Confirm the
+iOS job actually queued before walking away.
 
-**Authorizations are per-session and all expired with this one.** Session 6
-had: self-merge on green ("Merge as you go" — 15 PRs merged under it), one
-DataKit opening (CatalogHit image fields, from Sean's search-images ask).
-Re-ask before merging or touching the frozen core.
+**Never `--delete-branch` in merge automation.** A reused watcher script
+carried it onto a stack parent and auto-closed the child PR (#159,
+unrecoverable — recreated as #161); the same trap as session 4, now proven
+to recur through scripts. Delete branches only after a stack fully lands,
+by hand.
+
+**Two sessions can run this repo at once, and did.** Worktrees share git
+refs and one local DB. What made it work: file-level ownership announced
+before touching anything, ping-before-`supabase db reset` (broken once —
+it cost the other session's live data), separate simulators or explicit
+borrow-pings, and treating a peer-relayed ruling from Sean as actionable
+but veto-able. What didn't: assuming; an `ls` is not `git ls-tree`, and a
+"duplicate file on main" accusation built on a worktree leftover was wrong.
+
+**Authorizations are per-session and all expired.** Session 6 had:
+self-merge on green ("Merge as you go" — 33 PRs merged under it across
+both sessions), DataKit openings (CatalogHit image fields; #147's
+updateStatus/strengthPct/categoryID; NearMatch via GLO-63's own framing).
+Re-ask everything.
 
 ## 1. Where to start
 
@@ -25,170 +40,157 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Next | Why |
 |---|---|
-| [GLO-85](https://linear.app/glossed/issue/GLO-85) remaining halves | The shade collapse merged (#142); still open: the merge-candidates feeder (similarity band → queue, never auto-merge) and the adjudication path. The measurements and the wrong-franchise warning are on the ticket |
-| [GLO-72](https://linear.app/glossed/issue/GLO-72) status half | Remove is merged and driven; status change is hard-blocked on a DataKit opening (`updateStatus(itemID:to:)`) — re-ask, and bundle GLO-56's `strength_pct` decode into the same opening. The rank_positions decision for removed ranked items also waits on Sean (proposal on the ticket) |
-| [GLO-80](https://linear.app/glossed/issue/GLO-80) first track() calls | Nothing calls the tracker; the ticket carries the real design question (who owns the Tracker; where `item_logged`'s categoryID comes from — the pick path only has a slug) |
-| [GLO-16](https://linear.app/glossed/issue/GLO-16) remainder | Logging sheet + variant pick shipped (#128/#129). Still open: chips/notes/status on the item sheet, fit-at-log-time on the ladder path, capture flow, cutout pipeline (R2-blocked) |
-| [GLO-84](https://linear.app/glossed/issue/GLO-84) follow-up decision | The digit-name filter merged; the OBF foreign-language-names question is noted there for Sean |
-| [GLO-63](https://linear.app/glossed/issue/GLO-63) item 3 | Near-match RPC with a reason. Migration slot is free again (0016 merged + hosted) |
+| [GLO-16](https://linear.app/glossed/issue/GLO-16) chips live-wiring | The whole chips+note surface is built, tested and drivable in picker states behind `ShelfChipStore` — blocked ONLY on a DataKit opening (chips read, remove, vocabulary read, note update; `applyChip` exists). The ask is on the ticket. GLO-87 gated chips on "tried" (#160) — wire inside that gate |
+| [GLO-87](https://linear.app/glossed/issue/GLO-87) remaining slices | Slice 1 merged (#160: want/tried icons, tried-reveal, chips gating). Would-repurchase needs `like_state` on the shelf view (a migration, queued behind an opening the dev session hadn't asked for yet) |
+| [GLO-16](https://linear.app/glossed/issue/GLO-16) fit-at-log | Buildable since #147 (hits carry `categoryID`) but needs one architecture decision first: the `Fit`↔`FitAnswer` translation lives in features/Shelf and AddLadder would be its second consumer — features can't import features, so it moves to core or gets an interface |
+| [GLO-85](https://linear.app/glossed/issue/GLO-85) adjudication path | 364 pending pairs in `merge_candidates`; `scripts/merge_feeder.ts --pending` is the surface; verdict application belongs to GLO-14's function |
+| [GLO-72](https://linear.app/glossed/issue/GLO-72) events AC | `item_status_changed`/`item_removed` aren't in the Event enum; belongs with the next Tracking enum PR |
+| [GLO-84](https://linear.app/glossed/issue/GLO-84) note | OBF foreign-language names — a Sean decision recorded on the ticket |
 
-**Done in session 6 (do not re-do), 15 PRs #128–#142, zero open at handoff:**
-the **variant-pick logging sheet** (#128/#129 — the search dead-end is gone;
-GLO-56's pick has an owner); **shelf item remove** (#130/#131, GLO-72's
-authorization-free half); **disabled buttons** (#132, GLO-76 closed, the
-kit's own 45% recipe); **find-on-shelf search** (#133/#134, GLO-73 —
-matching rule + field, no autocorrect); **Shopify catalog fill** (#135,
-GLO-81 closed — 12 storefronts, the `lip` category added to the seed,
-flagged for tree workshop); **size buckets** (#136/#137, GLO-82 — S/M/L
-44/60/78 with width caps; 4 larges per shelf guaranteed by test);
-**search-result images** (#138/#139/#140, GLO-83 closed — migration 0016
-merged **and applied to hosted**, CatalogHit opening, rows + variant sheet
-draw real cutouts); **GTIN-as-name filter** (#141, GLO-84 closed);
-**per-shade collapse** (#142 — fenty 562 rows → 61 products with shade
-variants).
+**Done in session 6 — 33 PRs #128–#162 (two sessions), zero open at
+handoff.** This session's half: variant-pick logging sheet (#128/#129),
+remove (#130/#131), disabled buttons (#132), shelf search (#133/#134),
+Shopify catalog fill (#135, GLO-81), size buckets → S/M/L ruling
+(#136/#137, GLO-82), search-result images (#138–#140, GLO-83, 0016
+hosted), GTIN-name filter (#141, GLO-84), shade collapse (#142), chips+note
+seam (#148–#150), status model (#156; the pills PR #157 was **closed
+unmerged**, superseded by GLO-87 — the branch holds salvage), near-match
+reasons (#158/#161/#162, GLO-63, 0018 hosted), handoffs (#143/#144). The
+dev session's half: merge feeder (#145), GLO-80 track() end-to-end
+(#151–#153, 0017 hosted), #147's DataKit opening, pickLabel strength
+(#154), bay left-align (#155, Sean's ask), GLO-87 slice 1 (#160).
 
 ## 2. What exists
 
 | Layer | State |
 |---|---|
-| Schema | **16 migrations**, all applied to hosted (0016 applied via Supabase MCP immediately after merge). **116 pgTAP assertions.** Slot free. |
-| Catalog data | **~1,114 products / ~2,171 variants** local-only (shopify + obf + seed), post-collapse; sources gated against exact dupes and digit names. Image pipeline refilling storage in the background at handoff (~1.6k queued) — images arrive as it drains; the mock floor covers the gap. |
-| `core/DataKit` | Frozen again — session-6 opening (CatalogHit image fields) merged. 34 tests. |
-| `core/DesignSystem` | + disabled button state, ProductImage aspect envelope + per-call `maxWidth`. 38 tests. |
-| `core/Tracking` | Exists; **still nothing calls `track()`** (GLO-80). 10 tests. |
-| `features/Shelf` | Live: search field, remove on the sheet, S/M/L size buckets, real images. 75 tests. |
-| `features/AddLadder` | All five rungs + variant-pick sheet + real images on rows and sheet. 93 tests. |
-| `app/` | DEBUG shell unchanged in shape; ladder now gets `catalogImageBase` from the session. |
-| `scripts/` | + `shopify_import.ts` (catalog fill + shade collapse). Both importers reject digit-only names. |
-| `supabase/functions` | 5 functions, 49 deno tests, none deployed (secrets — §7). |
+| Schema | **18 migrations**, all applied to hosted (0016/0017/0018 applied via Supabase MCP immediately after merge). **121 pgTAP assertions.** Slot free (the dev session's like_state view migration is next in line). |
+| Catalog data | **1,114 products / 2,171 variants / 1,844 images**, local-only, collapsed shape, zero digit names, image queue drained. Restore recipe when a reset costs it: shopify_import → obf_import → **shopify_images (easy to forget — Sean saw mocks when it was)** → catalog_images; two catalog_images consumers are safe (the queue's UPDATE is the lock). |
+| `core/DataKit` | Frozen again — session-6 openings all merged (CatalogHit images + categoryID, updateStatus, strengthPct, NearMatch). 37 tests. |
+| `core/DesignSystem` | Disabled buttons, ProductImage aspect envelope + maxWidth. 38 tests. |
+| `core/Tracking` | **track() is real**: item_logged flows ladder→tracker→track_ingest→events (dev session, verified in psql). Enum still lacks the GLO-72 events. 10 tests. |
+| `features/Shelf` | Search, remove, S/M/L buckets, chips+note (seamed), status model, GLO-87 icons + tried-reveal + gated chips. 86 tests. |
+| `features/AddLadder` | Five rungs, variant-pick sheet, real images, **near-match reasons + complete match cards**. 96 tests. |
+| `app/` | Tracker wiring (AppSession/AppShell/TrackIngestPoster), catalogImageBase environment. |
+| `scripts/` | + `shopify_import.ts` (fill + collapse), `merge_feeder.ts` (--pending is the adjudication surface). Importers reject digit names. |
+| `supabase/functions` | 5 functions, 49 deno tests, none deployed. **The local edge runtime never served them** — a session-scoped `functions serve` covered it today and died with that session; a full `supabase stop/start` re-bakes the runtime at a quiet moment. |
 
 The sentence that is true about all of it: **the app is live against the
-local stack only** — hosted has all 16 migrations but no catalog data, no
-functions, no storage; nothing user-facing exists outside DEBUG builds.
+local stack only** — hosted has all 18 migrations and no data, no
+functions, no storage.
 
 ## 3. How this session worked
 
-Unchanged: branches `feat/GLO-<n>-desc` (also `fix/`), ≤5 files/400 lines
-(`size-override` + reason when justified — #129), squash merges, stacked PRs
-retarget-then-restack (now with §0's fresh-SHA step), one migration PR at a
-time applied to hosted immediately, `origin/main` rebuilt after stacks.
+Unchanged: branches `feat/GLO-<n>-desc`, ≤5 files/400 lines
+(`size-override` + reason when the shape demands it — #129, #162's enum
+ripple), squash merges, one migration PR at a time applied to hosted
+immediately, main rebuilt after stacks, drive-then-psql on everything.
 
-The loop that kept working: check the kit first and record the frame absence,
-model PR then UI PR, picker states incl. failures, **drive it on the
-simulator**, verify DB effects in psql, restack, merge on green, rebuild
-main. Sean steered live mid-session (buckets, search images, the bug report)
-— tickets were created/updated in Linear at each turn, which is what made
-the pivots cheap.
+New: **two sessions in parallel** (see §0), coordinated by direct
+session-to-session messages; Linear was the shared ledger and every pivot
+(Sean steered live five times: buckets ruling, search images, the GLO-84
+bug report, the dedupe question, GLO-87) was written to the ticket at the
+turn it happened, which is what made a mid-CI supersession (#157) cost
+one closed PR and nothing else.
 
 ## 4. Frozen or dangerous areas
 
-Unchanged: `core/DataKit` (openings are per-session asks), `supabase/
-migrations/` (lock + apply-to-hosted), CI workflows (GLO-71 is a human's),
-`ingest_jobs` claiming (the state-filtered UPDATE **is** the lock), the
-image-host allowlist in `catalog_images.ts` (one host per rung).
+Unchanged: `core/DataKit` (openings per-session), `supabase/migrations/`
+(lock + apply-to-hosted), CI workflows, `ingest_jobs` claiming (the
+state-filtered UPDATE **is** the lock — two concurrent consumers ran fine
+on exactly this design), the image-host allowlist.
 
-New: **`supabase test db` runs against the live local DB, not a fresh
-container.** A session that has logged/removed items or re-imported the
-catalog will fail state-dependent pgTAP tests that pass in CI. Reset before
-trusting a local red — and know that reset costs the imported catalog and
-its images (scripts restore ~40 min in the background; three resets this
-session).
+Standing: `supabase test db` runs against the **live local DB** — reset
+before trusting a local red, ping the other session before resetting, and
+budget the restore (§2 recipe, ~40 min).
 
 ## 5. How work gets reviewed
 
-Driving the build still catches what nothing else does. This session: the
-empty-variants sheet showed an unpressable CTA (fixed pre-PR); the remove
-confirm-line truncated instead of wrapping; the simulator autocorrected
-"fenty" → "Fentyen" in the search field (a search that corrects is a shelf
-claiming you own nothing); Sean's own drive caught the GTIN-as-name row
-(GLO-84). psql after every driven write remains the fastest truth check.
-None of these had a failing test.
+Driving the build kept catching what nothing else did: the immediate
+reload after a status write slammed the sheet shut (→ defer-to-close); the
+note editor expanded to fill the screen (TextEditor takes every point
+offered); the simulator autocorrected the search field; Sean's own drive
+caught the GTIN-as-name row and the missing seed images. psql after every
+driven write remains the fastest truth check. None of these had a failing
+test.
 
 ## 6. Open threads
 
 | Thread | Where |
 |---|---|
-| Merge-candidates feeder + adjudication | GLO-85 |
-| `updateStatus` opening + rank_positions decision | GLO-72 |
-| First `track()` calls + categoryID question | GLO-80 |
-| Chips/notes/status on item sheet; fit-at-log; capture flow | GLO-16 |
-| `lip` category + the tree workshop; per-kind mm table + bucket thresholds | GLO-81 / GLO-82 (Sean workshops) |
-| OBF foreign-language names | GLO-84 (note) |
-| Variant sheet shared with Import (features can't import features) | GLO-56 |
-| krave maps 0 products (product_type mismatch) | GLO-79 comment |
+| Chips live-wiring opening (4 calls) | GLO-16 — the one ask on Sean's desk |
+| GLO-87 would-repurchase (`like_state` view migration + opening) | GLO-87 / dev session |
+| Fit-at-log + the Fit↔FitAnswer translation home | GLO-16 |
+| merge_candidates adjudication | GLO-85 |
+| GLO-72 events in the Tracking enum | GLO-72 / GLO-80 note |
+| Variant sheet full-height with 14+ shades (cap + inner scroll) | GLO-85 note → GLO-16 sheet |
+| lip category + tree workshop; bucket numbers; search-toggle placement | GLO-81/82/73 (Sean workshops) |
+| OBF foreign-language names; krave maps 0 | GLO-84 note / GLO-79 comment |
+| Edge runtime re-bake (`supabase stop/start`) | §2 |
 
 ## 7. Blocked on a human, not on code
 
-| Blocked thing | On what | Who |
-|---|---|---|
-| Best image source (feeds) + catalog spine | Rakuten/Impact applications — still "reach" by choice; value rose again (also the Sephora/Ulta catalog) | Sean |
-| R2 (prod storage) | Cloudflare provisioning (GLO-48) | Sean |
-| Function deploys | `INGEST_SECRET`, `ANTHROPIC_API_KEY` secrets | Sean |
-| Real auth + TestFlight | Apple Developer + Twilio (GLO-23/GLO-50), deferred by choice | Sean |
-| GLO-71 CI scope fix | Workflow edit — the §0 workaround exists but the fix is a human's | Any human; agents barred |
-| DataKit openings (`updateStatus`, `strength_pct`) | Per-session authorization | Sean |
-| Beauty API archive | PRD says wait for hit-rate data | Sean |
+Unchanged from the last handoff: Rakuten/Impact (the hour that buys the
+best images AND the catalog spine), R2 (GLO-48), function secrets,
+Apple/Twilio (GLO-23/50), GLO-71's real fix, Beauty API. Plus the two
+per-session re-asks in §0 and the chips opening in §6.
 
 ## 8. What went wrong, so you don't repeat it
 
-Sessions 1–5 (preserved): built to primitives when frames were reachable;
-`git push -q` hid a failure; planned against a core that couldn't supply the
-data; fixed a bug that wasn't there; one number in two places; stacked
-squash double-apply (→ build main after stacks); scope-job silent skip (→
-read which jobs ran); green test testing its own decoder; seeded users that
-could never sign in; a background task switched branches mid-flight; secrets
-must be squashed out of history; stale simulator binaries; `--delete-branch`
-on a stack parent auto-closes the child PR; piping build/lint into
-`tail`/`grep` eats the exit code; a view-local `@State` copy lied on screen;
-hand-pose vs person-segmentation (question the detector's task definition);
-the allowlist that didn't grow; ran pipeline scripts from the wrong branch;
-title-matching picked the wrong franchise; record in-flight CI state in the
-handoff instead of re-watching.
+Sessions 1–5 (preserved): built to primitives with frames reachable;
+`git push -q` hid a failure; planned against a core that couldn't supply;
+fixed an absent bug; one number in two places; stacked-squash double-apply;
+scope-job silent skip; green test testing its own decoder; unsigninable
+seeded users; background branch switches; secrets in history; stale
+simulator binaries; `--delete-branch` auto-closing stack children; piped
+exit codes; view-local @State lying; wrong detector task; allowlist that
+didn't grow; wrong-branch pipeline runs; wrong-franchise title matching;
+record in-flight CI state.
 
-**Session 6:** *The pipe ate the exit code again* — `make lint | tail` let a
-file-length violation commit; the same trap the handoff already warned
-about; check `$?` on the bare command, always. *An amend landed on the wrong
-branch* (cut the child branch, then fixed the parent's lint — the amend
-rewrote the child; repoint with `git branch -f`, and never fix a parent
-after cutting its child without checking `--show-current`). *A dirty working
-tree silently skipped a rebase in a `&&` chain* — twice; the chain's later
-steps then "succeeded" against the unrebased branch, and #140 nearly went up
-reverting merged work. Rebase with a clean tree, and verify the rebase line
-actually says "Successfully rebased". *`swift test` builds packages for
-macOS* — `.textInputAutocapitalization` compiled fine in the iOS app build
-and failed CI's package build; run `swift test` in the package, not just
-`xcodebuild`, before pushing UI with platform-gated modifiers. *The picker's
-fixture rungs don't host flow transitions* — tapping "none of these" in a
-single-rung picker state moves the ladder but not the screen; drive
-transitions in the shell. *Retarget scope-skip* (→ §0). *`supabase test db`
-is not hermetic* (→ §4).
+**Session 6, first half:** the pipe ate the exit code AGAIN (twice — a
+file-length violation and a large-tuple violation both committed before
+lint was checked bare); an amend landed on the wrong branch after cutting
+its child; a dirty tree silently skipped a rebase inside a `&&` chain —
+three separate times, once nearly shipping a PR that reverted merged work
+(verify the "Successfully rebased" line, rebase with a clean tree);
+`swift test` builds packages for macOS (platform-gated modifiers compile
+in the iOS app and fail CI); picker fixture rungs don't host flow
+transitions; `supabase test db` is not hermetic.
+
+**Session 6, second half (two-session mode):** `--delete-branch` recurred
+through a REUSED WATCHER SCRIPT and killed #159 (the trap survives as long
+as the flag lives in any automation); a watcher's unconditional
+`echo MERGED` lied about a failed merge (echo only inside the success
+branch); two watchers raced one PR (harmless here, but arm exactly one);
+I accused the peer of duplicating a file on main from an `ls` of my own
+worktree — **an `ls` is not `git ls-tree`**; a blind `str.replace` of a
+pgTAP plan count no-op'd silently because the peer had already bumped it
+(read the current value, then edit); I broke the ping-before-reset pact I
+proposed, and the restore forgot `shopify_images.ts` until Sean saw mocks
+— the restore is FOUR scripts, not three; worktrees share refs, so a
+branch you never pushed is visible to every session on the machine.
 
 ## 9. Local setup
 
 ```bash
 make setup && make dev
-supabase test db          # 116 assertions (fresh DB only — §4)
+supabase test db          # 121 assertions (fresh DB only — §4)
 make functions-test       # 49 deno tests
-# catalog data (order matters: shopify first claims the good names):
+# catalog data — all four, in this order:
 deno run --allow-net --allow-run --allow-env scripts/shopify_import.ts
 deno run --allow-net --allow-run --allow-env scripts/obf_import.ts
+deno run --allow-net --allow-run --allow-env scripts/shopify_images.ts
 SUPABASE_SERVICE_ROLE_KEY=<legacy JWT from supabase status> \
-  deno run --allow-net --allow-run --allow-env --allow-read --allow-write scripts/catalog_images.ts --limit 2500
+  deno run --allow-net --allow-run --allow-env --allow-read --allow-write scripts/catalog_images.ts --limit 4000
+# the merge queue's adjudication surface:
+deno run --allow-run --allow-env scripts/merge_feeder.ts --pending
 ```
 
 **The simulator canon: iPhone 16 Pro (iOS 18.0), UDID
-`0E1EF64B-E2E3-4A51-B322-29BBEFCEEFE1` — one booted device, always.** All of
-session 6's drives, screenshots and psql-verified flows ran there. Sessions
-4–5 used an iPhone 16 Plus (iOS 18.2); its leftover booted instance
-misdirected a screenshot this session — `xcrun simctl shutdown <udid>` any
-second device before starting. No simulator is "more accurate": the shelf
-measures its width per device and bay capacity differs with it (GLO-68), so
-screenshots only compare on the same device — which is the whole reason for
-a canon. The size-bucket 4-larges guarantee targets the narrowest class
-(375pt) and is held by test, not by the device you happen to drive.
-
-Launch: `supabase start`, then
+`0E1EF64B-E2E3-4A51-B322-29BBEFCEEFE1` — one booted device, always;**
+shut down strays before starting, and if two sessions run, borrow with a
+ping. Launch: `supabase start`, then
 `SIMCTL_CHILD_SUPABASE_PUBLISHABLE_KEY=<from supabase status>` +
-`simctl terminate/install/launch`. Sign-in fails → `supabase db reset`
-first. `GLOSSED_SCREENS=1` opens the screen picker. The local storage API
-wants the **legacy JWT** service key (`eyJ…`), not `sb_secret_…`.
+`simctl terminate/install/launch`. Sign-in fails → reset (with the ping).
+`GLOSSED_SCREENS=1` opens the picker. The local storage API wants the
+**legacy JWT** service key, not `sb_secret_…`.
