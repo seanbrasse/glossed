@@ -15,35 +15,38 @@ says so.
 
 ## 0. Read this first
 
-**`supabase_migrations.schema_migrations` UNDER-REPORTS. It says 29; the
-schema is at 40. Do not infer applied-state from that table.** Every object
-from migrations 0030–0040 is present — verified by name, all eleven at once:
+**Nothing forces `supabase_migrations.schema_migrations` to agree with the
+schema, and on Aug 29 it did not** — the tracker read **29** while the schema
+was at **40**. It has since been reconciled (40 tracked, latest
+`20260829000040`, against 40 files — checked file by file), so you should find
+them in agreement. Treat that agreement as a convenience, not a guarantee.
 
-```
-affinity_for_user  anchor_badge  crosswalk_for_user  discover_for_user
-ensure_events_partition  payoff_for_variant  refresh_rank_scores
-refresh_shade_cooccurrence  refresh_trending  refresh_variant_stats
-suggested_people
-```
+**The cause is a habit, not a lane.** Applying a migration with
+`docker exec … psql < file` (or any direct psql path) does not stamp the
+tracker; `supabase migration up` does. Two sessions did this independently on
+the same night — 0030–0034 from one lane, 0035–0040 from the other — which is
+the point: it is the default behavior of anyone applying by hand, not one
+session's quirk. If you apply DDL directly, stamp it, or say so.
 
-The 1.5 lane applies DDL without stamping the tracking table, so the row
-count lags the schema by however much they have landed. **The local pgTAP
-baseline is therefore trustworthy: 546 assertions / 1 known failure
-(`shelf_view` 14)**, reproduced by the 1.5 lane after the Aug 29 colima
-restart and matching the pre-event run exactly.
+**The ordering matters more than the fix.** What established the schema's real
+state was evidence: probing `pg_proc` for the object names *grepped out of the
+migration files*, and running `discover_rpcs.test.sql` (12 assertions, pass)
+against the very migration the tracker claimed was missing. Stamping came
+after, and only made the bookkeeping agree with what was already known.
+**Bookkeeping is not proof; the probe was.**
 
-**I got this exactly backwards first, and the first version of this file
-shipped the error** — worth knowing because the mistake is cheap to repeat.
-I read `count(*) from schema_migrations` = 29 against 40 files, then probed
+**I got this backwards first, and the error shipped in this file's §0** —
+worth keeping because it is cheap to repeat. I read 29-against-40, probed
 `pg_proc` for `discover_feed` and `refresh_agg_variant_stats`, got zeros, and
 concluded eleven migrations were unapplied. **Both names were invented rather
 than read out of the migration files** — the real ones are
-`discover_for_user` and `refresh_variant_stats`. A wrong name in a `count(*)`
-returns 0 and reads exactly like absence. That is session 8's `queued`/
-`pending` scar in a new costume, and it turned a bookkeeping gap into a
-fabricated eleven-migration deficit that told every future session to
-distrust a good baseline and burn ~50 minutes on a reset it did not need.
-**Grep the object name out of the migration file before you query for it.**
+`discover_for_user` and `refresh_variant_stats`, and all eleven late objects
+were present the whole time. **A wrong name in a `count(*)` returns 0 and
+reads exactly like absence.** That is session 8's `queued`/`pending` scar in a
+new costume, and it was worse here for landing in §0, where it told every
+future session to distrust a good pgTAP baseline (546 assertions / 1 known
+failure, `shelf_view` 14) and burn ~50 minutes on a reset it did not need.
+**Grep the object name out of the file before you query for it.**
 
 **"Verify before you file" has a second half that cost more than the first: a
 red you dismiss is a defect you own.** This stretch talked itself out of five
@@ -159,7 +162,7 @@ aggregate writers, the discover read path), five DataKit repositories
 
 | Layer | State |
 |---|---|
-| Schema | **40 migration files, all applied locally — `schema_migrations` says 29 and is under-reporting (§0).** 0033–0040 landed this stretch, all but 0033 by the 1.5 lane. The slot is theirs — route DDL through them, do not open a second migration PR. **Hosted was not checked by this session**; the 1.5 lane applies there and is the authority on it |
+| Schema | **40 migration files, all applied and now all stamped** (the tracker read 29 on Aug 29 and was reconciled the same night — §0). 0033–0040 landed this stretch, all but 0033 by the 1.5 lane. The slot is theirs — route DDL through them, do not open a second migration PR. **Hosted was not checked by this session**; the 1.5 lane applies there and is the authority on it |
 | Catalog data | **3,206 products / 9,019 variants / 7,625 images / 497 brands / 22 categories**, local-only; **2,112 pending merge_candidates**, image queue ZERO. (Counted just now against the local DB.) Every image meets the standard (OBF's 588 sub-800px purged, GLO-104). Search knows what things ARE: product_type/tags/origin live on 1,836+ rows. Restore recipe: §9 — now SEVEN scripts. Maya's shelf carries drive-drift rows — fine for dev; a pgTAP run wants a reset + ping |
 | `core/DataKit` | **Frozen. This lane needed no opening at all.** **83 tests** — up from 44 because the 1.5 lane spent its own openings on five repositories plus the discover models |
 | `core/DesignSystem` | + `YesNoControl` (a question you can leave unanswered — `Segmented` always has one option selected, which is right for a status and wrong for a question), scaling `ProductSticker`. 42 tests |
@@ -308,7 +311,7 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | The shelf is unusable at accessibility text sizes; three candidate fixes written, none picked | [GLO-172](https://linear.app/glossed/issue/GLO-172) |
 | Chips render alphabetically, so likes and dislikes interleave — a feel question for Sean | [GLO-156](https://linear.app/glossed/issue/GLO-156) |
 | The Fit ↔ FitAnswer mapping is duplicated in two features with no legal shared home | [GLO-164](https://linear.app/glossed/issue/GLO-164) |
-| `schema_migrations` under-reports (29 rows, schema at 40) — cosmetic, but it reads as an eleven-migration deficit and cost this session a wrong §0 | §0 |
+| Applying DDL by direct psql does not stamp `schema_migrations`; two lanes did it independently on Aug 29 and the gap read as an eleven-migration deficit | §0 |
 | Beauty API sandbox key → function secret. Client wiring is DONE (#194); the key is all that stands between the wired path and a live drive | [GLO-93](https://linear.app/glossed/issue/GLO-93) / §7 |
 | Vercel deploy of `web/landing/` → the channel URL → GLO-90/91 applications | [GLO-89](https://linear.app/glossed/issue/GLO-89) / §7 |
 | GLO-85 queue consumer, sized for FEED-arrival (the inverted canary: 5 cross-source pairs total — OBF-drugstore and Shopify-DTC barely intersect) | [GLO-85](https://linear.app/glossed/issue/GLO-85) → GLO-14 |
