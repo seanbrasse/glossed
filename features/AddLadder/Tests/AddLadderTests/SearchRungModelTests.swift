@@ -58,7 +58,7 @@ private func model(hits: [CatalogHit] = [], failure: GlossedError? = nil) -> Sea
     let live = model(hits: [product])
     live.query = "glow"
     await live.search()
-    live.choose(.match(product))
+    live.choose(.match(product, reason: nil))
     #expect(live.pickedProductID == product.id)
     #expect(live.ladder.resolution == nil)
 
@@ -72,7 +72,7 @@ private func model(hits: [CatalogHit] = [], failure: GlossedError? = nil) -> Sea
     let live = model(hits: [product])
     live.query = "glow"
     await live.search()
-    live.choose(.match(product))
+    live.choose(.match(product, reason: nil))
     live.cancelVariantPick()
     #expect(live.pickedProductID == nil)
     #expect(live.ladder.rung == .search)

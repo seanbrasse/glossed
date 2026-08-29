@@ -61,7 +61,7 @@ public struct LadderOptionRow: View {
     @ViewBuilder
     private var thumb: some View {
         switch option {
-        case let .match(hit):
+        case let .match(hit, _):
             // The real cutout when the catalog has one (GLO-83 — "check the
             // photo" finally means a photo); the drawn mock stands in below.
             // Tint seeded on the name, not the category: seeding on the
@@ -93,18 +93,26 @@ public struct LadderOptionRow: View {
     @ViewBuilder
     private var content: some View {
         switch option {
-        case let .match(hit):
+        case let .match(hit, reason):
             Text(hit.brandName.lowercased()).meta()
             Text(hit.name.lowercased())
                 .font(Typography.display(15, weight: 700))
                 .foregroundStyle(Tokens.Ink.primary)
                 .multilineTextAlignment(.leading)
                 .padding(.vertical, 1)
-            // The frame puts a variant line and an `EvidenceLine` of face-offs
-            // below the name. `search_catalog` returns neither, so the slot
-            // stays empty rather than stating a count nobody measured —
-            // GLO-63. What does go here is the one fact the row *does* know
-            // and that changes what the product means to everyone else.
+            // The frame's card, finally whole (GLO-63): the variant line when
+            // the product has exactly one, then the sub-slot — the near
+            // rung's server-computed reason, or the search rung's evidence
+            // line. Absent facts stay absent: no reason is invented, and an
+            // absent count renders nothing rather than "0 face-offs".
+            if let variant = hit.variantLabel {
+                Text(variant).meta()
+            }
+            if let reason {
+                Text(reason).meta(color: Tokens.Cherry.deep).padding(.top, 2)
+            } else if let count = hit.faceOffCount {
+                EvidenceLine(n: count, label: "face-offs").padding(.top, 2)
+            }
             if hit.scope == .personal {
                 Badge("yours only", tone: .lilac).padding(.top, 3)
             }
@@ -128,7 +136,7 @@ public struct LadderOptionRow: View {
 
     private var accessibilityLabel: String {
         switch option {
-        case let .match(hit):
+        case let .match(hit, _):
             hit.scope == .personal
                 ? "\(hit.brandName.lowercased()), \(hit.name.lowercased()), yours only"
                 : "\(hit.brandName.lowercased()), \(hit.name.lowercased())"

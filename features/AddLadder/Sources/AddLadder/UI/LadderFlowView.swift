@@ -5,7 +5,7 @@ import Tracking
 
 /// Everything the ladder asks of the catalog, in one requirement — the four
 /// per-need protocols, which `CatalogRepository` already satisfies severally.
-public typealias LadderCatalog = CatalogSearching & ProductCreating & VariantListing & VariantLookup
+public typealias LadderCatalog = CatalogSearching & NearMatching & ProductCreating & VariantListing & VariantLookup
 
 /// The ladder as one trip: search → barcode → near matches → create → confirm.
 ///
