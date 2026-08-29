@@ -61,7 +61,13 @@ public final class VariantPickModel {
         failure = nil
         defer { isLoading = false }
         do {
+            // The wire order is Postgres text order, which puts 10.5n before
+            // 1c and #100 before #98 — hostile exactly on 40-shade
+            // foundations (GLO-98). Presentation order is this feature's
+            // decision, so re-sort numeric-aware here rather than asking the
+            // frozen core to change its query.
             variants = try await catalog.variants(productID: hit.id)
+                .sorted(by: Self.readsBefore)
             hasLoaded = true
             // One option is a confirmation, not a choice — preselect it so the
             // sheet reads "this is the one we have, check it's yours".
@@ -83,6 +89,18 @@ public final class VariantPickModel {
     /// confirm button is disabled exactly when this is nil.
     public var confirmed: Variant? {
         variants.first { $0.id == selectedVariantID }
+    }
+
+    /// Finder-style ordering on the row's own label: digit runs compare as
+    /// numbers (1c < 2c < 10c, #98 < #100), everything else as text. Label-less
+    /// rows sort last — "one size" under any named shade is never a real list.
+    /// `nonisolated`: pure arithmetic, testable without a @MainActor test.
+    nonisolated static func readsBefore(_ lhs: Variant, _ rhs: Variant) -> Bool {
+        switch (lhs.pickLabel, rhs.pickLabel) {
+        case (nil, _): false
+        case (_, nil): true
+        case let (left?, right?): left.localizedStandardCompare(right) == .orderedAscending
+        }
     }
 }
 
