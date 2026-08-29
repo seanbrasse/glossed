@@ -41,6 +41,8 @@ Convention: `object_action` lowercase snake, past tense; props are ids + enums o
 | `onb_payoff_shown` | n_exact_shade, evidence_backed bool | payoff quality gate monitoring |
 | `search_performed` | query_hash, domain, hit bool, result_count, source (onb/ladder/discover) | catalog hit rate; failed-search queue already gets the raw query |
 | `item_logged` | variant_id, category_id, source (search/barcode/photo/share_in/import/ladder_create), scope | activation, ingest-path mix |
+| `item_status_changed` | variant_id, from, to | shelf lifecycle truth: do bottles reach finished/repurchased (the PRD's repurchase signal) or sit at `own` forever |
+| `item_removed` | variant_id, status | removal context: from `finished` (a natural end) vs `own`/`want_to_try` (regret or noise) — shelf hygiene |
 | `chip_applied` | chip_id, kind, week | chip rate (>70% target), vocab health (which chips never fire) |
 | `fit_captured` | fit | fit-prompt wording health (miss-admission rate: % non-just-right) |
 | `faceoff_completed` / `faceoff_skipped` | category_id, session_len | rank adoption; skip rate = "too close" friction |
