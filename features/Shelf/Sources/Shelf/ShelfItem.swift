@@ -152,13 +152,13 @@ public struct ShelfBay: Identifiable, Sendable, Equatable {
     /// No object occupies less than this much shelf, however narrow it is drawn.
     ///
     /// A tube draws 17pt wide and its rank sticker is about 24 — "#100" nearer
-    /// 28. The sticker is centred on the object and is allowed to overhang it
+    /// The sticker is centred on the object and is allowed to overhang it
     /// (that is what a label does), but once bays are packed by width rather
     /// than capped at five, two narrow neighbours put their stickers on top of
     /// each other. This is the floor that keeps them apart, and it is the
     /// shelf's business rather than `ProductMock`'s: the number depends on what
     /// the labels say, and only the shelf knows that they are ranks.
-    public static let minimumSlot: CGFloat = 30
+    public static let minimumSlot: CGFloat = 25
 
     public let id: String
     public let label: String

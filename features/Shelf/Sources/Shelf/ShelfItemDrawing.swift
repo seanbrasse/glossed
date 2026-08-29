@@ -37,14 +37,17 @@ public enum ShelfSizeClass: CaseIterable, Sendable {
     /// 3. **The kit's 1.5× distinction.** `large` reads as more than half
     ///    again the height of `small`, so it must clear 63.
     ///
-    /// 42 / 54 / 66 is the smallest set satisfying all three, which is what
-    /// keeps the bay's growth to 5pt instead of the ~19 that reserving the
-    /// band without a cap would have cost. A test holds each constraint.
+    /// 36 / 47 / 56, and the reason they could come down at all is that the
+    /// rank sticker now scales too (GLO-155). It used to be a fixed 7.5pt on
+    /// every object, which pinned `ShelfBay.minimumSlot` at 30 and made that
+    /// the real floor under the whole shelf — the products could not shrink
+    /// because their labels would not. Scaling the sticker moved the floor to
+    /// 25 and bought a 12% scale-down. A test holds each constraint.
     public var height: CGFloat {
         switch self {
-        case .small: 42
-        case .medium: 54
-        case .large: 66
+        case .small: 36
+        case .medium: 47
+        case .large: 56
         }
     }
 

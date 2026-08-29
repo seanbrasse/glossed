@@ -23,7 +23,7 @@ import Testing
     // The number is derived, not chosen: bay height minus the label's band
     // minus the footing the items stand on. Pinning it here means a change to
     // any of the three has to be a deliberate change to this line too.
-    #expect(ShelfBayView.itemHeightCap == 66)
+    #expect(ShelfBayView.itemHeightCap == 56)
 }
 
 @Test func theTallestClassUsesTheCapRatherThanLeavingItOnTheTable() {
@@ -47,8 +47,12 @@ import Testing
     // at this cap; pinned here so the next change to `height` meets it head-on.
     let compactWidth = ShelfSizeClass.small.height * 0.8
     #expect(compactWidth > ShelfBay.minimumSlot)
-    // And clear of it by enough to still pack fewer per bay than a tube does,
-    // which is the sharper threshold and the one that actually failed: nine
-    // compacts must not fit the 370pt bay the packing test uses.
-    #expect(9 * compactWidth + 8 * ShelfBay.itemGap > 370)
+    /// Clearing the floor is not enough on its own — a compact must still pack
+    /// strictly fewer per bay than a tube, or the size class exists only in the
+    /// type system. That count, not the floor, is the threshold that actually
+    /// broke twice while these numbers were being chosen.
+    func perBay(_ slot: CGFloat) -> Int {
+        Int((370 + ShelfBay.itemGap) / (slot + ShelfBay.itemGap))
+    }
+    #expect(perBay(compactWidth) < perBay(ShelfBay.minimumSlot))
 }
