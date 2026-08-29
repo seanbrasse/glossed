@@ -106,12 +106,16 @@ function is buildable today; its food mostly is not:
 | `agg_*` cohort means (Stage 0 + shrinkage target) | **live** — 0036/0037 (`refresh_variant_stats`, cohort-shaped, GLO-157), 0038 (`refresh_rank_scores`, GLO-174), 0039 (`refresh_shade_cooccurrence`, GLO-175); all hourly, service-role, min-n picked (`min_n_chip_claims()` = 5) | wire the shrinkage target to the caller's cohort mean when a surface needs it |
 | variant structured facts (shade_hex, strength_pct, price) | populated | derivable attributes ("finish", "strength band") — later, same pipeline |
 
-Build order that follows: **(1)** the RPC — correct against empty feeders,
-returns honest n = 0; **(2)** the INCI parse feeder — 683 products of
-dimensions, the single highest-leverage unlock; **(3)** GLO-157's writer —
-Stage 0 population stats and a real shrinkage target; **(4)** the client
-surface, reading receipts. Each is independently shippable and none blocks
-another's correctness — only its usefulness.
+Build order that follows — and its state as of Aug 29 evening, all four
+built the same day this document was written: **(1)** the RPC (0035) ✓;
+**(2)** the INCI parse feeder (`inci_enrich.ts`, 627 products attributed) ✓;
+**(3)** the aggregate writers (0036–0039) ✓; **(4)** the client surface ✓ —
+`discover_for_user()`/`crosswalk_for_user()` (0040), the DataKit reads, and
+`features/Discover` rendering receipts through EvidenceLine, driven on the
+simulator against real data. What remains is depth, not scaffolding:
+tap-through to product pages, the leaderboard, search filters over chip
+aggregates, the discover events, and wiring the shrinkage target to the
+caller's cohort mean.
 
 ## 5. People suggestions (Phase 3, designed-for now)
 
