@@ -21,6 +21,7 @@ Vocabulary in this document is the schema vocabulary. If the PRD calls it a "fac
 | **Anchor** | A shade the user wears in an anchor category (foundation, concealer, tinted moisturizer, skin tint, powder, BB/CC) + a **fit** verdict. The color-identity primitive. We store what people wear, never compute what they are. |
 | **Fit** | `just right / too light / too dark / too pink / too yellow / too orange`. Captured at log time. |
 | **Tone band** | Coarse 10-step band (internal name only — never "Monk" in UI). Fallback for users with no anchor; always overwritten by anchors, never the reverse. |
+| **Profile** | A prior plus a ledger of evidence. Onboarding answers seed it; logged experience (chips, fits, face-offs) refines it; **evidence outranks the stated answer wherever the two disagree**. Three kept-separate layers per `tech/01` §8: body facts filter, attribute affinity, aesthetic taste. |
 | **Shade claim** | Any user-facing population claim. Always names the exact shade or the data behind it ("12 people wear fenty 240"), never a persona. The "shade twins" concept was removed in design review. |
 | **Collection** | User-created group of UserItems with a cover. Seasonal collections are collections, not ranking scopes. |
 | **Routine** | Ordered set of UserItems with a slot (`am / pm / weekly / wash day`), layering position, start date. (1.5) |
@@ -30,6 +31,21 @@ Vocabulary in this document is the schema vocabulary. If the PRD calls it a "fac
 | **Scope (privacy)** | `only_you / friends / public`, set per surface (looks, shelf, rankings, routines). Label is "only you" (Sean, Aug 29 — renamed from "just you"; the design kit's frame still shows the old string). |
 | **Wear-in** | Per-category day count before a skincare item can be ranked. Field on the category. |
 | **Gap card** | A dismissible suggestion derived from a set-difference between what people with your anchors/skin keep and what you've logged. |
+
+**The profile principle (Sean, Aug 29).** The tone-band rule above — always
+overwritten by anchors, never the reverse — is the pattern, not an exception.
+Every profile fact works the same way: what the user *said* at onboarding is a
+prior, what their logs *show* is evidence, and evidence wins. Per domain:
+makeup learns tone identity from anchors + fit; skincare learns skin behavior
+from reaction chips (week-stamped, cohort-conditioned); haircare learns what
+holds, weighs down, or builds up against the stated pattern; fragrance has no
+body-fact axis at all — the opinion **is** the profile, learned from chips,
+rankings, and face-offs, and recommended as taste. Two boundaries keep this
+honest. Learned properties are **receipts, not personas**: every claim derived
+from them shows the logs it stands on, per the shade-claim rule. And we store
+what people report and observe — **we never compute what they are** (no
+biometric inference, ever; §5 classifies inferred values with their stated
+equivalents).
 
 ## 2. Entities and relationships
 
@@ -138,7 +154,7 @@ Authorization lives in the service layer (RLS + security-definer functions), nev
 | **Public** | Brand, Product/Variant (canonical), Category, attribute chips, aggregate stats above min-n | none |
 | **Internal** | FailedSearch, MergeCandidate, IngestSource, metrics events | access control |
 | **Confidential** | UserItem, chips, face-offs, rankings, collections, routines, personal-scope products, follows | encryption at rest (platform default), access logging on reads by staff, RLS |
-| **Regulated** | phone number, birthday, Apple identity, tone band + skin/hair profile, anchors + fit, swatch/look photos, contact-import data (2) | all of the above + retention rules + deletion rights + never in logs. Skin/hair/tone data is treated as sensitive personal data even where not statutorily biometric. **No biometric inference ever** (no selfie tone detection — BIPA/CUBI). Face photos are user content, not data: no analysis beyond the user's own tagging + moderation scanning. |
+| **Regulated** | phone number, birthday, Apple identity, tone band + skin/hair profile (stated **or inferred** — a value learned from logs classifies as its stated equivalent the moment it is written anywhere), anchors + fit, swatch/look photos, contact-import data (2) | all of the above + retention rules + deletion rights + never in logs. Skin/hair/tone data is treated as sensitive personal data even where not statutorily biometric. **No biometric inference ever** (no selfie tone detection — BIPA/CUBI). Face photos are user content, not data: no analysis beyond the user's own tagging + moderation scanning. |
 
 Uploaded photos: EXIF (incl. GPS) is stripped on device before upload, deliberately.
 
