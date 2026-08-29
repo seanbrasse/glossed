@@ -108,8 +108,22 @@ const TYPE_RULES: [RegExp, string][] = [
 ];
 
 /// Things that are not one product: bundles, and store furniture that
-/// sometimes wears a mappable type ("Lip Set").
-const EXCLUDED = /\b(set|sets|kit|duo|trio|bundle|collection|gift card|sample|merch)\b/i;
+/// sometimes wears a mappable type ("Lip Set", "the lil box of lippie stix").
+/// "box of" and not "box": "juice box" is a legit shade name (GLO-95).
+const EXCLUDED = /\b(set|sets|kit|duo|trio|bundle|collection|gift card|sample|merch|box of)\b/i;
+
+/// Storefronts whose product TITLES are the shade: the line name lives in
+/// `product_type` ("Ultra Glossy Lip"), the title is "Tickled Pink", and
+/// every variant is Shopify's "Default Title" placeholder — so the em-dash
+/// collapse can never fire and a naive import writes 433 context-free
+/// products (GLO-95, found by the drive pass).
+///
+/// Curated per-store, NOT inferred from the shape: naturium files nine
+/// distinct serums as type "Serum" with Default Title variants, and a
+/// general (brand, type) grouping would collapse them into one product —
+/// the wrong-franchise class of error. A store earns this flag by having
+/// its convention verified against its live payload first.
+const TITLE_IS_SHADE = new Set(["colourpop.com"]);
 
 interface ShopifyVariant {
   title?: string;
@@ -181,10 +195,20 @@ function sizeFrom(...texts: (string | undefined | null)[]): number | null {
   return null;
 }
 
-function candidate(brand: string, p: ShopifyProduct): Candidate | null {
+function candidate(brand: string, p: ShopifyProduct, titleIsShade = false): Candidate | null {
   const slug = categoryFor(p);
   if (!slug) return null;
-  const name = clean((p.title ?? "").toLowerCase(), 200);
+  // The title-is-shade convention (GLO-95): the line name is the type, the
+  // title is the shade, and the idempotent SQL chain accretes same-named
+  // candidates onto one product — the insert layer IS the collapse. Only
+  // when every variant is the Default Title placeholder; a product that
+  // grows real options reverts to the normal path on its own.
+  const allDefault = (p.variants ?? []).length > 0 &&
+    (p.variants ?? []).every((v) => (v.title ?? "") === "Default Title");
+  const shadeFromTitle = titleIsShade && allDefault;
+  const name = shadeFromTitle
+    ? clean((p.product_type ?? "").toLowerCase(), 200)
+    : clean((p.title ?? "").toLowerCase(), 200);
   if (name.length < 2) return null;
   // GLO-84's guard, mirrored: store-authored titles make this unlikely, but
   // a digits-only title names nothing wherever it came from.
@@ -200,7 +224,9 @@ function candidate(brand: string, p: ShopifyProduct): Candidate | null {
     const price = Number(v.price ?? "0");
     if (!(price > 0)) continue; // gifts-with-purchase and placeholders
     const options = [v.option1, v.option2, v.option3];
-    const shadeRaw = shadePosition ? options[shadePosition - 1] ?? "" : "";
+    const shadeRaw = shadePosition
+      ? options[shadePosition - 1] ?? ""
+      : (shadeFromTitle ? p.title ?? "" : "");
     const shade = clean(shadeRaw.toLowerCase(), 80);
     const sizeText = sizePosition ? options[sizePosition - 1] : null;
     const barcode = (v.barcode ?? "").trim();
@@ -352,7 +378,7 @@ for (const [host, brand] of Object.entries(STORES)) {
     const products = await fetchPage(host, page);
     fetched += products.length;
     for (const p of products) {
-      const c = candidate(brand, p);
+      const c = candidate(brand, p, TITLE_IS_SHADE.has(host));
       if (c) {
         storeCandidates.push(c);
       } else if (!EXCLUDED.test(`${p.product_type ?? ""} ${p.title ?? ""}`)) {
