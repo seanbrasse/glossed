@@ -1,7 +1,9 @@
 import SwiftUI
 
-/// The app's floating tab bar: three tabs in V1 with the plus button at centre.
-/// A fourth tab arrives only with the feed in phase 2 — V1 ships nothing
+/// The app's floating tab bar: three tabs in V1, with the plus button riding
+/// OUTSIDE the capsule on its right, vertically inline (Sean's Aug 29 ruling —
+/// the add action is not a tab, and inside the capsule it read as one). A
+/// fourth tab arrives only with the feed in phase 2 — V1 ships nothing
 /// user-visible-to-user, so there is nothing to feed.
 public struct FloatingNav<TabID: Hashable>: View {
     public struct Tab: Identifiable {
@@ -26,22 +28,17 @@ public struct FloatingNav<TabID: Hashable>: View {
         self.onPlus = onPlus
     }
 
-    /// The plus sits after the first half of the tabs, so with three tabs it
-    /// lands between "shelf" and "you" — reachable by thumb, not buried.
-    private var plusIndex: Int {
-        (tabs.count + 1) / 2
+    public var body: some View {
+        HStack(alignment: .center, spacing: Tokens.Space.s3) {
+            capsule
+            plusButton
+        }
     }
 
-    public var body: some View {
+    private var capsule: some View {
         HStack(spacing: Tokens.Space.s1) {
-            ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
-                if index == plusIndex {
-                    plusButton
-                }
+            ForEach(tabs) { tab in
                 tabButton(tab)
-            }
-            if plusIndex >= tabs.count {
-                plusButton
             }
         }
         .padding(Tokens.Space.s2)
@@ -83,6 +80,12 @@ public struct FloatingNav<TabID: Hashable>: View {
                 .background(Tokens.Cherry.base)
                 .clipShape(Circle())
                 .overlay(Circle().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.thin))
+                // Standing alone now, it floats the way the capsule does —
+                // same hard ink shadow, or the two read as different layers.
+                .background(
+                    Circle().fill(Tokens.Ink.primary)
+                        .offset(x: Tokens.Shadow.lg, y: Tokens.Shadow.lg)
+                )
         }
         .buttonStyle(.plain)
         .accessibilityLabel("add")
