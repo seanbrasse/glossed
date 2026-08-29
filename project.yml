@@ -28,6 +28,8 @@ packages:
     path: features/Import
   Privacy:
     path: features/Privacy
+  Profile:
+    path: features/Profile
 targets:
   Glossed:
     type: application
@@ -43,6 +45,7 @@ targets:
       - package: ProductPage
       - package: Import
       - package: Privacy
+      - package: Profile
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.glossed.app
