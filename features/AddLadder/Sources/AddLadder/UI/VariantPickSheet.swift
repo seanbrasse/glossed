@@ -202,6 +202,13 @@ public struct VariantPickSheet: View {
         if model.variants.count == 1 {
             Text("the only one we have on file — check it's yours")
                 .meta()
+                // Wrap, don't truncate (GLO-146). Without this the line
+                // rendered as "check it's you…" — the sheet's whole job is
+                // getting you to verify the shade before it logs, and the
+                // sentence that asks for the check was the one being cut.
+                // Same remedy as the remove-confirm line (#131).
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, Tokens.Space.s1)
         }
     }
