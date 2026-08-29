@@ -4,7 +4,7 @@
 surface against empty, one, extreme and error, driven on the canon simulator
 (iPhone 16 Pro, `0E1EF64B`) rather than reasoned about.
 
-**Status: 22 of ~25 states driven. Not complete.** The unfinished rows are
+**Status: 24 of ~25 states driven. Not complete.** The unfinished rows are
 listed as unfinished; a blank cell is a cell nobody has looked at, and saying
 so is the point of the file.
 
@@ -34,8 +34,8 @@ Two rules govern the cells:
 | Ladder — search | ⬜ | — | — | ⬜ |
 | Ladder — scan | — | — | — | ✅ no camera |
 | Ladder — create | — | — | — | ✅ write failed |
-| Logging sheet | ✅ nothing on file | ✅ sole variant | ✅ **40 shades** ([GLO-168](https://linear.app/glossed/issue/GLO-168)) | ✅ variants didn't load |
-| Product page | ✅ not an anchor | — | — | ⬜ evidence lookup failed |
+| Logging sheet | ✅ nothing on file | ✅ sole variant · three shades | ✅ **40 shades** ([GLO-168](https://linear.app/glossed/issue/GLO-168)) | ✅ variants didn't load |
+| Product page | ✅ not an anchor | — | — | ✅ evidence lookup failed |
 | Import | — | — | ✅ messy list | ⬜ parse failed |
 | **Dynamic Type** | — | — | ❌ [GLO-172](https://linear.app/glossed/issue/GLO-172) | — |
 
@@ -58,6 +58,14 @@ The most-cited scar in the project was guarded by two private constants and a
 comment, and the 40-shade case this ticket asks for by name was reachable only
 by finding a real 40-shade product. Both now exist; driven to *finishable* at
 forty.
+
+**A fixture my own [GLO-165](https://linear.app/glossed/issue/GLO-165) fix silently broke.** `product · the evidence
+lookup failed` lost its fit block. #236 gated the block on being answerable and
+gave three fixtures a store to compensate — but the regex that did it matched
+only call sites carrying an `evidence:` argument, and this one passes
+`failure: .offline`. It hit `backed`, `thin` and `notAnAnchor`, and missed the
+one anchor fixture that needed it. Nothing failed; the block simply stopped
+being there. Found by driving the cell, four PRs later.
 
 **[GLO-172](https://linear.app/glossed/issue/GLO-172) — at accessibility text sizes the shelf is unusable.** Open. The page
 overflows and clips on both edges with no scroll: every product is off-screen
@@ -90,8 +98,7 @@ Recorded so nobody re-drives them, and because "clean" means a specific claim he
 ## Still to drive
 
 `shelf · remove failed`, the ladder's search and near-match rungs,
-`product · thin` / `evidence lookup failed`, `import · pick a source` /
-`no matches` / `parse failed`.
+`product · thin`, `import · pick a source` / `no matches` / `parse failed`.
 
 **And every surface except the shelf at accessibility text sizes.** GLO-172 is
 one screen's worth of a check nobody has run anywhere else.

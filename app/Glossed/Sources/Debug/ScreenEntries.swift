@@ -210,7 +210,8 @@
         ) {
             ProductPageView(model: ProductPageModel(
                 product: ProductFixtures.pocketBlush,
-                aggregates: StubAggregates(failure: .offline)
+                aggregates: StubAggregates(failure: .offline),
+                fitStore: .picker
             ))
         }
 
