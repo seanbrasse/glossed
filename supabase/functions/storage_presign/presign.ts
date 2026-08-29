@@ -1,4 +1,9 @@
-// Presign rules for user cutouts on R2 (ADR 0004, tech/01 §7).
+// Presign rules for user uploads on R2 (ADR 0004, tech/01 §7, tech/02 §5).
+//
+// Two key namespaces through one function: cutouts (GLO-16/48) and swatches
+// (GLO-132). One function because the signing, the size cap and the accepted
+// content types are the same problem twice; two namespaces because the objects
+// have different lifetimes and different owners in the domain.
 //
 // Kept separate from the handler so the parts worth getting wrong — the key
 // shape and what the signature actually commits to — are testable without a
@@ -27,6 +32,15 @@ export interface PresignInput {
   readonly contentLength: number;
 }
 
+/// A swatch is tagged to the Variant, never the UserItem (domain.md §1) — the
+/// photo is of a shade, and it stays meaningful after the bottle is finished.
+export interface SwatchPresignInput {
+  readonly userID: string;
+  readonly variantID: string;
+  readonly contentType: string;
+  readonly contentLength: number;
+}
+
 export interface R2Config {
   readonly accountID: string;
   readonly bucket: string;
@@ -39,24 +53,41 @@ export type Rejection = string;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/// The type/size half, shared by both namespaces. Factored out so a swatch and
+/// a cutout cannot drift into disagreeing about what an acceptable upload is —
+/// two copies of these four checks would.
+function validateUpload(
+  contentType: string | undefined,
+  contentLength: number | undefined,
+): Rejection | null {
+  if (!contentType || !(contentType in ALLOWED_CONTENT_TYPES)) {
+    return `content_type must be one of ${Object.keys(ALLOWED_CONTENT_TYPES).join(", ")}`;
+  }
+  if (
+    typeof contentLength !== "number" ||
+    !Number.isInteger(contentLength) ||
+    contentLength <= 0
+  ) {
+    return "content_length must be a positive integer";
+  }
+  if (contentLength > MAX_UPLOAD_BYTES) {
+    return `content_length exceeds ${MAX_UPLOAD_BYTES} bytes`;
+  }
+  return null;
+}
+
 export function validate(input: Partial<PresignInput>): Rejection | null {
   if (!input.userItemID || !UUID.test(input.userItemID)) {
     return "user_item_id must be a uuid";
   }
-  if (!input.contentType || !(input.contentType in ALLOWED_CONTENT_TYPES)) {
-    return `content_type must be one of ${Object.keys(ALLOWED_CONTENT_TYPES).join(", ")}`;
+  return validateUpload(input.contentType, input.contentLength);
+}
+
+export function validateSwatch(input: Partial<SwatchPresignInput>): Rejection | null {
+  if (!input.variantID || !UUID.test(input.variantID)) {
+    return "variant_id must be a uuid";
   }
-  if (
-    typeof input.contentLength !== "number" ||
-    !Number.isInteger(input.contentLength) ||
-    input.contentLength <= 0
-  ) {
-    return "content_length must be a positive integer";
-  }
-  if (input.contentLength > MAX_UPLOAD_BYTES) {
-    return `content_length exceeds ${MAX_UPLOAD_BYTES} bytes`;
-  }
-  return null;
+  return validateUpload(input.contentType, input.contentLength);
 }
 
 /// `users/<uid>/items/<item_id>/<nonce>.<ext>`.
@@ -73,6 +104,31 @@ export function cutoutKey(
 ): string {
   const ext = ALLOWED_CONTENT_TYPES[contentType];
   return `users/${userID}/items/${userItemID}/${nonce}.${ext}`;
+}
+
+/// `users/<uid>/swatches/<variant_id>/<nonce>.<ext>`.
+///
+/// A SEPARATE NAMESPACE FROM CUTOUTS, not a reuse of one. Cutouts key on the
+/// UserItem and swatches key on the Variant, so sharing a prefix would put two
+/// different things under one path and make a future bucket lifecycle rule
+/// (cutouts are disposable, swatches are user-posted content) impossible to
+/// write without parsing ids.
+///
+/// The nonce is what makes the key unguessable. This matters more here than for
+/// cutouts: a swatch sits in `pending_review` before it is public, and the
+/// storage layer knows nothing about `swatch_state`. A predictable key would
+/// let anyone holding a user id and a variant id read other people's unreviewed
+/// photos straight out of the bucket, with RLS never consulted — the row is
+/// protected, the object is not. Two uploads of the same variant by the same
+/// user get unrelated keys, which is asserted in the tests.
+export function swatchKey(
+  userID: string,
+  variantID: string,
+  contentType: string,
+  nonce: string = randomNonce(),
+): string {
+  const ext = ALLOWED_CONTENT_TYPES[contentType];
+  return `users/${userID}/swatches/${variantID}/${nonce}.${ext}`;
 }
 
 export function randomNonce(): string {

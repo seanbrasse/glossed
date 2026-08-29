@@ -1,4 +1,4 @@
-// storage_presign — short-lived PUT URLs for user cutouts on R2.
+// storage_presign — short-lived PUT URLs for user uploads on R2.
 //
 // The app never holds an R2 credential (ADR 0004). It asks here, we check the
 // caller actually owns the item, and we hand back a URL that only works for
@@ -7,8 +7,13 @@
 //
 // Two layers of auth, deliberately: the platform's `verify_jwt` (on by default)
 // rejects anything without a valid session before this file runs, and the
-// ownership query below runs under the caller's own JWT so RLS — not this
-// handler — decides whether the item is theirs.
+// ownership check below runs under the caller's own JWT so the database — not
+// this handler — decides whether the caller may write.
+//
+// TWO NAMESPACES, ONE FUNCTION (tech/02 §5, GLO-132). `user_item_id` asks for a
+// cutout; `variant_id` asks for a swatch. The signing, the size cap and the
+// accepted content types are the same problem twice, so they are one
+// implementation; the gates differ and are named separately below.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
@@ -17,7 +22,9 @@ import {
   presignPut,
   r2Config,
   resolvePublishableKey,
+  swatchKey,
   validate,
+  validateSwatch,
 } from "./presign.ts";
 
 const corsHeaders = {
@@ -49,12 +56,21 @@ Deno.serve(async (req: Request) => {
     return json({ error: "body must be json" }, 400);
   }
 
+  // Exactly one id decides the namespace. Accepting both would leave the key
+  // shape depending on evaluation order rather than on the request.
+  const wantsSwatch = body.variant_id !== undefined;
+  const wantsCutout = body.user_item_id !== undefined;
+  if (wantsSwatch === wantsCutout) {
+    return json({ error: "exactly one of user_item_id or variant_id is required" }, 400);
+  }
+
   const input = {
     userItemID: body.user_item_id as string,
+    variantID: body.variant_id as string,
     contentType: body.content_type as string,
     contentLength: body.content_length as number,
   };
-  const rejection = validate(input);
+  const rejection = wantsSwatch ? validateSwatch(input) : validate(input);
   if (rejection) return json({ error: rejection }, 400);
 
   try {
@@ -67,17 +83,44 @@ Deno.serve(async (req: Request) => {
     );
     if (!user) return json({ error: "unauthenticated" }, 401);
 
-    // Under the caller's JWT, so RLS answers this — a row belonging to someone
-    // else comes back as no row, not as a denied read we would have to notice.
-    const { data: item } = await supabase
-      .from("user_items")
-      .select("id")
-      .eq("id", input.userItemID)
-      .is("deleted_at", null)
-      .maybeSingle();
-    if (!item) return json({ error: "no such item" }, 404);
+    let key: string;
 
-    const key = cutoutKey(user.id, input.userItemID, input.contentType);
+    if (wantsSwatch) {
+      // THE SAME PREDICATE THE INSERT POLICY USES, not a reimplementation of
+      // it. can_post_swatch() (migration 0026) encodes both write gates —
+      // minors cannot post at all, and you may only swatch a variant on your
+      // own shelf — and swatches_insert_own calls the identical function. The
+      // upload happens before the row exists, so the rule needs enforcing in
+      // two places; naming one function is what stops the two from drifting.
+      //
+      // It runs under the caller's JWT and is a definer wrapper answering only
+      // about auth.uid(), so it reveals nothing the caller could not learn by
+      // attempting the insert.
+      const { data: allowed, error } = await supabase
+        .rpc("can_post_swatch", { p_variant: input.variantID });
+      if (error) throw error;
+
+      // ONE REFUSAL FOR BOTH GATES, deliberately. A minor and a stranger to
+      // this variant get byte-identical responses. Distinguishing them would
+      // turn this endpoint into an oracle for "is that account a minor?",
+      // which is precisely what the minors lock exists to prevent — and the
+      // caller loses nothing, because neither of them may upload.
+      if (!allowed) return json({ error: "not allowed for this variant" }, 403);
+
+      key = swatchKey(user.id, input.variantID, input.contentType);
+    } else {
+      // Under the caller's JWT, so RLS answers this — a row belonging to someone
+      // else comes back as no row, not as a denied read we would have to notice.
+      const { data: item } = await supabase
+        .from("user_items")
+        .select("id")
+        .eq("id", input.userItemID)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (!item) return json({ error: "no such item" }, 404);
+
+      key = cutoutKey(user.id, input.userItemID, input.contentType);
+    }
     const url = await presignPut(
       r2Config(env),
       key,
