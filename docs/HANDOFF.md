@@ -152,19 +152,27 @@ aggregate writers, the discover read path), five DataKit repositories
 | `features/Shelf` | + fit gated on tried (GLO-145), live chip + note store (GLO-16), "would you buy it again?" (GLO-87), a bounded scrolling sheet (GLO-160), the label band and scale-down (GLO-149/155), four named empty states (GLO-166). 133 tests |
 | `features/ProductPage` | + the catalog image (GLO-153), and the fit answer now persists and is offered only where a `userItemID` exists to persist it to (GLO-47/165). 20 tests |
 | `features/AddLadder` | + GLO-93's scan-miss fill (`BarcodeFilling`/`BarcodeFillSuggestion` live HERE, not in DataKit), the 40-shade fixture and its cap guard (GLO-168). 108 tests |
-| `features/Privacy` | **New, and the ninth package** — landed by the 1.5 lane in #259 after this handoff was first written. Four surfaces, one derived summary. 11 tests |
+| `features/Privacy` | Landed by the 1.5 lane in [#259](https://github.com/seanbrasse/glossed/pull/259). Four surfaces, one derived summary. 11 tests |
+| `features/Profile` | Landed by the 1.5 lane in [#265](https://github.com/seanbrasse/glossed/pull/265) — the handle claim screen. 11 tests |
+| `features/Discover` | Landed by the 1.5 lane in [#263](https://github.com/seanbrasse/glossed/pull/263) — picks, crosswalk, the wander. 5 tests |
 | `features/Ranking` / `features/Import` | Untouched this stretch. 29 / 12 tests |
 | `app/` | Tracker wiring, fit-at-log seam + FitPromptCard (the prompt lives HERE, not in Shelf), catalogImageBase, and `AppShellProductPage` — closing the page re-opens the sheet so it re-reads `item_fits` |
 | `web/landing/` | Static landing page for the affiliate applications. On main, NOT deployed (§7) |
 | `scripts/` | shopify_import, obf_import (+ `--brands`), shopify_images, catalog_images, obf_requalify, brand_merge, merge_feeder, **inci_enrich** (new, GLO-170) |
 | `supabase/functions` | **7 functions, 82 deno tests, all passing, none deployed**; nothing serves them by default and the silence is dangerous (§0) |
 
-**Verified totals, session 11 (every command actually run): 453 Swift tests
-across 9 packages** — DataKit 83, DesignSystem 42, Tracking 15, Shelf 133,
-AddLadder 108, Ranking 29, ProductPage 20, Import 12, **Privacy 11** — **plus
-82 deno.** The first eight were counted on `69cd9e6`; DataKit and Privacy were
-re-counted after #259 and #261 landed mid-review. **Nine, not eight** — if you
-copy the sweep loop from §9, copy the current one. **pgTAP was NOT run and this file quotes no number for it**
+**Verified totals — 469 Swift tests across 11 packages, all counted at
+`7114918`** (DataKit 83, DesignSystem 42, Tracking 15, Shelf 133, AddLadder
+108, Ranking 29, ProductPage 20, Import 12, Privacy 11, Profile 11, Discover
+5) — **plus 82 deno.**
+
+**Do not trust that number; re-measure it.** It went 438 → 453 → 469 and the
+package count went 8 → 9 → 11 *while this file was being written*, because
+the 1.5 lane is landing a package roughly every twenty minutes. The count is
+stamped with the commit it was taken at for exactly that reason. **§9's sweep
+loop discovers packages by glob rather than listing them** — copy that loop,
+never a list, because a list cannot notice a package that did not exist when
+it was written. **pgTAP was NOT run and this file quotes no number for it**
 (§0: the local DB is 11 migrations behind, so any result would be drift).
 `core/Media` is NOT among the packages: it is named in both CLAUDE.md files but
 **has never existed** ([GLO-148](https://linear.app/glossed/issue/GLO-148)).
@@ -458,18 +466,36 @@ in silence, which is the §8 scar from session 9 recurring against the very
 document that records it. **A handoff written while other lanes are merging is
 stale on arrival: re-check its counts at merge time, not just at write time**,
 and give any enumerating loop an explicit "MISSING" branch so the next drift
-announces itself.
+announces itself. **That remedy was wrong, and it failed within the hour.** A
+MISSING branch catches a package that was *deleted*; what actually kept
+happening was packages being *added* — Privacy, then Discover, then Profile,
+three in about an hour, taking the count 8 → 9 → 11 and the totals 438 → 453
+→ 469. No hardcoded list can notice a package that did not exist when the list
+was written. **The fix is discovery, not enumeration**: §9's loop now globs
+`core/*/` and `features/*/` and tests anything with a `Package.swift`. The
+general shape — *when a list keeps going stale, stop maintaining the list and
+derive it* — is worth more than either count.
+
+*And the stale `.build` scar recurred, now with a nameable trigger.* Four
+packages "failed to compile" against main with `cannot find type
+'DiscoverHit' in scope` — a type that plainly exists in `DataKit/Discover.swift`.
+DataKit's own tests passed at the same moment, which is the tell. `rm -rf
+.build` in the four dependents and all 469 tests pass. **The trigger is
+specific enough to predict: whenever DataKit gains a type, every dependent
+package with a warm cache will report that type as missing.** After any
+DataKit change, clean the dependents before believing a single one of them is
+broken.
 
 ## 9. Local setup
 
 ```bash
 make setup && make dev
 # the full sweep (§5) — run ALL of these, not just the package you touched:
-for p in core/DataKit core/DesignSystem core/Tracking features/Shelf \
-         features/AddLadder features/Ranking features/ProductPage \
-         features/Import features/Privacy; do
-  [ -d "$p" ] || { echo "MISSING: $p"; continue; }   # never skip silently (§8)
-  (cd $p && swift test)   # 453 total; rm -rf .build first if a package "won't compile" (§8)
+# Packages are DISCOVERED, never listed (§8): three appeared in one hour and a
+# hardcoded list cannot notice a package that did not exist when it was written.
+for p in $(ls -d core/*/ features/*/ | sed 's:/$::'); do
+  [ -f "$p/Package.swift" ] || continue
+  echo "== $p"; (cd $p && swift test)   # 469 total at 7114918
 done
 make functions-test       # 82 deno tests
 # supabase test db        # DO NOT trust the result until you reset (§0): the local
