@@ -27,7 +27,7 @@ Vocabulary in this document is the schema vocabulary. If the PRD calls it a "fac
 | **Look** | Photo post with Variants tagged pin-style. (Phase 2) |
 | **Swatch** | User photo of a shade on their skin, tagged to a Variant, tone band snapshotted at capture. (1.5) |
 | **Scope (catalog)** | `personal / submitted / canonical`. Personal products exist only for their creator; canonical products are searchable by everyone and aggregate. |
-| **Scope (privacy)** | `just_you / friends / public`, set per surface (looks, shelf, rankings, routines). |
+| **Scope (privacy)** | `only_you / friends / public`, set per surface (looks, shelf, rankings, routines). Label is "only you" (Sean, Aug 29 — renamed from "just you"; the design kit's frame still shows the old string). |
 | **Wear-in** | Per-category day count before a skincare item can be ranked. Field on the category. |
 | **Gap card** | A dismissible suggestion derived from a set-difference between what people with your anchors/skin keep and what you've logged. |
 
