@@ -15,6 +15,8 @@ import Testing
         .onbPayoffShown(exactShadeCount: 12, evidenceBacked: true),
         .searchPerformed(queryHash: "abc", domain: nil, hit: true, resultCount: 3, source: .ladder),
         .itemLogged(variantID: UUID(), categoryID: UUID(), source: .barcode, scope: "canonical"),
+        .itemStatusChanged(variantID: UUID(), from: "own", to: "finished"),
+        .itemRemoved(variantID: UUID(), status: "finished"),
         .chipApplied(chipID: UUID(), kind: "experience", week: 3),
         .fitCaptured(fits: ["too_light", "too_pink"]),
         .faceoffCompleted(categoryID: UUID(), sessionLength: 9),
@@ -54,6 +56,21 @@ import Testing
     let event = Event.searchPerformed(queryHash: "h", domain: nil, hit: false, resultCount: 0, source: .onboarding)
     #expect(event.props["domain"] == nil)
     #expect(event.props["hit"] == .bool(false))
+}
+
+@Test func aLifecycleEventCarriesBothEndsOfTheMove() {
+    // GLO-72's AC: the analytics question is "do bottles reach finished, or
+    // sit at own forever" — one end alone cannot answer it.
+    let variant = UUID()
+    let changed = Event.itemStatusChanged(variantID: variant, from: "own", to: "finished")
+    #expect(changed.props["variant_id"] == .id(variant))
+    #expect(changed.props["from"] == .string("own"))
+    #expect(changed.props["to"] == .string("finished"))
+
+    // A removal says what the item was when it left — regret and natural
+    // ends roll up differently.
+    let removed = Event.itemRemoved(variantID: variant, status: "want_to_try")
+    #expect(removed.props["status"] == .string("want_to_try"))
 }
 
 @Test func aMultiAxisFitTravelsWholeAndSorted() {

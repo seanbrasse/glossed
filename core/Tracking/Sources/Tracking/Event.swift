@@ -30,6 +30,11 @@ public enum Event: Sendable, Equatable {
     case itemLogged(variantID: UUID, categoryID: UUID, source: LogSource, scope: String)
 
     // Journal
+    /// Statuses ride as raw `item_status` values (want_to_try/own/finished/
+    /// repurchased) — Tracking deliberately does not import DataKit's enum,
+    /// the same way `scope` and `fit` ride as strings.
+    case itemStatusChanged(variantID: UUID, from: String, to: String)
+    case itemRemoved(variantID: UUID, status: String)
     case chipApplied(chipID: UUID, kind: String, week: Int?)
     case fitCaptured(fits: [String])
     case faceoffCompleted(categoryID: UUID, sessionLength: Int)
@@ -87,6 +92,8 @@ public extension Event {
         case .onbPayoffShown: "onb_payoff_shown"
         case .searchPerformed: "search_performed"
         case .itemLogged: "item_logged"
+        case .itemStatusChanged: "item_status_changed"
+        case .itemRemoved: "item_removed"
         case .chipApplied: "chip_applied"
         case .fitCaptured: "fit_captured"
         case .faceoffCompleted: "faceoff_completed"
@@ -131,6 +138,10 @@ public extension Event {
                 "source": .string(source.rawValue),
                 "scope": .string(scope)
             ]
+        case let .itemStatusChanged(variantID, from, to):
+            ["variant_id": .id(variantID), "from": .string(from), "to": .string(to)]
+        case let .itemRemoved(variantID, status):
+            ["variant_id": .id(variantID), "status": .string(status)]
         case let .chipApplied(chipID, kind, week):
             ["chip_id": .id(chipID), "kind": .string(kind), "week": .optionalInt(week)].compacted()
         case let .fitCaptured(fits):
