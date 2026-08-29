@@ -8,12 +8,15 @@ import Observation
 /// rendered underneath the list — which is how it ends up with the same border,
 /// size and shadow without a designer having to remember (GLO-15, criterion 1).
 public enum LadderOption: Identifiable, Equatable, Sendable {
-    case match(CatalogHit)
+    /// A candidate, and — on the near-match rung — the server-computed
+    /// reason it is here (GLO-63). Nil on the search rung: an exact match
+    /// needs no explaining, and the client never invents a why.
+    case match(CatalogHit, reason: String?)
     case noneOfThese(prompt: String)
 
     public var id: String {
         switch self {
-        case let .match(hit): hit.id.uuidString
+        case let .match(hit, _): hit.id.uuidString
         case .noneOfThese: "none-of-these"
         }
     }
@@ -66,7 +69,7 @@ public final class SearchRungModel {
     /// Always ends with the way out. A rung with nothing to show is still a rung
     /// the user can leave, so this list is never empty.
     public var options: [LadderOption] {
-        result.hits.map(LadderOption.match) + [.noneOfThese(prompt: escapePrompt)]
+        result.hits.map { .match($0, reason: nil) } + [.noneOfThese(prompt: escapePrompt)]
     }
 
     /// Names what happens next rather than just refusing: at the search rung the
@@ -103,7 +106,7 @@ public final class SearchRungModel {
 
     public func choose(_ option: LadderOption) {
         switch option {
-        case let .match(hit): pickedHit = hit
+        case let .match(hit, _): pickedHit = hit
         case .noneOfThese: ladder.noneOfThese()
         }
     }

@@ -115,7 +115,7 @@
             note: "two products in one category — the case where identical drawings defeat 'check the photo'"
         ) {
             NearMatchRungView(model: NearMatchRungModel(
-                catalog: StubCatalog(hits: LadderFixtures.nearMatches),
+                catalog: StubNearMatching(matches: NearMatchFixtures.candidates),
                 ladder: LadderFixtures.ladderAtNearMatches(query: "rare beauty soft pinch")
             ))
         }
@@ -126,7 +126,7 @@
             note: "a GTIN and no name, so the rung has to ask for one — the only state with a field on it"
         ) {
             NearMatchRungView(model: NearMatchRungModel(
-                catalog: StubCatalog(hits: LadderFixtures.nearMatches),
+                catalog: StubNearMatching(matches: NearMatchFixtures.candidates),
                 ladder: LadderFixtures.ladderAtNearMatches(query: "")
             ))
         }

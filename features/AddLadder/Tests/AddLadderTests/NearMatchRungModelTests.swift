@@ -3,12 +3,46 @@ import Foundation
 import Testing
 @testable import AddLadder
 
+/// Near matches the way the app really gets them — decoded off the wire,
+/// because `NearMatch` (like `CatalogHit`) has no public memberwise init.
+func nearMatch(name: String, why: String) throws -> NearMatch {
+    let json = """
+    {"id":"\(UUID().uuidString)","name":"\(name)","brand_name":"Glow Recipe",
+     "category_id":"\(UUID().uuidString)",
+     "category_slug":"serum","domain":"skincare","scope":"canonical",
+     "why":"\(why)"}
+    """
+    return try JSONDecoder().decode(NearMatch.self, from: Data(json.utf8))
+}
+
+actor FakeNearMatching: NearMatching {
+    private let matches: [NearMatch]
+    private let failure: GlossedError?
+    private(set) var askedGTINs: [String?] = []
+
+    init(matches: [NearMatch] = [], failure: GlossedError? = nil) {
+        self.matches = matches
+        self.failure = failure
+    }
+
+    func nearMatches(
+        _: String, domain _: Domain?, gtin: String?
+    ) async throws(GlossedError) -> [NearMatch] {
+        askedGTINs.append(gtin)
+        if let failure {
+            throw failure
+        }
+        return matches
+    }
+}
+
 @MainActor
 private func model(
-    hits: [CatalogHit] = [],
+    matches: [NearMatch] = [],
+    failure: GlossedError? = nil,
     ladder: Ladder = Ladder(entry: .nearMatches, query: "glow recipe")
 ) -> NearMatchRungModel {
-    NearMatchRungModel(catalog: FakeCatalog(hits: hits), ladder: ladder)
+    NearMatchRungModel(catalog: FakeNearMatching(matches: matches, failure: failure), ladder: ladder)
 }
 
 @MainActor
@@ -22,21 +56,42 @@ private func model(
 }
 
 @MainActor
-@Test func arrivingFromAMissedScanHasAGTINButNoName() {
-    // The barcode rung carries a code, never a name — so this rung has to ask
-    // before it has anything to show.
+@Test func aMissedScanAloneIsEnoughToAskWith() async throws {
+    // The barcode rung carries a code, never a name. Since 0018 the maker
+    // band answers from the GTIN alone, so a nameless arrival is no longer
+    // a dead stop — and the code reaches the store.
     var ladder = Ladder(entry: .barcode)
     ladder.scanMissed(gtin: "0810086012343")
-    let live = model(ladder: ladder)
-    #expect(live.ladder.scannedGTIN == "0810086012343")
-    #expect(live.needsAName)
-    #expect(live.query.isEmpty)
+    let probe = try FakeNearMatching(matches: [
+        nearMatch(name: "pro filt'r soft matte", why: "same maker as your scan")
+    ])
+    let live = NearMatchRungModel(catalog: probe, ladder: ladder)
+    #expect(!live.needsAName)
+    await live.search()
+    #expect(await probe.askedGTINs == ["0810086012343"])
+    #expect(live.options.count == 2)
 }
 
 @MainActor
-@Test func theWayOutIsAlwaysLastAndSaysWhatItDoes() async throws {
-    let live = try model(hits: [hit(name: "Watermelon Glow"), hit(name: "Dew Drops")])
+@Test func nothingTypedAndNothingScannedStillNeedsAName() {
+    let live = model(ladder: Ladder(entry: .nearMatches, query: ""))
+    #expect(live.needsAName)
+}
+
+@MainActor
+@Test func everyCandidateCarriesItsReasonVerbatim() async throws {
+    // The rung's instruction is "check the photo, not the name"; the why is
+    // what makes that actionable — server-computed, never invented here.
+    let live = try model(matches: [
+        nearMatch(name: "Watermelon Glow", why: "similar name — check the shade and size"),
+        nearMatch(name: "Dew Drops", why: "same brand — different product")
+    ])
     await live.search()
+    guard case let .match(_, reason) = live.options[0] else {
+        Issue.record("expected a match first")
+        return
+    }
+    #expect(reason == "similar name — check the shade and size")
     #expect(live.options.count == 3)
     #expect(live.options.last == .noneOfThese(prompt: "none of these — create it"))
 }
@@ -57,24 +112,21 @@ private func model(
 
 @MainActor
 @Test func pickingANearMatchOpensTheShadePickRatherThanResolving() async throws {
-    // Same seam as the search rung: a hit is a product, a shelf item is a
-    // variant (GLO-56). This rung is the last chance to avoid a duplicate, so
-    // resolving on the wrong id here creates one *and* mislabels it.
-    let candidate = try hit(name: "Watermelon Glow")
-    let live = model(hits: [candidate])
+    let candidate = try nearMatch(name: "Watermelon Glow", why: "similar name — check the shade and size")
+    let live = model(matches: [candidate])
     await live.search()
-    live.choose(.match(candidate))
-    #expect(live.pickedProductID == candidate.id)
+    live.choose(.match(candidate.hit, reason: candidate.why))
+    #expect(live.pickedProductID == candidate.hit.id)
     #expect(live.ladder.resolution == nil)
     #expect(live.ladder.rung == .nearMatches)
 }
 
 @MainActor
 @Test func backingOutOfTheShadePickLeavesTheCandidatesUp() async throws {
-    let candidate = try hit(name: "Watermelon Glow")
-    let live = model(hits: [candidate])
+    let candidate = try nearMatch(name: "Watermelon Glow", why: "similar name — check the shade and size")
+    let live = model(matches: [candidate])
     await live.search()
-    live.choose(.match(candidate))
+    live.choose(.match(candidate.hit, reason: candidate.why))
     live.cancelVariantPick()
     #expect(live.pickedProductID == nil)
     #expect(live.options.count == 2)
@@ -82,10 +134,7 @@ private func model(
 
 @MainActor
 @Test func aFailedLookupDoesNotWaveSomeoneThroughToCreate() async {
-    // Showing an empty candidate list on a network error is how a user creates
-    // the duplicate this rung exists to prevent.
-    let catalog = FakeCatalog(failure: GlossedError(.offline, userMessage: "no connection — try again in a sec."))
-    let live = NearMatchRungModel(catalog: catalog, ladder: Ladder(entry: .nearMatches, query: "glow"))
+    let live = model(failure: GlossedError(.offline, userMessage: "no connection — try again in a sec."))
     await live.search()
     #expect(live.failure?.code == .offline)
     #expect(live.ladder.rung == .nearMatches)
@@ -101,12 +150,7 @@ private func model(
 
 @MainActor
 @Test func aRetryDoesNotBrieflyLookLikeACleanEmptyResult() async {
-    // The window the recap asked about: clearing `failure` when a retry starts
-    // leaves no error and no candidates, which on the dedupe rung reads as
-    // "nothing matched, safe to create". The failure now survives until an
-    // answer replaces it.
-    let catalog = FakeCatalog(failure: GlossedError(.offline, userMessage: "no connection — try again in a sec."))
-    let live = NearMatchRungModel(catalog: catalog, ladder: Ladder(entry: .nearMatches, query: "glow"))
+    let live = model(failure: GlossedError(.offline, userMessage: "no connection — try again in a sec."))
     await live.search()
     #expect(live.isCandidateListTrustworthy == false)
 
@@ -117,8 +161,8 @@ private func model(
 }
 
 @MainActor
-@Test func aSuccessfulRetryClearsTheFailure() async throws {
-    let live = try model(hits: [hit(name: "Watermelon Glow")])
+@Test func aSuccessfulAskClearsTheFailureAndEarnsTrust() async throws {
+    let live = try model(matches: [nearMatch(name: "Watermelon Glow", why: "similar name — check the shade and size")])
     await live.search()
     #expect(live.failure == nil)
     #expect(live.isCandidateListTrustworthy)
