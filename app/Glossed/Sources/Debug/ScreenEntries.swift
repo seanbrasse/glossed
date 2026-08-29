@@ -184,7 +184,8 @@
                 product: ProductFixtures.pocketBlush,
                 aggregates: StubAggregates(
                     evidence: PayoffEvidence(exactShadeCount: 89, withFitCount: 2, evidenceBacked: true)
-                )
+                ),
+                fitStore: .picker
             ))
         }
 
@@ -197,7 +198,8 @@
                 product: ProductFixtures.pocketBlush,
                 aggregates: StubAggregates(
                     evidence: PayoffEvidence(exactShadeCount: 2, withFitCount: 3, evidenceBacked: false)
-                )
+                ),
+                fitStore: .picker
             ))
         }
 
@@ -221,7 +223,8 @@
                 product: ProductFixtures.notAnAnchor,
                 aggregates: StubAggregates(
                     evidence: PayoffEvidence(exactShadeCount: 52, withFitCount: 2, evidenceBacked: true)
-                )
+                ),
+                fitStore: .picker
             ))
         }
     }
