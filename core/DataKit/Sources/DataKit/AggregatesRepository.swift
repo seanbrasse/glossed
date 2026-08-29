@@ -30,6 +30,43 @@ public struct AggregatesRepository: Sendable {
         return evidence
     }
 
+    /// The discover feed (0040): Stage 0/1 picks plus the daily wander, one
+    /// call. Rows arrive best-first; the basis explains each and the client
+    /// owns the words. Empty is a legitimate answer — the screen's
+    /// never-blank obligation is met with its own state, not fabricated rows.
+    public func discoverFeed(limit: Int = 12) async throws(GlossedError) -> [DiscoverHit] {
+        try await run {
+            try await client.supabase
+                .rpc("discover_for_user", params: ["p_limit": limit])
+                .execute()
+                .value
+        }
+    }
+
+    /// The crosswalk card's rows (0040): partners co-worn with the caller's
+    /// anchors, n always present, thresholded server-side.
+    public func crosswalk(limit: Int = 6) async throws(GlossedError) -> [CrosswalkHit] {
+        try await run {
+            try await client.supabase
+                .rpc("crosswalk_for_user", params: ["p_limit": limit])
+                .execute()
+                .value
+        }
+    }
+
+    /// The caller's taste vector (0035), computed on read and stored nowhere
+    /// — domain.md §5 classifies inferred taste with stated data, so the
+    /// vector exists only at query time and inherits deletion semantics from
+    /// the rows it reads.
+    public func affinity() async throws(GlossedError) -> [AffinityRow] {
+        try await run {
+            try await client.supabase
+                .rpc("affinity_for_user")
+                .execute()
+                .value
+        }
+    }
+
     private func run<T>(_ work: () async throws -> T) async throws(GlossedError) -> T {
         do {
             return try await work()
