@@ -35,6 +35,10 @@ struct AppShell: View {
     /// "did it fit?" under a closing full-screen cover is a question nobody
     /// sees.
     @State private var pendingLog: LoggedShelfItem?
+    /// The shelf item whose product page is open (GLO-151). Held here rather
+    /// than in `Shelf` because a feature cannot import another feature: the
+    /// shelf hands the tap up, and the app owns the crossing.
+    @State private var openProduct: ShelfItem?
     /// Non-nil while the fit prompt is up: the shelf row it writes to.
     @State private var fitPromptItemID: UUID?
 
@@ -121,6 +125,15 @@ struct AppShell: View {
         .fullScreenCover(isPresented: $ladderOpen, onDismiss: askFitIfAnchor) {
             ladderFlow
         }
+        .fullScreenCover(item: $openProduct) { item in
+            if let client = session.client {
+                productPage(
+                    for: item,
+                    rankedInCategory: session.shelfModel?.rankedCount(inCategoryOf: item),
+                    client: client
+                ) { openProduct = nil }
+            }
+        }
         .overlay {
             if let itemID = fitPromptItemID, let client = session.client {
                 FitPromptCard(
@@ -155,7 +168,7 @@ struct AppShell: View {
                 // Recreated when the model is (the ladder landed something):
                 // `ShelfView` snapshots the reference at init, so identity is
                 // what tells SwiftUI this is a new shelf.
-                ShelfView(model: model)
+                ShelfView(model: model, onOpenProduct: { openProduct = $0 })
                     .id(ObjectIdentifier(model))
             } else {
                 Text("the shelf came back empty — pull the stack up and relaunch").meta()

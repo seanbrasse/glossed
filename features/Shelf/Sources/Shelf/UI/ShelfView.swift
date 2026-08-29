@@ -15,15 +15,20 @@ public struct ShelfView: View {
     /// silently lies about what you own.
     @State private var isSearchOpen = false
     private let onTapItem: (ShelfItem) -> Void
+    /// Handed up to `app/`: a feature cannot import a feature, so the shelf
+    /// reports the tap and the app owns the crossing (GLO-151).
+    private let onOpenProduct: ((ShelfItem) -> Void)?
 
     public init(
         model: ShelfModel,
         startsSearching: Bool = false,
-        onTapItem: @escaping (ShelfItem) -> Void = { _ in }
+        onTapItem: @escaping (ShelfItem) -> Void = { _ in },
+        onOpenProduct: ((ShelfItem) -> Void)? = nil
     ) {
         _model = State(initialValue: model)
         _isSearchOpen = State(initialValue: startsSearching)
         self.onTapItem = onTapItem
+        self.onOpenProduct = onOpenProduct
     }
 
     public var body: some View {
@@ -41,6 +46,11 @@ public struct ShelfView: View {
                             set: { model.fitChanged(to: $0) }
                         ),
                         onClose: model.closeSheet,
+                        // No variant, no page to build — and no handler
+                        // means the sheet hides the button (GLO-151).
+                        onOpenProduct: onOpenProduct.flatMap { open in
+                            item.variantID == nil ? nil : { open(item) }
+                        },
                         onRemove: model.supportsRemoval ? { model.removeOpenItem() } : nil,
                         isRemoving: model.isRemoving,
                         removeFailure: model.removeFailure?.userMessage,

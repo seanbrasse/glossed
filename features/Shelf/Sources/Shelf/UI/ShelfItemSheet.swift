@@ -15,7 +15,13 @@ public struct ShelfItemSheet: View {
     private let rankedInCategory: Int
     private let onClose: () -> Void
     private let onRank: () -> Void
-    private let onOpenProduct: () -> Void
+    /// Nil hides "full page" entirely (GLO-151). The button shipped wired to
+    /// an empty default and `ShelfView` never passed anything, so it sat on
+    /// the sheet doing nothing — an affordance that lies about what the app
+    /// can do, which is GLO-72's no-fake-writes rule pointed at navigation.
+    /// Optional now, like `onRemove` and `onStatusChange`, so a caller that
+    /// cannot open the page cannot accidentally offer it.
+    private let onOpenProduct: (() -> Void)?
     /// How many people wear this exact shade — the anchor section's evidence
     /// line. Nil omits the line: an absent aggregate is not a claim of zero,
     /// and nothing reads `agg_variant_stats` for the sheet yet (GLO-63 family).
@@ -47,7 +53,7 @@ public struct ShelfItemSheet: View {
         exactShadeCount: Int? = nil,
         onClose: @escaping () -> Void,
         onRank: @escaping () -> Void = {},
-        onOpenProduct: @escaping () -> Void = {},
+        onOpenProduct: (() -> Void)? = nil,
         onRemove: (() -> Void)? = nil,
         isRemoving: Bool = false,
         removeFailure: String? = nil,
@@ -86,6 +92,13 @@ public struct ShelfItemSheet: View {
     /// tapped, rather than after the write settles.
     var showsFit: Bool {
         item.isAnchorCategory && liveStatus.isTried
+    }
+
+    /// Whether "full page" is offered at all (GLO-151). Named so a test can
+    /// fail on it: the bug this replaces was a button wired to an empty
+    /// default, which no test could see and no screenshot could show.
+    var showsFullPage: Bool {
+        onOpenProduct != nil
     }
 
     public var body: some View {
@@ -274,9 +287,11 @@ public struct ShelfItemSheet: View {
             Button("rank it", action: onRank)
                 .buttonStyle(.glossed(block: true))
                 .frame(maxWidth: .infinity)
-            Button("full page", action: onOpenProduct)
-                .buttonStyle(.glossed(.secondary))
-                .fixedSize()
+            if showsFullPage, let onOpenProduct {
+                Button("full page", action: onOpenProduct)
+                    .buttonStyle(.glossed(.secondary))
+                    .fixedSize()
+            }
         }
         .padding(.top, 16)
     }
