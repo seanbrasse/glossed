@@ -163,12 +163,32 @@ $$;
 -- `language sql` and IS resolved, so it must come after the 3-arg. Writing the
 -- whole file dependency-first costs nothing and removes the question. (The same
 -- trap bites §2.1 harder — see the ORDER MATTERS comment there.)
-revoke execute on function can_view(uuid, uuid, visibility_surface) from public;
-revoke execute on function is_blocked(uuid, uuid)                   from public;
-revoke execute on function is_mutual_follow(uuid, uuid)             from public;
-revoke execute on function is_minor_user(uuid)                      from public;
+-- REVOKE FROM anon AND authenticated EXPLICITLY. `from public` alone is a
+-- SILENT NO-OP on Supabase (see the two rules below).
+revoke execute on function can_view(uuid, uuid, visibility_surface) from public, anon, authenticated;
+revoke execute on function is_blocked(uuid, uuid)                   from public, anon, authenticated;
+revoke execute on function is_mutual_follow(uuid, uuid)             from public, anon, authenticated;
+revoke execute on function is_minor_user(uuid)                      from public, anon, authenticated;
 grant  execute on function can_view(uuid, visibility_surface) to anon, authenticated;
+
+-- A client-reachable wrapper for anything an RLS POLICY needs (see rule 2).
+create or replace function can_follow(p_target uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+    select p_target is not null
+       and p_target <> (select auth.uid())
+       and not is_blocked((select auth.uid()), p_target)
+       and not is_minor_user(p_target);
+$$;
+grant execute on function can_follow(uuid) to authenticated;
 ```
+
+**Two rules that this spec got wrong until migration 0020 was actually run against Postgres.** Both were invisible to three adversarial reads of the SQL, and both are the kind that ship looking correct:
+
+1. **`revoke ... from public` does nothing on Supabase.** Supabase runs `alter default privileges in schema public grant execute on functions to anon, authenticated, service_role`, so a new function arrives with **direct** grants to those roles. A from-public revoke does not touch a direct grant. Measured on 0020: the 3-arg `can_view`'s ACL still read `{postgres=X,anon=X,authenticated=X,service_role=X}` *with the revoke already in the file*. **Name `anon` and `authenticated` explicitly, and assert the ACL in a test** — this one fails silently and leaves a function you believe is private wide open.
+
+2. **An RLS policy expression executes as the invoking user**, so a policy cannot call a function that user lacks `EXECUTE` on. 0020's `follows_insert_own` called `is_blocked` and `is_minor_user` — both correctly revoked — which made following **impossible for every user**. The fix is not to grant the helpers back: `is_blocked` would expose arbitrary block relationships and `is_minor_user` anyone's minor status. It is a **definer wrapper that answers only about `auth.uid()`** — `can_follow(target)` above, the same shape as `can_view`'s 2-arg wrapper. Any future 1.5 policy needing a privileged helper gets the same treatment.
+
+A corollary worth stating because it is easy to over-apply: **`is_minor(char(7), date)` is deliberately NOT revoked.** It is pure date arithmetic over an input the caller already supplies — it maps no identity to anything. `is_minor_user(uuid)` is the one that turns a user id into minor status. Revoke the mapping, not the maths.
 
 **Only the two-argument wrapper is granted to clients.** The three-argument core takes an arbitrary viewer; a client that could call it could probe any pair in the graph. It is granted to `service_role` only, because the link-card renderer (§6) needs to answer "can *this* viewer see this?" without a session.
 
