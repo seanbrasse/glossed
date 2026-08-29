@@ -35,6 +35,10 @@ public struct ShelfBayView: View {
         .background(alignment: .topLeading) { uprights }
         .background { widthReader }
         .padding(.top, 4)
+        // Air either side of the whole unit — uprights, planks and bleed all
+        // move in together, and the width reader measures the narrowed shelf
+        // so the packing agrees with what is drawn (GLO-155, Sean's call).
+        .padding(.horizontal, Frame.shelfInset)
     }
 
     /// How many fit is a question about the shelf, so it is answered here rather
@@ -69,7 +73,11 @@ public struct ShelfBayView: View {
         static let uprightTopInset: CGFloat = 8
         static let uprightBottomInset: CGFloat = 10
 
-        static let bayMinHeight: CGFloat = 87
+        static let bayMinHeight: CGFloat = 77
+        /// Inset on each side of the shelf, inside the page's own 16pt
+        /// margin. The shelf is an object in a room, not a thing bolted to
+        /// the screen edges.
+        static let shelfInset: CGFloat = 12
         static let bayHorizontalPadding: CGFloat = 14
         static let bayBottomPadding: CGFloat = 3
         static let itemGap: CGFloat = 10

@@ -107,14 +107,36 @@ struct ProductSticker: View {
     let text: String
     let scale: CGFloat
 
+    /// The sticker scales with the object it labels (GLO-155, Sean's call).
+    /// It used to be a fixed 7.5pt whatever it sat on, which made it the thing
+    /// that stopped the shelf's products from ever getting smaller: two narrow
+    /// neighbours put fixed-width stickers on top of each other, so the bay's
+    /// slot floor had to stay wide enough for a label that never shrank.
+    ///
+    /// Clamped at both ends and deliberately: below 6 a rank stops being
+    /// readable, and above 9 the product page's 124pt hero would wear its
+    /// brand name like a banner. `ShelfBay.minimumSlot` is derived from the
+    /// bottom of this range, so the two cannot drift apart.
+    static let minimumFont: CGFloat = 6
+    static let maximumFont: CGFloat = 9
+    /// The drawn height the unscaled 7.5pt sticker was designed against.
+    static let referenceScale: CGFloat = 60
+
+    private var fontSize: CGFloat {
+        min(
+            ProductSticker.maximumFont,
+            max(ProductSticker.minimumFont, 7.5 * scale / ProductSticker.referenceScale)
+        )
+    }
+
     var body: some View {
         Text(text)
-            .font(Typography.mono(7.5))
+            .font(Typography.mono(fontSize))
             .foregroundStyle(Tokens.Ink.primary)
             .lineLimit(1)
             .fixedSize()
-            .padding(.vertical, 1)
-            .padding(.horizontal, 4)
+            .padding(.vertical, fontSize / 7.5)
+            .padding(.horizontal, 4 * fontSize / 7.5)
             .background(Tokens.Ground.card)
             .clipShape(RoundedRectangle(cornerRadius: 3))
             .overlay(
