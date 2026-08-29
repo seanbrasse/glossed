@@ -9,13 +9,15 @@ import Testing
 func variant(
     productID: UUID,
     shade: String? = nil,
-    sizeML: Double? = nil
+    sizeML: Double? = nil,
+    strengthPct: Double? = nil
 ) throws -> Variant {
     let shadeField = shade.map { "\"shade_code\":\"\($0)\"," } ?? ""
     let sizeField = sizeML.map { "\"size_ml\":\($0)," } ?? ""
+    let strengthField = strengthPct.map { "\"strength_pct\":\($0)," } ?? ""
     let json = """
     {"id":"\(UUID().uuidString)","product_id":"\(productID.uuidString)",
-     \(shadeField)\(sizeField)"gtin":null}
+     \(shadeField)\(sizeField)\(strengthField)"gtin":null}
     """
     return try JSONDecoder().decode(Variant.self, from: Data(json.utf8))
 }
@@ -148,5 +150,11 @@ struct VariantPickModelTests {
         #expect(try variant(productID: productID, sizeML: 150).pickLabel == "150ml")
         #expect(try variant(productID: productID, shade: "freckle").pickLabel == "freckle")
         #expect(try variant(productID: productID).pickLabel == nil)
+        // The strength third (GLO-56's closed gap): shade · strength% · size,
+        // the exact field order variant_label() concats — "10% · 30ml" for
+        // the actives serum, and a whole-number strength trims its decimal.
+        #expect(try variant(productID: productID, sizeML: 30, strengthPct: 10).pickLabel == "10% · 30ml")
+        #expect(try variant(productID: productID, shade: "220", sizeML: 32, strengthPct: 0.5)
+            .pickLabel == "220 · 0.5% · 32ml")
     }
 }
