@@ -9,18 +9,28 @@ import SwiftUI
 // rather than accrete.
 
 extension AppShell {
-    /// The `you` tab. The profile itself is GLO-21 and unbuilt — privacy is
-    /// built, so it gets a door rather than waiting for the room. An
-    /// unreachable screen is one nobody can check, including Sean.
-    var youTab: some View {
-        VStack(spacing: Tokens.Space.s4) {
+    /// The `you` tab IS the profile now (GLO-124), with the handle claim and
+    /// privacy reachable from it.
+    ///
+    /// Rendering the real screen here rather than adding another sheet to
+    /// `AppShell` is deliberate: that file sits at SwiftLint's 300-line
+    /// ceiling and another session is adding to it in parallel, so a tab that
+    /// shows the thing it is named after needs no new state there at all.
+    ///
+    /// Collections — the rest of GLO-21 — remain unbuilt; this is the profile
+    /// half only, and the signed-out branch still says so.
+    @ViewBuilder var youTab: some View {
+        if let client = session.client {
+            OwnProfileView(
+                store: .live(
+                    social: SocialRepository(client: client),
+                    safety: SafetyRepository(client: client)
+                ),
+                onClaimHandle: { handleOpen = true },
+                onOpenPrivacy: { privacyOpen = true }
+            )
+        } else {
             unbuiltTab("you", ticket: "GLO-21", line: "profile · collections · settings")
-            if session.client != nil {
-                Button("privacy") { privacyOpen = true }
-                    .buttonStyle(.glossed(.secondary))
-                Button("claim a handle") { handleOpen = true }
-                    .buttonStyle(.glossed(.secondary))
-            }
         }
     }
 }

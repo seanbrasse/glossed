@@ -118,6 +118,30 @@ public struct SocialRepository: Sendable {
         }
     }
 
+    /// The caller's own handle, or nil if they have not claimed one.
+    ///
+    /// Reads `handles` under `handles_read_own`, which shows a user exactly one
+    /// row: theirs. There is no method here for looking up someone else's
+    /// handle by id — the public direction is `publicProfile(handle:)`, and a
+    /// reverse lookup would turn a user id into a public identity, which is a
+    /// different thing to expose.
+    ///
+    /// Not in GLO-171's enumeration; the own-profile screen it serves is one of
+    /// the screens that opening was granted for, so it lands under the same
+    /// grant rather than a new one.
+    public func myHandle() async throws(GlossedError) -> String? {
+        let userID = try await client.requireUserID()
+        let rows: [HandleRow] = try await run {
+            try await client.supabase
+                .from("handles")
+                .select("handle")
+                .eq("user_id", value: userID.uuidString)
+                .execute()
+                .value
+        }
+        return rows.first?.handle
+    }
+
     // MARK: - Public profiles
 
     /// Someone's public profile, or nil.
@@ -218,6 +242,10 @@ public struct SocialRepository: Sendable {
                 .execute()
                 .value
         }
+    }
+
+    private struct HandleRow: Decodable {
+        let handle: String
     }
 
     private struct FollowEdge: Decodable {
