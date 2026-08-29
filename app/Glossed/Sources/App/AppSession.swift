@@ -1,4 +1,5 @@
 import DataKit
+import Discover
 import Foundation
 import Observation
 import Shelf
@@ -33,6 +34,10 @@ final class AppSession {
     /// that after landing something, so a new bottle appears without a
     /// relaunch.
     private(set) var shelfModel: ShelfModel?
+    /// The discover tab's model (GLO-20). Rebuilt with the shelf: logging
+    /// something changes what should be picked, and the two going stale
+    /// together is the cheap correct behavior.
+    private(set) var discoverModel: DiscoverModel?
     /// The one Tracker (GLO-80): owned here, injected into features the way
     /// repositories are. Events queue in memory and post to `track_ingest`
     /// in batches; `flush()` fires on scene transitions from the shell.
@@ -74,6 +79,10 @@ final class AppSession {
         guard let client else { return }
         let repository = ShelfRepository(client: client)
         guard let rows = try? await repository.shelf() else { return }
+        discoverModel = DiscoverModel(
+            store: .repository(AggregatesRepository(client: client)),
+            imageBase: imageBase
+        )
         shelfModel = ShelfModel(
             sections: ShelfSection.grouped(from: rows, imageBase: imageBase),
             fitStore: .repository(repository),

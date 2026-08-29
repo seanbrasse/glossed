@@ -1,6 +1,7 @@
 import AddLadder
 import DataKit
 import DesignSystem
+import Discover
 import Shelf
 import SwiftUI
 
@@ -178,7 +179,7 @@ struct AppShell: View {
                     .background(Tokens.Ground.milk)
             }
         case .discover:
-            unbuiltTab("discover", ticket: "GLO-20", line: "picked for you, from your anchor")
+            discoverTab
         case .you:
             youTab
         }
