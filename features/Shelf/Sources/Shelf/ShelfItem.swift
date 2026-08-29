@@ -37,6 +37,9 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
     public let heightMM: Double?
     /// `products.benefit_line` — the one sentence the sheet leads with.
     public let benefitLine: String?
+    /// `user_items.note` — the owner's own words, shown and edited on the
+    /// sheet (GLO-16 chips + notes).
+    public let note: String?
     public let status: ItemStatus
     /// `user_items.started_on`. Set for things with a wear-in period, which is
     /// what turns the status line into "week 3".
@@ -77,6 +80,7 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
         packaging: ProductMock.Kind,
         heightMM: Double? = nil,
         benefitLine: String? = nil,
+        note: String? = nil,
         status: ItemStatus = .own,
         startedOn: Date? = nil,
         isPersonalScope: Bool = false,
@@ -97,6 +101,7 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
         self.packaging = packaging
         self.heightMM = heightMM
         self.benefitLine = benefitLine
+        self.note = note
         self.status = status
         self.startedOn = startedOn
         self.isPersonalScope = isPersonalScope
