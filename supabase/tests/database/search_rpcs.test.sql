@@ -1,7 +1,7 @@
 -- search_catalog respects personal scope; record_failed_search counts demand.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(18);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -76,6 +76,35 @@ select ok(
 select ok(
     not exists(select 1 from near_matches('decanted')),
     'near matches cannot see another user''s personal product');
+
+-- attrs search (0019): what a thing IS is searchable — type, tags, origin.
+-- Fixture rows created inside the rolled-back transaction: a korean brand
+-- whose gloss never says "gloss" in its name.
+reset role;
+insert into brands (id, name, normalized_name, origin) values
+    ('99999999-0000-0000-0000-000000000001', 'seoul cherry', 'seoul cherry', 'korean');
+insert into products (id, brand_id, category_id, domain, scope, name, normalized_name,
+                      product_type, tags) values
+    ('99999999-0000-0000-0000-000000000002', '99999999-0000-0000-0000-000000000001',
+     (select id from categories where slug = 'lip'), 'makeup', 'canonical',
+     'juice bomb', 'juice bomb', 'lip gloss', '{vegan,shine}'),
+    ('99999999-0000-0000-0000-000000000003', '99999999-0000-0000-0000-000000000001',
+     (select id from categories where slug = 'serum'), 'skincare', 'canonical',
+     'rice calm', 'rice calm', 'serum', '{soothing}');
+select test_as('00000000-0000-0000-0000-000000000001');
+select ok(
+    exists(select 1 from search_catalog('lipgloss') where name = 'juice bomb'),
+    'lipgloss finds a gloss whose name never says gloss — word similarity over the type');
+select ok(
+    exists(select 1 from search_catalog('vegan') where name = 'juice bomb'),
+    'a tag is searchable');
+select ok(
+    exists(select 1 from search_catalog('korean skincare') where name = 'rice calm')
+    and not exists(select 1 from search_catalog('korean skincare') where name = 'juice bomb'),
+    'korean skincare is korean AND skincare — the makeup gloss stays out');
+select ok(
+    exists(select 1 from search_catalog('soft pinch')),
+    'yesterday''s name search still matches after the rewrite');
 
 select * from finish();
 rollback;
