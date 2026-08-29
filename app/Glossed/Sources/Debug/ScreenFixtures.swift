@@ -60,6 +60,7 @@
     func stubHit(_ name: String, brand: String, category: String, scope: String = "canonical") -> CatalogHit? {
         let json = """
         {"id":"\(UUID().uuidString)","name":"\(name)","brand_name":"\(brand)",
+         "category_id":"\(UUID().uuidString)",
          "category_slug":"\(category)","domain":"makeup","scope":"\(scope)"}
         """
         return try? JSONDecoder().decode(CatalogHit.self, from: Data(json.utf8))

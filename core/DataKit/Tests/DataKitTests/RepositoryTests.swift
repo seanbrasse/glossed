@@ -52,7 +52,8 @@ import Testing
     // an absent aggregate row is not that claim (GLO-63).
     let raw = Data(#"""
     {"id":"00000000-0000-0000-0000-0000000000b1","name":"pineapple refresh",
-     "brand_name":"rhode","category_slug":"cleanser","domain":"skincare",
+     "brand_name":"rhode","category_id":"00000000-0000-0000-0000-0000000000d1",
+     "category_slug":"cleanser","domain":"skincare",
      "scope":"canonical","n_face_offs":null,"variant_label":"150ml"}
     """#.utf8)
     let hit = try PostgrestClient.Configuration.jsonDecoder.decode(CatalogHit.self, from: raw)
@@ -61,6 +62,10 @@ import Testing
     // Pre-0016 rows carry no image fields at all; absent decodes as nil —
     // "no image", answered by the drawn mock, never a broken image.
     #expect(hit.catalogImageKey == nil)
+    // 0017's ride-along (GLO-80): the id item_logged reports. Required on
+    // purpose — a hit without one is a decode failure, not a silent nil that
+    // an event would later have to invent an answer for.
+    #expect(hit.categoryID == UUID(uuidString: "00000000-0000-0000-0000-0000000000d1"))
 }
 
 @Test func aHitCarriesItsCatalogImageWhenTheSearchNamesOne() throws {
@@ -68,7 +73,8 @@ import Testing
     // right width before the photo loads.
     let raw = Data(#"""
     {"id":"00000000-0000-0000-0000-0000000000b1","name":"pineapple refresh",
-     "brand_name":"rhode","category_slug":"cleanser","domain":"skincare",
+     "brand_name":"rhode","category_id":"00000000-0000-0000-0000-0000000000d1",
+     "category_slug":"cleanser","domain":"skincare",
      "scope":"canonical","n_face_offs":null,"variant_label":"150ml",
      "catalog_image_key":"00000000-0000-0000-0000-0000000000c1/cut512.png",
      "catalog_image_width":512,"catalog_image_height":512}
@@ -77,6 +83,30 @@ import Testing
     #expect(hit.catalogImageKey == "00000000-0000-0000-0000-0000000000c1/cut512.png")
     #expect(hit.catalogImageWidth == 512)
     #expect(hit.catalogImageHeight == 512)
+}
+
+@Test func aVariantDecodesItsStrength() throws {
+    // GLO-56's stated gap, closed: `variant_label()` renders strength_pct
+    // ("10% · 30ml") and the Swift side could not see the column at all.
+    let raw = Data(#"""
+    {"id":"00000000-0000-0000-0000-0000000000e1",
+     "product_id":"00000000-0000-0000-0000-0000000000e2",
+     "shade_code":null,"shade_hex":null,"size_ml":30,"strength_pct":10,
+     "gtin":null,"height_mm":null,"price_cents":null}
+    """#.utf8)
+    let variant = try PostgrestClient.Configuration.jsonDecoder.decode(Variant.self, from: raw)
+    #expect(variant.strengthPct == 10)
+    #expect(variant.sizeML == 30)
+}
+
+@Test func itemStatusesMatchTheDatabaseEnum() {
+    // `updateStatus` writes these raw values straight into `user_items.status`
+    // (session-7 opening, GLO-72). A drift from `item_status` is a bug that
+    // only shows up at write time, so it is asserted here — same treatment
+    // as the fit enum below.
+    #expect([ItemStatus.wantToTry, .own, .finished, .repurchased].map(\.rawValue) == [
+        "want_to_try", "own", "finished", "repurchased"
+    ])
 }
 
 @Test func fitAnswersMatchTheDatabaseEnum() {

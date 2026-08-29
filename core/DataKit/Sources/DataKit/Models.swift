@@ -112,6 +112,10 @@ public struct Variant: Codable, Sendable, Identifiable, Hashable {
     public let shadeCode: String?
     public let shadeHex: String?
     public let sizeML: Double?
+    /// Actives strength — "10" for a 10% serum. The database's
+    /// `variant_label()` renders it ("10% · 30ml") and until this decode the
+    /// client-side twin could not (GLO-56's stated gap, session-7 opening).
+    public let strengthPct: Double?
     public let gtin: String?
     /// Real height in mm — the shelf scales cutouts by this so a lipstick is
     /// visibly smaller than a shampoo bottle (ADR 0004).
@@ -124,6 +128,7 @@ public struct Variant: Codable, Sendable, Identifiable, Hashable {
         case shadeCode = "shade_code"
         case shadeHex = "shade_hex"
         case sizeML = "size_ml"
+        case strengthPct = "strength_pct"
         case heightMM = "height_mm"
         case priceCents = "price_cents"
     }
@@ -134,6 +139,11 @@ public struct CatalogHit: Codable, Sendable, Identifiable, Hashable {
     public let id: UUID
     public let name: String
     public let brandName: String
+    /// The product's category, by id — what `item_logged` reports (tech/06).
+    /// The pick path resolves a variant from a hit and logs without ever
+    /// holding a category id; the hit carrying it is GLO-80's decision
+    /// (session 7). Required: post-0017 the RPC always returns it.
+    public let categoryID: UUID
     public let categorySlug: String
     public let domain: Domain
     public let scope: CatalogScope
@@ -158,6 +168,7 @@ public struct CatalogHit: Codable, Sendable, Identifiable, Hashable {
     enum CodingKeys: String, CodingKey {
         case id, name, domain, scope
         case brandName = "brand_name"
+        case categoryID = "category_id"
         case categorySlug = "category_slug"
         case faceOffCount = "n_face_offs"
         case variantLabel = "variant_label"

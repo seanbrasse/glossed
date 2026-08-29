@@ -10,6 +10,7 @@ import Testing
 func hit(name: String, scope: String = "canonical") throws -> CatalogHit {
     let json = """
     {"id":"\(UUID().uuidString)","name":"\(name)","brand_name":"Glow Recipe",
+     "category_id":"\(UUID().uuidString)",
      "category_slug":"serum","domain":"skincare","scope":"\(scope)"}
     """
     return try JSONDecoder().decode(CatalogHit.self, from: Data(json.utf8))

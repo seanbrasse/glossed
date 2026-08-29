@@ -124,6 +124,22 @@ public struct ShelfRepository: Sendable {
         }
     }
 
+    /// Moves an item through its lifecycle — `want_to_try`, `own`, `finished`,
+    /// `repurchased`. The write is row-scoped by RLS like every call here; a
+    /// removed item's `rank_positions` row is deliberately untouched — it is
+    /// hidden immediately and compacted at the ranking service's next rewrite
+    /// of the category, never by a client-side write (GLO-72's decision).
+    public func updateStatus(itemID: UUID, to status: ItemStatus) async throws(GlossedError) {
+        _ = try await client.requireUserID()
+        try await run {
+            _ = try await client.supabase
+                .from("user_items")
+                .update(["status": status.rawValue])
+                .eq("id", value: itemID.uuidString)
+                .execute()
+        }
+    }
+
     /// Soft delete — a shelf entry other rows point at is never hard-deleted.
     public func remove(itemID: UUID) async throws(GlossedError) {
         _ = try await client.requireUserID()
