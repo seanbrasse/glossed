@@ -100,6 +100,26 @@ public actor GlossedClient {
         }
     }
 
+    /// Hands a JSON body to a named Edge Function with the caller's auth
+    /// attached — the platform client stays unexported (session-7 opening,
+    /// GLO-80's transport). No `requireUserID()` on purpose: `track_ingest`
+    /// accepts the anon key too, which is how pre-signup onboarding events
+    /// exist at all (tech/06 §2, `anon_id`). DataKit never sees event
+    /// shapes; the body is opaque bytes to it.
+    public func invokeEdgeFunction(_ name: String, jsonBody: Data) async throws(GlossedError) {
+        do {
+            try await client.functions.invoke(
+                name,
+                options: FunctionInvokeOptions(
+                    headers: ["Content-Type": "application/json"],
+                    body: jsonBody
+                )
+            )
+        } catch {
+            throw GlossedError.from(error)
+        }
+    }
+
     /// Auth state for the app shell to observe: emits on sign-in, sign-out,
     /// and token refresh.
     public nonisolated func authStates() -> AsyncStream<AuthState> {
