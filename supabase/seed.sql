@@ -41,7 +41,17 @@ insert into categories (id, domain, slug, label, wear_in_days, is_anchor, rank_u
     -- flagship line) — the one addition to the tech/01 §1.1 slice, flagged
     -- for the tree workshop. Not an anchor: lip shades are preference, not
     -- skin-match evidence.
-    ('10000000-0000-0000-0000-000000000008', 'makeup',   'lip',        'lip',              0,  false, 3);
+    ('10000000-0000-0000-0000-000000000008', 'makeup',   'lip',        'lip',              0,  false, 3),
+    -- GLO-102 (Sean's ruling, Aug 29): the tree grows to fit what the
+    -- storefronts actually sell. Wear-ins follow the existing precedent
+    -- values — treatment gets serum's 56 because retinol needs weeks.
+    ('10000000-0000-0000-0000-000000000009', 'skincare', 'sunscreen',   'sunscreen',       0,  false, 3),
+    ('10000000-0000-0000-0000-000000000010', 'skincare', 'toner',       'toner',           14, false, 3),
+    ('10000000-0000-0000-0000-000000000011', 'skincare', 'mask',        'mask',            0,  false, 3),
+    ('10000000-0000-0000-0000-000000000012', 'skincare', 'treatment',   'treatment',       56, false, 3),
+    ('10000000-0000-0000-0000-000000000013', 'skincare', 'eye',         'eye care',        14, false, 3),
+    ('10000000-0000-0000-0000-000000000014', 'haircare', 'shampoo',     'shampoo',         0,  false, 3),
+    ('10000000-0000-0000-0000-000000000015', 'haircare', 'conditioner', 'conditioner',     0,  false, 3);
 
 insert into brands (id, name, normalized_name) values
     ('20000000-0000-0000-0000-000000000001', 'fenty beauty', 'fenty beauty'),

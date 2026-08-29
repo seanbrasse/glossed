@@ -157,6 +157,21 @@ const TYPE_RULES: [RegExp, string][] = [
   [/\bserum\b/i, "serum"],
   [/hair gel|styler|pomade|hair paste|mousse|texture spray|hair balm|styling/i, "styler"],
   [/fragrance|eau de|perfume|cologne|parfum/i, "fragrance"],
+  // GLO-102: the tree's second ring. Order is load-bearing: the haircare
+  // forms of "mask" and "treatment" claim their words BEFORE the skincare
+  // rules see them — "hair mask" is a conditioner, "scalp treatment" is
+  // unmapped-on-purpose (no scalp category yet), and a rule checked later
+  // never learns any of that. "essence" rides with toner (adjacent, not
+  // identical — workshop note); the eye rule names its forms so
+  // eyeshadow/eyeliner (makeup, unmapped) never match; ampoules keep
+  // matching serum above.
+  [/shampoo/i, "shampoo"],
+  [/conditioner|hair mask/i, "conditioner"],
+  [/sun\s?screen|sun\s?care|sun\s?cream|sun\s?stick|\bspf\b|uv (protect|shield|defense)/i, "sunscreen"],
+  [/\btoner\b|toner pad|\bessence\b|facial mist|face mist/i, "toner"],
+  [/(?<!hair )\bmasks?\b|sheet mask|sleeping mask|mud mask|clay mask/i, "mask"],
+  [/(?<!hair )(?<!scalp )treatment|retinol|exfoliat|peeling|\bpeel\b|acne|blemish|spot (care|patch)|pimple patch/i, "treatment"],
+  [/eye (cream|care|serum|patch|gel|balm)|under\s?eye/i, "eye"],
 ];
 
 /// Things that are not one product: bundles, and store furniture that
@@ -287,9 +302,14 @@ function candidate(brand: string, p: ShopifyProduct, titleIsShade = false): Cand
   const allDefault = (p.variants ?? []).length > 0 &&
     (p.variants ?? []).every((v) => (v.title ?? "") === "Default Title");
   const shadeFromTitle = titleIsShade && allDefault;
+  // GLO-103: "[60% off] poremizing fresh ampoule" — a name is not its price
+  // state. Bracketed banners and %-off phrases die before naming happens.
+  const title = (p.title ?? "")
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/\b\d{1,3}\s?%\s?off\b/gi, " ");
   const name = shadeFromTitle
     ? clean((p.product_type ?? "").toLowerCase(), 200)
-    : clean((p.title ?? "").toLowerCase(), 200);
+    : clean(title.toLowerCase(), 200);
   if (name.length < 2) return null;
   // GLO-84's guard, mirrored: store-authored titles make this unlikely, but
   // a digits-only title names nothing wherever it came from.
@@ -312,7 +332,7 @@ function candidate(brand: string, p: ShopifyProduct, titleIsShade = false): Cand
     const options = [v.option1, v.option2, v.option3];
     const shadeRaw = shadePosition
       ? options[shadePosition - 1] ?? ""
-      : (shadeFromTitle ? p.title ?? "" : "");
+      : (shadeFromTitle ? title : "");
     const shade = clean(shadeRaw.toLowerCase(), 80);
     const sizeText = sizePosition ? options[sizePosition - 1] : null;
     const barcode = (v.barcode ?? "").trim();
