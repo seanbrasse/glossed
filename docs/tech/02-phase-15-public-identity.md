@@ -640,7 +640,9 @@ The renderer has no session, so it uses the three-argument `can_view(viewer, own
 - Private target, blocked viewer, minor owner, unclaimed handle → **the same generic card**, with the same status code and the same latency. A card that 404s for private targets and 200s for public ones is a private-account oracle.
 - `link_card_opened{target_kind, resolved}` is emitted server-side. `target_kind` only — no slug, no handle.
 - The page renders the same n as the app. A claim on a link card is still a claim.
+- **A profile card renders only what `public_profile()` returns — nothing else, ever.** The renderer holds `service_role` and no session, so it *could* read `profiles` straight through and assemble a nicer card. It must not. Every gate that matters lives in that RPC: the three badge opt-in flags, the minor lock, the block check, and (per §3.5) the anchor badge's dependency on GLO-145's view fix. Reading around the RPC re-implements all four by omission, on **the most public surface in the phase** — a card that unfurls in group chats, to people who have not opened the app and cannot be checked against anything.
 
+  This is §6.2's existing rule extended one step: the renderer already never re-implements the *visibility* predicate. It must not re-implement the *content* projection either. Same reason both times — a second implementation is a second thing to keep correct, and this one is the copy that strangers see.
 ---
 
 ## 7. Moderation, report/block/mute, linked socials (GLO-31)
