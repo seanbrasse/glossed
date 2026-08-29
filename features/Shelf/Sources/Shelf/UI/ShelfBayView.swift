@@ -122,6 +122,10 @@ public struct ShelfBayView: View {
                                 .frame(width: item.slotWidth * 0.72, height: 5)
                                 .offset(y: 3)
                         }
+                        // GLO-100: a want-to-try is an intention, not a
+                        // bottle — it stands on the shelf ghosted, never
+                        // as owned.
+                        .opacity(item.status == .wantToTry ? 0.35 : 1)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(item.brand.lowercased()), \(item.name.lowercased())")

@@ -9,6 +9,14 @@ public extension ShelfModel {
     /// The sections currently on, in their given order, each internally
     /// sorted, holding only what matches the search. A bay with no matches
     /// drops out whole — an empty bay would read as an empty shelf.
+    /// Whether want-to-try rows are hidden right now (GLO-100): hidden only
+    /// while the toggle is off AND no search is active — a search overrides
+    /// the hide, because "where did I put that thing I meant to try" is a
+    /// search, not a browse.
+    var hidesWishlist: Bool {
+        !showsWishlist && searchQuery.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     var shownSections: [ShelfSection] {
         sections
             .filter { selectedDomains.contains($0.domain) }
@@ -18,7 +26,10 @@ public extension ShelfModel {
                     label: section.label,
                     domain: section.domain,
                     items: ShelfModel.ordered(
-                        section.items.filter { $0.matches(searchQuery) },
+                        section.items.filter {
+                            $0.matches(searchQuery)
+                                && !(hidesWishlist && $0.status == .wantToTry)
+                        },
                         by: sort
                     )
                 )

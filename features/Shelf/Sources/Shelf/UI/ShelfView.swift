@@ -144,9 +144,36 @@ public struct ShelfView: View {
     private var controls: some View {
         HStack(alignment: .center, spacing: 8) {
             sortPills
+            wishlistToggle
             searchToggle
             viewToggle
         }
+    }
+
+    /// Want-to-try on the shelf (GLO-100, Sean's sketch — workshop at
+    /// review): the bookmark is GLO-87's own icon for the status, off by
+    /// default, and toggling it in ghosts the wishlist onto the bays.
+    private var wishlistToggle: some View {
+        Button {
+            model.showsWishlist.toggle()
+        } label: {
+            Image(systemName: model.showsWishlist ? "bookmark.fill" : "bookmark")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Tokens.Ink.primary)
+                .frame(width: 34, height: 30)
+                .background(model.showsWishlist ? Tokens.Cherry.soft : Tokens.Ground.card)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule().strokeBorder(
+                        model.showsWishlist ? Tokens.Ink.primary : Tokens.Ground.line,
+                        lineWidth: model.showsWishlist ? Tokens.Border.std : Tokens.Border.hair
+                    )
+                )
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("show your want-to-try list")
+        .accessibilityAddTraits(model.showsWishlist ? [.isSelected] : [])
     }
 
     /// Find-what-I-own (GLO-73), folded into the controls row so search reads
@@ -230,6 +257,10 @@ public struct ShelfView: View {
                     Text(option.rawValue)
                         .font(Typography.mono(10.5))
                         .kerning(10.5 * 0.06)
+                        // A fourth control on the row must not squeeze
+                        // "favorite" into "favor ite" — pills keep their
+                        // words (GLO-100's toggle made the row tight).
+                        .fixedSize()
                         .foregroundStyle(Tokens.Ink.primary)
                         .padding(.vertical, 5)
                         .padding(.horizontal, 11)

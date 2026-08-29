@@ -111,5 +111,7 @@ public struct ShelfListView: View {
             RoundedRectangle(cornerRadius: Tokens.Radius.lg)
                 .strokeBorder(Tokens.Ground.lineOnCard, lineWidth: Tokens.Border.hair)
         )
+        // GLO-100: same ghost the bay draws — an intention, not a bottle.
+        .opacity(item.status == .wantToTry ? 0.35 : 1)
     }
 }

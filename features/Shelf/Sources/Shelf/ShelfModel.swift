@@ -28,6 +28,12 @@ public final class ShelfModel {
     /// the bay label; empty means no filter. It queries the shelf, never the
     /// catalog — finding a product to *add* is the ladder's job.
     public var searchQuery = ""
+    /// Want-to-try on the shelf (GLO-100, Sean's sketch): OFF by default —
+    /// the shelf is her bottles, and an intention is not a bottle. Toggled
+    /// on, wishlist items appear ghosted (the views own the treatment). An
+    /// active shelf search always finds them regardless — finding what you
+    /// meant to try is the point of searching.
+    public var showsWishlist = false
     /// Which category is expanded in the list view. One at a time, as the kit
     /// has it — an accordion where everything can be open is a long list with
     /// extra taps in it.
