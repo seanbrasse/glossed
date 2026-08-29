@@ -17,7 +17,7 @@ struct AppShell: View {
         case discover, shelf, you
     }
 
-    @State private var session = AppSession()
+    @State var session = AppSession()
     @Environment(\.scenePhase) private var scenePhase
     /// The kit's tab 1 is discover, but discover is GLO-20 — until it exists
     /// the shelf is the honest landing.
@@ -38,7 +38,7 @@ struct AppShell: View {
     /// The shelf item whose product page is open (GLO-151). Held here rather
     /// than in `Shelf` because a feature cannot import another feature: the
     /// shelf hands the tap up, and the app owns the crossing.
-    @State private var openProduct: ShelfItem?
+    @State var openProduct: ShelfItem?
     /// Non-nil while the fit prompt is up: the shelf row it writes to.
     @State private var fitPromptItemID: UUID?
 
@@ -131,7 +131,7 @@ struct AppShell: View {
                     for: item,
                     rankedInCategory: session.shelfModel?.rankedCount(inCategoryOf: item),
                     client: client
-                ) { openProduct = nil }
+                ) { closeProductPage() }
             }
         }
         .overlay {

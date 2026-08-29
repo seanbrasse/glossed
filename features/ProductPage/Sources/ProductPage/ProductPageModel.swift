@@ -36,6 +36,12 @@ public struct ProductPageItem: Sendable, Equatable {
     /// The denominator of "#2 of 5 blushes" — how many in this category carry a
     /// rank, never how many you own.
     public let rankedInCategory: Int?
+    /// The shelf row this page was opened from, when it was opened from one.
+    ///
+    /// Nil when the page is reached from anywhere the user does not own the
+    /// product — search, a leaderboard — and that nil is what turns the fit
+    /// control read-only rather than pretending to save (GLO-47).
+    public let userItemID: UUID?
     /// The variant's catalog image, already resolved to a URL by whoever built
     /// the item — the feature knows nothing about buckets, same contract as
     /// `ShelfItem.catalogImageURL` (GLO-74).
@@ -58,7 +64,8 @@ public struct ProductPageItem: Sendable, Equatable {
         isAnchor: Bool = false,
         rank: Int? = nil,
         rankedInCategory: Int? = nil,
-        catalogImageURL: URL? = nil
+        catalogImageURL: URL? = nil,
+        userItemID: UUID? = nil
     ) {
         self.variantID = variantID
         self.brand = brand
@@ -71,6 +78,7 @@ public struct ProductPageItem: Sendable, Equatable {
         self.rank = rank
         self.rankedInCategory = rankedInCategory
         self.catalogImageURL = catalogImageURL
+        self.userItemID = userItemID
     }
 }
 
@@ -98,12 +106,62 @@ public final class ProductPageModel {
     public private(set) var isLoading = false
     public private(set) var failure: GlossedError?
 
+    /// The fit answer on screen. Optimistic: it moves when tapped and falls
+    /// back to what is actually persisted if the write fails (GLO-47).
+    public private(set) var fit: Set<FitAnswer> = []
+    private var persistedFit: Set<FitAnswer> = []
+
     private var evidence: PayoffEvidence?
     private let aggregates: any ShadeEvidenceReading
+    private let fitStore: ProductFitStore?
+    var fitLoadTask: Task<Void, Never>?
+    var fitSaveTask: Task<Void, Never>?
 
-    public init(product: ProductPageItem, aggregates: any ShadeEvidenceReading) {
+    public init(
+        product: ProductPageItem,
+        aggregates: any ShadeEvidenceReading,
+        fitStore: ProductFitStore? = nil
+    ) {
         self.product = product
         self.aggregates = aggregates
+        self.fitStore = fitStore
+    }
+
+    /// Whether the control can actually save. Nil `userItemID` means the page
+    /// was reached without the user owning the product, and nil store means a
+    /// fixture — either way the answer would go nowhere, and offering it would
+    /// be the no-fake-writes rule broken on a third surface (GLO-72, GLO-151).
+    public var canCaptureFit: Bool {
+        product.userItemID != nil && fitStore != nil
+    }
+
+    /// Reads the saved answer. Safe to call when the page cannot save — it
+    /// simply does nothing.
+    public func loadFit() {
+        guard let userItemID = product.userItemID, let fitStore else { return }
+        fitLoadTask = Task {
+            guard let saved = try? await fitStore.load(userItemID) else { return }
+            fit = saved
+            persistedFit = saved
+        }
+    }
+
+    /// Writes through, with the shelf sheet's rules: optimistic on screen,
+    /// serialised so two saves cannot land out of order, reverted to what is
+    /// persisted if the write fails.
+    public func fitChanged(to answers: Set<FitAnswer>) {
+        fit = answers
+        guard let userItemID = product.userItemID, let fitStore else { return }
+        fitSaveTask = Task { [previous = fitSaveTask] in
+            await previous?.value
+            do {
+                try await fitStore.save(userItemID, answers)
+                persistedFit = answers
+            } catch {
+                guard fit == answers else { return }
+                fit = persistedFit
+            }
+        }
     }
 
     /// The claim, or the absence of one.

@@ -9,7 +9,6 @@ import SwiftUI
 /// of-what; every claim carries its n or is not made.
 public struct ProductPageView: View {
     @State private var model: ProductPageModel
-    @State private var fit: Set<FitAnswer> = []
     private let onBack: () -> Void
     private let onRank: () -> Void
     private let onLeaderboard: () -> Void
@@ -46,7 +45,13 @@ public struct ProductPageView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Tokens.Ground.milk)
-        .task { await model.load() }
+        .task {
+            // The saved answer is read alongside the evidence, not after it:
+            // the meter's baseline and the control's state are two halves of
+            // the same claim about the same user (GLO-47).
+            model.loadFit()
+            await model.load()
+        }
     }
 
     /// The object is the biggest thing on the page and it is tilted — this is
@@ -123,7 +128,12 @@ public struct ProductPageView: View {
     /// this is the second chance to give it.
     private var fitBlock: some View {
         VStack(alignment: .leading, spacing: 0) {
-            FitControl(selection: $fit)
+            FitControl(
+                selection: Binding(
+                    get: { model.fit },
+                    set: { model.fitChanged(to: $0) }
+                )
+            )
             Divider()
                 .overlay(Tokens.Ground.line)
                 .padding(.top, 12)
@@ -149,12 +159,15 @@ public struct ProductPageView: View {
     /// answering — the kit is explicit that it must not wait for a reload.
     ///
     /// The baseline is `withFitCount` from the same RPC that supplies the n
-    /// above, so the two halves of this page agree about the same user. Nothing
-    /// persists the answer yet: the write exists (`ShelfRepository.captureFit`)
-    /// but it needs a `user_item_id`, and this page is opened from a variant.
-    /// GLO-47's second half carries that.
+    /// above, so the two halves of this page agree about the same user.
+    ///
+    /// The answer persists now (GLO-47's second half). It used to go nowhere,
+    /// and the reason given here was that the write "needs a `user_item_id`,
+    /// and this page is opened from a variant" — true when it was written and
+    /// false since #213, which made the page reachable from the shelf, where
+    /// the row's id *is* the `user_item_id`.
     private var anchorsHeld: Int {
-        (model.anchorsWithFit ?? 0) + (fit.isEmpty ? 0 : 1)
+        (model.anchorsWithFit ?? 0) + (model.fit.isEmpty ? 0 : 1)
     }
 
     private var actions: some View {

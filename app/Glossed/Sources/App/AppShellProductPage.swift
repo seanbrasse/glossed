@@ -9,6 +9,19 @@ import SwiftUI
 // ShelfShownState scar).
 
 extension AppShell {
+    /// Closing the product page re-opens the sheet behind it.
+    ///
+    /// The two are doors onto one `item_fits` row (GLO-47), and the sheet
+    /// holds the copy it read when it opened. Without this, answering on the
+    /// page leaves the sheet showing the state from before — a screen
+    /// contradicting the database, which is the shape of GLO-145.
+    func closeProductPage() {
+        openProduct = nil
+        if let model = session.shelfModel, let open = model.openItem {
+            model.open(open)
+        }
+    }
+
     /// `G.Product` for a shelf item (GLO-151). Everything the page needs is
     /// already on the row — the shelf carries `variantID`, and `ShelfView`
     /// only offers the button when it is there, so the `if` below can only
@@ -48,9 +61,15 @@ extension AppShell {
                         rankedInCategory: rankedInCategory,
                         // The same URL the shelf drew from, so one tap does
                         // not change what the product looks like (GLO-153).
-                        catalogImageURL: item.catalogImageURL
+                        catalogImageURL: item.catalogImageURL,
+                        // The shelf row's id IS the `user_item_id`, which is
+                        // the piece the page's fit control was missing
+                        // (GLO-47). Opened from anywhere else it stays nil and
+                        // the control does not pretend to save.
+                        userItemID: item.id
                     ),
-                    aggregates: AggregatesRepository(client: client)
+                    aggregates: AggregatesRepository(client: client),
+                    fitStore: .repository(ShelfRepository(client: client))
                 ),
                 onBack: dismiss,
                 onRank: dismiss
