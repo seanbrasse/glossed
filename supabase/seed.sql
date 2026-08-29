@@ -51,7 +51,19 @@ insert into categories (id, domain, slug, label, wear_in_days, is_anchor, rank_u
     ('10000000-0000-0000-0000-000000000012', 'skincare', 'treatment',   'treatment',       56, false, 3),
     ('10000000-0000-0000-0000-000000000013', 'skincare', 'eye',         'eye care',        14, false, 3),
     ('10000000-0000-0000-0000-000000000014', 'haircare', 'shampoo',     'shampoo',         0,  false, 3),
-    ('10000000-0000-0000-0000-000000000015', 'haircare', 'conditioner', 'conditioner',     0,  false, 3);
+    ('10000000-0000-0000-0000-000000000015', 'haircare', 'conditioner', 'conditioner',     0,  false, 3),
+    -- GLO-81, the makeup half — the same "fit most product types" ruling,
+    -- driven by the skip tallies (eyeshadow ~154, concealer ~65…). Concealer
+    -- stays non-anchor pending Sean's call: it IS shade-matched like
+    -- foundation, but anchor status changes the fit-prompt surface and that
+    -- is his decision, not a seed row's.
+    ('10000000-0000-0000-0000-000000000016', 'makeup',   'eyeshadow',   'eyeshadow',       0,  false, 3),
+    ('10000000-0000-0000-0000-000000000017', 'makeup',   'concealer',   'concealer',       0,  false, 3),
+    ('10000000-0000-0000-0000-000000000018', 'makeup',   'mascara',     'mascara',         0,  false, 3),
+    ('10000000-0000-0000-0000-000000000019', 'makeup',   'eyeliner',    'eyeliner',        0,  false, 3),
+    ('10000000-0000-0000-0000-000000000020', 'makeup',   'brow',        'brow',            0,  false, 3),
+    ('10000000-0000-0000-0000-000000000021', 'makeup',   'bronzer',     'bronzer',         0,  false, 3),
+    ('10000000-0000-0000-0000-000000000022', 'makeup',   'highlighter', 'highlighter',     0,  false, 3);
 
 insert into brands (id, name, normalized_name) values
     ('20000000-0000-0000-0000-000000000001', 'fenty beauty', 'fenty beauty'),

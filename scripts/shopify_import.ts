@@ -176,6 +176,17 @@ const TYPE_RULES: [RegExp, string][] = [
   [/(?<!hair )\bmasks?\b|sheet mask|sleeping mask|mud mask|clay mask/i, "mask"],
   [/(?<!hair )(?<!scalp )treatment|retinol|exfoliat|peeling|\bpeel\b|acne|blemish|spot (care|patch)|pimple patch/i, "treatment"],
   [/eye (cream|care|serum|patch|gel|balm)|under\s?eye/i, "eye"],
+  // GLO-81, the makeup half. Brow before eyeliner so "brow liner" keeps its
+  // home; the bronzer guard skips fenty's mixed "blushes & bronzers" bucket
+  // (the title splitter below owns it); "\beyes\b" is huda's house word for
+  // shadow palettes — their liners are typed "Eyeliner" and match later.
+  [/eye\s?shadow|shadow palette|shadow stick|\beyes\b/i, "eyeshadow"],
+  [/concealer/i, "concealer"],
+  [/mascara|lash primer/i, "mascara"],
+  [/\bbrows?\b|eyebrow/i, "brow"],
+  [/eye\s?liner|\bkohl\b/i, "eyeliner"],
+  [/(?<!& )bronzers?\b|bronzing|contour/i, "bronzer"],
+  [/highlighters?\b|luminizer/i, "highlighter"],
 ];
 
 /// Things that are not one product: bundles, and store furniture that
@@ -281,8 +292,10 @@ function categoryFor(p: ShopifyProduct): string | null {
   // "blushes & bronzers", and only the blushes have a bay. Title-only, and
   // only for this known mixed bucket — a generic title fallback is how a
   // "blush pink lip liner" lands in the wrong category.
-  if (/blushes & bronzers/i.test(p.product_type ?? "") && /blush/i.test(p.title ?? "")) {
-    return "blush";
+  if (/blushes & bronzers/i.test(p.product_type ?? "")) {
+    // The mixed bucket splits by title — and with a bronzer bay live
+    // (GLO-81), the non-blush half finally has a home instead of a skip.
+    return /blush/i.test(p.title ?? "") ? "blush" : "bronzer";
   }
   return null;
 }
