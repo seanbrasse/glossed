@@ -186,9 +186,23 @@ public struct VariantPickSheet: View {
     /// the sheet past the screen and took the header, the close and the
     /// confirm with it: a pick that could be started but never finished
     /// (GLO-88). Numbers are workshop-able; the shape is not optional.
-    private static let inlineRowLimit = 6
-    private static let scrollViewportHeight: CGFloat =
+    /// Internal rather than private, and paired with `scrolls(variantCount:)`
+    /// below, because GLO-88's fix was enforced by two constants that nothing
+    /// asserted (GLO-168). A shape described only in a comment is a shape one
+    /// edit away from being gone.
+    static let inlineRowLimit = 6
+    static let scrollViewportHeight: CGFloat =
         5.5 * Tokens.hitTarget + 5 * Tokens.Space.s2
+
+    /// Whether the list scrolls inside its cap rather than growing the sheet.
+    ///
+    /// The load-bearing property is not this boolean but what it implies: past
+    /// the limit the sheet's height stops depending on the number of shades,
+    /// so the confirm below it cannot be pushed off the screen no matter how
+    /// many there are. That is the whole of GLO-88.
+    static func scrolls(variantCount: Int) -> Bool {
+        variantCount > inlineRowLimit
+    }
 
     @ViewBuilder private var options: some View {
         if model.variants.count > Self.inlineRowLimit {
