@@ -4,7 +4,7 @@ Running log of known-open work and decisions deferred on purpose. Anything here 
 
 ## Open — specs to write later
 
-- [ ] **Phase 1.5 build-ready spec** — full DDL, screen inventory (design kit only covers the privacy frames today), viewer-pair RLS test grid, ticket breakdown. Write at phase entry, informed by Phase-1 data. (`tech/02` currently pins architecture + hard rules only.)
+- [x] **Phase 1.5 build-ready spec** — written ([GLO-114](https://linear.app/glossed/issue/GLO-114)). `tech/02` now carries full DDL, the 34-row screen inventory, the ≥170-assertion viewer-pair grid, and the PR plan behind GLO-25/27–31. Two things it deliberately did not decide are now open rows below: the share domain and frames for 1.5.
 - [ ] **Phase 2 build-ready spec** — same treatment; moderation stack needs vendor selection (cloud image moderation, text moderation) + cost quotes before entry. Design kit needs looks/feed/comments coverage beyond the one Feed frame.
 - [ ] **Phase 3 build-ready spec** — same; neighbor-pipeline offline-eval harness design; push-notification infra detail (APNs setup runbook).
 - [ ] **Phase 4** — remains outline-by-design until scale/funding exists.
@@ -13,9 +13,15 @@ Running log of known-open work and decisions deferred on purpose. Anything here 
 
 - [ ] Onboarding payoff evidence threshold (currently n ≥ 8 for the exact shade — a chosen starting point, not validated). `tech/01` §2.
 - [ ] Aggregate min-n per surface (leaderboard face-off min is 5 per design; other aggregate views need their own thresholds). `tech/01` §1.3.
+- [ ] Trending window length + per-skin-type min-n (Phase 1.5). `tech/02` §4 leaves both open on purpose; Phase-1 log velocity is what sizes them.
 - [ ] Shrinkage constant k≈10 in Stage-1 recs. `tech/01` §8.
 - [ ] Dedupe auto-band confidence thresholds (watch merge-queue depth). `tech/01` §4.
 - [ ] Capture-guide friction vs cutout quality (PRD §19.19) — instrument `cutout_captured` retake rate first.
+
+## Open — blocked on Sean (Phase 1.5 entry)
+
+- [ ] **The share domain.** `glossed.app` is taken (GLO-89's finding). `glossed.beauty` ($1.99/yr) and `getglossed.app` ($9.99/yr) were available at check time. [GLO-30](https://linear.app/glossed/issue/GLO-30) cannot start without it, and minted share URLs are irreversible — `tech/02` §6.1.
+- [ ] **Frames for Phase 1.5.** 32 of 34 screens have no kit frame; the one that exists (`G.Privacy`) is missing the `discoverable` row. Supply frames, or extend Phase 1's no-frames ruling (GLO-16, Aug 28) to 1.5 — `tech/02` §8.
 
 ## Open — infrastructure & process
 
