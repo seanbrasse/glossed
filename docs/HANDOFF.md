@@ -377,6 +377,7 @@ deno run --allow-net --allow-run --allow-env scripts/shopify_images.ts
 SUPABASE_SERVICE_ROLE_KEY=<legacy JWT from supabase status> \
   deno run --allow-net --allow-run --allow-env --allow-read --allow-write scripts/catalog_images.ts --limit 6000
 deno run --allow-run --allow-env scripts/brand_merge.ts
+deno run --allow-run --allow-env scripts/inci_enrich.ts   # GLO-170: parses inci_raw -> attributes (the taste engine's dimensions)
 # the merge queue's adjudication surface:
 deno run --allow-run --allow-env scripts/merge_feeder.ts --pending
 # (obf_requalify.ts is a one-off, already applied — rerun only if OBF
