@@ -177,6 +177,30 @@ const EXCLUDED = /\b(set|sets|kit|duo|trio|bundle|collection|gift card|sample|me
 /// its convention verified against its live payload first.
 const TITLE_IS_SHADE = new Set(["colourpop.com"]);
 
+/// Where a brand sells from (GLO-101): a plain lowercase word so a search
+/// token hits it directly ("korean" → every K-beauty house). Curated with
+/// the store map — a host absent here writes no origin, and an origin
+/// already on the brand is never overwritten.
+const STORE_ORIGIN: Record<string, string> = {
+  "us.laneige.com": "korean",
+  "us.innisfree.com": "korean",
+  "beautyofjoseon.com": "korean",
+  "cosrx.com": "korean",
+  "anua.us": "korean",
+  "skin1004.com": "korean",
+  "tirtir.us": "korean",
+  "medicube.us": "korean",
+  "mixsoon.us": "korean",
+  "torriden.us": "korean",
+  "klairs.com": "korean",
+  "roundlab.com": "korean",
+  "misshaus.com": "korean",
+  "haruharuwonder.com": "korean",
+  "yepoda.com": "korean",
+  "respire.co": "french",
+  "orrisparis.com": "french",
+};
+
 interface ShopifyVariant {
   title?: string;
   price?: string;
@@ -190,6 +214,7 @@ interface ShopifyVariant {
 interface ShopifyProduct {
   title?: string;
   product_type?: string;
+  tags?: string[] | string;
   variants?: ShopifyVariant[];
   images?: { src?: string }[];
   options?: { name?: string; position?: number }[];
@@ -208,6 +233,10 @@ interface Candidate {
   brand: string;
   name: string;
   variants: VariantRow[];
+  /// What the storefront says this IS (GLO-101): searchable, and the raw
+  /// material for the category-tree workshop.
+  productType: string | null;
+  tags: string[];
 }
 
 function clean(raw: string, cap: number): string {
@@ -297,30 +326,61 @@ function candidate(brand: string, p: ShopifyProduct, titleIsShade = false): Cand
     });
   }
   if (variants.length === 0) return null;
-  return { slug, brand, name, variants };
+  const rawTags = Array.isArray(p.tags)
+    ? p.tags
+    : (p.tags ?? "").split(",");
+  const tags = rawTags
+    .map((t) => clean(t.toLowerCase(), 40))
+    .filter((t) => t.length > 1)
+    .slice(0, 20);
+  const productType = clean((p.product_type ?? "").toLowerCase(), 100);
+  return {
+    slug,
+    brand,
+    name,
+    variants,
+    productType: productType.length > 0 ? productType : null,
+    tags,
+  };
 }
 
 /// One product's whole chain. The product gate short-circuits everything —
 /// a product OBF already brought in keeps its rows, and this fill only adds
 /// what is missing. Variants insert per-row so one bad barcode cannot sink
 /// its siblings; `on conflict do nothing` covers GTIN collisions.
-function sql(c: Candidate): string {
+function sql(c: Candidate, origin: string | null): string {
+  const type = c.productType === null ? "null" : quote(c.productType);
+  const tags = c.tags.length > 0
+    ? `array[${c.tags.map(quote).join(",")}]::text[]`
+    : "'{}'::text[]";
+  const originSQL = origin === null ? "null" : quote(origin);
   const parts: string[] = [`
-insert into brands (name, normalized_name, source)
-values (${quote(c.brand)}, normalize_name(${quote(c.brand)}), 'shopify')
-on conflict (normalized_name) do nothing;
+insert into brands (name, normalized_name, source, origin)
+values (${quote(c.brand)}, normalize_name(${quote(c.brand)}), 'shopify', ${originSQL})
+on conflict (normalized_name) do update set origin = coalesce(brands.origin, excluded.origin);
 with b as (
     select id from brands where normalized_name = normalize_name(${quote(c.brand)})
 ), c as (
     select id, domain from categories where slug = '${c.slug}'
 )
-insert into products (brand_id, category_id, domain, name, normalized_name, scope, source)
-select b.id, c.id, c.domain, ${quote(c.name)}, normalize_name(${quote(c.name)}), 'canonical', 'shopify'
+insert into products (brand_id, category_id, domain, name, normalized_name, scope, source,
+                      product_type, tags)
+select b.id, c.id, c.domain, ${quote(c.name)}, normalize_name(${quote(c.name)}), 'canonical', 'shopify',
+       ${type}, ${tags}
 from b, c
 where not exists (
     select 1 from products dup
     where dup.brand_id = b.id and dup.normalized_name = normalize_name(${quote(c.name)})
-);`];
+);
+-- Attrs refresh (GLO-101): rows the gate short-circuits still learn what
+-- they are — a plain re-run IS the backfill, no separate mode to forget.
+update products p set product_type = coalesce(p.product_type, ${type}),
+                      tags = case when p.tags = '{}' then ${tags} else p.tags end
+from brands b
+where b.id = p.brand_id
+  and b.normalized_name = normalize_name(${quote(c.brand)})
+  and p.normalized_name = normalize_name(${quote(c.name)})
+  and p.source = 'shopify';`];
   for (const v of c.variants) {
     const gtin = v.gtin === null ? "null" : `'${v.gtin}'`;
     const shade = v.shade === null ? "null" : quote(v.shade);
@@ -416,7 +476,17 @@ function collapseShades(candidates: Candidate[]): Candidate[] {
       // schema already did — the option is the stronger claim.
       return member.variants.map((v) => ({ ...v, shade: v.shade ?? (shade || null) }));
     });
-    out.push({ slug: group[0].slug, brand: group[0].brand, name: base, variants });
+    // Attrs from the first member: a collapsed group shares one storefront
+    // line, so its type is uniform and its tags near-identical — union
+    // would mostly collect per-shade noise.
+    out.push({
+      slug: group[0].slug,
+      brand: group[0].brand,
+      name: base,
+      variants,
+      productType: group[0].productType,
+      tags: group[0].tags,
+    });
   }
   return out;
 }
@@ -448,7 +518,7 @@ for (const [host, brand] of Object.entries(STORES)) {
   }
   const collapsed = collapseShades(storeCandidates);
   for (const c of collapsed) {
-    chunks.push(sql(c));
+    chunks.push(sql(c, STORE_ORIGIN[host] ?? null));
   }
   usable += collapsed.length;
   console.log(
