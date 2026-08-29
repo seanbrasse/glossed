@@ -68,6 +68,10 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
     /// width, and a photo's width is its aspect times the drawn height —
     /// packing on the mock's width while rendering a photo's is GLO-68 again.
     public let catalogImageAspect: Double?
+    /// The catalog variant behind this row — what lifecycle events report on
+    /// (tech/06: props are ids that join to the catalog, so status moves roll
+    /// up per product). Nil in fixtures; a nil id fires no event.
+    public let variantID: UUID?
 
     public init(
         id: UUID,
@@ -89,7 +93,8 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
         isAnchorCategory: Bool = false,
         sizeML: Double? = nil,
         catalogImageURL: URL? = nil,
-        catalogImageAspect: Double? = nil
+        catalogImageAspect: Double? = nil,
+        variantID: UUID? = nil
     ) {
         self.id = id
         self.brand = brand
@@ -111,6 +116,7 @@ public struct ShelfItem: Identifiable, Sendable, Equatable {
         self.sizeML = sizeML
         self.catalogImageURL = catalogImageURL
         self.catalogImageAspect = catalogImageAspect
+        self.variantID = variantID
     }
 }
 
