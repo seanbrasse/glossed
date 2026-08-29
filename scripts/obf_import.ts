@@ -42,9 +42,70 @@ const CATEGORY_TAGS: Record<string, { domain: string; tags: string[] }> = {
   fragrance: { domain: "fragrance", tags: ["en:perfumes"] },
 };
 
+// GLO-105 · Brand mode (--brands): pull named drugstore houses OBF covers
+// well (nivea 922, garnier 747, l'oréal paris 198, neutrogena 171…) that no
+// open storefront serves. Two standards keep it clean where the category
+// crawl couldn't be: only rows with an ENGLISH product name import (the
+// GLO-84 sidestep — foreign names never enter), and the brand name is OURS,
+// canonical, so "L'Oréal/Loreal/L'Oreal Consumer products" stops fragmenting.
+// Categories resolve from each row's own categories_tags via TAG_TO_SLUG.
+const BRAND_TAGS: Record<string, string> = {
+  "the-ordinary": "the ordinary",
+  "cerave": "cerave",
+  "neutrogena": "neutrogena",
+  "la-roche-posay": "la roche-posay",
+  "cetaphil": "cetaphil",
+  "maybelline": "maybelline",
+  "nyx": "nyx",
+  "l-oreal-paris": "l'oréal paris",
+  "garnier": "garnier",
+  "nivea": "nivea",
+};
+
+/// OBF tag → our slug, for brand mode only. The category crawl keeps its own
+/// curated CATEGORY_TAGS (adding en:shampoos there would flood the crawl
+/// with foreign names while GLO-84 stands open; brand mode is English-only
+/// so these tags are safe HERE). Every tag verified live Aug 29 — counts:
+/// sunscreens 600, shampoos 1824, face-masks 131, lip-balms 314,
+/// mascaras 86, lipsticks 58, eye-shadows 26, eyeliners 26.
+const TAG_TO_SLUG: Record<string, string> = {
+  "en:cleansers": "cleanser",
+  "en:facial-creams": "moisturizer",
+  "en:serums": "serum",
+  "en:foundations": "foundation",
+  "en:hair-gels": "styler",
+  "en:perfumes": "fragrance",
+  "en:sunscreens": "sunscreen",
+  "en:shampoos": "shampoo",
+  "en:face-masks": "mask",
+  "en:lip-balms": "lip",
+  "en:lipsticks": "lip",
+  "en:mascaras": "mascara",
+  "en:eye-shadows": "eyeshadow",
+  "en:eyeliners": "eyeliner",
+};
+
+const SLUG_DOMAIN: Record<string, string> = {
+  cleanser: "skincare",
+  moisturizer: "skincare",
+  serum: "skincare",
+  sunscreen: "skincare",
+  mask: "skincare",
+  foundation: "makeup",
+  lip: "makeup",
+  mascara: "makeup",
+  eyeshadow: "makeup",
+  eyeliner: "makeup",
+  styler: "haircare",
+  shampoo: "haircare",
+  fragrance: "fragrance",
+};
+
 interface ObfProduct {
   code?: string;
   product_name?: string;
+  product_name_en?: string;
+  categories_tags?: string[];
   brands?: string;
   quantity?: string;
   image_front_url?: string;
@@ -59,11 +120,15 @@ interface Candidate {
   name: string;
   brand: string;
   sizeML: number | null;
-  imageURL: string;
+  /// Nullable since GLO-105: brand mode imports data-first — the OBF image
+  /// gate (GLO-104) rejects nearly every OBF photo anyway, and a drawn mock
+  /// beats queueing a doomed job.
+  imageURL: string | null;
   inci: string | null;
 }
 
 const dryRun = Deno.args.includes("--dry-run");
+const brandMode = Deno.args.includes("--brands");
 const maxPagesArg = Deno.args.indexOf("--max-pages");
 const maxPages = maxPagesArg >= 0 ? Number(Deno.args[maxPagesArg + 1]) : 10;
 
@@ -96,8 +161,11 @@ function candidate(slug: string, domain: string, p: ObfProduct): Candidate | nul
   // OBF's brands field is comma-separated; the first entry is the brand.
   const brand = clean((p.brands ?? "").split(",")[0] ?? "", 80);
   if (brand.length < 2) return null;
-  const imageURL = (p.image_front_url ?? p.image_url ?? "").trim();
-  if (!imageURL.startsWith("https://")) return null;
+  const rawImage = (p.image_front_url ?? p.image_url ?? "").trim();
+  const imageURL = rawImage.startsWith("https://") ? rawImage : null;
+  // The category crawl keeps its image requirement — it exists to fill
+  // photographed rows. Brand mode (GLO-105) is data-first and takes both.
+  if (!brandMode && imageURL === null) return null;
   const sizeMatch = (p.quantity ?? "").match(/(\d+(?:\.\d+)?)\s*ml\b/i);
   const inciRaw = clean(p.ingredients_text ?? "", 5000);
   return {
@@ -141,13 +209,57 @@ with b as (
     returning id
 )
 insert into ingest_jobs (kind, payload)
-select 'image_fetch', jsonb_build_object('variant_id', v.id, 'url', ${quote(c.imageURL)})
-from v;`;
+select 'image_fetch', jsonb_build_object('variant_id', v.id, 'url', ${quote(c.imageURL ?? "")})
+from v
+where ${c.imageURL === null ? "false" : "true"};`;
 }
 
-async function fetchPage(tag: string, page: number): Promise<ObfProduct[]> {
-  const url = `${BASE}?categories_tags=${tag}` +
-    `&fields=code,product_name,brands,quantity,image_front_url,image_url,ingredients_text` +
+/// Name-rule fallback for brand mode, because OBF's crowd tags are junk for
+/// exactly these brands ("en:Cafffeine", "en:non-food-products", empty —
+/// The Ordinary went 14→0 on tags alone in the dry run). Deliberately tight:
+/// a wrong bay is worse than a skip, so no generic cream/lotion catch —
+/// nivea's body lotions must not land as facial moisturizer.
+const NAME_RULES: [RegExp, string][] = [
+  [/spf|sun\s?screen|sun\s?cream|uv/i, "sunscreen"],
+  [/cleanser|face wash|micellar/i, "cleanser"],
+  [/shampoo/i, "shampoo"],
+  [/mascara/i, "mascara"],
+  [/lip (balm|stick|gloss)|lipstick/i, "lip"],
+  [/\bmask\b/i, "mask"],
+  [/retinol|peeling|exfoliat|acne|blemish/i, "treatment"],
+  [/serum|solution|niacinamide|retinoid|hyaluronic|peptide|\bacids?\b|caffeine/i, "serum"],
+  [/moisturi[sz]er|moisturizing (cream|factors)|face cream|facial cream|night cream/i, "moisturizer"],
+];
+
+/// GLO-105: one brand-mode record. English name or nothing; category from
+/// the row's own tags, then the name rules; OUR canonical brand name.
+function brandCandidate(brand: string, p: ObfProduct): Candidate | null {
+  const gtin = (p.code ?? "").trim();
+  if (!/^\d{8,14}$/.test(gtin)) return null;
+  const name = clean(p.product_name_en ?? "", 200);
+  if (name.length < 2) return null;
+  if (/^[\d\s.,-]+$/.test(name) || name === gtin) return null;
+  const slug = (p.categories_tags ?? []).map((t) => TAG_TO_SLUG[t]).find((s) => s !== undefined) ??
+    NAME_RULES.find(([pattern]) => pattern.test(name))?.[1];
+  if (!slug) return null;
+  const rawImage = (p.image_front_url ?? p.image_url ?? "").trim();
+  const sizeMatch = (p.quantity ?? "").match(/(\d+(?:\.\d+)?)\s*ml\b/i);
+  const inciRaw = clean(p.ingredients_text ?? "", 5000);
+  return {
+    slug,
+    domain: SLUG_DOMAIN[slug],
+    gtin,
+    name,
+    brand,
+    sizeML: sizeMatch ? Number(sizeMatch[1]) : null,
+    imageURL: rawImage.startsWith("https://") ? rawImage : null,
+    inci: inciRaw.length > 2 ? inciRaw : null,
+  };
+}
+
+async function fetchPage(tag: string, page: number, key = "categories_tags"): Promise<ObfProduct[]> {
+  const url = `${BASE}?${key}=${tag}` +
+    `&fields=code,product_name,product_name_en,categories_tags,brands,quantity,image_front_url,image_url,ingredients_text` +
     `&page_size=${PAGE_SIZE}&page=${page}&sort_by=unique_scans_n`;
   const response = await fetch(url, { headers: { "user-agent": USER_AGENT } });
   if (!response.ok) {
@@ -180,25 +292,47 @@ let fetched = 0;
 let usable = 0;
 const chunks: string[] = [];
 
-for (const [slug, { domain, tags }] of Object.entries(CATEGORY_TAGS)) {
-  for (const tag of tags) {
+if (brandMode) {
+  for (const [tag, brand] of Object.entries(BRAND_TAGS)) {
     for (let page = 1; page <= maxPages; page++) {
-      const products = await fetchPage(tag, page);
+      const products = await fetchPage(tag, page, "brands_tags");
       fetched += products.length;
       let pageUsable = 0;
       for (const p of products) {
-        const c = candidate(slug, domain, p);
+        const c = brandCandidate(brand, p);
         if (c) {
           chunks.push(sql(c));
           pageUsable++;
         }
       }
       usable += pageUsable;
-      console.log(`${tag} page ${page}: ${products.length} fetched, ${pageUsable} usable`);
+      console.log(`${brand} page ${page}: ${products.length} fetched, ${pageUsable} english + placeable`);
       if (products.length < PAGE_SIZE) break;
       await sleep(SEARCH_INTERVAL_MS);
     }
     await sleep(SEARCH_INTERVAL_MS);
+  }
+} else {
+  for (const [slug, { domain, tags }] of Object.entries(CATEGORY_TAGS)) {
+    for (const tag of tags) {
+      for (let page = 1; page <= maxPages; page++) {
+        const products = await fetchPage(tag, page);
+        fetched += products.length;
+        let pageUsable = 0;
+        for (const p of products) {
+          const c = candidate(slug, domain, p);
+          if (c) {
+            chunks.push(sql(c));
+            pageUsable++;
+          }
+        }
+        usable += pageUsable;
+        console.log(`${tag} page ${page}: ${products.length} fetched, ${pageUsable} usable`);
+        if (products.length < PAGE_SIZE) break;
+        await sleep(SEARCH_INTERVAL_MS);
+      }
+      await sleep(SEARCH_INTERVAL_MS);
+    }
   }
 }
 
