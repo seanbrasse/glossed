@@ -24,6 +24,7 @@ struct AppShell: View {
     @State private var tab = ShellTab.shelf
     @State private var drawerOpen = false
     @State var privacyOpen = false
+    @State var handleOpen = false
     @State private var ladderOpen = false
     /// Regenerated every time the drawer opens the ladder: the cover keeps
     /// its content's identity across presentations, so without this a second
@@ -124,6 +125,7 @@ struct AppShell: View {
         }
         .animation(Tokens.Motion.pop(Tokens.Motion.med), value: drawerOpen)
         .privacySheet(isPresented: $privacyOpen, client: session.client)
+        .handleClaimSheet(isPresented: $handleOpen, client: session.client)
         .fullScreenCover(isPresented: $ladderOpen, onDismiss: askFitIfAnchor) {
             ladderFlow
         }

@@ -1,6 +1,7 @@
 import DataKit
 import DesignSystem
 import Privacy
+import Profile
 import SwiftUI
 
 // GLO-119's door, in its own file for the same reason GLO-151's crossing is:
@@ -17,12 +18,25 @@ extension AppShell {
             if session.client != nil {
                 Button("privacy") { privacyOpen = true }
                     .buttonStyle(.glossed(.secondary))
+                Button("claim a handle") { handleOpen = true }
+                    .buttonStyle(.glossed(.secondary))
             }
         }
     }
 }
 
 extension View {
+    /// Presents the handle claim screen. Same client guard as privacy: the
+    /// claim is scoped to the signed-in user, so there is nothing to show
+    /// without one.
+    func handleClaimSheet(isPresented: Binding<Bool>, client: GlossedClient?) -> some View {
+        sheet(isPresented: isPresented) {
+            if let client {
+                HandleClaimView(store: .live(SocialRepository(client: client)))
+            }
+        }
+    }
+
     /// Presents the privacy screen when a client exists. Nothing renders
     /// without one: the screen's every read is scoped to the signed-in user, so
     /// a signed-out sheet would show the all-private default as if it were the
