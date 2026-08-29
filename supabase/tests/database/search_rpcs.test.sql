@@ -1,7 +1,7 @@
 -- search_catalog respects personal scope; record_failed_search counts demand.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(14);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -57,6 +57,25 @@ select ok(
         join products p on p.id = s.id
         where s.category_id = p.category_id),
     'a hit carries its product''s category_id');
+
+
+-- near_matches (0018): each band's reason is computable, and scope holds.
+select test_as('00000000-0000-0000-0000-000000000001');
+select is(
+    (select why from near_matches('', null, '0810086019999') limit 1),
+    'same maker as your scan',
+    'a missed scan sharing a GS1 prefix names the maker band');
+select ok(
+    exists(select 1 from near_matches('soft pinch liquid blish')
+           where why = 'similar name — check the shade and size'),
+    'a typo lands in the similar-name band');
+select ok(
+    exists(select 1 from near_matches('rare beauty glitter bomb')
+           where why = 'same brand — different product'),
+    'a strong brand with a weak name names the brand band');
+select ok(
+    not exists(select 1 from near_matches('decanted')),
+    'near matches cannot see another user''s personal product');
 
 select * from finish();
 rollback;
