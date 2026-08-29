@@ -4,7 +4,7 @@
 surface against empty, one, extreme and error, driven on the canon simulator
 (iPhone 16 Pro, `0E1EF64B`) rather than reasoned about.
 
-**Status: 24 of ~25 states driven. Not complete.** The unfinished rows are
+**Status: 26 driven. Not complete.** The unfinished rows are
 listed as unfinished; a blank cell is a cell nobody has looked at, and saying
 so is the point of the file.
 
@@ -36,7 +36,7 @@ Two rules govern the cells:
 | Ladder — create | — | — | — | ✅ write failed |
 | Logging sheet | ✅ nothing on file | ✅ sole variant · three shades | ✅ **40 shades** ([GLO-168](https://linear.app/glossed/issue/GLO-168)) | ✅ variants didn't load |
 | Product page | ✅ not an anchor | — | — | ✅ evidence lookup failed |
-| Import | — | — | ✅ messy list | ⬜ parse failed |
+| Import | ✅ nothing matched | — | ✅ messy list | ✅ parse failed |
 | **Dynamic Type** | — | — | ❌ [GLO-172](https://linear.app/glossed/issue/GLO-172) | — |
 
 ✅ driven and passing · ❌ driven and failing · ⬜ not yet driven · — not applicable
@@ -93,12 +93,28 @@ Recorded so nobody re-drives them, and because "clean" means a specific claim he
 | `shelf · search came up dry` | a designed dead end that names the way onward, domains still visibly on | ✅ — and it still shows the *search* message rather than one of [GLO-166](https://linear.app/glossed/issue/GLO-166)'s new ones, which is the ordering that change introduced holding under its own test |
 | `shelf · item sheet, remove offered` | the way off the shelf, quiet on purpose — `rank it` stays the pop moment | ✅ remove is a small underlined link; the fit section shows, which is [GLO-145](https://linear.app/glossed/issue/GLO-145)'s gate correct on a tried anchor |
 | `shelf · search, narrowed to one bay` | the other bays drop out **whole**, the count follows — search narrows the shelf, never the catalog | ✅ two bays for `rhode`, count reads 2, domains still visibly on, ranks intact |
+| `import · nothing matched` | five misses is a full ladder handoff, not an error — every row offers `fix →` | ✅ all five rows offer it, the header reads *"not enough data yet"*, and there is **no add button at all** rather than a dead one |
+| `import · the parse failed` | must **not** list five misses — a parse that did not happen says nothing about the catalog | ✅ **lists no rows**, only *"no connection — try again in a sec."* |
 | `product · not an anchor category` | no fit block and no meter — shade is only evidence where a shade is meant to match skin | ✅ — and the evidence line still shows its n, so the page loses the *question*, not the *receipts*. Also [GLO-165](https://linear.app/glossed/issue/GLO-165)'s gate on the branch that PR did not change |
+
+## One rule, enforced in three places independently
+
+The sweep's most reassuring result is not any single cell. Three different
+surfaces, built at different times, all refuse to turn a failure into a
+finding:
+
+- `ladder · the lookup failed` — *"must NOT read as an empty catalog"*
+- `product · the evidence lookup failed` — *"we did not ask, so we know nothing"*
+- `import · the parse failed` — lists **no** rows rather than five misses
+
+Same doctrine, three independent implementations, all holding. That is the
+posture `domain.md` asks for — evidence is a claim, and a failure is not
+evidence of absence — surviving contact with three separate authors.
 
 ## Still to drive
 
 `shelf · remove failed`, the ladder's search and near-match rungs,
-`product · thin`, `import · pick a source` / `no matches` / `parse failed`.
+`product · thin`, `import · pick a source`.
 
 **And every surface except the shelf at accessibility text sizes.** GLO-172 is
 one screen's worth of a check nobody has run anywhere else.
