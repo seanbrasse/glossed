@@ -24,6 +24,8 @@ packages:
     path: features/Shelf
   ProductPage:
     path: features/ProductPage
+  Discover:
+    path: features/Discover
   Import:
     path: features/Import
   Privacy:
@@ -44,6 +46,7 @@ targets:
       - package: Shelf
       - package: ProductPage
       - package: Import
+      - package: Discover
       - package: Privacy
       - package: Profile
     settings:
