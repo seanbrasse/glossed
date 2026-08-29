@@ -53,7 +53,7 @@ public final class DiscoverModel {
     /// The basis line under each pick — lowercase, owner's words, and every
     /// claim names whose n it is (domain.md §5: a cohort claim never renders
     /// ambiguously). Exploration claims nothing, and says so.
-    nonisolated public static func basisLine(_ basis: DiscoverHit.Basis) -> String {
+    public nonisolated static func basisLine(_ basis: DiscoverHit.Basis) -> String {
         switch basis {
         case .taste: "your taste"
         case .shade: "your shade"
@@ -66,7 +66,7 @@ public final class DiscoverModel {
     /// What the basis n counts, for the EvidenceLine label. Nil means the
     /// row makes no claim (exploration) and renders no n at all — a zero
     /// would read as a failed claim rather than the absence of one.
-    nonisolated public static func evidenceLabel(_ basis: DiscoverHit.Basis) -> String? {
+    public nonisolated static func evidenceLabel(_ basis: DiscoverHit.Basis) -> String? {
         switch basis {
         case .taste: "of your logs"
         case .shade: "face-offs · your shade"

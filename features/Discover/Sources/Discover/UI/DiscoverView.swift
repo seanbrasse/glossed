@@ -60,12 +60,13 @@ public struct DiscoverView: View {
         }
     }
 
-    @ViewBuilder
     private func pickCard(_ pick: DiscoverHit) -> some View {
         // The wander is the screen's one pop moment: the single loudest
         // card belongs to the row that claims the least.
-        GlossedCard(tint: pick.basis == .exploration ? .butter : .plain,
-                    pop: pick.basis == .exploration) {
+        GlossedCard(
+            tint: pick.basis == .exploration ? .butter : .plain,
+            pop: pick.basis == .exploration
+        ) {
             VStack(alignment: .leading, spacing: Tokens.Space.s2) {
                 ProductCard(
                     meta: .init(
@@ -88,7 +89,6 @@ public struct DiscoverView: View {
         }
     }
 
-    @ViewBuilder
     private func basisLine(_ pick: DiscoverHit) -> some View {
         HStack(spacing: Tokens.Space.s2) {
             Text(DiscoverModel.basisLine(pick.basis)).meta(color: Tokens.Ink.primary)
@@ -138,7 +138,7 @@ public struct DiscoverView: View {
 
     private var loadingRows: some View {
         VStack(spacing: Tokens.Space.s3) {
-            ForEach(0..<3, id: \.self) { _ in
+            ForEach(0 ..< 3, id: \.self) { _ in
                 RoundedRectangle(cornerRadius: Tokens.Radius.lg)
                     .fill(Tokens.Ground.card)
                     .frame(height: 88)
@@ -161,8 +161,8 @@ public struct DiscoverView: View {
                     .font(Typography.display(17))
                     .foregroundStyle(Tokens.Ink.primary)
                 Text("rate a few products on your shelf — likes, chips,"
-                     + " a ranking — and this page starts earning its name")
-                .meta()
+                    + " a ranking — and this page starts earning its name")
+                    .meta()
             }
         }
     }

@@ -20,7 +20,7 @@ private func hit(_ name: String, basis: String, n: Int) throws -> DiscoverHit {
 
 @MainActor
 @Test func loadFillsBothSectionsIndependently() async throws {
-    let picks = [try hit("a", basis: "taste", n: 2)]
+    let picks = try [hit("a", basis: "taste", n: 2)]
     let store = DiscoverStore(
         feed: { _ in picks },
         crosswalk: { _ in throw URLError(.timedOut) } // one read failing…
@@ -28,7 +28,7 @@ private func hit(_ name: String, basis: String, n: Int) throws -> DiscoverHit {
     let model = DiscoverModel(store: store)
     model.load()
     await model.loadTask?.value
-    #expect(model.picks.count == 1)          // …does not blank the other
+    #expect(model.picks.count == 1) // …does not blank the other
     #expect(model.crosswalk.isEmpty)
     #expect(model.phase == .loaded)
 }
