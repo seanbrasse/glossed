@@ -32,6 +32,10 @@ public final class ShelfModel {
     /// extra taps in it.
     public private(set) var openSection: String?
 
+    /// The open sheet's chips + note, with their own lifecycle — see
+    /// `ShelfChipsModel` for why it is composed rather than inlined here.
+    public let chips: ShelfChipsModel
+
     private let sections: [ShelfSection]
     private let fitStore: ShelfFitStore?
     private let lifecycle: ShelfLifecycleStore?
@@ -47,6 +51,7 @@ public final class ShelfModel {
         openSection: String? = nil,
         fitStore: ShelfFitStore? = nil,
         lifecycle: ShelfLifecycleStore? = nil,
+        chipStore: ShelfChipStore? = nil,
         onShelfChanged: (() -> Void)? = nil
     ) {
         self.sections = sections
@@ -56,6 +61,7 @@ public final class ShelfModel {
         self.openSection = openSection
         self.fitStore = fitStore
         self.lifecycle = lifecycle
+        chips = ShelfChipsModel(store: chipStore)
         self.onShelfChanged = onShelfChanged
     }
 
@@ -93,6 +99,7 @@ public final class ShelfModel {
         fitEdited = false
         isRemoving = false
         removeFailure = nil
+        chips.open(item)
         fitLoadTask?.cancel()
         guard item.isAnchorCategory, let fitStore else { return }
         fitLoadTask = Task { [id = item.id] in
@@ -106,6 +113,7 @@ public final class ShelfModel {
     }
 
     public func closeSheet() {
+        chips.close()
         openItem = nil
         fitLoadTask?.cancel()
     }
