@@ -126,7 +126,11 @@ public struct ShelfView: View {
                     get: { Set(model.selectedDomains.map(\.rawValue)) },
                     set: { model.selectedDomains = Set($0.compactMap(Domain.init(rawValue:))) }
                 ),
-                allowsAll: true
+                allowsAll: true,
+                // Sean's Aug 29 ruling: the filter loses its outer container —
+                // the row is already its own band, and a box inside a band
+                // read as chrome on chrome. Stated kit divergence.
+                chrome: .bare
             )
             .padding(.horizontal, 16)
             .padding(.vertical, 2)

@@ -107,7 +107,10 @@ public struct Segmented: View {
                 .foregroundStyle(on ? Color.white : Tokens.Ink.primary)
                 .padding(.horizontal, Tokens.Space.s3)
                 .frame(minHeight: 34)
-                .frame(maxWidth: .infinity)
+                // Boxed segments split the container's width evenly; bare
+                // segments size to their words — an infinity frame with no
+                // box to fill squeezes labels into mid-word wraps.
+                .frame(maxWidth: chrome == .capsule ? .infinity : nil)
                 .background(on ? Tokens.Ink.primary : Color.clear)
                 .clipShape(Capsule())
         }
