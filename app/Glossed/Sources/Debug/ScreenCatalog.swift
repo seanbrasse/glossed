@@ -27,6 +27,8 @@
             ShelfEntries.list,
             ShelfEntries.sheetOpen,
             AnchorSheetEntry.anchorSheet,
+            ShelfChipsEntry.chips,
+            ShelfChipsEntry.weekRefusal,
             ShelfLifecycleEntry.removeOffered,
             ShelfLifecycleEntry.removeFailed,
             ShelfEntries.everythingOff,
