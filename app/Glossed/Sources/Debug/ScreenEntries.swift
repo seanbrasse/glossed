@@ -21,7 +21,7 @@
         static let baysWithOverflow = ScreenEntry(
             id: "shelf-overflow",
             title: "shelf · a category that overflows",
-            note: "eleven blushes: 'blush', 'blush · 2', 'blush · 3', the last holding one item"
+            note: "eleven blushes across two bays — packing is by width, so the bay count moves when item sizes do"
         ) {
             ShelfView(model: ShelfModel(sections: ShelfFixtures.overflowing, selectedDomains: [.makeup]))
         }
@@ -29,7 +29,7 @@
         static let list = ScreenEntry(
             id: "shelf-list",
             title: "shelf · list",
-            note: "one category open, the rest collapsed with their counts. 'the shelf lab' has no variant line"
+            note: "one category open, the rest collapsed with their counts. 'the shelf lab' is personal scope"
         ) {
             ShelfView(model: ShelfModel(
                 sections: ShelfFixtures.sections, viewMode: .list, openSection: "blush"
