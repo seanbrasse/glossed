@@ -4,7 +4,7 @@
 surface against empty, one, extreme and error, driven on the canon simulator
 (iPhone 16 Pro, `0E1EF64B`) rather than reasoned about.
 
-**Status: 17 of ~25 states driven. Not complete.** The unfinished rows are
+**Status: 20 of ~25 states driven. Not complete.** The unfinished rows are
 listed as unfinished; a blank cell is a cell nobody has looked at, and saying
 so is the point of the file.
 
@@ -28,9 +28,9 @@ Two rules govern the cells:
 
 | Surface | Empty | One | Extreme | Error |
 |---|---|---|---|---|
-| Shelf — bays | ✅ [GLO-166](https://linear.app/glossed/issue/GLO-166) | — | ✅ 11 items, 2 bays | — |
+| Shelf — bays | ✅ [GLO-166](https://linear.app/glossed/issue/GLO-166) | — | ✅ 11 items, 2 bays | ✅ search came up dry |
 | Shelf — list | — | ✅ personal scope | — | — |
-| Shelf — item sheet | — | — | ✅ [GLO-160](https://linear.app/glossed/issue/GLO-160) | ⬜ remove-failed: unit-tested, not driven |
+| Shelf — item sheet | — | ✅ remove offered | ✅ [GLO-160](https://linear.app/glossed/issue/GLO-160) | ✅ chip refused · ⬜ remove-failed |
 | Ladder — search | ⬜ | — | — | ⬜ |
 | Ladder — scan | — | — | — | ✅ no camera |
 | Ladder — create | — | — | — | ✅ write failed |
@@ -81,13 +81,15 @@ Recorded so nobody re-drives them, and because "clean" means a specific claim he
 | `ladder 4 · create it` | the button stays down until brand + name + category exist | ✅ |
 | `import · the kit's messy list` | "add 4" while a row says "pick the size" | ✅ **investigated and cleared** — `addableCount` includes `needsSize` per the kit, `onAdd` is empty, and the drawer says import lands with [GLO-19](https://linear.app/glossed/issue/GLO-19). Unbuilt, not broken |
 | Shelf removal | soft delete, recoverable | ✅ psql: `deleted_at` set, row and status intact, gone from the view |
+| `shelf · chips, skincare without a start date` | a reaction chip refuses to save without `started_on` | ✅ refused **and said why**: *"set a start date first — week 1 and week 10 are opposite facts"*. The chip did not toggle |
+| `shelf · search came up dry` | a designed dead end that names the way onward, domains still visibly on | ✅ — and it still shows the *search* message rather than one of [GLO-166](https://linear.app/glossed/issue/GLO-166)'s new ones, which is the ordering that change introduced holding under its own test |
+| `shelf · item sheet, remove offered` | the way off the shelf, quiet on purpose — `rank it` stays the pop moment | ✅ remove is a small underlined link; the fit section shows, which is [GLO-145](https://linear.app/glossed/issue/GLO-145)'s gate correct on a tried anchor |
 
 ## Still to drive
 
-The shelf item sheet's five variants, `shelf · remove offered` / `remove failed`,
-`shelf · chips without a start date`, `shelf · search narrowed` / `came up dry`,
-the ladder's search and near-match rungs, `product · thin` / `failed` / `no
-anchor`, `import · pick a source` / `no matches` / `parse failed`.
+`shelf · remove failed`, `shelf · search narrowed to one bay`, the ladder's
+search and near-match rungs, `product · thin` / `failed` / `no anchor`,
+`import · pick a source` / `no matches` / `parse failed`.
 
 **And every surface except the shelf at accessibility text sizes.** GLO-172 is
 one screen's worth of a check nobody has run anywhere else.
