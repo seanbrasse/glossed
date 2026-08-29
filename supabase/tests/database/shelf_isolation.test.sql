@@ -26,8 +26,24 @@ select lives_ok($$
 $$, 'maya captures the fit');
 
 -- the anchor view derives from her log
+-- Scoped to the fixture variant, not counted absolutely (GLO-161). maya may
+-- legitimately own other anchor shades — a shared database accumulates them —
+-- and an absolute count of 1 fails for reasons unrelated to what this line is
+-- named for. It was red twice in one day for two different causes and the
+-- failure text could not tell them apart, which is how a true signal (the
+-- GLO-145 view leak) got dismissed as noise for most of a session.
+--
+-- BE CLEAR ABOUT THE TRADE: scoping NARROWS this. The absolute count would
+-- catch a stray anchor row from any variant, including a leaked want_to_try
+-- one; this catches only that the fixture's own log derives correctly, which
+-- is what the assertion is named for. That is acceptable because the leak now
+-- has dedicated coverage — anchor_view.test.sql asserts the want_to_try
+-- exclusion, the status round trip and the security_invoker property in 13
+-- scoped assertions. Restating them here would be two copies free to drift.
 select is(
-    (select count(*)::int from user_shade_anchor where user_id = '00000000-0000-0000-0000-000000000001'),
+    (select count(*)::int from user_shade_anchor
+      where user_id = '00000000-0000-0000-0000-000000000001'
+        and variant_id = '40000000-0000-0000-0000-000000000002'),
     1, 'anchor view derives from anchor-category log + fit');
 
 -- juli sees none of it, by any verb
