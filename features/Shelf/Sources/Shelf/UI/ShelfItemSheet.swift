@@ -1,3 +1,4 @@
+import DataKit
 import DesignSystem
 import SwiftUI
 
@@ -30,13 +31,14 @@ public struct ShelfItemSheet: View {
     /// The failed remove's user message, owned by the model like the fit's
     /// answers are — a failure outlives any one render of this sheet.
     private let removeFailure: String?
-    /// Two taps to remove, both in place: the row arms, then confirms. A
-    /// native dialog would leave the design system's voice for the one action
-    /// that most needs to feel deliberate.
-    @State private var isConfirmingRemove = false
     /// Nil hides the chips + note section — fixture states with no chips
     /// model must not offer edits that write nowhere (GLO-16).
     private let chips: ShelfChipsModel?
+    /// The live status (the model's optimistic copy) and its change handler —
+    /// nil handler hides the icons and detail, the no-fake-writes rule again
+    /// (GLO-72 → GLO-87).
+    private let status: ItemStatus?
+    private let onStatusChange: ((ItemStatus) -> Void)?
 
     public init(
         item: ShelfItem,
@@ -49,7 +51,9 @@ public struct ShelfItemSheet: View {
         onRemove: (() -> Void)? = nil,
         isRemoving: Bool = false,
         removeFailure: String? = nil,
-        chips: ShelfChipsModel? = nil
+        chips: ShelfChipsModel? = nil,
+        status: ItemStatus? = nil,
+        onStatusChange: ((ItemStatus) -> Void)? = nil
     ) {
         self.item = item
         self.rankedInCategory = rankedInCategory
@@ -62,6 +66,14 @@ public struct ShelfItemSheet: View {
         self.isRemoving = isRemoving
         self.removeFailure = removeFailure
         self.chips = chips
+        self.status = status
+        self.onStatusChange = onStatusChange
+    }
+
+    /// The status the sheet renders everywhere: the optimistic pick the
+    /// moment it is tapped, the row's truth otherwise.
+    private var liveStatus: ItemStatus {
+        status ?? item.status
     }
 
     public var body: some View {
@@ -98,12 +110,18 @@ public struct ShelfItemSheet: View {
             if item.isAnchorCategory {
                 fitSection
             }
-            if let chips {
+            // Chips render only for tried items (GLO-87): a want-to-try has
+            // no experience to chip, and offering the editor would invite
+            // reviews of products never opened.
+            if let chips, liveStatus.isTried {
                 ShelfChipsSection(model: chips)
             }
             actions
-            if onRemove != nil {
-                lifecycleRow
+            if let onStatusChange, liveStatus.isTried {
+                ShelfTriedDetail(status: liveStatus, onChange: onStatusChange)
+            }
+            if let onRemove {
+                ShelfRemoveRow(isRemoving: isRemoving, failure: removeFailure, onRemove: onRemove)
             }
         }
         .padding(.top, 12)
@@ -168,6 +186,12 @@ public struct ShelfItemSheet: View {
                     .padding(.bottom, 2)
                 Text(statusLine).meta()
                 badges
+                // The two icons on the product (GLO-87): saved / tried,
+                // right where the object is the subject.
+                if let onStatusChange {
+                    ShelfTriedIcons(status: liveStatus, onChange: onStatusChange)
+                        .padding(.top, 4)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             closeButton
@@ -177,7 +201,11 @@ public struct ShelfItemSheet: View {
     /// "joy · 7.5ml · week 3", and just the status when there is no variant —
     /// never a stray separator standing in for a size we do not have (GLO-63).
     private var statusLine: String {
-        [item.variant, item.statusLabel()]
+        // The optimistic status wins, so the header agrees with the icons
+        // the moment one is tapped (salvaged from #157).
+        let label = (status != nil && status != item.status)
+            ? ShelfItem.label(for: liveStatus) : item.statusLabel()
+        return [item.variant, label]
             .compactMap(\.self)
             .joined(separator: " · ")
     }
@@ -213,51 +241,6 @@ public struct ShelfItemSheet: View {
             Rectangle().fill(Tokens.Ground.line).frame(height: 1.5)
         }
         .padding(.top, 14)
-    }
-
-    /// The way off the shelf (GLO-72, remove half). Quiet on purpose — the
-    /// kit's one pop moment on this sheet is "rank it", and removal should
-    /// feel deliberate, not prominent. Status change joins this row when the
-    /// frozen core gains the write.
-    private var lifecycleRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if isRemoving {
-                HStack(spacing: 8) {
-                    ProgressView()
-                    Text("removing…").meta()
-                }
-            } else if let removeFailure {
-                Text(removeFailure).meta()
-                Button("try again") { onRemove?() }
-                    .buttonStyle(.glossed(.secondary, size: .sm))
-            } else if isConfirmingRemove {
-                Text("off your bays and counts — your face-offs stay in the log.")
-                    .meta()
-                    // Without this the line truncates instead of wrapping —
-                    // the sheet's animation pass proposes it one line.
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 8) {
-                    Button("yes, remove") { onRemove?() }
-                        .buttonStyle(.glossed(.ink, size: .sm))
-                    Button("keep it") { isConfirmingRemove = false }
-                        .buttonStyle(.glossed(.secondary, size: .sm))
-                }
-            } else {
-                Button {
-                    isConfirmingRemove = true
-                } label: {
-                    Text("remove from shelf")
-                        .font(Typography.mono(12))
-                        .foregroundStyle(Tokens.Cherry.deep)
-                        .underline()
-                        .frame(minHeight: 32, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("remove from shelf")
-            }
-        }
-        .padding(.top, 12)
     }
 
     private var closeButton: some View {
