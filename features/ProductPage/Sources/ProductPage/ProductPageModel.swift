@@ -36,6 +36,16 @@ public struct ProductPageItem: Sendable, Equatable {
     /// The denominator of "#2 of 5 blushes" — how many in this category carry a
     /// rank, never how many you own.
     public let rankedInCategory: Int?
+    /// The variant's catalog image, already resolved to a URL by whoever built
+    /// the item — the feature knows nothing about buckets, same contract as
+    /// `ShelfItem.catalogImageURL` (GLO-74).
+    ///
+    /// This page is on the catalog-image side of tech/01's render rule
+    /// ("product pages/leaderboards/discover/search → catalog image"), and
+    /// until GLO-153 it had no image field at all: the drawn mock was not a
+    /// fallback firing, it was the only branch there was. Nil still renders
+    /// the mock, which is the chain's floor and not an error.
+    public let catalogImageURL: URL?
 
     public init(
         variantID: UUID,
@@ -47,7 +57,8 @@ public struct ProductPageItem: Sendable, Equatable {
         packaging: ProductMock.Kind = .tube,
         isAnchor: Bool = false,
         rank: Int? = nil,
-        rankedInCategory: Int? = nil
+        rankedInCategory: Int? = nil,
+        catalogImageURL: URL? = nil
     ) {
         self.variantID = variantID
         self.brand = brand
@@ -59,6 +70,7 @@ public struct ProductPageItem: Sendable, Equatable {
         self.isAnchor = isAnchor
         self.rank = rank
         self.rankedInCategory = rankedInCategory
+        self.catalogImageURL = catalogImageURL
     }
 }
 

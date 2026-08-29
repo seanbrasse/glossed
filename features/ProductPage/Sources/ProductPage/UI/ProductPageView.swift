@@ -53,7 +53,13 @@ public struct ProductPageView: View {
     /// the one screen that is about a single product rather than a list of them.
     private var hero: some View {
         HStack(alignment: .top, spacing: 16) {
-            ProductMock(
+            // The catalog image, with the drawn mock underneath it as the
+            // chain's floor (GLO-153). `ProductImage` already owns that
+            // fallback — the page simply never handed it a URL, so every
+            // product rendered as a generic silhouette while the shelf, one
+            // tap away, showed the real thing.
+            ProductImage(
+                catalog: model.product.catalogImageURL,
                 kind: model.product.packaging,
                 tint: ProductMock.tint(for: model.product.name),
                 scale: 124,
