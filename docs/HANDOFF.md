@@ -35,11 +35,42 @@ or is stone dead. Session 9 nearly filed a false bug on exactly this.
 confirm 200.** Start a clean session-scoped serve when you need one,
 announce it like a simulator borrow, never /dev/null its output.
 
+**"Verify before you file" has a second half that cost more than the
+first: a red you dismiss is a defect you own.** Session 10 talked itself
+out of four false defects (a stale `.build` cache, an unreachable
+scrim that was really a status-bar tap, a "regression" that was a
+peer's migration, and a page mock that turned out to be a missing
+field) — and in the same session the 1.5 lane discovered that
+`shelf_isolation` test 4, which THREE sessions had agreed to treat as
+drive-drift, had been correctly reporting GLO-145's view leak the whole
+time. It was the only thing in the repo detecting it.
+
+So the rule runs both ways. Check before you file, **and** check before
+you dismiss. "Known failure" is a claim that needs the same evidence as
+"new bug", and a shared assumption is the easiest place for one to hide.
+Current baseline is the 1.5 lane's to state, not this file's — ask them.
+
+**A control that cannot be reached is not shipped.** The item sheet had
+no height bound and did not scroll; on `main` it ended *exactly* on the
+bottom edge of a 16 Pro, so the next section added pushed
+`remove from shelf` off the screen while leaving it rendered and
+hit-testable (GLO-160, fixed in #228). Two things to know if you touch
+that sheet: the card must be drawn behind the **content**, not behind
+the scroll view — on the scroll view a short sheet becomes a full-height
+panel — and `.fixedSize(vertical:)` does **not** mean "hug content up to
+a limit"; it makes the scroll view take its full content height and
+defeats scrolling entirely. Both cost an attempt each.
+
 **Never `--delete-branch` in merge automation** (killed #159 through a
 reused watcher script). Delete branches only after a stack fully lands, by
 hand.
 
-**Authorizations are per-session and all expired with session 9.** The
+**Authorizations are per-session and all expired with session 10.** Session
+10 held self-merge on green and used it eleven times; it needed **no DataKit
+opening and no migration slot** — everything it built routed around both.
+Re-ask for anything you need.
+
+**Superseded — the old session-9 note, kept only for the shape of it:** The
 session had: self-merge on green, and **the DataKit opening bundle was
 GRANTED and is now SPENT** — #192 landed chips (4 calls), `likeState` /
 `updateLikeState`, and `invokeEdgeFunctionForData`; the core is **frozen
@@ -57,11 +88,12 @@ through Sean.
 
 | Next | Why |
 |---|---|
-| [GLO-145](https://linear.app/glossed/issue/GLO-145) — the fit gate | **The only unblocked bug with teeth.** A never-worn `want_to_try` item is asked "did the shade fit?", and the answer reaches `user_shade_anchor` (the view filters `is_anchor` + `deleted_at`, never status) — never-worn evidence feeding shade matching, on the same screen that promises "we only match shades people have actually worn". The UI half is ONE line (gate `fitSection` on `liveStatus.isTried`, GLO-87's own predicate) and needs no opening. The view half is a migration = Sean's slot |
-| Beauty API key + Vercel project | [GLO-93](https://linear.app/glossed/issue/GLO-93)'s scan path is now wired END TO END in code (#170 function, #194 client) — a free Sandbox+Barcode key flips it from its `not_configured` branch to real fills and enables the drive. The Vercel project (or create-rights) ships `web/landing/` and starts [GLO-90](https://linear.app/glossed/issue/GLO-90)/[91](https://linear.app/glossed/issue/GLO-91). Both are keyboard-minutes for Sean, weeks of queue time for the app |
-| Workshop pass (Sean) | Accumulated and unchanged: FitPromptCard, variant sheet 6-row/5.5 viewport, GLO-87 icons, bay-upright overlap, GLO-100's two questions, concealer-anchor, new categories' wear-ins, essence→toner. Plus new: [GLO-146](https://linear.app/glossed/issue/GLO-146)'s clipped helper line is a one-liner if a UI session is passing |
-| [GLO-147](https://linear.app/glossed/issue/GLO-147) — make analytics falsifiable | A DEBUG-only line on the Tracker's drop path. Small, and it makes every future drive's event claims trustworthy instead of unfalsifiable (§0) |
-| [GLO-85](https://linear.app/glossed/issue/GLO-85) queue consumer | 2,112 pending (down from 3,264 — GLO-113 fixed westman at the source). Still sized for FEED-arrival, not today: only ~5 cross-source pairs exist. **Do not start without Sean's word** — the catalog-lane assignment was relayed and then retracted in session 9 |
+| [GLO-156](https://linear.app/glossed/issue/GLO-156) — chip order | **Needs Sean, not code.** The per-category vocabulary (GLO-154) means likes and dislikes now interleave alphabetically in the sheet. Grouping by valence is one line in `ShelfChipsModel`; *which group leads, and whether they should be separated rather than merely ordered*, is a feel question — the same class as the shelf label and the fit gate, both of which he ruled on directly. Render both against real chips and let him pick |
+| [GLO-152](https://linear.app/glossed/issue/GLO-152) — product links | Decided (build now, swap to affiliate links later) and **route through the 1.5 lane's migration slot** for `product_links`. Part 1 is script-only: `shopify_import.ts` never captured the `handle` that `/products.json` returns, so 2,202 URLs were thrown away. Verified against a live payload |
+| [GLO-151](https://linear.app/glossed/issue/GLO-151)'s neighbours | The product page is reachable now and is the least-driven screen in the app. `rank it` on it is still a dismissal; the leaderboard button goes nowhere |
+| Beauty API key + Vercel project | Unchanged, still keyboard-minutes for Sean, still the long pole for GLO-90/91/93 |
+| [GLO-85](https://linear.app/glossed/issue/GLO-85) queue consumer | Unchanged. **Do not start without Sean's direct word** |
+| GLO-16's matched-barcode gap | A log from a matched barcode carries no category, so no fit prompt and no event. **Not drivable in the simulator** (no camera), which is why session 10 left it — needs a device or a seam that fakes the scan |
 
 **Done in session 9 — 3 PRs #191/#192/#194, main verified at `9688e0a`,
 one PR open that is NOT ours ([#193](https://github.com/seanbrasse/glossed/pull/193), the Phase 1.5 spec).**
@@ -78,22 +110,23 @@ Phase 1 test pass** — see §5 — which produced GLO-145/146/147/148.
 
 | Layer | State |
 |---|---|
-| Schema | **19 migrations**, all applied to hosted (0019 search-attrs at merge). **125 pgTAP assertions.** Slot free (like_state view migration is next in line). |
+| Schema | **32 migrations** (0020–0031 landed in session 10 by the Phase-1.5 lane: privacy core, public read layer, handles, swatches, reports, and **GLO-145's `user_shade_anchor` status filter**). Slot is held by the 1.5 session — route DDL through them, do not open a second migration PR. |
 | Catalog data | **3,203 products / 9,019 variants / 7,625 images / 497 brands / 22 categories**, local-only; **2,112 pending merge_candidates**, image queue ZERO. (Products fell from 3,349 because GLO-113 collapsed westman's 167 rows into 24 real lines — a drop that is a *gain*.) Every image meets the standard (OBF's 588 sub-800px purged, GLO-104). Search knows what things ARE: product_type/tags/origin live on 1,836+ rows — "korean sunscreen", "lipgloss", "retinol" all answer. Restore recipe: §9 — now SIX scripts. Maya's shelf carries drive-drift rows — fine for dev; a pgTAP run wants a reset + ping. |
-| `core/DataKit` | **Frozen again** — session 9's opening is spent (#192: chips 4-call, likeState/updateLikeState, `invokeEdgeFunctionForData(_:jsonBody:) -> Data`). 44 tests. |
-| `core/DesignSystem` | + Segmented bare chrome, plus-outside-nav FloatingNav. 38 tests. |
-| `core/Tracking` | track() real (item_logged / item_status_changed / item_removed → `events`, psql-verified). 11 tests. |
-| `features/Shelf` | + wishlist ghosts (GLO-100: want-to-try off by default, bookmark toggle, search always finds), bare domain filter. 96 tests. |
+| `core/DataKit` | **Frozen, and session 10 needed no opening at all** — #192's members turned out to cover the live chip store, the repurchase signal and the product page. 44 tests. |
+| `core/DesignSystem` | + `YesNoControl` (a question you can leave unanswered — `Segmented` always has one option selected, which is right for a status and wrong for a question), scaling `ProductSticker`. 42 tests. |
+| `core/Tracking` | track() real, and **a dropped batch now says so** — `os.Logger` on `com.glossed.tracking` in DEBUG, plus `droppedCount` (GLO-147). 15 tests. |
+| `features/Shelf` | + fit gated on tried (GLO-145), live chip + note store (GLO-16), "would you buy it again?" (GLO-87), a bounded scrolling sheet (GLO-160), the shelf's label band and scale-down (GLO-149/155). 126 tests. |
 | `features/AddLadder` | + GLO-93's scan-miss fill (`BarcodeFilling`/`BarcodeFillSuggestion` live HERE, not in DataKit — the core carries opaque bytes so the next function isn't another opening). 104 tests. |
 | `app/` | Tracker wiring, fit-at-log seam + FitPromptCard (the prompt lives HERE, not in Shelf), catalogImageBase. |
 | `web/landing/` | Static landing page for the affiliate applications. On main, NOT deployed (§7). |
 | `scripts/` | shopify_import (fill + collapse + title-is-shade + promo strip), obf_import (category crawl + **--brands** drugstore mode), shopify_images, catalog_images (+ OBF 800px gate), obf_requalify, brand_merge (curated), merge_feeder. |
 | `supabase/functions` | 6 functions, 56 deno tests, none deployed; nothing serves them by default and the silence is dangerous (§0, GLO-147). |
 
-**Verified totals, session 9 (each command actually run): 345 Swift tests
-across 8 packages** — DataKit 44, DesignSystem 38, Tracking 11, Shelf 96,
-AddLadder 104, Ranking 29, ProductPage 11, Import 12 — **plus 56 deno and
-125 pgTAP assertions.** `core/Media` is NOT among them: it is named in
+**Verified totals, session 10 (each command actually run): 386 Swift tests
+across 8 packages** — DataKit 44, DesignSystem 42, Tracking 15, Shelf 126,
+AddLadder 104, Ranking 29, ProductPage 14, Import 12 — **plus 82 deno.**
+pgTAP is the 1.5 lane's number and moved all session; ask them rather than
+quoting a stale one. `core/Media` is NOT among them: it is named in
 both CLAUDE.md files but **has never existed** (GLO-148).
 
 The sentence that is true about all of it: **the app is live against the
