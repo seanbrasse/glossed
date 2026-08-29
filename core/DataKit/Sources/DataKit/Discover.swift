@@ -45,9 +45,9 @@ public struct DiscoverHit: Decodable, Sendable, Identifiable, Hashable {
 
     public init(from decoder: Decoder) throws {
         hit = try CatalogHit(from: decoder)
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        basis = try c.decode(Basis.self, forKey: .basis)
-        basisN = try c.decode(Int.self, forKey: .basisN)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        basis = try container.decode(Basis.self, forKey: .basis)
+        basisN = try container.decode(Int.self, forKey: .basisN)
     }
 }
 
@@ -74,10 +74,10 @@ public struct CrosswalkHit: Decodable, Sendable, Identifiable, Hashable {
 
     public init(from decoder: Decoder) throws {
         hit = try CatalogHit(from: decoder)
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        anchorVariantID = try c.decode(UUID.self, forKey: .anchorVariantID)
-        anchorLabel = try c.decode(String.self, forKey: .anchorLabel)
-        n = try c.decode(Int.self, forKey: .n)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        anchorVariantID = try container.decode(UUID.self, forKey: .anchorVariantID)
+        anchorLabel = try container.decode(String.self, forKey: .anchorLabel)
+        n = try container.decode(Int.self, forKey: .n)
     }
 }
 
@@ -92,8 +92,9 @@ public struct AffinityRow: Decodable, Sendable, Identifiable, Hashable {
     /// How many of the caller's own logs back this dimension — the receipt's
     /// n ("from 3 of your logs"), never a population count.
     public let nSignals: Int
-    /// `n/(n+10)` — the shrinkage weight and the confidence meter, one number.
-    public let w: Double
+    /// `n/(n+10)` — the shrinkage weight and the confidence meter, one
+    /// number. The wire column is `w` (0035); the name here says what it is.
+    public let confidence: Double
     public let shrunkScore: Double
 
     public var id: UUID {
@@ -101,7 +102,8 @@ public struct AffinityRow: Decodable, Sendable, Identifiable, Hashable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case label, w
+        case label
+        case confidence = "w"
         case attributeChipID = "attribute_chip_id"
         case rawScore = "raw_score"
         case nSignals = "n_signals"

@@ -60,6 +60,6 @@ import Testing
     let row = try PostgrestClient.Configuration.jsonDecoder.decode(AffinityRow.self, from: raw)
     #expect(row.label == "fragrance-free")
     #expect(row.nSignals == 3)
-    #expect(abs(row.w - 3.0 / 13.0) < 0.0001)
+    #expect(abs(row.confidence - 3.0 / 13.0) < 0.0001)
     #expect(row.id == row.attributeChipID)
 }
