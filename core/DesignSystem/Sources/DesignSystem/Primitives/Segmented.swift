@@ -4,16 +4,27 @@ import SwiftUI
 /// into the four-domain shelf filter, where `allowsAll` adds the "all" shortcut
 /// that selects every option in one tap (kit: `Segmented multi all`).
 public struct Segmented: View {
+    /// What frames the row. `.capsule` is the kit's original — card fill, ink
+    /// border, hard shadow. `.bare` drops the outer container and lets the
+    /// segments float (Sean's Aug 29 direction for the shelf's domain filter:
+    /// the row already sits in its own band, and a container inside a band
+    /// reads as a box in a box).
+    public enum Chrome {
+        case capsule, bare
+    }
+
     let options: [String]
     let multi: Bool
     let allowsAll: Bool
+    let chrome: Chrome
     @Binding var selection: Set<String>
 
     /// Single-select convenience: binds one value instead of a set.
-    public init(options: [String], selection: Binding<String>) {
+    public init(options: [String], selection: Binding<String>, chrome: Chrome = .capsule) {
         self.options = options
         multi = false
         allowsAll = false
+        self.chrome = chrome
         _selection = Binding(
             get: { [selection.wrappedValue] },
             set: {
@@ -25,10 +36,16 @@ public struct Segmented: View {
     }
 
     /// Multi-select: `allowsAll` prepends the "all" shortcut.
-    public init(options: [String], selection: Binding<Set<String>>, allowsAll: Bool = false) {
+    public init(
+        options: [String],
+        selection: Binding<Set<String>>,
+        allowsAll: Bool = false,
+        chrome: Chrome = .capsule
+    ) {
         self.options = options
         multi = true
         self.allowsAll = allowsAll
+        self.chrome = chrome
         _selection = selection
     }
 
@@ -37,6 +54,23 @@ public struct Segmented: View {
     }
 
     public var body: some View {
+        switch chrome {
+        case .capsule:
+            row
+                .padding(3)
+                .background(Tokens.Ground.card)
+                .clipShape(Capsule())
+                .overlay(Capsule().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.std))
+                .background(
+                    Capsule().fill(Tokens.Ink.primary)
+                        .offset(x: Tokens.Shadow.sm, y: Tokens.Shadow.sm)
+                )
+        case .bare:
+            row
+        }
+    }
+
+    private var row: some View {
         HStack(spacing: 3) {
             if multi, allowsAll {
                 segment(label: "all", on: allSelected) {
@@ -47,14 +81,6 @@ public struct Segmented: View {
                 segment(label: option, on: selection.contains(option)) { toggle(option) }
             }
         }
-        .padding(3)
-        .background(Tokens.Ground.card)
-        .clipShape(Capsule())
-        .overlay(Capsule().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.std))
-        .background(
-            Capsule().fill(Tokens.Ink.primary)
-                .offset(x: Tokens.Shadow.sm, y: Tokens.Shadow.sm)
-        )
     }
 
     private func toggle(_ option: String) {
