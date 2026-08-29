@@ -180,7 +180,33 @@ public struct VariantPickSheet: View {
         .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
     }
 
+    /// Up to six rows sit inline and the sheet stays compact. More than six
+    /// scroll inside a capped viewport that ends on a half row — the cut row
+    /// is the scroll affordance. Without the cap a 40-shade foundation grew
+    /// the sheet past the screen and took the header, the close and the
+    /// confirm with it: a pick that could be started but never finished
+    /// (GLO-88). Numbers are workshop-able; the shape is not optional.
+    private static let inlineRowLimit = 6
+    private static let scrollViewportHeight: CGFloat =
+        5.5 * Tokens.hitTarget + 5 * Tokens.Space.s2
+
     @ViewBuilder private var options: some View {
+        if model.variants.count > Self.inlineRowLimit {
+            ScrollView {
+                optionRows
+            }
+            .frame(height: Self.scrollViewportHeight)
+        } else {
+            optionRows
+        }
+        if model.variants.count == 1 {
+            Text("the only one we have on file — check it's yours")
+                .meta()
+                .padding(.top, Tokens.Space.s1)
+        }
+    }
+
+    private var optionRows: some View {
         VStack(spacing: Tokens.Space.s2) {
             ForEach(model.variants) { variant in
                 VariantOptionRow(
@@ -190,11 +216,6 @@ public struct VariantPickSheet: View {
                     model.select(variant.id)
                 }
             }
-        }
-        if model.variants.count == 1 {
-            Text("the only one we have on file — check it's yours")
-                .meta()
-                .padding(.top, Tokens.Space.s1)
         }
     }
 
@@ -207,76 +228,5 @@ public struct VariantPickSheet: View {
         .buttonStyle(.glossed(block: true))
         .disabled(!model.canConfirm)
         .padding(.top, Tokens.Space.s5)
-    }
-}
-
-/// One shade-or-size row. Selected wears the selected-pill recipe from the
-/// kit (2px ink border, cherry-soft fill); unselected sits flat on the card.
-struct VariantOptionRow: View {
-    let variant: Variant
-    let isSelected: Bool
-    let select: () -> Void
-
-    var body: some View {
-        Button(action: select) {
-            HStack(spacing: Tokens.Space.s3) {
-                swatch
-                Text(variant.pickLabel ?? "one size")
-                    .font(Typography.mono(13))
-                    .foregroundStyle(Tokens.Ink.primary)
-                Spacer(minLength: 0)
-                if isSelected {
-                    Text("yours")
-                        .font(Typography.mono(11))
-                        .foregroundStyle(Tokens.Cherry.deep)
-                }
-            }
-            .padding(.horizontal, Tokens.Space.s4)
-            .frame(maxWidth: .infinity, minHeight: Tokens.hitTarget, alignment: .leading)
-            .background(isSelected ? Tokens.Cherry.soft : Tokens.Ground.card)
-            .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: Tokens.Radius.md)
-                    .strokeBorder(
-                        isSelected ? Tokens.Ink.primary : Tokens.Ground.lineOnCard,
-                        lineWidth: isSelected ? Tokens.Border.std : Tokens.Border.thin
-                    )
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    /// The shade the row is offering, in its own color — content, not styling
-    /// (the tokens-only rule governs chrome; a swatch *is* the data). Absent
-    /// hex, absent dot: a grey circle would claim a shade we do not know.
-    @ViewBuilder private var swatch: some View {
-        if let color = Color(shadeHex: variant.shadeHex) {
-            Circle()
-                .fill(color)
-                .frame(width: 18, height: 18)
-                .overlay(Circle().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.hair))
-                .accessibilityHidden(true)
-        }
-    }
-}
-
-private extension Color {
-    /// "#D4788C" from `variants.shade_hex`. Data-driven, deliberately not a
-    /// token: this is the product's shade, not the app's palette.
-    init?(shadeHex: String?) {
-        guard let shadeHex else { return nil }
-        var raw = Substring(shadeHex)
-        if raw.hasPrefix("#") {
-            raw = raw.dropFirst()
-        }
-        guard raw.count == 6, let value = UInt32(raw, radix: 16) else { return nil }
-        self.init(
-            .sRGB,
-            red: Double((value >> 16) & 0xFF) / 255,
-            green: Double((value >> 8) & 0xFF) / 255,
-            blue: Double(value & 0xFF) / 255,
-            opacity: 1
-        )
     }
 }
