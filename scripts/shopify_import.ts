@@ -481,6 +481,20 @@ async function runSQL(statements: string): Promise<string> {
 /// — almond butter". Em-dash with spaces, store-authored and consistent.
 const SHADE_SUFFIX = /^(.{2,}?) — (.+)$/;
 
+/// Hyphen-space as a shade separator ("vital skin foundation stick -
+/// atelier xiii"). Curated per-store like TITLE_IS_SHADE, and for the same
+/// reason: hyphen-space means SIZE elsewhere (ouai "- travel"), so a
+/// general rule is the wrong-franchise scar's cousin. Westman's 167 flat
+/// rows dominated the merge queue's 0.9+ band (GLO-113).
+const HYPHEN_SUFFIX = /^(.{2,}?) - (.+)$/;
+const HYPHEN_IS_SHADE = new Set(["westman-atelier.com"]);
+
+/// The store's shade-suffix match, if any: em-dash for everyone, hyphen
+/// only where the flag says the store means shade by it.
+function shadeSuffixMatch(name: string, hyphenIsShade: boolean): RegExpMatchArray | null {
+  return name.match(SHADE_SUFFIX) ?? (hyphenIsShade ? name.match(HYPHEN_SUFFIX) : null);
+}
+
 /// GLO-85's collapse: a store that models every shade as its own product
 /// (fenty: 562 rows) becomes one product per franchise with shade variants —
 /// the shape rare beauty already arrives in, and the shape the variant-pick
@@ -488,11 +502,11 @@ const SHADE_SUFFIX = /^(.{2,}?) — (.+)$/;
 /// title keeps its full name, because there the suffix may be identity
 /// ("peptide lip tint honey mango" is one product), and collapsing on a
 /// single sighting is how the wrong-franchise class of bug starts.
-function collapseShades(candidates: Candidate[]): Candidate[] {
+function collapseShades(candidates: Candidate[], hyphenIsShade = false): Candidate[] {
   const byBase = new Map<string, Candidate[]>();
   const out: Candidate[] = [];
   for (const c of candidates) {
-    const match = c.name.match(SHADE_SUFFIX);
+    const match = shadeSuffixMatch(c.name, hyphenIsShade);
     if (match) {
       const key = `${c.slug}|${match[1].trim()}`;
       byBase.set(key, [...byBase.get(key) ?? [], c]);
@@ -507,7 +521,7 @@ function collapseShades(candidates: Candidate[]): Candidate[] {
     }
     const base = key.split("|")[1];
     const variants = group.flatMap((member) => {
-      const shade = (member.name.match(SHADE_SUFFIX)?.[2] ?? "")
+      const shade = (shadeSuffixMatch(member.name, hyphenIsShade)?.[2] ?? "")
         .replace(/^#/, "").trim();
       // The title's shade names the variant unless the store's own option
       // schema already did — the option is the stronger claim.
@@ -553,7 +567,7 @@ for (const [host, brand] of Object.entries(STORES)) {
     if (products.length < PAGE_SIZE) break;
     await sleep(FETCH_INTERVAL_MS);
   }
-  const collapsed = collapseShades(storeCandidates);
+  const collapsed = collapseShades(storeCandidates, HYPHEN_IS_SHADE.has(host));
   for (const c of collapsed) {
     chunks.push(sql(c, STORE_ORIGIN[host] ?? null));
   }
