@@ -7,13 +7,19 @@ import Foundation
 // behind (session 7's ShelfShownState scar, and AppShellProductPage after it).
 
 @MainActor
-extension ShelfModel {
+public extension ShelfModel {
+    /// Whether the question can be asked at all — a fixture state with no
+    /// store must not offer a control that writes nowhere (GLO-72).
+    var supportsRepurchase: Bool {
+        likeStore != nil
+    }
+
     /// Reads the saved answer when a sheet opens.
     ///
     /// Only a tried item is asked — the same predicate the fit gate and the
     /// chips already stand behind (GLO-87, GLO-145): you cannot say whether
     /// you would buy something again before you have used it.
-    func loadRepurchase(for item: ShelfItem) {
+    internal func loadRepurchase(for item: ShelfItem) {
         openRepurchase = nil
         persistedRepurchase = nil
         repurchaseEdited = false
@@ -33,7 +39,7 @@ extension ShelfModel {
     /// out of order, and reverted to what is actually persisted if the write
     /// fails. Tapping the selected answer clears it — unanswered is a state
     /// you are allowed to return to.
-    public func repurchaseChanged(to answer: RepurchaseAnswer?) {
+    func repurchaseChanged(to answer: RepurchaseAnswer?) {
         guard let item = openItem, item.status.isTried else { return }
         openRepurchase = answer
         repurchaseEdited = true

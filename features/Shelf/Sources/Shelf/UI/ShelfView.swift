@@ -38,16 +38,14 @@ public struct ShelfView: View {
                     ShelfItemSheet(
                         item: item,
                         rankedInCategory: model.rankedCount(inCategoryOf: item),
-                        // Reads the model's copy, writes through the model —
-                        // which is where a change is persisted and where a
+                        // Through the model: where it persists, and where a
                         // failed save falls back.
                         fit: Binding(
                             get: { model.openFit },
                             set: { model.fitChanged(to: $0) }
                         ),
                         onClose: model.closeSheet,
-                        // No variant, no page to build — and no handler
-                        // means the sheet hides the button (GLO-151).
+                        // No variant, no page to build (GLO-151).
                         onOpenProduct: onOpenProduct.flatMap { open in
                             item.variantID == nil ? nil : { open(item) }
                         },
@@ -56,7 +54,9 @@ public struct ShelfView: View {
                         removeFailure: model.removeFailure?.userMessage,
                         chips: model.chips.supportsEditing ? model.chips : nil,
                         status: model.openStatus,
-                        onStatusChange: model.supportsRemoval ? { model.statusChanged(to: $0) } : nil
+                        onStatusChange: model.supportsRemoval ? { model.statusChanged(to: $0) } : nil,
+                        repurchase: model.openRepurchase,
+                        onRepurchase: model.supportsRepurchase ? { model.repurchaseChanged(to: $0) } : nil
                     )
                 }
             }

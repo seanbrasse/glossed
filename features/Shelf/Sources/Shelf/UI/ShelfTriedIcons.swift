@@ -25,6 +25,11 @@ extension ItemStatus {
 struct ShelfTriedIcons: View {
     let status: ItemStatus
     let onChange: (ItemStatus) -> Void
+    /// The saved repurchase answer; nil is "not asked yet", which is a real
+    /// state (GLO-87). A nil handler hides the control entirely — the same
+    /// no-fake-writes rule as `onRemove` and, since GLO-151, `onOpenProduct`.
+    var repurchase: RepurchaseAnswer?
+    var onRepurchase: ((RepurchaseAnswer?) -> Void)?
 
     var body: some View {
         HStack(spacing: 2) {
@@ -72,6 +77,11 @@ struct ShelfTriedIcons: View {
 struct ShelfTriedDetail: View {
     let status: ItemStatus
     let onChange: (ItemStatus) -> Void
+    /// The saved repurchase answer; nil is "not asked yet", which is a real
+    /// state (GLO-87). A nil handler hides the control entirely — the same
+    /// no-fake-writes rule as `onRemove` and, since GLO-151, `onOpenProduct`.
+    var repurchase: RepurchaseAnswer?
+    var onRepurchase: ((RepurchaseAnswer?) -> Void)?
 
     private static let order: [ItemStatus] = [.own, .finished, .repurchased]
 
@@ -91,6 +101,20 @@ struct ShelfTriedDetail: View {
                     }
                 )
             )
+            if let onRepurchase {
+                // Under the status, because it is the second half of the same
+                // thought: what you did, then what you would do. Only tried
+                // items reach here at all — a want-to-try has no answer to
+                // give, which the model enforces at the store as well as here.
+                YesNoControl(
+                    question: "would you buy it again?",
+                    selection: Binding(
+                        get: { repurchase.map { $0 == .yes } },
+                        set: { onRepurchase($0.map { $0 ? .yes : .no }) }
+                    )
+                )
+                .padding(.top, 14)
+            }
         }
         .padding(.top, 12)
     }

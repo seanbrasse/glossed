@@ -159,3 +159,16 @@ private func model(_ items: [ShelfItem], store: ShelfLikeStore?) -> ShelfModel {
     #expect(live.openRepurchase == .yes, "the control still moves locally")
     #expect(live.likeSaveTask == nil, "but nothing pretends to persist it")
 }
+
+// MARK: - The offer
+
+@MainActor
+@Test func withoutAStoreTheQuestionIsNotOffered() {
+    // GLO-72's rule, and GLO-151's after it: a surface that cannot write must
+    // not offer to. `ShelfView` reads this to decide whether to hand the sheet
+    // a handler at all, and no handler means no control.
+    let owned = item(.own)
+
+    #expect(!model([owned], store: nil).supportsRepurchase)
+    #expect(model([owned], store: store(LikeProbe())).supportsRepurchase)
+}

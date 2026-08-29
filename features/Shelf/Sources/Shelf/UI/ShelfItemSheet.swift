@@ -45,6 +45,9 @@ public struct ShelfItemSheet: View {
     /// (GLO-72 → GLO-87).
     let status: ItemStatus?
     let onStatusChange: ((ItemStatus) -> Void)?
+    /// "Would you buy it again?" — the saved answer and its handler (GLO-87).
+    private let repurchase: RepurchaseAnswer?
+    private let onRepurchase: ((RepurchaseAnswer?) -> Void)?
 
     public init(
         item: ShelfItem,
@@ -59,7 +62,9 @@ public struct ShelfItemSheet: View {
         removeFailure: String? = nil,
         chips: ShelfChipsModel? = nil,
         status: ItemStatus? = nil,
-        onStatusChange: ((ItemStatus) -> Void)? = nil
+        onStatusChange: ((ItemStatus) -> Void)? = nil,
+        repurchase: RepurchaseAnswer? = nil,
+        onRepurchase: ((RepurchaseAnswer?) -> Void)? = nil
     ) {
         self.item = item
         self.rankedInCategory = rankedInCategory
@@ -74,6 +79,8 @@ public struct ShelfItemSheet: View {
         self.chips = chips
         self.status = status
         self.onStatusChange = onStatusChange
+        self.repurchase = repurchase
+        self.onRepurchase = onRepurchase
     }
 
     /// What the sheet's content measured on the last layout pass (GLO-160).
@@ -170,7 +177,12 @@ public struct ShelfItemSheet: View {
             }
             actions
             if let onStatusChange, liveStatus.isTried {
-                ShelfTriedDetail(status: liveStatus, onChange: onStatusChange)
+                ShelfTriedDetail(
+                    status: liveStatus,
+                    onChange: onStatusChange,
+                    repurchase: repurchase,
+                    onRepurchase: onRepurchase
+                )
             }
             if let onRemove {
                 ShelfRemoveRow(isRemoving: isRemoving, failure: removeFailure, onRemove: onRemove)

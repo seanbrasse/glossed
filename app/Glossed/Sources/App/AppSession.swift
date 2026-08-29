@@ -77,6 +77,10 @@ final class AppSession {
         shelfModel = ShelfModel(
             sections: ShelfSection.grouped(from: rows, imageBase: imageBase),
             fitStore: .repository(repository),
+            // GLO-87: "would you buy it again?" reads and writes
+            // `user_items.like_state` — what you WOULD, beside the status's
+            // record of what you DID.
+            likeStore: .repository(repository),
             lifecycle: .repository(repository),
             // GLO-16: the chip editor's five calls are all real now (#192),
             // so the sheet writes to `item_chips` and the note column rather
