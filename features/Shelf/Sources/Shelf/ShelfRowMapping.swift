@@ -38,7 +38,8 @@ public extension ShelfItem {
             isAnchorCategory: row.isAnchor,
             sizeML: row.sizeML,
             catalogImageURL: ShelfItem.imageURL(base: imageBase, key: row.catalogImageKey),
-            catalogImageAspect: ShelfItem.aspect(width: row.catalogImageWidth, height: row.catalogImageHeight)
+            catalogImageAspect: ShelfItem.aspect(width: row.catalogImageWidth, height: row.catalogImageHeight),
+            variantID: row.variantID
         )
     }
 

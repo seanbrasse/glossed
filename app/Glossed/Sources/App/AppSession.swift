@@ -78,6 +78,7 @@ final class AppSession {
             sections: ShelfSection.grouped(from: rows, imageBase: imageBase),
             fitStore: .repository(repository),
             lifecycle: .repository(repository),
+            tracker: tracker,
             onShelfChanged: { [weak self] in self?.refreshShelf() }
         )
     }

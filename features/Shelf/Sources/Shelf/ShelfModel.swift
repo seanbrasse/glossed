@@ -2,6 +2,7 @@ import DataKit
 import DesignSystem
 import Foundation
 import Observation
+import Tracking
 
 /// What the shelf screen shows: which domains are on, how the bays are ordered,
 /// and the bays that fall out of those two answers.
@@ -39,6 +40,10 @@ public final class ShelfModel {
     let sections: [ShelfSection]
     private let fitStore: ShelfFitStore?
     private let lifecycle: ShelfLifecycleStore?
+    /// Fires the lifecycle events (GLO-72, tech/06) when a write *lands* —
+    /// an event is a fact, the ladder's rule. Nil in fixtures and tests that
+    /// are not about analytics.
+    private let tracker: Tracker?
     /// Fired after a lifecycle write lands — the host re-reads the shelf, the
     /// same contract the ladder's `onShelfChanged` already has.
     private let onShelfChanged: (() -> Void)?
@@ -52,6 +57,7 @@ public final class ShelfModel {
         fitStore: ShelfFitStore? = nil,
         lifecycle: ShelfLifecycleStore? = nil,
         chipStore: ShelfChipStore? = nil,
+        tracker: Tracker? = nil,
         onShelfChanged: (() -> Void)? = nil
     ) {
         self.sections = sections
@@ -61,6 +67,7 @@ public final class ShelfModel {
         self.openSection = openSection
         self.fitStore = fitStore
         self.lifecycle = lifecycle
+        self.tracker = tracker
         chips = ShelfChipsModel(store: chipStore)
         self.onShelfChanged = onShelfChanged
     }
@@ -163,11 +170,19 @@ public final class ShelfModel {
     public func statusChanged(to status: ItemStatus) {
         guard let item = openItem, let lifecycle, status != openStatus else { return }
         openStatus = status
-        statusTask = Task { [previous = statusTask, id = item.id] in
+        statusTask = Task { [previous = statusTask, id = item.id, variantID = item.variantID] in
             await previous?.value
             do throws(GlossedError) {
+                // `from` is read after the previous write settles — in a
+                // chain, each event reports the move it actually made.
+                let from = persistedStatus
                 try await lifecycle.updateStatus(id, status)
                 persistedStatus = status
+                if let tracker, let variantID, let from {
+                    await tracker.track(.itemStatusChanged(
+                        variantID: variantID, from: from.rawValue, to: status.rawValue
+                    ))
+                }
                 if openItem?.id == id {
                     statusDirty = true
                 } else {
@@ -190,10 +205,15 @@ public final class ShelfModel {
         guard let item = openItem, let lifecycle, !isRemoving else { return }
         isRemoving = true
         removeFailure = nil
-        removeTask = Task { [id = item.id] in
+        removeTask = Task { [id = item.id, variantID = item.variantID] in
             defer { isRemoving = false }
             do throws(GlossedError) {
                 try await lifecycle.remove(id)
+                if let tracker, let variantID, let was = persistedStatus {
+                    // What the item was when it left — a removal from
+                    // finished and one from want_to_try roll up differently.
+                    await tracker.track(.itemRemoved(variantID: variantID, status: was.rawValue))
+                }
                 guard openItem?.id == id else { return }
                 closeSheet()
                 onShelfChanged?()
@@ -229,63 +249,6 @@ public final class ShelfModel {
                 guard openItem?.id == id, openFit == answers else { return }
                 openFit = persistedFit
             }
-        }
-    }
-
-    /// The sections currently on, in their given order, each internally
-    /// sorted, holding only what matches the search. A bay with no matches
-    /// drops out whole — an empty bay would read as an empty shelf.
-    public var shownSections: [ShelfSection] {
-        sections
-            .filter { selectedDomains.contains($0.domain) }
-            .map { section in
-                ShelfSection(
-                    slug: section.slug,
-                    label: section.label,
-                    domain: section.domain,
-                    items: ShelfModel.ordered(
-                        section.items.filter { $0.matches(searchQuery) },
-                        by: sort
-                    )
-                )
-            }
-            .filter { !$0.items.isEmpty }
-    }
-
-    /// A real query found nothing. Distinct from "every domain off": the empty
-    /// state has to say the search came up dry, not show a bare shelf.
-    public var searchCameUpEmpty: Bool {
-        !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty && shownSections.isEmpty
-    }
-
-    /// The bays, for a shelf of the given inside width.
-    ///
-    /// A function rather than a property because packing depends on how much
-    /// shelf there is, and only the view knows that. Nothing about which items
-    /// are shown or in what order depends on the width — that is all decided by
-    /// `shownSections`, which stays testable without a layout.
-    public func bays(fittingWidth width: CGFloat) -> [ShelfBay] {
-        ShelfBay.bays(from: shownSections, fittingWidth: width)
-    }
-
-    /// Counts what is on screen, not what is owned. A count that ignored the
-    /// filter would contradict the shelf under it.
-    public var shownItemCount: Int {
-        shownSections.reduce(0) { $0 + $1.items.count }
-    }
-
-    /// Fragrance has no shade axis and no skin axis, so it is ranked by face-off
-    /// alone. The kit says that out loud whenever fragrance is on rather than
-    /// letting someone wonder why one domain behaves differently.
-    public var showsFragranceNote: Bool {
-        selectedDomains.contains(.fragrance)
-    }
-
-    public func toggle(_ domain: Domain) {
-        if selectedDomains.contains(domain) {
-            selectedDomains.remove(domain)
-        } else {
-            selectedDomains.insert(domain)
         }
     }
 }
