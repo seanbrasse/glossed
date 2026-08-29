@@ -45,7 +45,10 @@ extension AppShell {
                         // "#1 of 1" must come from one place or a page says
                         // you are first of one while the shelf says
                         // otherwise — the scar tech/01 already carries.
-                        rankedInCategory: rankedInCategory
+                        rankedInCategory: rankedInCategory,
+                        // The same URL the shelf drew from, so one tap does
+                        // not change what the product looks like (GLO-153).
+                        catalogImageURL: item.catalogImageURL
                     ),
                     aggregates: AggregatesRepository(client: client)
                 ),
