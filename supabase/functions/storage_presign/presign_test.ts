@@ -13,7 +13,9 @@ import {
   r2Config,
   randomNonce,
   resolvePublishableKey,
+  swatchKey,
   validate,
+  validateSwatch,
 } from "./presign.ts";
 
 const USER = "11111111-1111-4111-8111-111111111111";
@@ -132,4 +134,89 @@ Deno.test("every R2 credential is required", () => {
     delete partial[missing];
     assertThrows(() => r2Config(envFrom(partial)), Error, "R2 credentials missing");
   }
+});
+
+const OTHER_USER = "22222222-2222-4222-8222-222222222222";
+const VARIANT = "33333333-3333-4333-8333-333333333333";
+
+// ---------------------------------------------------------------------------
+// Swatch keys (GLO-132, tech/02 §5).
+//
+// The property under test throughout: the storage layer knows nothing about
+// `swatch_state`. A swatch sits in `pending_review` before it is public, and
+// the object is reachable by anyone who can guess its path. So the key — not
+// RLS — is what protects an unreviewed photo.
+// ---------------------------------------------------------------------------
+
+Deno.test("two swatches of the same variant by the same user get unrelated keys", () => {
+  const a = swatchKey(USER, VARIANT, "image/png");
+  const b = swatchKey(USER, VARIANT, "image/png");
+  assert(a !== b, "a re-shoot must not overwrite, and must not be predictable from the first");
+  // Unrelated, not merely different: everything before the nonce is shared, so
+  // compare the nonces themselves rather than the whole path.
+  const nonceOf = (k: string) => k.split("/").pop()!.split(".")[0];
+  assert(nonceOf(a) !== nonceOf(b));
+  assertEquals(nonceOf(a).length, 32);
+});
+
+Deno.test("a swatch key is not guessable from the ids alone", () => {
+  // Someone holding both a user id and a variant id — both of which are visible
+  // on a public product page — still cannot construct the path.
+  const key = swatchKey(USER, VARIANT, "image/png");
+  assert(key !== `users/${USER}/swatches/${VARIANT}/.png`);
+  assert(/\/[0-9a-f]{32}\.png$/.test(key), "ends in a 128-bit random nonce");
+});
+
+Deno.test("swatches and cutouts occupy separate namespaces", () => {
+  // Cutouts are disposable and key on the UserItem; swatches are user-posted
+  // content and key on the Variant. A shared prefix would make a bucket
+  // lifecycle rule impossible to write without parsing ids out of paths.
+  const cutout = cutoutKey(USER, ITEM, "image/png");
+  const swatch = swatchKey(USER, VARIANT, "image/png");
+  assertStringIncludes(cutout, `users/${USER}/items/`);
+  assertStringIncludes(swatch, `users/${USER}/swatches/`);
+  assert(!swatch.startsWith(cutout.split("/").slice(0, 3).join("/") + "/items"));
+});
+
+Deno.test("the user prefix comes from the caller, so no payload can reach another namespace", () => {
+  // The handler passes the JWT-derived user id here and never a request field.
+  // This asserts the shape that makes that guarantee meaningful: the prefix is
+  // this argument, so there is no second place for a user id to come from.
+  const key = swatchKey(USER, VARIANT, "image/png");
+  assert(key.startsWith(`users/${USER}/`));
+  assert(!key.includes(OTHER_USER));
+});
+
+Deno.test("the extension follows the content type", () => {
+  assert(swatchKey(USER, VARIANT, "image/png").endsWith(".png"));
+  assert(swatchKey(USER, VARIANT, "image/heic").endsWith(".heic"));
+});
+
+Deno.test("a swatch needs a variant id, not a user_item id", () => {
+  assertEquals(
+    validateSwatch({ contentType: "image/png", contentLength: 1000 }),
+    "variant_id must be a uuid",
+  );
+  assertEquals(
+    validateSwatch({ variantID: "not-a-uuid", contentType: "image/png", contentLength: 1000 }),
+    "variant_id must be a uuid",
+  );
+});
+
+Deno.test("swatches inherit the cutout size and type limits rather than restating them", () => {
+  const base = { variantID: VARIANT, contentType: "image/png" };
+  assertEquals(validateSwatch({ ...base, contentLength: MAX_UPLOAD_BYTES }), null);
+  assert(validateSwatch({ ...base, contentLength: MAX_UPLOAD_BYTES + 1 })!.includes("exceeds"));
+  assert(validateSwatch({ ...base, contentLength: 0 })!.includes("positive integer"));
+  assert(
+    validateSwatch({ variantID: VARIANT, contentType: "image/gif", contentLength: 10 })!
+      .includes("content_type"),
+  );
+});
+
+Deno.test("a valid swatch request passes", () => {
+  assertEquals(
+    validateSwatch({ variantID: VARIANT, contentType: "image/heic", contentLength: 150_000 }),
+    null,
+  );
 });
