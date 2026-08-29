@@ -8,7 +8,7 @@
 -- quietly grants a helper to clients, this file goes red. That is its whole job.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(25);
 
 -- ---------------------------------------------------------------------------
 -- 1. Every public read policy routes through can_view (or its per-collection
@@ -94,6 +94,36 @@ select ok(
     (select prosrc from pg_proc where proname = 'collection_is_visible') ~
     '(?s)auth\.uid\(\).*is_blocked.*is_minor_user.*public.*friends',
     'collection_is_visible checks owner → block → minor → scope, in that order, exactly as can_view does');
+
+-- ---------------------------------------------------------------------------
+-- 6. Privilege and policy must AGREE. A 1.5 table with no anon policy must not
+--    hold anon table privilege either — otherwise RLS is the only thing
+--    standing between anon and the table, and adding one legitimate `to anon`
+--    policy later silently inherits table-wide access nobody intended.
+--    This is GLO-150's shape, caught in our own lane (0024).
+-- ---------------------------------------------------------------------------
+select is(
+    (select array_agg(t::text order by t) from unnest(array[
+        'privacy_scopes','follows','blocks','mutes',
+        'handles','public_texts','profile_badges','reserved_handles'
+     ]) as t
+     where has_table_privilege('anon', 'public.'||t, 'select')
+        or has_table_privilege('anon', 'public.'||t, 'insert')
+        or has_table_privilege('anon', 'public.'||t, 'update')
+        or has_table_privilege('anon', 'public.'||t, 'delete')),
+    null,
+    'NO Phase-1.5 identity/privacy table grants anon any privilege — privilege and policy agree, so RLS is the second layer rather than the only one');
+
+-- reserved_handles is deny-all to every client role, not just anon.
+select ok(not has_table_privilege('authenticated','public.reserved_handles','select'),
+    'reserved_handles is unreadable by authenticated too — enumerating it is a gift to squatters');
+
+-- ...while the tables that DO carry `to anon` public read policies keep the
+-- privilege they need. Revoking there would break link cards and share pages.
+select ok(has_table_privilege('anon','public.user_items','select'),
+    'user_items KEEPS anon select — its *_public policy is `to anon` and web share pages read it unauthenticated');
+select ok(has_table_privilege('anon','public.collections','select'),
+    'collections keeps anon select for the same reason');
 
 select * from finish();
 rollback;
