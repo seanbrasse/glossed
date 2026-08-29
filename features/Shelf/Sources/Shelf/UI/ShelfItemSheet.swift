@@ -1,3 +1,4 @@
+import DataKit
 import DesignSystem
 import SwiftUI
 
@@ -30,13 +31,16 @@ public struct ShelfItemSheet: View {
     /// The failed remove's user message, owned by the model like the fit's
     /// answers are — a failure outlives any one render of this sheet.
     private let removeFailure: String?
-    /// Two taps to remove, both in place: the row arms, then confirms. A
-    /// native dialog would leave the design system's voice for the one action
-    /// that most needs to feel deliberate.
+    /// Two taps to remove, both in place — a native dialog would leave the
+    /// design system's voice for the action that most needs deliberateness.
     @State private var isConfirmingRemove = false
     /// Nil hides the chips + note section — fixture states with no chips
     /// model must not offer edits that write nowhere (GLO-16).
     private let chips: ShelfChipsModel?
+    /// The live status (the model's optimistic copy) and its change handler —
+    /// nil handler hides the control, the no-fake-writes rule again (GLO-72).
+    private let status: ItemStatus?
+    private let onStatusChange: ((ItemStatus) -> Void)?
 
     public init(
         item: ShelfItem,
@@ -49,7 +53,9 @@ public struct ShelfItemSheet: View {
         onRemove: (() -> Void)? = nil,
         isRemoving: Bool = false,
         removeFailure: String? = nil,
-        chips: ShelfChipsModel? = nil
+        chips: ShelfChipsModel? = nil,
+        status: ItemStatus? = nil,
+        onStatusChange: ((ItemStatus) -> Void)? = nil
     ) {
         self.item = item
         self.rankedInCategory = rankedInCategory
@@ -62,6 +68,8 @@ public struct ShelfItemSheet: View {
         self.isRemoving = isRemoving
         self.removeFailure = removeFailure
         self.chips = chips
+        self.status = status
+        self.onStatusChange = onStatusChange
     }
 
     public var body: some View {
@@ -102,6 +110,9 @@ public struct ShelfItemSheet: View {
                 ShelfChipsSection(model: chips)
             }
             actions
+            if let onStatusChange {
+                ShelfStatusRow(status: status ?? item.status, onChange: onStatusChange)
+            }
             if onRemove != nil {
                 lifecycleRow
             }
@@ -174,12 +185,13 @@ public struct ShelfItemSheet: View {
         }
     }
 
-    /// "joy · 7.5ml · week 3", and just the status when there is no variant —
-    /// never a stray separator standing in for a size we do not have (GLO-63).
+    /// "joy · 7.5ml · week 3" — never a stray separator (GLO-63).
     private var statusLine: String {
-        [item.variant, item.statusLabel()]
-            .compactMap(\.self)
-            .joined(separator: " · ")
+        // The optimistic status wins, so the header agrees with the control
+        // the moment it is tapped.
+        let label = (status != nil && status != item.status)
+            ? ShelfItem.label(for: status ?? item.status) : item.statusLabel()
+        return [item.variant, label].compactMap(\.self).joined(separator: " · ")
     }
 
     private var badges: some View {

@@ -44,7 +44,9 @@ public struct ShelfView: View {
                         onRemove: model.supportsRemoval ? { model.removeOpenItem() } : nil,
                         isRemoving: model.isRemoving,
                         removeFailure: model.removeFailure?.userMessage,
-                        chips: model.chips.supportsEditing ? model.chips : nil
+                        chips: model.chips.supportsEditing ? model.chips : nil,
+                        status: model.openStatus,
+                        onStatusChange: model.supportsRemoval ? { model.statusChanged(to: $0) } : nil
                     )
                 }
             }
