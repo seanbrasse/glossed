@@ -6,7 +6,7 @@
 -- landed the shape those grids will then exercise.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(29);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -95,6 +95,15 @@ select ok(not has_function_privilege('authenticated', 'is_minor_user(uuid)', 'ex
     'is_minor_user is not executable by authenticated');
 select ok(not has_function_privilege('authenticated', 'is_mutual_follow(uuid,uuid)', 'execute'),
     'is_mutual_follow is not executable by authenticated');
+
+-- can_follow is the policy-facing wrapper: authenticated needs it, anon must
+-- not have it. 0020 granted to authenticated without revoking Supabase's
+-- default anon grant; 0022 fixed that. Both directions asserted so the ACL is
+-- stated rather than assumed.
+select ok(has_function_privilege('authenticated', 'can_follow(uuid)', 'execute'),
+    'can_follow IS executable by authenticated — the follows insert policy needs it');
+select ok(not has_function_privilege('anon', 'can_follow(uuid)', 'execute'),
+    'can_follow is NOT executable by anon — an unintended default grant, revoked in 0022');
 
 -- ---------------------------------------------------------------------------
 -- is_minor: the conservative flip, and the no-profile-row default.
