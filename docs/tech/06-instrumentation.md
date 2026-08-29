@@ -51,7 +51,7 @@ Convention: `object_action` lowercase snake, past tense; props are ids + enums o
 | `share_in_received` | source_host, resolved bool | share-ins/WAU (retention feature) |
 | `cutout_captured` | confidence_band, retake bool | capture-guide tuning (PRD §19.19) |
 | `export_generated` | item_count | exit-pressure signal |
-| `rec_impression` / `rec_tapped` / `rec_dismissed` | slot (stage0/picked/crosswalk/exploration), variant_id, reason? | rec quality without engagement-optimizing: tap-through + dismissal reasons only |
+| `rec_impression` / `rec_tapped` / `rec_dismissed` | slot (stage0/picked/crosswalk/exploration), **product_id** (corrected from variant_id — discover's picks are products, per 0040's rows), reason? | rec quality without engagement-optimizing: tap-through + dismissal reasons only |
 | `error_shown` | code, support_ref | UX-visible failure rate |
 
 | `restricted_action_blocked` | surface, action (photo_post/contact_sync/…) | how many minors hit which gates, how often — the "limited functionality" experience, measured |

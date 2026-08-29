@@ -28,9 +28,9 @@ import Testing
         .shareInReceived(sourceHost: "sephora.com", resolved: true),
         .cutoutCaptured(confidenceBand: "high", retake: false),
         .exportGenerated(itemCount: 40),
-        .recImpression(slot: .stage0, variantID: UUID()),
-        .recTapped(slot: .picked, variantID: UUID()),
-        .recDismissed(slot: .crosswalk, variantID: UUID(), reason: "own_it"),
+        .recImpression(slot: .stage0, productID: UUID()),
+        .recTapped(slot: .picked, productID: UUID()),
+        .recDismissed(slot: .crosswalk, productID: UUID(), reason: "own_it"),
         .errorShown(code: "offline", supportReference: "AB12CD"),
         .restrictedActionBlocked(surface: "profile", action: "photo_post")
     ]
