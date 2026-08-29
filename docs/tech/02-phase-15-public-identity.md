@@ -15,7 +15,7 @@ Tickets: [GLO-25](https://linear.app/glossed/issue/GLO-25) (the gate) · [GLO-27
 [GLO-25](https://linear.app/glossed/issue/GLO-25) is not "first in the list." It is load-bearing in three ways that a later epic physically cannot route around:
 
 1. **Every public read policy in 1.5 is written as `owner = auth.uid() OR can_view(owner, <surface>)`.** A migration that creates such a policy before `can_view()` exists fails at apply time — Postgres resolves the function at `CREATE POLICY`. The ordering is enforced by the database, not by a note in a ticket.
-2. **`can_view()` is default-deny.** A user with no `privacy_scopes` row is `just_you` on all four surfaces. Shipping GLO-27's public profile before anyone has opted in exposes nothing, because the absence of a row is a *no*, not a missing answer.
+2. **`can_view()` is default-deny.** A user with no `privacy_scopes` row is `only_you` on all four surfaces. Shipping GLO-27's public profile before anyone has opted in exposes nothing, because the absence of a row is a *no*, not a missing answer.
 3. **A meta-test asserts the shape** (§9, grid H): every SELECT policy on the 1.5 public set either restricts to the owner or calls `can_view`. A future epic that hand-rolls its own visibility predicate turns the suite red. That is what "the logic cannot fork" means operationally.
 
 Nothing else in 1.5 may merge until 25.1 and 25.2 (§10) are on `main` and applied.
@@ -35,13 +35,15 @@ The kit's `G.Privacy` frame draws exactly four rows. This spec adds no fifth.
 | `shelf` | `user_items` (the products you own) | `want_to_try` rows are **never** published — see §2.1 |
 | `rankings` | `rank_positions` (your face-off order) | `face_offs` themselves are never published, in any scope |
 | `routines` | `routines` + `routine_steps` | |
-| `looks` | nothing in 1.5 | Column ships here, default `just_you`; read by nothing until Phase 2. The frame already tags this row `v2`. |
+| `looks` | nothing in 1.5 | Column ships here, default `only_you`; read by nothing until Phase 2. The frame already tags this row `v2`. |
 
-**Collections do not get a profile-level scope.** `tech/02`'s earlier draft listed collections among the profile surfaces, but §6's whole growth argument is that "the collection link is the unit that spreads" — and a user whose shelf is `just_you` must still be able to share one collection. So collections publish **per collection**, like swatches: a `visibility` column on `collections`, defaulting to `just_you`. See §2.1.
+**Collections do not get a profile-level scope.** `tech/02`'s earlier draft listed collections among the profile surfaces, but §6's whole growth argument is that "the collection link is the unit that spreads" — and a user whose shelf is `only_you` must still be able to share one collection. So collections publish **per collection**, like swatches: a `visibility` column on `collections`, defaulting to `only_you`. See §2.1.
 
 **Publishing acts are per-act, not profile state**: posting a swatch, publishing a collection, and (Phase 2) commenting are each a decision at the moment of the act. They are not governed by `privacy_scopes`.
 
-Enum vocabulary is `domain.md`'s: **`just_you` / `friends` / `public`**. The kit's `G.Privacy` uses `private` as its internal React key and renders the label "just you" — the label is right, the key is local to the mock. The schema value is `just_you`.
+Enum vocabulary: **`only_you` / `friends` / `public`**, and the visible label is **"only you"**.
+
+**This is a rename Sean made on Aug 29**, and it diverges from both the kit and the earlier drafts, so it is worth stating loudly: `G.Privacy` renders "just you" and uses `private` as its internal React key. Neither is the value. The schema is `only_you`, the label is "only you", and a screen built by copying the frame's string will be wrong. `domain.md` §1 is updated to match — it is the vocabulary source of truth, and this document follows it rather than the mock.
 
 ### 1.2 DDL — the privacy core
 
@@ -52,15 +54,15 @@ Ships in one migration (25.1). Nothing else in 1.5 may reference these objects b
 -- GLO-25. docs/tech/02 §1. THE PHASE GATE — every 1.5 read policy calls
 -- can_view(), and no policy may hand-roll its own predicate (§9 grid H).
 
-create type scope_enum as enum ('just_you', 'friends', 'public');
+create type scope_enum as enum ('only_you', 'friends', 'public');
 create type visibility_surface as enum ('shelf', 'rankings', 'routines', 'looks');
 
 create table privacy_scopes (
     user_id      uuid primary key references auth.users (id) on delete cascade,
-    shelf        scope_enum not null default 'just_you',
-    rankings     scope_enum not null default 'just_you',
-    routines     scope_enum not null default 'just_you',
-    looks        scope_enum not null default 'just_you',  -- inert until Phase 2
+    shelf        scope_enum not null default 'only_you',
+    rankings     scope_enum not null default 'only_you',
+    routines     scope_enum not null default 'only_you',
+    looks        scope_enum not null default 'only_you',  -- inert until Phase 2
     discoverable boolean    not null default false,        -- surfaced in suggestions at all
     created_at   timestamptz not null default now(),
     updated_at   timestamptz not null default now()
@@ -125,8 +127,8 @@ begin
       from privacy_scopes s
      where s.user_id = p_owner;
 
-    -- No row is not a missing answer. No row is `just_you`.
-    if v_scope is null or v_scope = 'just_you' then return false; end if;
+    -- No row is not a missing answer. No row is `only_you`.
+    if v_scope is null or v_scope = 'only_you' then return false; end if;
     if v_scope = 'public' then return true; end if;
     return is_mutual_follow(p_viewer, p_owner);   -- v_scope = 'friends'
 end $$;
@@ -199,8 +201,8 @@ create or replace function lock_minor_scopes() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
     if is_minor_user(new.user_id) then
-        if new.shelf <> 'just_you' or new.rankings <> 'just_you'
-           or new.routines <> 'just_you' or new.looks <> 'just_you' or new.discoverable then
+        if new.shelf <> 'only_you' or new.rankings <> 'only_you'
+           or new.routines <> 'only_you' or new.looks <> 'only_you' or new.discoverable then
             raise exception 'minors are private by construction' using errcode = 'check_violation';
         end if;
     end if;
@@ -287,7 +289,7 @@ Ships in 25.2. **No Phase-1 policy is modified.** Postgres ORs permissive polici
 -- `language plpgsql` body is NOT resolved then — which is why can_view (0001,
 -- plpgsql) can forward-reference its helpers and this one cannot. Create in
 -- this order: column, then plpgsql helper, then sql helper, then policies.
-alter table collections add column visibility scope_enum not null default 'just_you';
+alter table collections add column visibility scope_enum not null default 'only_you';
 
 create or replace function collection_is_visible(p_collection uuid) returns boolean
 language plpgsql stable security definer set search_path = public as $$
@@ -744,7 +746,13 @@ So: **one 1.5 screen has a frame, one has a stale frame, and 32 have none.**
 
 **The gap inside the frame that exists.** `G.Privacy` draws the four surface rows, the master, the per-row dots and the save button — and **no `discoverable` row**. The one asymmetry this phase has to state at the toggle has nowhere to live in the frame. Row 2 is therefore a real design question, not a formality, and it sits inside the one screen everybody would assume is covered.
 
-**Two more things the frame says that the schema does not.** `G.Privacy`'s demo state is `{looks: private, shelf: friends, rankings: friends, routines: private}`. That is a mock's illustrative state, **not the default** — the default is `just_you` on all four (§1.2). And the frame's internal key for the first scope is `private`; the schema value is `just_you` and the visible label is "just you." Neither is a bug in the kit; both are exactly the kind of thing that gets built from a frame by someone reading it as a spec.
+**Three things the frame says that the schema does not**, and all three get built wrong by someone reading the frame as a spec:
+
+1. Its demo state is `{looks: private, shelf: friends, rankings: friends, routines: private}`. That is a mock's illustrative state, **not the default** — the default is `only_you` on all four (§1.2).
+2. Its internal key for the first scope is `private`. The schema value is `only_you`.
+3. **It renders the label "just you." The label is now "only you"** (Sean, Aug 29 — §1.1). The frame predates the rename, so the one screen with a frame is also the one screen whose visible string must not be copied from it.
+
+None of these is a bug in the kit. They are the cost of a frame drawn before the vocabulary settled, and they are why §1.1 says this document follows `domain.md` rather than the mock.
 
 **This list is the ask.** Phase 1's no-frames ruling (GLO-16, Aug 28: *"I won't be adding frames for it, based off the current design system, make tickets for these and build them"*) covered specific V1 screens. It has not been extended to 1.5. Sean rules per §11: supply frames for some subset, or extend the ruling, screen by screen or wholesale. Until then, rows 2–34 are all in the position `docs/DESIGN.md` describes: *if you are about to build a screen and cannot open the frame for it, stop and say so.*
 
@@ -779,7 +787,7 @@ Phase 1's isolation suite is the model: 125 assertions, pgTAP, `begin … rollba
 | scope ↓ / viewer → | owner | mutual | follower_only | followed_only | stranger | anon |
 |---|---|---|---|---|---|---|
 | **no row** | ✓ | · | · | · | · | · |
-| `just_you` | ✓ | · | · | · | · | · |
+| `only_you` | ✓ | · | · | · | · | · |
 | `friends` | ✓ | **✓** | · | · | · | · |
 | `public` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
@@ -804,7 +812,7 @@ Each of `shelf` / `rankings` / `routines` / `looks`, at `friends` and at `public
 
 - `minor_owner` × 4 scopes × {mutual, stranger, anon} = **12 assertions, all `·`** — including the scopes a minor's row cannot legally hold, written directly through `service_role` to prove the *read* side does not trust the row (§1.4).
 - `minor_owner` sees all four of their own surfaces (4).
-- The write trigger rejects each of the four non-`just_you` surfaces and `discoverable = true` (5).
+- The write trigger rejects each of the four non-`only_you` surfaces and `discoverable = true` (5).
 - A user with **no `profiles` row** is treated as a minor (1).
 - Nobody can insert a `follows` row targeting a minor (1).
 - `claim_handle` refuses a minor (1).
@@ -812,7 +820,7 @@ Each of `shelf` / `rankings` / `routines` / `looks`, at `friends` and at `public
 
 ### 9.6 Grid E — the real tables · 38 assertions
 
-The six publishable tables (`user_items`, `rank_positions`, `routines`, `routine_steps`, `collections`, `collection_items`) × {stranger at `public`, stranger at `just_you`, mutual at `friends`, blocked at `public`} = 24. Then:
+The six publishable tables (`user_items`, `rank_positions`, `routines`, `routine_steps`, `collections`, `collection_items`) × {stranger at `public`, stranger at `only_you`, mutual at `friends`, blocked at `public`} = 24. Then:
 
 - `want_to_try` rows never appear to a stranger even at `shelf = public` (1).
 - Soft-deleted rows never appear (1).
@@ -836,7 +844,7 @@ This is the grid that keeps the logic from forking, and it tests the schema rath
 - No public read policy exists on `profiles`, `item_fits`, `item_chips`, or `face_offs` (4).
 - The three-argument `can_view` is not executable by `authenticated` (1); neither are `is_blocked`, `is_mutual_follow`, or `is_minor_user` (3).
 - `events_no_regulated_props` rejects an insert carrying each of `tone_band`, `skin_type`, `hair_pattern`, `bio`, `display_name` (5) — **and accepts one carrying `fit` and `fits`**, which is the assertion that stops the ban list creeping back over Phase-1's own events (1).
-- A fresh `privacy_scopes` row defaults to `just_you` on all four surfaces and `discoverable = false` (5).
+- A fresh `privacy_scopes` row defaults to `only_you` on all four surfaces and `discoverable = false` (5).
 - `collection_is_visible` refuses in the same three cases and the same order as `can_view` — owner, block, minor (1).
 
 ---
@@ -877,7 +885,7 @@ The seam-first pattern still holds and is still the right first move: it keeps e
 | 25.4 | pgTAP grids C (`privacy_blocks.test.sql`) and D (`privacy_minors.test.sql`) — 46 assertions | 2 | parallel-safe with 25.3 |
 | 25.5 | `features/Profile`: the privacy matrix screen against a `PrivacyScopeStore` seam — four rows, the derived `mixed` master, the `discoverable` row, the minor locked state | 4–5 | **frame exists for the four rows only** (§8 rows 1–3) |
 
-Acceptance: `can_view` is the only visibility predicate in the schema (grid H); every default is `just_you`; the master is derived and never stored; a minor's rows are locked in the UI *and* refused by the trigger *and* ignored by the read path; the Phase-1 125-assertion suite is untouched and green.
+Acceptance: `can_view` is the only visibility predicate in the schema (grid H); every default is `only_you`; the master is derived and never stored; a minor's rows are locked in the UI *and* refused by the trigger *and* ignored by the read path; the Phase-1 125-assertion suite is untouched and green.
 
 ### GLO-27 — handles, public profiles, following, suggested people · 6 PRs
 
@@ -949,12 +957,12 @@ Acceptance: a report survives the deletion of its subject's account with persona
 
 | # | Decision | Why it cannot be defaulted |
 |---|---|---|
-| 1 | **The share domain.** `glossed.app` is taken (GLO-89). `glossed.beauty` ($1.99/yr) and `getglossed.app` ($9.99/yr) were available at check time. | GLO-30 cannot start without it, and minted URLs are irreversible (§6.1). This spec deliberately picks nothing. |
+| 1 | ~~The share domain~~ — **RESOLVED (Sean, Aug 29): a reach, deferred.** `glossed.app` is taken; no domain is being bought yet and GLO-30 is not being picked up until later. | Recorded on GLO-30 and its five sub-issues. The bindings in §6.1 stand for whenever it is revisited — the irreversibility of minted URLs does not expire. |
 | 2 | **Frames for 1.5.** 32 of 34 screens have none (§8). Supply frames, or extend Phase 1's no-frames ruling to 1.5 — wholesale or row by row. | `docs/DESIGN.md`'s standing rule is *stop and say so*. GLO-27 through GLO-31 are UI-blocked until this is answered. |
 | 3 | **The `discoverable` row has no frame** even though the privacy screen does. | It is the one screen everyone would assume is covered, and the asymmetry copy has nowhere to live (§8). |
-| 4 | **`friends` = mutual follow.** A spec ruling with the argument in §1.3, open to veto. | The permissive reading turns `friends` into a slower `public`. Getting it wrong is a leak, so it is stated rather than left implied. |
-| 5 | **Collections publish per collection**, not under a profile-level scope (§1.1). | Resolves the original §2's dangling "collections" without a fifth surface, and is what makes the share-link growth loop work for private-shelf users. |
-| 6 | **`want_to_try` is never published** (§2.1). | Publishing a wishlist is a disclosure nobody requested; a user who wants to share one publishes a collection. |
+| 4 | ~~`friends` = mutual follow~~ — **CONFIRMED (Sean, Aug 29).** | Stands as specified in §1.3. |
+| 5 | ~~Collections publish per collection~~ — **CONFIRMED (Sean, Aug 29).** | Stands as specified in §1.1 and §2.1. |
+| 6 | ~~`want_to_try` is never published~~ — **CONFIRMED (Sean, Aug 29), explicitly "for now — this may change later."** | Stands as specified in §2.1. Written as one predicate in one policy, so revisiting it is a one-line change rather than an archaeology exercise. |
 | 7 | **The migration slot, twice.** 25.1 and 25.2 are sequential acquisitions of a global lock. | Sean declined the slot the night this was written. Nothing in 1.5 starts until it opens. |
 | 8 | **Trending window + per-skin-type min-n.** Not invented here; they join `BACKLOG.md`'s open-numbers list. | Phase 1's data is what tunes them, and it now exists. |
 | 9 | **The 1.5 DataKit opening bundle** — ~19 methods across four new repository files (§10.1). | Openings are per-session authorizations. Nineteen methods wants one sized, approved bundle, not nineteen asks found one screen at a time. |

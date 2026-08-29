@@ -21,7 +21,7 @@ Running log of known-open work and decisions deferred on purpose. Anything here 
 
 ## Open — blocked on Sean (Phase 1.5 entry)
 
-- [ ] **The share domain.** `glossed.app` is taken (GLO-89's finding). `glossed.beauty` ($1.99/yr) and `getglossed.app` ($9.99/yr) were available at check time. [GLO-30](https://linear.app/glossed/issue/GLO-30) cannot start without it, and minted share URLs are irreversible — `tech/02` §6.1.
+- [ ] **The share domain — a reach, deferred (Sean, Aug 29).** `glossed.app` is taken; no domain is being bought yet and [GLO-30](https://linear.app/glossed/issue/GLO-30) is not being picked up until later. `glossed.beauty` ($1.99/yr) and `getglossed.app` ($9.99/yr) were free at check time. The bindings in `tech/02` §6.1 stand for whenever it is revisited — minted share URLs are irreversible whenever they get minted. Also gates GLO-89 → GLO-90/91.
 - [ ] **The Phase-1.5 DataKit opening bundle** — ~19 methods across four new repository files (`PrivacyRepository`, `SocialRepository`, `BrowseRepository`, `SwatchRepository`). Every DataKit RPC is a bespoke typed method by design, so each 1.5 RPC is a new one. Openings are per-session authorizations — this wants one sized bundle, not nineteen asks. `tech/02` §10.1.
 - [ ] **Frames for Phase 1.5.** 32 of 34 screens have no kit frame; the one that exists (`G.Privacy`) is missing the `discoverable` row. Supply frames, or extend Phase 1's no-frames ruling (GLO-16, Aug 28) to 1.5 — `tech/02` §8.
 
