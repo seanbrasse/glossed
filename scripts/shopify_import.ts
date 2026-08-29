@@ -48,6 +48,44 @@ const STORES: Record<string, string> = {
   "iliabeauty.com": "ilia",
   "www.glowrecipe.com": "glow recipe",
   "www.summerfridays.com": "summer fridays",
+  // GLO-94 tranche 1 (probed Aug 29 2026, all curl 200): the popular-today
+  // bulk, so momentum exists before the affiliate gatekeepers ask for it.
+  // Makeup — the shade-rich early-adopter shelf:
+  "colourpop.com": "colourpop",
+  "www.meritbeauty.com": "merit",
+  "saiehello.com": "saie",
+  "www.milkmakeup.com": "milk makeup",
+  "hauslabs.com": "haus labs",
+  "patrickta.com": "patrick ta",
+  "makeupbymario.com": "makeup by mario",
+  "onesizebeauty.com": "one/size",
+  "kyliecosmetics.com": "kylie cosmetics",
+  "rembeauty.com": "rem beauty",
+  "tartecosmetics.com": "tarte",
+  "westman-atelier.com": "westman atelier",
+  "jonesroadbeauty.com": "jones road",
+  "juviasplace.com": "juvia's place",
+  "danessamyricksbeauty.com": "danessa myricks",
+  "halfmagicbeauty.com": "half magic",
+  "kajabeauty.com": "kaja",
+  "sacheu.com": "sacheu",
+  // Skincare:
+  "naturium.com": "naturium",
+  "byoma.com": "byoma",
+  "dieuxskin.com": "dieux",
+  // Haircare:
+  "olaplex.com": "olaplex",
+  "gisou.com": "gisou",
+  "patternbeauty.com": "pattern",
+  "daehair.com": "dae",
+  "crownaffair.com": "crown affair",
+  "verbproducts.com": "verb",
+  "odelebeauty.com": "odele",
+  // Fragrance:
+  "soldejaneiro.com": "sol de janeiro",
+  "dedcool.com": "dedcool",
+  "snif.co": "snif",
+  "boysmells.com": "boy smells",
 };
 
 /// product_type (lowercased) → our category slug. Only what we can place —
@@ -57,7 +95,9 @@ const STORES: Record<string, string> = {
 /// fill. Keyed on exact type; the regex fallback below catches phrasing
 /// variants ("Liquid Blush", "Gel Cleanser").
 const TYPE_RULES: [RegExp, string][] = [
-  [/\blip\b|lipstick|lip\s?(gloss|oil|balm|liner|butter|cream|tint|treatment|makeup)/i, "lip"],
+  // "lippie" is ColourPop's house word for lip (lippie stix / lippie pencil,
+  // ~90 products) — \blip\b misses it on the word boundary (GLO-94 tally).
+  [/\blip\b|lippie|lipstick|lip\s?(gloss|oil|balm|liner|butter|cream|tint|treatment|makeup)/i, "lip"],
   [/\bblush\b|lip & cheek|\bcheek\b/i, "blush"],
   [/foundation|skin tint/i, "foundation"],
   [/cleanser|face wash|facial wash|makeup remover/i, "cleanser"],
