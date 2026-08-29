@@ -327,6 +327,15 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST \
   http://127.0.0.1:54321/functions/v1/track_ingest \
   -H "Authorization: Bearer <anon JWT>" -H 'Content-Type: application/json' -d '{"events":[]}'
 # 503 = nothing is serving; start `supabase functions serve` (announce it) before concluding
+# and read the drop notices the Tracker now leaves (GLO-147) — the ONLY way to
+# see them, because `print` needs `simctl launch --console` and our recipe below
+# does not use it:
+xcrun simctl spawn 0E1EF64B-E2E3-4A51-B322-29BBEFCEEFE1 log show --last 5m \
+  --style compact --debug --info \
+  --predicate 'subsystem == "com.glossed.tracking"'
+# a line per dropped batch, with the real reason: httpError(code: 503, ...).
+# NO lines + events in `events` = instrumentation works. NO lines + no events =
+# nothing was tracked, which is a code bug. That distinction is the whole point.
 # catalog data — SIX scripts, in this order:
 deno run --allow-net --allow-run --allow-env scripts/shopify_import.ts
 deno run --allow-net --allow-run --allow-env scripts/obf_import.ts
