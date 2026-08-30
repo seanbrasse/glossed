@@ -20,9 +20,25 @@ struct AppShell: View {
 
     @State var session = AppSession()
     @Environment(\.scenePhase) private var scenePhase
-    /// The kit's tab 1 is discover, but discover is GLO-20 — until it exists
-    /// the shelf is the honest landing.
-    @State private var tab = ShellTab.shelf
+    /// Tab 1, per the screen map's `tab 1 · discover`.
+    ///
+    /// This was `.shelf`, on the reasoning "the kit's tab 1 is discover, but
+    /// discover is GLO-20 — until it exists the shelf is the honest landing."
+    /// That reasoning was right and its premise has expired: discover is
+    /// built and merged (#314, #371).
+    ///
+    /// **Why one default serves both entry paths.** The map draws two, and
+    /// they disagree less than they look. A returning user is delta 3
+    /// verbatim — *"two screens and they land on discover, with their anchor,
+    /// shelf and rankings intact"* — and that is the path this shell is on
+    /// today, since `AppSession` signs in as an account that already exists.
+    /// A brand-new one does not get a default at all: delta 4 ends onboarding
+    /// at `welcome`, whose three doors are *build · import · browse*, so the
+    /// first landing is something they **chose**. A choice arrives as an
+    /// argument when GLO-18's flow reaches the shell; it is not a second
+    /// constant to guess at now, and guessing `.shelf` for it would only be
+    /// right for one of the three doors.
+    @State private var tab = ShellTab.discover
     @State var drawerOpen = false
     @State var privacyOpen = false
     @State var handleOpen = false
