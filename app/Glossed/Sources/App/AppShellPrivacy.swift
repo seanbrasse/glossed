@@ -28,6 +28,7 @@ extension AppShell {
                 ),
                 suggestionsStore: .live(SocialRepository(client: client)),
                 safetyStore: .live(SafetyRepository(client: client)),
+                socialsStore: .live(SafetyRepository(client: client)),
                 onClaimHandle: { handleOpen = true },
                 onOpenPrivacy: { privacyOpen = true }
             )
