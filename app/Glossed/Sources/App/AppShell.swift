@@ -48,6 +48,7 @@ struct AppShell: View {
     /// documented before this path existed.
     @State var openCatalogPage: CatalogPage?
     @State var catalogVariantChoice: CatalogVariantChoice?
+    @State var showTrending = false
     /// Non-nil while the fit prompt is up: the shelf row it writes to.
     @State private var fitPromptItemID: UUID?
 

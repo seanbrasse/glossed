@@ -15,10 +15,16 @@ import SwiftUI
 public struct DiscoverView: View {
     @State private var model: DiscoverModel
     private let onOpenProduct: ((CatalogHit) -> Void)?
+    private let onOpenTrending: (() -> Void)?
 
-    public init(model: DiscoverModel, onOpenProduct: ((CatalogHit) -> Void)? = nil) {
+    public init(
+        model: DiscoverModel,
+        onOpenProduct: ((CatalogHit) -> Void)? = nil,
+        onOpenTrending: (() -> Void)? = nil
+    ) {
         _model = State(initialValue: model)
         self.onOpenProduct = onOpenProduct
+        self.onOpenTrending = onOpenTrending
     }
 
     public var body: some View {
@@ -53,7 +59,22 @@ public struct DiscoverView: View {
 
     private var picksSection: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-            Text("PICKED FOR YOU").eyebrow()
+            HStack {
+                Text("PICKED FOR YOU").eyebrow()
+                Spacer(minLength: 0)
+                // hidden when the app wires nothing — an affordance that
+                // leads nowhere is not offered (the full-page rule)
+                if let onOpenTrending {
+                    Button(action: onOpenTrending) {
+                        Text("trending ↗")
+                            .font(Typography.mono(11))
+                            .foregroundStyle(Tokens.Semantic.accentText)
+                            .underline()
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("open trending")
+                }
+            }
             ForEach(model.picks) { pick in
                 pickCard(pick)
             }
