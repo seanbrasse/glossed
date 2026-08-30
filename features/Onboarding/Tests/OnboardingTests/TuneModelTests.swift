@@ -81,3 +81,21 @@ import Testing
     #expect(TuneModel.concernOptions
         == ["acne", "texture", "redness", "dark spots", "fine lines", "dryness"])
 }
+
+// ── the card's gate ────────────────────────────────────────────────────────
+
+@Test func theTuneCardGateOffersOnMissingAnchorOrUntuned() {
+    // GLO-18's acceptance line: a returning user with no anchor gets the
+    // card — and both sides of every input
+    #expect(TuneGate.shouldOffer(profileExists: true, hasAnchor: false, hasTuned: true))
+    #expect(TuneGate.shouldOffer(profileExists: true, hasAnchor: true, hasTuned: false))
+    #expect(TuneGate.shouldOffer(profileExists: true, hasAnchor: false, hasTuned: false))
+    #expect(!TuneGate.shouldOffer(profileExists: true, hasAnchor: true, hasTuned: true))
+    // no profile row = the server treats them as a minor — nothing offered
+    #expect(!TuneGate.shouldOffer(profileExists: false, hasAnchor: false, hasTuned: false))
+}
+
+@Test func theCardsLineNamesWhatIsMissing() {
+    #expect(TuneCard.line(hasAnchor: false).contains("shade anchor"))
+    #expect(!TuneCard.line(hasAnchor: true).contains("anchor"))
+}
