@@ -90,7 +90,7 @@ private func editableModel(
 }
 
 @MainActor
-@Test func editProfileIsNotOfferedWhenNothingCanBeRenamed() async {
+@Test func editProfileIsNotOfferedWhenNothingCanBeRenamed() {
     // A control that turns nothing into a target is a control that does
     // nothing, and this project has shipped that once already (GLO-189).
     let readOnly = ProfileTabsModel(routines: ProfileRoutinesStore(mine: { [] }))
@@ -99,7 +99,7 @@ private func editableModel(
 }
 
 @MainActor
-@Test func theButtonAndItsHintAreTheFramesWords() async {
+@Test func theButtonAndItsHintAreTheFramesWords() {
     let model = editableModel()
     #expect(model.editButtonLabel == "edit profile")
     #expect(model.editHint == nil)
@@ -109,7 +109,7 @@ private func editableModel(
 }
 
 @MainActor
-@Test func leavingEditModeClosesAnOpenRenameSheet() async {
+@Test func leavingEditModeClosesAnOpenRenameSheet() {
     let model = editableModel()
     model.toggleEditing()
     model.beginRename(RenameTarget(kind: .routine, id: UUID(), value: "am"))
@@ -119,7 +119,7 @@ private func editableModel(
 }
 
 @MainActor
-@Test func aCardIsNotARenameTargetUntilEditModeIsOn() async {
+@Test func aCardIsNotARenameTargetUntilEditModeIsOn() {
     let model = editableModel()
     model.beginRename(RenameTarget(kind: .routine, id: UUID(), value: "am"))
     #expect(model.renaming == nil)
