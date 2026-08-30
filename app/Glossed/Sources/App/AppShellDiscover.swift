@@ -1,3 +1,4 @@
+import Browse
 import DataKit
 import DesignSystem
 import Discover
@@ -32,43 +33,52 @@ extension AppShell {
     /// none (the "rank it" precedent).
     @ViewBuilder var discoverTab: some View {
         if let model = session.discoverModel {
-            DiscoverView(model: model, onOpenProduct: { openFromCatalog($0) })
-                .id(ObjectIdentifier(model))
-                .fullScreenCover(item: $openCatalogPage) { page in
-                    ProductPageView(
-                        model: ProductPageModel(
-                            product: page.item,
-                            aggregates: aggregatesRepository()
-                        ),
-                        onBack: { openCatalogPage = nil },
-                        onRank: { openCatalogPage = nil }
-                    )
+            DiscoverView(
+                model: model,
+                onOpenProduct: { openFromCatalog($0) },
+                onOpenTrending: { showTrending = true }
+            )
+            .id(ObjectIdentifier(model))
+            .sheet(isPresented: $showTrending) {
+                if let client = session.client {
+                    TrendingView(store: .live(BrowseRepository(client: client)))
                 }
-                .confirmationDialog(
-                    "which one?",
-                    isPresented: .init(
-                        get: { catalogVariantChoice != nil },
-                        set: {
-                            if !$0 {
-                                catalogVariantChoice = nil
-                            }
-                        }
+            }
+            .fullScreenCover(item: $openCatalogPage) { page in
+                ProductPageView(
+                    model: ProductPageModel(
+                        product: page.item,
+                        aggregates: aggregatesRepository()
                     ),
-                    titleVisibility: .visible
-                ) {
-                    if let choice = catalogVariantChoice {
-                        ForEach(choice.variants, id: \.id) { variant in
-                            Button(CatalogPage.label(for: variant) ?? "one of \(choice.variants.count)") {
-                                openCatalogPage = CatalogPage.build(
-                                    choice,
-                                    variant: variant,
-                                    imageBase: session.imageBase
-                                )
-                                catalogVariantChoice = nil
-                            }
+                    onBack: { openCatalogPage = nil },
+                    onRank: { openCatalogPage = nil }
+                )
+            }
+            .confirmationDialog(
+                "which one?",
+                isPresented: .init(
+                    get: { catalogVariantChoice != nil },
+                    set: {
+                        if !$0 {
+                            catalogVariantChoice = nil
+                        }
+                    }
+                ),
+                titleVisibility: .visible
+            ) {
+                if let choice = catalogVariantChoice {
+                    ForEach(choice.variants, id: \.id) { variant in
+                        Button(CatalogPage.label(for: variant) ?? "one of \(choice.variants.count)") {
+                            openCatalogPage = CatalogPage.build(
+                                choice,
+                                variant: variant,
+                                imageBase: session.imageBase
+                            )
+                            catalogVariantChoice = nil
                         }
                     }
                 }
+            }
         } else {
             unbuiltTab("discover", ticket: "GLO-20", line: "picked for you, from your anchor")
         }
