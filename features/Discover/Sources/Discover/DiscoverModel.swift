@@ -100,6 +100,22 @@ public final class DiscoverModel {
         return cards
     }
 
+    /// Which board the `leaderboards →` door opens at — `G.Discover` links
+    /// to `G.Leaderboard` without naming a category, and `LeaderboardModel`
+    /// needs one, so the stream supplies it rather than the client inventing
+    /// a favourite. The board carries its own category pills, so landing
+    /// anywhere is one tap from anywhere else.
+    ///
+    /// The **first claiming pick**, never the wander: the wander is a
+    /// deliberate random, and opening the boards on a category the engine
+    /// picked at random would be arbitrary where every other number on this
+    /// screen is earned. Nil when nothing was picked — and the view drops
+    /// the link then, because an affordance that leads nowhere is not
+    /// offered (the trending teaser's rule, the same one).
+    public var leaderboardEntry: CatalogHit? {
+        picks.first { $0.basis != .exploration }?.hit
+    }
+
     private let store: DiscoverStore?
     private let imageBase: URL?
     private let tracker: Tracker?
