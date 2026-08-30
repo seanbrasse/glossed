@@ -49,6 +49,8 @@ struct AppShell: View {
     @State var openCatalogPage: CatalogPage?
     @State var catalogVariantChoice: CatalogVariantChoice?
     @State var showTrending = false
+    /// The category board the product page's "leaderboard" button opened.
+    @State var openBoard: BoardContext?
     /// Non-nil while the fit prompt is up: the shelf row it writes to.
     @State private var fitPromptItemID: UUID?
 

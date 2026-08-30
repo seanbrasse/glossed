@@ -51,8 +51,18 @@ extension AppShell {
                         aggregates: aggregatesRepository()
                     ),
                     onBack: { openCatalogPage = nil },
-                    onRank: { openCatalogPage = nil }
+                    onRank: { openCatalogPage = nil },
+                    // The second door onto the board (GLO-20) — the hit's
+                    // category rides on the page wrapper for exactly this.
+                    onLeaderboard: {
+                        openBoard = BoardContext(
+                            categorySlug: page.categorySlug, domain: page.domain
+                        )
+                    }
                 )
+                .sheet(item: $openBoard) { board in
+                    leaderboardSheet(board)
+                }
             }
             .confirmationDialog(
                 "which one?",
@@ -119,6 +129,10 @@ extension AppShell {
 /// The page wrapper `fullScreenCover(item:)` needs — identity is the variant.
 struct CatalogPage: Identifiable {
     let item: ProductPageItem
+    /// The hit's category, kept for the leaderboard door — `ProductPageItem`
+    /// carries only the human label, and the board needs the slug + domain.
+    let categorySlug: String
+    let domain: Domain
     var id: UUID {
         item.variantID
     }
@@ -151,7 +165,7 @@ struct CatalogPage: Identifiable {
             catalogImageURL: choice.hit.catalogImageKey.flatMap { imageBase?.appending(path: $0) }
             // userItemID stays nil: not owned, so the fit control is
             // read-only and the page makes no fake-write offer (GLO-47).
-        ))
+        ), categorySlug: choice.hit.categorySlug, domain: choice.hit.domain)
     }
 }
 

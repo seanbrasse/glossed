@@ -34,6 +34,8 @@ packages:
     path: features/Profile
   Browse:
     path: features/Browse
+  Leaderboard:
+    path: features/Leaderboard
 targets:
   Glossed:
     type: application
@@ -52,6 +54,7 @@ targets:
       - package: Privacy
       - package: Profile
       - package: Browse
+      - package: Leaderboard
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.glossed.app
