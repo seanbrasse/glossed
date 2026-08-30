@@ -1,4 +1,4 @@
-.PHONY: setup dev lint format test db-reset db-test db-test-clean generate functions-test catalog-snapshot catalog-restore
+.PHONY: setup dev lint format test db-reset db-test db-test-clean generate functions-test catalog-snapshot catalog-restore catalog-generations
 
 setup:
 	brew bundle --no-upgrade
@@ -30,6 +30,13 @@ test: generate
 # scripts in HANDOFF §9 put there over ~50 minutes. So a reset snapshots it
 # first and puts it back afterwards, and the SAFE path is the default one
 # rather than something to remember. `supabase db reset` by hand still drops it.
+#
+# The snapshots live in ~/.glossed/catalog (override: GLOSSED_CATALOG_HOME),
+# OUTSIDE the repo — a wiped worktree or a `git clean` must not cost the
+# catalog. Several dated generations are kept (GLOSSED_CATALOG_KEEP, default 5)
+# and a save that would shrink the catalog below GLOSSED_CATALOG_MIN_PCT
+# (default 90%) of the last one is refused until you pass --allow-shrink.
+# The import scripts refresh it themselves — see scripts/db.ts.
 db-reset:
 	-./scripts/catalog_snapshot.sh save
 	supabase db reset
@@ -40,6 +47,12 @@ catalog-snapshot:
 
 catalog-restore:
 	./scripts/catalog_snapshot.sh load
+
+# What the store holds right now, newest first, with the row count each
+# generation recorded. The question "is my catalog actually backed up" should
+# not require reading a script.
+catalog-generations:
+	./scripts/catalog_snapshot.sh list
 
 # `supabase test db` runs against the LIVE local db — there is no shadow
 # database. The pgTAP suite is written to own its users from a clean slate,
