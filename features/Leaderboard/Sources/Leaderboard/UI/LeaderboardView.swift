@@ -94,6 +94,11 @@ public struct LeaderboardView: View {
     // MARK: - scope + the lowest board
 
     private var scopeRow: some View {
+        // The spacer holds a real gap: the Segmented's hard-shadow chrome
+        // paints past its layout bounds, and a zero-min spacer let it occlude
+        // the link's first glyph at default size (the a11y drive's finding —
+        // clipped at DEFAULT, healthy at accessibility sizes, where the link
+        // wraps; the link stays wrappable for exactly that reason).
         HStack(alignment: .center) {
             Segmented(
                 options: [model.yoursOption, "everyone"],
@@ -102,7 +107,7 @@ public struct LeaderboardView: View {
                     set: { model.scope = $0 == "everyone" ? .everyone : .yours }
                 )
             )
-            Spacer(minLength: 0)
+            Spacer(minLength: Tokens.Space.s3)
             // The frame has no control for PRD §10's lowest board — a
             // deliberate gap, so this link is minimal on purpose and gets
             // workshopped in the PR rather than invented as chrome.
