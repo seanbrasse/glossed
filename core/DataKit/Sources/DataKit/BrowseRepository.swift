@@ -1,107 +1,6 @@
 import Foundation
 import Supabase
 
-/// When a routine runs. Mirrors `routine_slot` — wash day is first-class, not
-/// a weekly with a note.
-public enum RoutineSlot: String, Codable, Sendable, CaseIterable {
-    case am, pm, weekly
-    case washDay = "wash_day"
-
-    /// Lowercase UI copy.
-    public var label: String {
-        switch self {
-        case .am: "morning"
-        case .pm: "evening"
-        case .weekly: "weekly"
-        case .washDay: "wash day"
-        }
-    }
-}
-
-/// One row of the routines browse. Every row carries its n — `stepN` and
-/// `ownerShelfN` are the evidence behind "this is a real routine by someone
-/// with a real shelf", and no row renders without them.
-public struct BrowseRoutine: Codable, Sendable, Equatable, Identifiable {
-    public let routineID: UUID
-    /// Approved title only. A routine whose title is still pending review does
-    /// not appear in browse at all — the RPC inner-joins approved
-    /// `public_texts`, so there is no unapproved-title state to render.
-    public let title: String
-    public let slot: RoutineSlot
-    public let ownerHandle: String
-    public let stepN: Int
-    public let ownerShelfN: Int
-    /// `started_on` is a Postgres `date`, not a timestamp — the platform
-    /// decoder wants a time component and throws on a bare calendar day, so it
-    /// arrives as a string and is parsed here. Same treatment as `ShelfRow`;
-    /// every `date` column in the schema needs it.
-    public var startedOn: Date? {
-        PostgresDay.parse(startedOnRaw)
-    }
-
-    private let startedOnRaw: String?
-    public let createdAt: Date
-
-    public var id: UUID {
-        routineID
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case routineID = "routine_id"
-        case title, slot
-        case ownerHandle = "owner_handle"
-        case stepN = "step_n"
-        case ownerShelfN = "owner_shelf_n"
-        case startedOnRaw = "started_on"
-        case createdAt = "created_at"
-    }
-}
-
-/// One trending row. Products, not people — nothing here is attributed, which
-/// is why nothing here is scope-gated.
-public struct TrendingVariant: Codable, Sendable, Equatable, Identifiable {
-    public let variantID: UUID
-    public let brandName: String
-    public let productName: String
-    public let shadeCode: String?
-    /// How many people logged it inside the window.
-    public let nLogs: Int
-    /// The threshold, travelling with the row so the client never hard-codes it.
-    public let minN: Int
-    /// Whether `nLogs` clears `minN`.
-    public let meetsMinN: Bool
-    /// The period `nLogs` is over. A velocity claim without its window is
-    /// meaningless, so the window rides along rather than living in the copy.
-    public let windowDays: Int
-    public let refreshedAt: Date
-
-    public var id: UUID {
-        variantID
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case variantID = "variant_id"
-        case brandName = "brand_name"
-        case productName = "product_name"
-        case shadeCode = "shade_code"
-        case nLogs = "n_logs"
-        case minN = "min_n"
-        case meetsMinN = "meets_min_n"
-        case windowDays = "window_days"
-        case refreshedAt = "refreshed_at"
-    }
-
-    /// The evidence line for a row that has not cleared the threshold.
-    ///
-    /// **Min-n is rendered, not hidden** (§4, matching the leaderboard in
-    /// `tech/01` §3). A below-threshold row still appears, saying how far along
-    /// it is — a young surface should look honest rather than empty. Returning
-    /// nil above the threshold is what stops the caller printing it twice.
-    public var notEnoughYetLine: String? {
-        meetsMinN ? nil : "not enough yet · \(nLogs) of \(minN)"
-    }
-}
-
 /// The two browse surfaces: other people's routines, and what is being logged.
 ///
 /// Neither takes a user id. `browse_routines` answers for the caller and
@@ -158,6 +57,107 @@ public struct BrowseRepository: Sendable {
         params["p_skin_type"] = skinType
         return try await run {
             try await client.supabase.rpc("trending", params: params).execute().value
+        }
+    }
+
+    /// Someone else's routine, in order.
+    ///
+    /// Three scoped reads rather than one RPC: `routines_public` and
+    /// `routine_steps_public` gate on `can_view(owner, 'routines')`, and the
+    /// step products come through `user_shelf_items`, which is
+    /// `security_invoker` and so inherits `user_items_public`. That policy
+    /// admits an item via `item_is_published` when it sits in a routine the
+    /// viewer may see — which is why a private shelf still renders its
+    /// routine's products, and why nothing here needs a shelf scope.
+    ///
+    /// Returns nil when the routine is not visible; the caller must not
+    /// distinguish that from "no such routine".
+    public func routineDetail(routineID: UUID) async throws(GlossedError) -> RoutineDetail? {
+        let routines: [RoutineRow] = try await run {
+            try await client.supabase
+                .from("routines")
+                .select("id,title,slot,started_on")
+                .eq("id", value: routineID.uuidString)
+                .execute()
+                .value
+        }
+        guard let routine = routines.first else { return nil }
+
+        let steps: [StepRow] = try await run {
+            try await client.supabase
+                .from("routine_steps")
+                .select("position,user_item_id")
+                .eq("routine_id", value: routineID.uuidString)
+                .order("position")
+                .execute()
+                .value
+        }
+        guard !steps.isEmpty else {
+            return RoutineDetail(
+                routineID: routine.id, title: routine.title, slot: routine.slot,
+                startedOn: PostgresDay.parse(routine.startedOnRaw), steps: []
+            )
+        }
+
+        let items: [ShelfNameRow] = try await run {
+            try await client.supabase
+                .from("user_shelf_items")
+                .select("user_item_id,brand_name,product_name,variant_label")
+                .in("user_item_id", values: steps.map(\.userItemID.uuidString))
+                .execute()
+                .value
+        }
+        let byID = Dictionary(uniqueKeysWithValues: items.map { ($0.userItemID, $0) })
+
+        // A step whose product the viewer cannot read is dropped, not rendered
+        // blank: a numbered gap invites the question of what is hidden.
+        let named = steps.compactMap { step -> RoutineStep? in
+            guard let item = byID[step.userItemID] else { return nil }
+            return RoutineStep(
+                position: step.position, userItemID: step.userItemID,
+                brandName: item.brandName, productName: item.productName,
+                variantLabel: item.variantLabel
+            )
+        }
+        return RoutineDetail(
+            routineID: routine.id, title: routine.title, slot: routine.slot,
+            startedOn: PostgresDay.parse(routine.startedOnRaw), steps: named
+        )
+    }
+
+    private struct RoutineRow: Decodable {
+        let id: UUID
+        let title: String
+        let slot: RoutineSlot
+        let startedOnRaw: String?
+
+        enum CodingKeys: String, CodingKey {
+            case id, title, slot
+            case startedOnRaw = "started_on"
+        }
+    }
+
+    private struct StepRow: Decodable {
+        let position: Int
+        let userItemID: UUID
+
+        enum CodingKeys: String, CodingKey {
+            case position
+            case userItemID = "user_item_id"
+        }
+    }
+
+    private struct ShelfNameRow: Decodable {
+        let userItemID: UUID
+        let brandName: String
+        let productName: String
+        let variantLabel: String?
+
+        enum CodingKeys: String, CodingKey {
+            case userItemID = "user_item_id"
+            case brandName = "brand_name"
+            case productName = "product_name"
+            case variantLabel = "variant_label"
         }
     }
 
