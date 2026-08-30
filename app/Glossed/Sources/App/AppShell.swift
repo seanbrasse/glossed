@@ -8,11 +8,22 @@ import SwiftUI
 /// The app: three tabs + the plus button (screen map FLOW 2), live on the
 /// session `AppSession` boots.
 ///
-/// Built to `G.navTabs` and the kit's `ActionDrawer` frame. Stated
-/// divergences: the "you" tab's nav icon is an SF Symbol rather than the
-/// kit's Avatar (`FloatingNav.Tab` carries a symbol name; GLO-64 territory),
-/// and the unbuilt tabs say which ticket builds them instead of rendering an
-/// empty screen — a dev shell should say what does not exist yet.
+/// Built to `G.navTabs` and the kit's `ActionDrawer` frame, and checked
+/// against both this session by reading `screens.jsx` rather than from
+/// memory. `G.navTabs` is `sparkles` · `shelf` · `<Avatar name="maya"
+/// size={26}/>`, in that order, and `FloatingNav` draws exactly that.
+///
+/// This comment used to claim a divergence that no longer existed — *"the
+/// 'you' tab's nav icon is an SF Symbol rather than the kit's Avatar
+/// (`FloatingNav.Tab` carries a symbol name)"*. `Tab` carries a `Glyph`, and
+/// `.avatar(name:)` renders `Avatar(name:size: 26)`. The port happened and
+/// the note describing its absence outlived it, which is the same failure the
+/// drawer's "routines land with GLO-21" was: **a true statement about the
+/// past left standing as a claim about the present.**
+///
+/// The one stated divergence that IS current: an unbuilt tab names its ticket
+/// instead of rendering an empty screen — a dev shell should say what does
+/// not exist yet.
 struct AppShell: View {
     enum ShellTab: String, CaseIterable {
         case discover, shelf, you
@@ -53,6 +64,12 @@ struct AppShell: View {
     @State var ladderTrip = UUID()
     /// One line naming the ticket for a drawer option that is not built yet.
     @State var notice: String?
+    /// The routine composer, the drawer's fourth door (#341/#342).
+    @State var routineOpen = false
+    /// `ladderTrip`'s reasoning at the second cover: a new trip is a new
+    /// composer, so a second "new routine" starts empty rather than resuming
+    /// the first one's title, steps and minted routine id.
+    @State var routineTrip = UUID()
     /// The row the ladder just wrote, held until the cover dismisses — asking
     /// "did it fit?" under a closing full-screen cover is a question nobody
     /// sees.
@@ -161,6 +178,9 @@ struct AppShell: View {
         .handleClaimSheet(isPresented: $handleOpen, client: session.client)
         .fullScreenCover(isPresented: $ladderOpen, onDismiss: askFitIfAnchor) {
             ladderFlow
+        }
+        .fullScreenCover(isPresented: $routineOpen) {
+            routineComposer
         }
         .fullScreenCover(item: $openProduct) { item in
             if let client = session.client {

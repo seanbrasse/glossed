@@ -53,6 +53,31 @@ extension AppShell {
         .transition(.opacity.animation(.easeOut(duration: Tokens.Motion.med)))
     }
 
+    /// The four doors. Labels, subtitles, tints and glyphs are `G.drawerOptions`
+    /// verbatim; what changes here is where two of them lead.
+    ///
+    /// **GLO-189 cuts both ways, and this is the direction nobody was watching.**
+    /// `new routine` said *"routines land with GLO-21"* while the composer had
+    /// been merged for two PRs (#341) and its repository for one more (#342).
+    /// Copy that tells you a built thing is unbuilt is exactly as false as copy
+    /// that tells you an unbuilt thing is built — it just fails politely, by
+    /// hiding work instead of promising it.
+    ///
+    /// The other two notices were checked before being kept, not assumed:
+    ///
+    /// - **import** — the screen and its model exist, but `ImportParsing` has
+    ///   **no live conformance anywhere in the repo**: a `StubImportParser` in
+    ///   `Debug/ScreenData.swift`, a `FakeParser` in the package's tests, and
+    ///   nothing else. There is no import Edge Function either, and `onAdd`
+    ///   writes nothing. The parse is a server call the app cannot make, so
+    ///   every line would come back `noMatch` and the "add N to your shelf"
+    ///   button would never appear. That is a door onto a room with no floor;
+    ///   the notice is the honest answer and stays until GLO-19.
+    /// - **collection** — unbuilt at the time of writing (no repository at all,
+    ///   GLO-230) and being built now by its own lane. The notice stays rather
+    ///   than a seam, because a seam wired to nothing is the same broken door
+    ///   with a nicer name, and swapping the notice for the real screen is one
+    ///   line once `features/Collections` exists.
     var actionDrawer: some View {
         ActionDrawer(options: [
             .init(
@@ -72,7 +97,7 @@ extension AppShell {
                 tint: .butter
             ) {
                 drawerOpen = false
-                notice = "import lands with GLO-19"
+                notice = "import needs the catalog parser — GLO-19"
             },
             .init(
                 label: "new collection",
@@ -81,7 +106,7 @@ extension AppShell {
                 tint: .lilac
             ) {
                 drawerOpen = false
-                notice = "collections land with GLO-21"
+                notice = "collections are being built — GLO-230"
             },
             .init(
                 label: "new routine",
@@ -90,7 +115,8 @@ extension AppShell {
                 tint: .cherry
             ) {
                 drawerOpen = false
-                notice = "routines land with GLO-21"
+                routineTrip = UUID()
+                routineOpen = true
             }
         ])
         // The kit's sheet curve overshoots on purpose, so mid-flight the sheet
