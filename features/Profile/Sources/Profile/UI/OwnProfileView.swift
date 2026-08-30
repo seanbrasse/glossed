@@ -82,8 +82,8 @@ public struct OwnProfileView: View {
                 .foregroundStyle(model.handle == nil ? Tokens.Ink.faint : Tokens.Ink.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-            if model.handleAwaitingReview {
-                Badge("waiting to be reviewed", tone: .lilac)
+            if model.profileUnreachable {
+                Badge("profile not loading", tone: .lilac)
             }
         }
     }

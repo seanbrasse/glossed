@@ -90,17 +90,17 @@ private func store(
 }
 
 @MainActor
-@Test func claimingSaysReviewPendingRatherThanLive() async {
-    // claim_handle writes a PENDING public_texts row, and a public surface
-    // renders only approved (§3.2). With moderation parked nothing moves it,
-    // so the screen must not imply the handle is on a profile.
+@Test func claimingSaysTheHandleIsLive() async {
+    // public_profile returns h.handle unfiltered by moderation state, so the
+    // handle is reachable at once. Saying it is awaiting review understates
+    // the user's exposure, which is the worse error (GLO-187).
     let model = HandleClaimModel(store: store(claim: { $0 }))
     model.typed = "maya_k"
     await model.checkAvailability(for: "maya_k")
     await model.claim()
     #expect(model.claimed == "maya_k")
-    #expect(model.claimedText.contains("reviewed"))
-    #expect(!model.claimedText.contains("live"))
+    #expect(model.claimedText.contains("live"))
+    #expect(!model.claimedText.contains("reviewed"))
 }
 
 @MainActor

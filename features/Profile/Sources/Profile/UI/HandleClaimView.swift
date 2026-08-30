@@ -100,7 +100,7 @@ public struct HandleClaimView: View {
     private var claimedCard: some View {
         GlossedCard {
             VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-                Badge("waiting to be reviewed", tone: .lilac)
+                Badge("live", tone: .mint)
                 Text(model.claimedText)
                     .font(.system(size: Typography.Size.body))
                     .foregroundStyle(Tokens.Ink.primary)
