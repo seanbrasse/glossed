@@ -20,8 +20,14 @@ select cmp_ok((select count(*) from categories), '>=', 22::bigint,
     'the category tree is in the database without the dev seed having run');
 select cmp_ok((select count(*) from experience_chips), '>=', 171::bigint,
     'the experience-chip vocabulary is too — 171 rows, not the 10 domain-wide ones');
-select cmp_ok((select count(*) from attribute_chips), '>=', 16::bigint,
-    'and the attribute chips');
+-- Four, not the sixteen a local database shows. The other twelve are
+-- INCI-derived (niacinamide, retinoid, bha…) and belong to
+-- scripts/inci_enrich.ts, which upserts them alongside the ingredient regex
+-- each slug is matched by. Copying them here would put the slug in a migration
+-- and its pattern in a script — two owners for one fact, which is the drift
+-- this ticket exists to end.
+select cmp_ok((select count(*) from attribute_chips), '>=', 4::bigint,
+    'the baseline attribute chips ship with the tree; the INCI-derived ones stay with the enricher that defines their patterns');
 
 -- ---------------------------------------------------------------------------
 -- The shape the app depends on.

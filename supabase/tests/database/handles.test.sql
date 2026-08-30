@@ -84,18 +84,21 @@ select ok(handle_available('a_free_one'), 'a free, well-shaped handle is availab
 -- ---------------------------------------------------------------------------
 -- public_texts: the render-rule invariant
 -- ---------------------------------------------------------------------------
+-- 0045 (GLO-207, Sean Aug 30) changed WHEN a bio passes the gate, not what
+-- the gate is. The two assertions below described the old timing — a bio
+-- landing pending, and an edit returning it to pending — and are re-specified
+-- rather than removed. The invariant further down, that approval cannot be
+-- self-declared, is untouched and now runs against the handle row, which still
+-- lands pending: testing it against a bio would be testing a gate that is
+-- already open.
 select isnt(set_public_text('bio', null, 'tone 6 · combo'), null, 'set_public_text returns an id');
 select is((select state::text from public_texts where user_id = :'maya' and kind = 'bio'),
-    'pending', 'a new bio lands pending, never approved');
+    'approved', 'a bio lands approved while bios_auto_approve() is on — nothing reviews it, so pending would mean never rendering at all');
 
--- an approved bio that is then EDITED must fall back to pending
-select set_config('role', 'postgres', true);
-update public_texts set state = 'approved', decided_at = now()
- where user_id = :'maya' and kind = 'bio';
 select test_as(:'maya');
 select isnt(set_public_text('bio', null, 'edited'), null, 'the bio can be edited');
 select is((select state::text from public_texts where user_id = :'maya' and kind = 'bio'),
-    'pending', 'AN EDIT RE-ENTERS REVIEW — an approved bio cannot be swapped for unmoderated text');
+    'approved', 'and an edit lands approved too — there is no review to re-enter while the switch is on');
 select is((select body from public_texts where user_id = :'maya' and kind = 'bio'),
     'edited', 'and the new body is stored, so the reviewer sees what was written');
 select is((select count(*)::int from public_texts where user_id = :'maya' and kind = 'bio'), 1,
@@ -108,8 +111,8 @@ select is((select count(*)::int from public_texts where user_id = :'maya' and ki
 -- have been a test that only passes when something else is wrong.
 select lives_ok($$ update public_texts set state = 'approved' where user_id = '00000000-0000-0000-0000-000000000001' $$,
     'the self-approve update runs without error — RLS filters it to zero rows rather than raising');
-select is((select state::text from public_texts where user_id = :'maya' and kind = 'bio'),
-    'pending', 'and it changed NOTHING — the text is still pending, so approval cannot be self-declared');
+select is((select state::text from public_texts where user_id = :'maya' and kind = 'handle'),
+    'pending', 'and it changed NOTHING — the handle is still pending, so approval cannot be self-declared');
 
 -- ---------------------------------------------------------------------------
 -- Isolation
