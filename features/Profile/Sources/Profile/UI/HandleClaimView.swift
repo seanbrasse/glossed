@@ -54,7 +54,6 @@ public struct HandleClaimView: View {
             // Normalising in the binding rather than in `typed`'s didSet:
             // mutating it there leaves TextField's own buffer stale (GLO-183).
             handleField
-                .autocorrectionDisabled()
                 .onChange(of: model.typed) { _, _ in scheduleCheck() }
 
             Text(model.helperText)
@@ -63,18 +62,16 @@ public struct HandleClaimView: View {
         }
     }
 
-    /// iOS-only modifier; this package also builds for macOS.
+    /// No capitalisation or autocorrect guard here: GLO-57 made plain typing
+    /// the primitive's default, which is what a handle needs. The normalising
+    /// binding stays — it is a different job, and lives in the binding rather
+    /// than `typed`'s didSet because mutating there leaves TextField's own
+    /// buffer stale (GLO-183).
     private var handleField: some View {
-        let binding = Binding(
+        GlossedInput("yourname", text: Binding(
             get: { model.typed },
             set: { model.typed = HandleClaimModel.normalize($0) }
-        )
-        #if os(iOS)
-            return GlossedInput("yourname", text: binding)
-                .textInputAutocapitalization(.never)
-        #else
-            return GlossedInput("yourname", text: binding)
-        #endif
+        ))
     }
 
     private var helperColor: Color {

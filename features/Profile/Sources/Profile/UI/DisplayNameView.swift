@@ -62,7 +62,10 @@ struct DisplayNameView: View {
                     .foregroundStyle(Tokens.Ink.soft)
                     .fixedSize(horizontal: false, vertical: true)
 
-                nameField
+                // Plain by default since GLO-57 — the primitive stores what
+                // was typed. It used to capitalise "maya k." into "Maya k.",
+                // silently editing someone's own name.
+                GlossedInput("your name", text: $typed)
 
                 Button("save") {
                     Task { await performSave() }
@@ -83,23 +86,6 @@ struct DisplayNameView: View {
                 Toast(errorMessage).padding(.bottom, Tokens.Space.s8)
             }
         }
-    }
-
-    /// Stores what was typed, not what iOS would prefer.
-    ///
-    /// The default `.sentences` capitalisation turned "maya k." into
-    /// "Maya k." on the way in — a silent edit of the user's own name, in an
-    /// app whose voice is lowercase throughout. Same shape as GLO-183, where a
-    /// handle field displayed a different value from the one it would claim.
-    /// iOS-only: the modifier does not exist on macOS, which this package also
-    /// builds for.
-    @ViewBuilder private var nameField: some View {
-        #if os(iOS)
-            GlossedInput("your name", text: $typed)
-                .textInputAutocapitalization(.never)
-        #else
-            GlossedInput("your name", text: $typed)
-        #endif
     }
 
     private func performSave() async {

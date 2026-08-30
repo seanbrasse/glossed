@@ -47,7 +47,6 @@ public struct LinkedSocialsView: View {
 
     private var field: some View {
         GlossedInput("@you on instagram, tiktok…", text: $model.typed)
-            .autocorrectionDisabled()
     }
 
     private var saveButton: some View {
