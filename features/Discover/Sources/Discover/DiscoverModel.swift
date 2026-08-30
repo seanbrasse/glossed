@@ -40,15 +40,38 @@ public final class DiscoverModel {
         /// view drops it when the app wires no destination (the full-page
         /// rule — an affordance that leads nowhere is not offered).
         case trendingTeaser
+        /// A card the APP built and injected (GLO-200). Features never import
+        /// features, so a look post or the tune card cannot be a case here —
+        /// the app composes them and the stream only knows an identity and a
+        /// place. Same wall FitPromptCard hit, same answer.
+        case injected(id: String)
 
         public var id: String {
             switch self {
             case let .pick(hit): "pick-\(hit.id)"
             case .crosswalk: "crosswalk"
             case .trendingTeaser: "trending"
+            case let .injected(id): "injected-\(id)"
             }
         }
     }
+
+    /// An app-supplied card and where it goes. `position` indexes into the
+    /// stream AFTER the built-in insertions, and injection order is by
+    /// ascending position then id — deterministic, like everything else in
+    /// the composition (GLO-195's rule extends, not bends).
+    public struct InjectedCard: Identifiable, Sendable {
+        public let id: String
+        public let position: Int
+
+        public init(id: String, position: Int) {
+            self.id = id
+            self.position = position
+        }
+    }
+
+    /// Set by the app shell; the model re-composes on change.
+    public var injectedCards: [InjectedCard] = []
 
     /// The stream, composed deterministically — no randomness, so the order
     /// is testable and two loads of the same data read the same.
@@ -65,6 +88,15 @@ public final class DiscoverModel {
             cards.insert(.crosswalk(crosswalk), at: min(2, cards.count))
         }
         cards.insert(.trendingTeaser, at: min(6, cards.count))
+        // Ascending position, DESCENDING id within a position: each insert
+        // displaces the previously-inserted tie rightward, so ascending ids
+        // come out in order and a card's position is its final index.
+        let ordered = injectedCards.sorted {
+            ($0.position, $1.id) < ($1.position, $0.id)
+        }
+        for injected in ordered {
+            cards.insert(.injected(id: injected.id), at: min(injected.position, cards.count))
+        }
         return cards
     }
 

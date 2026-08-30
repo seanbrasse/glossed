@@ -16,15 +16,21 @@ public struct DiscoverView: View {
     @State private var model: DiscoverModel
     private let onOpenProduct: ((CatalogHit) -> Void)?
     private let onOpenTrending: (() -> Void)?
+    /// Renders an app-injected card by id (GLO-200). Nil for an id the app no
+    /// longer recognises renders nothing — an affordance that leads nowhere is
+    /// not offered, and a stale id must not become a blank card.
+    private let injectedCard: ((String) -> AnyView?)?
 
     public init(
         model: DiscoverModel,
         onOpenProduct: ((CatalogHit) -> Void)? = nil,
-        onOpenTrending: (() -> Void)? = nil
+        onOpenTrending: (() -> Void)? = nil,
+        injectedCard: ((String) -> AnyView?)? = nil
     ) {
         _model = State(initialValue: model)
         self.onOpenProduct = onOpenProduct
         self.onOpenTrending = onOpenTrending
+        self.injectedCard = injectedCard
     }
 
     public var body: some View {
@@ -68,6 +74,10 @@ public struct DiscoverView: View {
                     // that leads nowhere is not offered (the full-page rule)
                     if let onOpenTrending {
                         trendingTeaser(onOpenTrending)
+                    }
+                case let .injected(id):
+                    if let view = injectedCard?(id) {
+                        view
                     }
                 }
             }
