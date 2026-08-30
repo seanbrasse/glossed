@@ -154,18 +154,24 @@ public struct TabBar<TabID: Hashable>: View {
     }
 }
 
-/// The + drawer: add · import · collection · routine.
+/// The + drawer: add · import · collection · routine · post a look.
 public struct ActionDrawer: View {
-    /// The drawer's four marks, hand-ported from `G.ICONS` — the same four the
-    /// kit's own `G.drawerOptions` names, in the same order:
-    /// `search` · `file` · `folder` · `layers`, each drawn at `size={18}`.
+    /// The drawer's marks, hand-ported from `G.ICONS` — the four the kit's own
+    /// `G.drawerOptions` names, in the same order (`search` · `file` ·
+    /// `folder` · `layers`), each drawn at the kit's `size={18}`.
     ///
     /// They replace `magnifyingglass` / `doc.text` / `folder` / `square.stack`,
     /// which is GLO-64 exactly: the kit ships these and screens kept reaching
     /// past them. SF Symbols are a different drawing system with their own
     /// optical sizing, and mixing them is visible on any screen holding both.
+    ///
+    /// `camera` is the fifth (GLO-254). `G.drawerOptions` draws four, so the
+    /// door is a stated divergence — but the *mark* is not invented: `G.ICONS`
+    /// ships `camera`, fetched from the kit this session and ported on the
+    /// same 24-grid as its four siblings. GLO-64 forbids reaching past the
+    /// kit's icon set, not using a part of it the drawer had not needed yet.
     public enum Glyph: Sendable {
-        case search, file, folder, layers
+        case search, file, folder, layers, camera
     }
 
     public struct Option: Identifiable {

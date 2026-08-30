@@ -62,7 +62,10 @@ struct AppShell: View {
     /// "add a product" resumes the first trip — stale query, stale rung, and
     /// a reused log idempotency key across two distinct intentions (GLO-96).
     @State var ladderTrip = UUID()
-    /// One line naming the ticket for a drawer option that is not built yet.
+    /// One line the shell owes you once the drawer has closed: a door that is
+    /// not built yet naming its ticket, or a door that ran saying what it did.
+    /// The second case arrived with GLO-254 — a composer that dismisses itself
+    /// on success answers "did it work?" with silence.
     @State var notice: String?
     /// The routine composer, the drawer's fourth door (#341/#342).
     @State var routineOpen = false
@@ -70,6 +73,12 @@ struct AppShell: View {
     /// composer, so a second "new routine" starts empty rather than resuming
     /// the first one's title, steps and minted routine id.
     @State var routineTrip = UUID()
+    /// The look composer, the drawer's fifth door (GLO-254, Sean's ruling).
+    @State var lookOpen = false
+    /// The same reasoning again, and it bites harder here: `LooksStore.live`
+    /// mints the look's id once per store, so a reused composer would re-upload
+    /// a second look's photos into the first look's R2 namespace.
+    @State var lookTrip = UUID()
     /// The row the ladder just wrote, held until the cover dismisses — asking
     /// "did it fit?" under a closing full-screen cover is a question nobody
     /// sees.
@@ -214,6 +223,9 @@ struct AppShell: View {
         }
         .fullScreenCover(isPresented: $routineOpen) {
             routineComposer
+        }
+        .fullScreenCover(isPresented: $lookOpen) {
+            lookComposer
         }
         .fullScreenCover(item: $openProduct) { item in
             if let client = session.client {
