@@ -62,7 +62,14 @@ extension View {
     func privacySheet(isPresented: Binding<Bool>, client: GlossedClient?) -> some View {
         sheet(isPresented: isPresented) {
             if let client {
-                PrivacyView(store: .live(PrivacyRepository(client: client)))
+                PrivacyView(
+                    store: .live(PrivacyRepository(client: client)),
+                    // The badge switches live here now (GLO-213): they are the
+                    // only path by which a body fact reaches another person,
+                    // so the privacy screen is the whole answer rather than
+                    // half of it.
+                    badgeStore: .live(safety: SafetyRepository(client: client))
+                )
             }
         }
     }

@@ -47,7 +47,6 @@ public struct OwnProfileView: View {
                         claimPrompt
                     } else {
                         counts
-                        badgeSection
                         SuggestedPeopleCard(store: suggestionsStore) { viewing = $0 }
                         previewLink
                         socialsLink
@@ -159,41 +158,6 @@ public struct OwnProfileView: View {
             Text(n == 1 ? one : many)
                 .font(.system(size: Typography.Size.meta))
                 .foregroundStyle(Tokens.Ink.soft)
-        }
-    }
-
-    /// Each switch says what it publishes BEFORE it is flipped. These three are
-    /// the only path by which skin type, the anchor shade and hair pattern
-    /// reach another person (§3.4), so the consequence belongs next to the
-    /// control rather than in a policy.
-    private var badgeSection: some View {
-        VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-            Text("WHAT YOU SHOW").eyebrow()
-            ForEach(BadgeRow.all) { row in
-                GlossedCard {
-                    VStack(alignment: .leading, spacing: Tokens.Space.s2) {
-                        GlossedSwitch(
-                            isOn: Binding(
-                                get: { model.badges.isOn(row.badge) },
-                                set: { on in Task { await model.setBadge(row.badge, on: on) } }
-                            ),
-                            label: row.title
-                        )
-                        Text(row.detail)
-                            .font(.system(size: Typography.Size.meta))
-                            .foregroundStyle(Tokens.Ink.faint)
-                    }
-                }
-            }
-            // Only true while it is true. The line described the default, but
-            // read as a statement about now — so with one switch on it sat
-            // under a green toggle claiming everything was off.
-            if BadgeRow.all.allSatisfy({ !model.badges.isOn($0.badge) }) {
-                Text("all three are off until you turn them on.")
-                    .font(.system(size: Typography.Size.meta))
-                    .foregroundStyle(Tokens.Ink.soft)
-                    .padding(.horizontal, Tokens.Space.s2)
-            }
         }
     }
 }

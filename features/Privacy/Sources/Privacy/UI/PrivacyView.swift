@@ -16,8 +16,8 @@ import SwiftUI
 public struct PrivacyView: View {
     @State private var model: PrivacyModel
 
-    public init(store: PrivacyStore) {
-        _model = State(wrappedValue: PrivacyModel(store: store))
+    public init(store: PrivacyStore, badgeStore: BadgeStore? = nil) {
+        _model = State(wrappedValue: PrivacyModel(store: store, badgeStore: badgeStore))
     }
 
     public var body: some View {
@@ -33,6 +33,7 @@ public struct PrivacyView: View {
                         scopeCard(row)
                     }
                     discoverableCard
+                    badgeSection
                     footnote
                 }
             }
@@ -183,6 +184,43 @@ public struct PrivacyView: View {
                 Text(model.discoverableDetail)
                     .font(.system(size: Typography.Size.meta))
                     .foregroundStyle(Tokens.Ink.faint)
+            }
+        }
+    }
+
+    /// The badge switches, moved here from the profile (GLO-213, Sean's ask).
+    /// They belong on this screen: since GLO-205 these three are the only path
+    /// by which a body fact reaches another person, so someone checking their
+    /// privacy should not have to know to look on a second screen.
+    ///
+    /// Below the scopes, not among them: a scope decides who can see a
+    /// surface, a badge decides whether one fact is published at all. Same
+    /// question, different grain.
+    private var badgeSection: some View {
+        VStack(alignment: .leading, spacing: Tokens.Space.s3) {
+            Text("WHAT YOU SHOW").eyebrow()
+            ForEach(BadgeRow.all) { row in
+                GlossedCard {
+                    VStack(alignment: .leading, spacing: Tokens.Space.s2) {
+                        GlossedSwitch(
+                            isOn: Binding(
+                                get: { model.badges.isOn(row.badge) },
+                                set: { on in Task { await model.setBadge(row.badge, on: on) } }
+                            ),
+                            label: row.title
+                        )
+                        .disabled(model.isLockedByAgeGate)
+                        Text(row.detail)
+                            .font(.system(size: Typography.Size.meta))
+                            .foregroundStyle(Tokens.Ink.faint)
+                    }
+                }
+            }
+            if BadgeRow.all.allSatisfy({ !model.badges.isOn($0.badge) }) {
+                Text("all three are off until you turn them on.")
+                    .font(.system(size: Typography.Size.meta))
+                    .foregroundStyle(Tokens.Ink.soft)
+                    .padding(.horizontal, Tokens.Space.s2)
             }
         }
     }

@@ -78,6 +78,11 @@ public enum PrivacyRow: CaseIterable, Sendable {
 @MainActor
 @Observable
 public final class PrivacyModel {
+    /// The badge switches, moved here from the profile (GLO-213). Optional so
+    /// fixtures and previews render the scopes without one.
+    public private(set) var badges = ProfileBadges()
+    private let badgeStore: BadgeStore?
+
     public private(set) var scopes = PrivacyScopes()
     public private(set) var isLoading = true
     /// Set when a write fails. The row reverts, because showing the new value
@@ -89,8 +94,36 @@ public final class PrivacyModel {
 
     private let store: PrivacyStore
 
-    public init(store: PrivacyStore) {
+    public init(store: PrivacyStore, badgeStore: BadgeStore? = nil) {
         self.store = store
+        self.badgeStore = badgeStore
+    }
+
+    /// Optimistic, and reverted on failure — the same rule the scopes follow.
+    /// A switch that stays on after a failed write claims a body fact is
+    /// published when the database says it is not, which is the one lie this
+    /// screen must never tell.
+    public func setBadge(_ badge: ProfileBadges.Badge, on: Bool) async {
+        guard let badgeStore else { return }
+        let previous = badges
+        badges = Self.applying(badge, on: on, to: badges)
+        errorMessage = nil
+        do {
+            try await badgeStore.setBadge(badge, on)
+        } catch {
+            badges = previous
+            noteFailure(error)
+        }
+    }
+
+    static func applying(
+        _ badge: ProfileBadges.Badge, on: Bool, to current: ProfileBadges
+    ) -> ProfileBadges {
+        ProfileBadges(
+            showSkinType: badge == .skinType ? on : current.showSkinType,
+            showAnchor: badge == .anchor ? on : current.showAnchor,
+            showHairPattern: badge == .hairPattern ? on : current.showHairPattern
+        )
     }
 
     public func load() async {
@@ -98,6 +131,12 @@ public final class PrivacyModel {
         defer { isLoading = false }
         do {
             scopes = try await store.load()
+            // A failed badge read leaves the switches at their all-off
+            // default, which is the safe direction: it under-reports what is
+            // published rather than over-reporting it.
+            if let badgeStore {
+                badges = await (try? badgeStore.badges()) ?? badges
+            }
         } catch {
             errorMessage = Self.message(for: error)
         }

@@ -30,44 +30,6 @@ public struct OwnProfileStore: Sendable {
     }
 }
 
-/// One badge row, with the copy that has to be right.
-///
-/// A badge publishes Regulated data (`domain.md` §5) by the user's own act, and
-/// these three switches are **the only path** by which skin type, the anchor
-/// shade and hair pattern reach another human (§3.4). So each row states what
-/// it publishes and to whom, in plain words, before it is switched on — not
-/// after, and not in a policy nobody opens.
-public struct BadgeRow: Sendable, Identifiable {
-    public let badge: ProfileBadges.Badge
-    public let title: String
-    public let detail: String
-
-    public var id: String {
-        badge.rawValue
-    }
-
-    public static let all: [BadgeRow] = [
-        BadgeRow(
-            badge: .skinType,
-            title: "show your skin type",
-            detail: """
-            people whose skin type matches yours can see that it matches — \
-            never what it is — and you can be suggested to them.
-            """
-        ),
-        BadgeRow(
-            badge: .anchor,
-            title: "show the shade you wear",
-            detail: "your anchor shade appears on your profile, and you can be suggested to people who wear it too."
-        ),
-        BadgeRow(
-            badge: .hairPattern,
-            title: "show your hair pattern",
-            detail: "people whose hair pattern matches yours can see that it matches, never what it is."
-        )
-    ]
-}
-
 /// The own-profile screen's state.
 @MainActor
 @Observable
