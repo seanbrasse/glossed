@@ -25,7 +25,7 @@ public struct NearMatchRungView: View {
             // no name at all, and the rung cannot show candidates until it has
             // one. Present only in that case — otherwise the field would invite
             // re-typing what the ladder already carried down.
-            if model.needsAName {
+            if model.arrivedWithoutAName {
                 GlossedInput(
                     "what's it called?",
                     text: $model.query,
@@ -54,10 +54,31 @@ public struct NearMatchRungView: View {
     /// failed to load has no photos to check, and telling someone to check them
     /// anyway is the screen vouching for something it does not know.
     private var eyebrow: String {
-        model.isCandidateListTrustworthy
+        canVouchForPhotos
             ? "NEAR MATCHES · CHECK THE PHOTO, NOT THE NAME"
             : "NEAR MATCHES"
     }
+
+    /// There are two ways to have no photos to check, and the sentence above
+    /// only ever tested one of them.
+    ///
+    /// `isCandidateListTrustworthy` answers *"are these all of them?"* — it
+    /// catches a list that failed or has not arrived. It says nothing about a
+    /// list that loaded perfectly and is **entirely drawings** (GLO-177), which
+    /// is the ordinary case rather than the tail: 430 of 497 brands carry no
+    /// catalog image, and this rung assembles its candidates by brand.
+    ///
+    /// Both halves of the URL are required, because both halves are required to
+    /// render a photo — `catalogImageURL(base:)` needs the key *and* the base,
+    /// and `LadderOptionRow` draws a `ProductMock` whenever either is missing.
+    private var canVouchForPhotos: Bool {
+        imageBase != nil && model.isCandidateListTrustworthy && model.everyCandidateHasAPhoto
+    }
+
+    /// Read here for the same reason `LadderOptionRow` reads it: the eyebrow is
+    /// a claim about what those rows are showing, so it has to be answered from
+    /// the same value they render from.
+    @Environment(\.catalogImageBase) private var imageBase
 
     private var hint: String? {
         // Failure first, and it survives a retry until an answer replaces it —
