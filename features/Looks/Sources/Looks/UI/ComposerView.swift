@@ -10,6 +10,8 @@ import SwiftUI
 public struct ComposerView: View {
     @State private var model: ComposerModel
     @State private var pickingTagFor: UUID?
+    /// Which tile the current drag is over — the strip's only drag state.
+    @State private var dropTargetID: UUID?
     private let onPickPhoto: (() -> Void)?
     private let onSaved: (UUID) -> Void
     private let onClose: () -> Void
@@ -66,10 +68,22 @@ public struct ComposerView: View {
     /// model's; when it is reached the tile is absent rather than disabled —
     /// an affordance that cannot act is not offered.
     private var photoStrip: some View {
+        VStack(alignment: .leading, spacing: Tokens.Space.s2) {
+            strip
+            if model.photos.count > 1 {
+                // Discoverability, not decoration: a long-press drag nobody
+                // is told about is an affordance nobody finds.
+                Text("hold a photo to move it — the first one leads the post.")
+                    .meta()
+            }
+        }
+    }
+
+    private var strip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Tokens.Space.s3) {
-                ForEach(model.photos) { photo in
-                    photoTile(photo)
+                ForEach(Array(model.photos.enumerated()), id: \.element.id) { index, photo in
+                    photoTile(photo, at: index)
                 }
                 if model.canAddPhoto, let onPickPhoto {
                     Button(action: onPickPhoto) {
@@ -96,43 +110,87 @@ public struct ComposerView: View {
         }
     }
 
-    private func photoTile(_ photo: ComposerPhoto) -> some View {
+    /// A tile is both a drag source and a drop target: dragging one onto
+    /// another gives the dragged photo that tile's place. Tile-level targets
+    /// rather than one strip-wide target because the strip scrolls at the cap
+    /// (six tiles overflow any phone) and a drop zone you cannot reach is not
+    /// a drop zone — one hop at a time always works.
+    private func photoTile(_ photo: ComposerPhoto, at index: Int) -> some View {
         ZStack(alignment: .topTrailing) {
-            Group {
-                #if canImport(UIKit)
-                    if let image = UIImage(data: photo.localData) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        Rectangle().fill(Tokens.Support.lilacSoft)
-                    }
-                #else
-                    // macOS test builds never render this; the tile ground
-                    // stands in so the package still compiles there.
-                    Rectangle().fill(Tokens.Support.lilacSoft)
-                #endif
+            photoImage(photo)
+            removeButton(photo)
+            if model.photos.count > 1 {
+                ordinal(index)
             }
-            .frame(width: 104, height: 132)
-            .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.lg))
-            .overlay(
-                RoundedRectangle(cornerRadius: Tokens.Radius.lg)
-                    .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.hair)
-            )
-
-            Button {
-                model.removePhoto(photo.id)
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(Tokens.Ink.primary)
-                    .padding(6)
-                    .background(Tokens.Ground.milk, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .padding(4)
-            .accessibilityLabel("remove this photo")
         }
+        .frame(width: 104, height: 132)
+        .overlay(
+            RoundedRectangle(cornerRadius: Tokens.Radius.lg)
+                .strokeBorder(
+                    Tokens.Cherry.base,
+                    lineWidth: dropTargetID == photo.id ? Tokens.Border.std : 0
+                )
+        )
+        .draggable(photo.id.uuidString)
+        .dropDestination(for: String.self) { payload, _ in
+            guard let dragged = payload.first.flatMap(UUID.init(uuidString:)) else { return false }
+            model.movePhoto(dragged, to: index)
+            return true
+        } isTargeted: { targeted in
+            dropTargetID = targeted ? photo.id : (dropTargetID == photo.id ? nil : dropTargetID)
+        }
+    }
+
+    private func photoImage(_ photo: ComposerPhoto) -> some View {
+        Group {
+            #if canImport(UIKit)
+                if let image = UIImage(data: photo.localData) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Rectangle().fill(Tokens.Support.lilacSoft)
+                }
+            #else
+                // macOS test builds never render this; the tile ground
+                // stands in so the package still compiles there.
+                Rectangle().fill(Tokens.Support.lilacSoft)
+            #endif
+        }
+        .frame(width: 104, height: 132)
+        .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.lg))
+        .overlay(
+            RoundedRectangle(cornerRadius: Tokens.Radius.lg)
+                .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.hair)
+        )
+    }
+
+    private func removeButton(_ photo: ComposerPhoto) -> some View {
+        Button {
+            model.removePhoto(photo.id)
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Tokens.Ink.primary)
+                .padding(6)
+                .background(Tokens.Ground.milk, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .padding(4)
+        .accessibilityLabel("remove this photo")
+    }
+
+    /// The order, said out loud, so a reorder has something to confirm it.
+    /// Mono because it is a count.
+    private func ordinal(_ index: Int) -> some View {
+        Text("\(index + 1)")
+            .font(Typography.mono(11))
+            .foregroundStyle(Tokens.Ink.primary)
+            .frame(width: 20, height: 20)
+            .background(Tokens.Ground.milk, in: Circle())
+            .padding(4)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            .allowsHitTesting(false)
     }
 
     /// Tags list as rows, not pins-on-photo yet: pin placement needs the

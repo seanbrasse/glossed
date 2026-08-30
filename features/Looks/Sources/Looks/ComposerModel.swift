@@ -118,10 +118,47 @@ public final class ComposerModel {
 
     public func removePhoto(_ id: UUID) {
         photos.removeAll { $0.id == id }
+        renumber()
+        // Tags pin to the look, not to a photo, so they survive a removal.
+    }
+
+    /// Reorder. The dragged photo takes the destination's index and everything
+    /// between shifts by one — the order the user sees is the order that
+    /// saves, because `position` is rewritten from the array immediately
+    /// after (GLO-232).
+    ///
+    /// Tags are untouched on purpose: they pin to the LOOK, not to a photo
+    /// (`removePhoto` says the same thing from the other side), so a reorder
+    /// must not disturb them.
+    public func movePhoto(from source: Int, to destination: Int) {
+        guard photos.indices.contains(source) else { return }
+        let target = min(max(destination, 0), photos.count - 1)
+        guard target != source else { return }
+        photos.insert(photos.remove(at: source), at: target)
+        renumber()
+    }
+
+    /// Convenience for the drop handler, which knows an identity rather than
+    /// an index. Unknown ids are a no-op — a stale drag payload must not move
+    /// somebody else's photo.
+    public func movePhoto(_ id: UUID, to destination: Int) {
+        guard let source = photos.firstIndex(where: { $0.id == id }) else { return }
+        movePhoto(from: source, to: destination)
+    }
+
+    /// The ONE renumber path. `look_photos` is `unique (look_id, position)`
+    /// and positions must stay dense from 0, so every mutation of the array
+    /// ends here rather than growing its own arithmetic.
+    ///
+    /// Client-side only today: the composer holds photos in memory and writes
+    /// once on save, so a reorder never issues the UPDATE that would collide
+    /// against that unique index mid-statement. The day a saved look becomes
+    /// editable, that write needs a deferred constraint or a two-phase
+    /// renumber — noted here so it is not rediscovered.
+    private func renumber() {
         for index in photos.indices {
             photos[index].position = index
         }
-        // Tags pin to the look, not to a photo, so they survive a removal.
     }
 
     /// One tag per variant — re-tagging moves the pin rather than stacking a
