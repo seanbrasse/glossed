@@ -5,13 +5,11 @@ import SwiftUI
 // content ends underneath it and every tab loses its last element.
 
 private struct NavInset: ViewModifier {
-    /// Scales with text size: the nav grows at accessibility sizes, so a fixed
-    /// inset would under-clear it exactly where the occlusion is worst.
-    ///
-    /// Against .caption to match what the nav itself is sized against (GLO-201).
-    /// On body's slower curve this reserved less than the bar occupied, which
-    /// is the same lag that truncated the labels.
-    @ScaledMetric(relativeTo: .caption) private var navHeight: CGFloat = 88
+    /// Fixed, because the nav is fixed: the kit bar (GLO-64) sizes its tabs in
+    /// points, not against a text style, so an inset that kept scaling on
+    /// caption's curve reserved ~210pt of empty band over a ~66pt bar at the
+    /// largest accessibility sizes.
+    private let navHeight: CGFloat = 88
 
     func body(content: Content) -> some View {
         content.safeAreaInset(edge: .bottom) {
