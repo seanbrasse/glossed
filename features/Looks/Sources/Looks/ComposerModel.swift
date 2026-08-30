@@ -95,7 +95,7 @@ public final class ComposerModel {
     public static let captionCap = 2200
 
     private let store: LooksStore?
-    var saveTask: Task<Void, Never>?
+    public private(set) var saveTask: Task<Void, Never>?
 
     public init(store: LooksStore?) {
         self.store = store
