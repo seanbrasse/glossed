@@ -129,9 +129,17 @@ public struct Toast: View {
 /// Bottom sheet. Used for the + drawer and every item detail — the app prefers
 /// sheets to pushes so context stays visible behind them.
 public struct GlossedSheet<Content: View>: View {
+    /// The kit gives its sheets `12px 16px 24px`, but the one sheet built
+    /// before the drawer wants the page margin, so `s5` stays the default and
+    /// the drawer asks for the kit's `s4` rather than moving every sheet.
+    let horizontalPadding: CGFloat
     @ViewBuilder let content: () -> Content
 
-    public init(@ViewBuilder content: @escaping () -> Content) {
+    public init(
+        horizontalPadding: CGFloat = Tokens.Space.s5,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.horizontalPadding = horizontalPadding
         self.content = content
     }
 
@@ -144,7 +152,7 @@ public struct GlossedSheet<Content: View>: View {
                 .padding(.bottom, Tokens.Space.s3)
                 .accessibilityHidden(true)
             content()
-                .padding(.horizontal, Tokens.Space.s5)
+                .padding(.horizontal, horizontalPadding)
                 .padding(.bottom, Tokens.Space.s6)
         }
         .frame(maxWidth: .infinity)
