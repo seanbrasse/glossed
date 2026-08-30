@@ -96,3 +96,41 @@ private func draft(
     #expect(profile.toneBand == 5)
     #expect(profile.hairPattern == "3b")
 }
+
+// ── the second opening (Sean, Aug 30): brands + the anchor read ────────────
+
+@Test func brandsEncodeOnlyWhenTheDraftCarriesAnAnswer() throws {
+    // both sides of the never-erase design: nil omits the key entirely
+    // (onboarding's write leaves the column untouched); an answer — even
+    // the empty list — carries it (the tune screen clearing brands is an
+    // answer too)
+    let unasked = draft().row(userID: UUID())
+    let unaskedJSON = try #require(
+        JSONSerialization.jsonObject(with: JSONEncoder().encode(unasked)) as? [String: Any]
+    )
+    #expect(unaskedJSON["brand_affinities"] == nil)
+
+    var tuned = draft()
+    tuned.brandAffinities = ["rhode", "kosas"]
+    let tunedJSON = try #require(
+        JSONSerialization.jsonObject(with: JSONEncoder().encode(tuned.row(userID: UUID()))) as? [String: Any]
+    )
+    #expect(tunedJSON["brand_affinities"] as? [String] == ["rhode", "kosas"])
+
+    var cleared = draft()
+    cleared.brandAffinities = []
+    let clearedJSON = try #require(
+        JSONSerialization.jsonObject(with: JSONEncoder().encode(cleared.row(userID: UUID()))) as? [String: Any]
+    )
+    #expect(clearedJSON["brand_affinities"] as? [String] == [])
+}
+
+@Test func theAnchorFactDecodesTheViewRow() throws {
+    let raw = Data("""
+    {"user_id":"\(UUID().uuidString)","variant_id":"\(UUID().uuidString)",
+     "fit":"just_right","season":null,"captured_at":null}
+    """.utf8)
+    let fact = try JSONDecoder().decode(ShadeAnchorFact.self, from: raw)
+    #expect(fact.fit == .justRight)
+    #expect(fact.capturedAt == nil)
+}

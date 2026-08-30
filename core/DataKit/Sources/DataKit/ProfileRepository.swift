@@ -35,6 +35,26 @@ public struct ProfileRepository: Sendable {
         return rows.first
     }
 
+    /// The caller's shade anchor, or nil — and nil is a STATE the tune
+    /// card exists for. The anchor is DERIVED (`user_shade_anchor` is a view
+    /// over logged anchor-category items joined to their fits), so there is
+    /// no anchor write here or anywhere: logging + capturing fit IS setting
+    /// the anchor, through the shelf paths that already exist. Newest wins,
+    /// the leaderboard RPC's own rule.
+    public func anchor() async throws(GlossedError) -> ShadeAnchorFact? {
+        _ = try await client.requireUserID()
+        let rows: [ShadeAnchorFact] = try await run {
+            try await client.supabase
+                .from("user_shade_anchor")
+                .select()
+                .order("captured_at", ascending: false)
+                .limit(1)
+                .execute()
+                .value
+        }
+        return rows.first
+    }
+
     /// Writes the onboarding prior in one idempotent upsert. Validates
     /// client-side first so a bad value fails as `invalid_input` with words,
     /// not as a check-constraint string from Postgres.
@@ -62,6 +82,20 @@ public struct ProfileRepository: Sendable {
         } catch {
             throw GlossedError.from(error)
         }
+    }
+}
+
+/// One row of the derived anchor view — the caller's own, via RLS on the
+/// tables underneath.
+public struct ShadeAnchorFact: Codable, Sendable, Equatable {
+    public let variantID: UUID
+    public let fit: Fit
+    public let capturedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case variantID = "variant_id"
+        case fit
+        case capturedAt = "captured_at"
     }
 }
 
@@ -112,6 +146,10 @@ public struct ProfileDraft: Sendable, Equatable {
     public var concerns: [String]
     public var climate: String?
     public var displayName: String?
+    /// Nil means "not asked", and the column is left untouched — the tune
+    /// screen is the only asker, so onboarding's write can never erase a
+    /// later answer (the never-erase design, now explicit in the type).
+    public var brandAffinities: [String]?
 
     public init(
         birthYearMonth: String,
@@ -121,7 +159,8 @@ public struct ProfileDraft: Sendable, Equatable {
         hairPattern: String? = nil,
         concerns: [String] = [],
         climate: String? = nil,
-        displayName: String? = nil
+        displayName: String? = nil,
+        brandAffinities: [String]? = nil
     ) {
         self.birthYearMonth = birthYearMonth
         self.domains = domains
@@ -131,6 +170,7 @@ public struct ProfileDraft: Sendable, Equatable {
         self.concerns = concerns
         self.climate = climate
         self.displayName = displayName
+        self.brandAffinities = brandAffinities
     }
 
     /// "2001-07" from parts, or nil for a month no calendar has — the
@@ -170,14 +210,16 @@ public struct ProfileDraft: Sendable, Equatable {
             concerns: concerns,
             toneBand: toneBand,
             hairPattern: hairPattern,
-            climate: climate
+            climate: climate,
+            brandAffinities: brandAffinities
         )
     }
 }
 
-/// The wire row. `brand_affinities` is deliberately absent: nothing asks
-/// for brands at onboarding, and an upsert writing `{}` over a later answer
-/// would erase it — absent columns keep their values.
+/// The wire row. `brand_affinities` encodes ONLY when the draft carries an
+/// answer (synthesized Encodable omits nil keys): onboarding never asks, so
+/// its upserts leave the column untouched; the tune screen asks, so its
+/// saves carry it — the never-erase design, held by the encoder.
 struct ProfileRow: Encodable {
     let userID: String
     let displayName: String?
@@ -188,6 +230,7 @@ struct ProfileRow: Encodable {
     let toneBand: Int?
     let hairPattern: String?
     let climate: String?
+    let brandAffinities: [String]?
 
     enum CodingKeys: String, CodingKey {
         case userID = "user_id"
@@ -197,5 +240,6 @@ struct ProfileRow: Encodable {
         case skinType = "skin_type"
         case toneBand = "tone_band"
         case hairPattern = "hair_pattern"
+        case brandAffinities = "brand_affinities"
     }
 }
