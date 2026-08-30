@@ -44,6 +44,8 @@ packages:
     path: features/Onboarding
   Routines:
     path: features/Routines
+  Collections:
+    path: features/Collections
 targets:
   Glossed:
     type: application
@@ -67,6 +69,7 @@ targets:
       - package: Leaderboard
       - package: Onboarding
       - package: Routines
+      - package: Collections
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.glossed.app
