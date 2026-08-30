@@ -150,7 +150,7 @@
 
         private struct OnboardingTrip: View {
             private enum Stop {
-                case hook, quiz, payoff, account, welcome
+                case hook, quiz, payoff, account, build, welcome
             }
 
             @State private var stop = Stop.hook
@@ -190,7 +190,18 @@
                         model: AccountModel(store: AccountStore(finish: { _ in })),
                         quiz: quiz,
                         onExit: { stop = .payoff },
-                        onCreated: { stop = .welcome }
+                        onCreated: { stop = .build }
+                    )
+                case .build:
+                    // Doors are fixture no-ops here; only ones the trip can
+                    // "wire" render — snap-a-photo stays nil (no flow exists)
+                    // and correctly does not appear.
+                    OnbBuildView(
+                        addedCount: 2,
+                        onScan: {},
+                        onImport: {},
+                        onSearch: {},
+                        onSkip: { stop = .welcome }
                     )
                 case .welcome:
                     OnbWelcomeView(
