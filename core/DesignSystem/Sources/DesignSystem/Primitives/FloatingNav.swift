@@ -199,38 +199,72 @@ public struct ActionDrawer: View {
         self.options = options
     }
 
+    /// The card the kit puts around every option, and the built drawer never
+    /// had (GLO-255). `11/12` and `14` are the kit's own inline numbers rather
+    /// than tokens — `tokens/*.css` does not carry them, and this file already
+    /// ports the nav's `50×42` and `spacing: 2` the same way.
+    private static let rowRadius: CGFloat = 14
+    private static let rowPaddingV: CGFloat = 11
+
     public var body: some View {
-        GlossedSheet {
-            VStack(alignment: .leading, spacing: Tokens.Space.s3) {
+        // `s4`, not the sheet's default `s5`: the kit's drawer is `12px 16px
+        // 24px`, and now that each row carries its own border the page margin
+        // would read as a second inset inside the first.
+        GlossedSheet(horizontalPadding: Tokens.Space.s4) {
+            // `s2` = the kit's `gap:8` between rows. It was `s3`.
+            VStack(alignment: .leading, spacing: Tokens.Space.s2) {
+                // The kit writes this in the hand — Caveat 22, cherry-deep,
+                // tilted a degree — not in flat display ink. It is the loudest
+                // single thing the port dropped: the kind of difference that
+                // reads as "off" without being nameable.
                 Text(title)
-                    .font(Typography.display(21))
-                    .padding(.bottom, Tokens.Space.s1)
+                    .handAside()
+                    .rotationEffect(Tokens.Rotate.r3)
+                    .padding(.horizontal, Tokens.Space.s1)
+                    .padding(.bottom, Tokens.Space.s2)
                 ForEach(options) { option in
-                    Button(action: option.action) {
-                        HStack(spacing: Tokens.Space.s3) {
-                            DrawerGlyphView(glyph: option.glyph)
-                                .foregroundStyle(Tokens.Ink.primary)
-                                .frame(width: 42, height: 42)
-                                .background(option.tint.fill)
-                                .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.md))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: Tokens.Radius.md)
-                                        .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.thin)
-                                )
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(option.label)
-                                    .font(Typography.display(15.5, weight: 700))
-                                    .foregroundStyle(Tokens.Ink.primary)
-                                Text(option.subtitle).meta()
-                            }
-                            Spacer(minLength: 0)
-                        }
-                        .frame(minHeight: Tokens.hitTarget)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(option.label), \(option.subtitle)")
+                    Button(action: option.action) { row(option) }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(option.label), \(option.subtitle)")
                 }
             }
         }
+    }
+
+    private func row(_ option: Option) -> some View {
+        HStack(spacing: Tokens.Space.s3) {
+            DrawerGlyphView(glyph: option.glyph)
+                .foregroundStyle(Tokens.Ink.primary)
+                // 38, not 42 — and the kit's chips carry the sticker shadow.
+                .frame(width: 38, height: 38)
+                .background(option.tint.fill)
+                .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.md))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Tokens.Radius.md)
+                        .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.thin)
+                )
+                .background(
+                    RoundedRectangle(cornerRadius: Tokens.Radius.md)
+                        .fill(Tokens.Ink.primary)
+                        .offset(x: Tokens.Shadow.sm, y: Tokens.Shadow.sm)
+                )
+            VStack(alignment: .leading, spacing: 1) {
+                Text(option.label)
+                    .font(Typography.display(15.5, weight: 700))
+                    .foregroundStyle(Tokens.Ink.primary)
+                Text(option.subtitle).meta()
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(minHeight: Tokens.hitTarget)
+        .padding(.vertical, Self.rowPaddingV)
+        .padding(.horizontal, Tokens.Space.s3)
+        .background(Tokens.Ground.card)
+        .clipShape(RoundedRectangle(cornerRadius: Self.rowRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Self.rowRadius)
+                .strokeBorder(Tokens.Ground.line, lineWidth: Tokens.Border.hair)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: Self.rowRadius))
     }
 }
