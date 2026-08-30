@@ -346,6 +346,17 @@ disagreeing with the query that decides it.
 announce — which is how the block trigger and the suggestion opt-in were proven
 without touching a database three lanes were using.
 
+**A rule, not a finding — earned by two independent occurrences: never derive
+a field's EXISTENCE from the value that field writes.** GLO-176 (the near-match
+name field: visibility gated on `ladder.query`, which the field itself writes —
+first keystroke unmounted the input) and the handle-claim field (the 1.5 lane's
+independent discovery of the identical trap, different feature, different
+author). Both were invisible until the second keystroke, both survived passing
+tests, and both looked exactly as designed. The split that fixes it is the same
+both times: *"is there anything to ask with?"* may be live; *"does this screen
+owe the user a field?"* must be latched at entry. A third occurrence gets filed
+against this rule, not as a new discovery.
+
 **`create or replace` means the LAST migration wins.** §9's rule — *grep the
 object name out of the migration file* — is not enough on its own: reading
 `suggested_people` from 0032 gave a reason string that 0034 had already
