@@ -100,6 +100,20 @@ public struct OwnProfileView: View {
     }
 
     /// The pop moment: the handle.
+    ///
+    /// `G.Profile` makes the DISPLAY NAME the h1 and shows no handle at all,
+    /// because the frame predates handles entirely — V1 had no public
+    /// identity to address. GLO-187 made the handle the profile's address, and
+    /// #363 settled the governing principle for this screen: your own profile
+    /// shows the identity everyone else sees, or you become the only person
+    /// looking at a different one. So the identity block below is
+    /// `ViewedProfileView`'s, element for element — handle, name, badges,
+    /// bio — and the frame's ordering is deliberately not followed.
+    ///
+    /// What it renders is the PUBLISHED projection (`public_profile`), not
+    /// your underlying facts, so an absent badge or bio here means you have
+    /// published none — which is the true statement, and the one "what a
+    /// stranger sees" then explains at length.
     private var header: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s2) {
             Text("YOU").eyebrow()
@@ -118,6 +132,22 @@ public struct OwnProfileView: View {
                 // The frame's entry to settings, and the only one — settings
                 // is a state of this screen, not a tab.
                 IconButton("gearshape", label: "settings") { showingSettings = true }
+            }
+            if let name = model.displayName {
+                Text(name)
+                    .font(.system(size: Typography.Size.body))
+                    .foregroundStyle(Tokens.Ink.soft)
+            }
+            ProfileBadgeRow(
+                skinType: model.profile?.badgeSkinType,
+                anchor: model.profile?.badgeAnchor,
+                hairPattern: model.profile?.badgeHairPattern
+            )
+            if let bio = model.bio {
+                Text(bio)
+                    .font(.system(size: Typography.Size.small))
+                    .foregroundStyle(Tokens.Ink.primary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             if model.profileUnreachable {
                 Badge("profile not loading", tone: .lilac)

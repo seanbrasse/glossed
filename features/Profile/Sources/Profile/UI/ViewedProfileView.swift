@@ -144,17 +144,14 @@ public struct ViewedProfileView: View {
 
     /// Only what this person chose to publish. A nil badge is absent, not
     /// rendered as "unknown" — the difference between "did not share" and
-    /// "has none" is theirs to keep.
-    @ViewBuilder private func badges(_ profile: PublicProfile) -> some View {
-        let shown = [profile.badgeSkinType, profile.badgeAnchor, profile.badgeHairPattern]
-            .compactMap(\.self)
-        if !shown.isEmpty {
-            HStack(spacing: Tokens.Space.s2) {
-                ForEach(shown, id: \.self) { value in
-                    Badge(value, tone: .lilac)
-                }
-            }
-        }
+    /// "has none" is theirs to keep. `ProfileBadgeRow` holds that rule, and
+    /// the frame's per-fact tones, for all three screens that draw badges.
+    private func badges(_ profile: PublicProfile) -> some View {
+        ProfileBadgeRow(
+            skinType: profile.badgeSkinType,
+            anchor: profile.badgeAnchor,
+            hairPattern: profile.badgeHairPattern
+        )
     }
 
     /// Locked surfaces are named as private rather than hidden. Hiding leaves

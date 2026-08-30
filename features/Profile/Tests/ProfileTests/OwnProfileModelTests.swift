@@ -1,15 +1,17 @@
 import DataKit
+import DesignSystem
 import Foundation
 import Testing
 @testable import Profile
 
 private func profile(
     shelfN: Int = 0, followers: Int = 0, following: Int = 0, ranked: Int = 0,
-    displayName: String? = nil
+    displayName: String? = nil, bio: String? = nil
 ) -> PublicProfile {
     let name = displayName.map { "\"\($0)\"" } ?? "null"
+    let bioJSON = bio.map { "\"\($0)\"" } ?? "null"
     let json = Data("""
-    {"handle":"maya_k","display_name":\(name),"avatar_seed":null,"bio":null,
+    {"handle":"maya_k","display_name":\(name),"avatar_seed":null,"bio":\(bioJSON),
      "badge_skin_type":null,"badge_anchor":null,"badge_hair_pattern":null,
      "followers":\(followers),"following":\(following),"shelf_n":\(shelfN),
      "ranked_lists_n":\(ranked),"shelf_visible":true,"rankings_visible":true,
@@ -93,4 +95,47 @@ private func store(
     let blank = OwnProfileModel(store: store(handle: { nil }, profileFor: { _ in nil }))
     await blank.load()
     #expect(blank.avatarName == "?")
+}
+
+@MainActor
+@Test func yourOwnProfileStatesTheNameAndBioThatAreActuallyPublished() async {
+    // Both come from `public_profile`, so the bio is the APPROVED body
+    // (tech/02 §3.2). This screen is where you find out what is visible; the
+    // settings row is where you see what you typed.
+    let model = OwnProfileModel(store: store(profileFor: { _ in
+        profile(displayName: "rae", bio: "i rank everything i own.")
+    }))
+    await model.load()
+    #expect(model.displayName == "rae")
+    #expect(model.bio == "i rank everything i own.")
+}
+
+@MainActor
+@Test func anUnpublishedNameAndBioAreAbsentRatherThanEmptyStrings() async {
+    // Nil, not "". An empty string would draw an empty line where the frame
+    // draws nothing, because `Text("")` still takes its leading.
+    let model = OwnProfileModel(store: store())
+    await model.load()
+    #expect(model.displayName == nil)
+    #expect(model.bio == nil)
+}
+
+@Test func badgesKeepTheFramesOrderAndItsPerFactTones() {
+    // G.Profile: combo (lilac) · fenty 240 (butter) · 3b (mint). The tone
+    // tracks the FACT, so dropping the middle one must not slide butter onto
+    // the hair pattern.
+    let all = ProfileBadgeRow.badges(skinType: "combo", anchor: "fenty 240", hairPattern: "3b")
+    #expect(all.map(\.value) == ["combo", "fenty 240", "3b"])
+    #expect(all.map(\.tone) == [.lilac, .butter, .mint])
+
+    let gapped = ProfileBadgeRow.badges(skinType: "combo", anchor: nil, hairPattern: "3b")
+    #expect(gapped.map(\.value) == ["combo", "3b"])
+    #expect(gapped.map(\.tone) == [.lilac, .mint])
+}
+
+@Test func anUnpublishedBadgeIsAbsentAndNeverRenderedAsUnknown() {
+    // A nil badge means "not published", which `public_profile` deliberately
+    // does not distinguish from "has none" — so there is nothing honest to
+    // draw in its place. All three off is an empty row, not three blanks.
+    #expect(ProfileBadgeRow.badges(skinType: nil, anchor: nil, hairPattern: nil).isEmpty)
 }
