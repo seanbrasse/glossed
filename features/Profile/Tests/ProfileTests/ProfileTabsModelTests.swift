@@ -41,7 +41,7 @@ private func collection(
 }
 
 @MainActor
-@Test func bothSeamsWiredGivesTheFramesTwoSegmentsInItsOrder() async {
+@Test func bothSeamsWiredGivesTheFramesTwoSegmentsInItsOrder() {
     let model = ProfileTabsModel(
         routines: ProfileRoutinesStore(mine: { [] }),
         collections: ProfileCollectionsStore(mine: { [] })
