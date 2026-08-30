@@ -161,3 +161,113 @@ actor FlakyCatalog: CatalogSearching {
     #expect(await catalog.calls == 2, "a retry is a second ask, not a replayed answer")
     #expect(live.options.count == 2, "one hit plus the way out")
 }
+
+// MARK: - GLO-61: the failure outlives the retry it started
+
+/// Suspends until released, so the mid-retry window is observed rather than
+/// inferred — the whole point of this ticket is a state that exists only while
+/// a request is in flight.
+actor HangingCatalog: CatalogSearching {
+    private var release: CheckedContinuation<Void, Never>?
+    private var entered: CheckedContinuation<Void, Never>?
+    private var hasEntered = false
+
+    func search(_: String, limit _: Int) async throws(GlossedError) -> [CatalogHit] {
+        hasEntered = true
+        entered?.resume()
+        entered = nil
+        await withCheckedContinuation { release = $0 }
+        return []
+    }
+
+    func recordFailedSearch(_: String, domain _: Domain?) async {}
+
+    /// Returns once `search` is actually suspended inside the model's await.
+    func waitUntilEntered() async {
+        guard !hasEntered else { return }
+        await withCheckedContinuation { entered = $0 }
+    }
+
+    func releaseSearch() {
+        release?.resume()
+        release = nil
+    }
+}
+
+/// Fails once, then hangs — so the second call is a *retry* that has not
+/// answered yet, which is exactly the window GLO-61 is about.
+actor FailThenHangCatalog: CatalogSearching {
+    private var calls = 0
+    private var release: CheckedContinuation<Void, Never>?
+    private var entered: CheckedContinuation<Void, Never>?
+    private var hasEnteredSecond = false
+
+    func search(_: String, limit _: Int) async throws(GlossedError) -> [CatalogHit] {
+        calls += 1
+        if calls == 1 {
+            throw GlossedError(.offline, userMessage: "no connection — try again in a sec.")
+        }
+        hasEnteredSecond = true
+        entered?.resume()
+        entered = nil
+        await withCheckedContinuation { release = $0 }
+        return []
+    }
+
+    func recordFailedSearch(_: String, domain _: Domain?) async {}
+
+    func waitUntilRetryIsInFlight() async {
+        guard !hasEnteredSecond else { return }
+        await withCheckedContinuation { entered = $0 }
+    }
+
+    func releaseRetry() {
+        release?.resume()
+        release = nil
+    }
+}
+
+@MainActor
+@Test func theSearchRungsFailureOutlivesTheRetryItStarted() async {
+    // `failure` used to be cleared on the way IN. The retry button is gated on
+    // `failure != nil`, so pressing it removed the one control that said the
+    // state was recoverable — for the whole length of the request.
+    let catalog = FailThenHangCatalog()
+    let live = SearchRungModel(catalog: catalog, query: "watermelon")
+
+    await live.search()
+    let failed = live.failure
+    #expect(failed != nil, "the first attempt failed")
+
+    let retry = Task { await live.search() }
+    await catalog.waitUntilRetryIsInFlight()
+
+    // THE WINDOW: the retry is in flight and has not answered.
+    #expect(live.isSearching)
+    #expect(live.failure?.userMessage == failed?.userMessage, "the error is still on screen")
+    #expect(!live.isMiss, "an unanswered search never claims the catalog is empty")
+
+    await catalog.releaseRetry()
+    await retry.value
+    #expect(live.failure == nil, "a landed answer is what clears it")
+}
+
+@MainActor
+@Test func aSearchInFlightNeverReportsAMiss() async {
+    // `isMiss` gates "nothing yet — we noted that you looked", and `!isSearching`
+    // is what stops an unanswered search claiming the catalog is empty. Pinned
+    // because GLO-61 argued this guard was missing; it is not, which is why the
+    // fix above is a correctness-of-affordance change and not a data one.
+    let catalog = HangingCatalog()
+    let live = SearchRungModel(catalog: catalog, query: "watermelon")
+
+    let search = Task { await live.search() }
+    await catalog.waitUntilEntered()
+    #expect(live.isSearching)
+    #expect(!live.isMiss, "in flight is not a verdict")
+
+    await catalog.releaseSearch()
+    await search.value
+    #expect(live.isMiss, "a real query came back empty — that IS a miss")
+    #expect(live.failure == nil)
+}
