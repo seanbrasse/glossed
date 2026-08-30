@@ -110,6 +110,7 @@ struct AppShell: View {
         ZStack(alignment: .bottom) {
             activeScreen
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clearingFloatingNav()
             if !itemSheetOpen {
                 FloatingNav(
                     tabs: [
