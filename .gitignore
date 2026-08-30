@@ -25,3 +25,8 @@ supabase/.env
 # Session-local scheduler artifacts
 .claude/scheduled_tasks.lock
 .claude/*.lock
+
+# GLO-223: the local catalog snapshot. 6MB of import-script output, not source —
+# a fresh machine builds it with HANDOFF §9's scripts, this is the fast path back
+# after a `supabase db reset`.
+supabase/.catalog-snapshot.sql
