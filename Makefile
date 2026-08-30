@@ -1,4 +1,4 @@
-.PHONY: setup dev lint format test db-reset db-test generate functions-test catalog-snapshot catalog-restore
+.PHONY: setup dev lint format test db-reset db-test db-test-clean generate functions-test catalog-snapshot catalog-restore
 
 setup:
 	brew bundle --no-upgrade
@@ -41,7 +41,19 @@ catalog-snapshot:
 catalog-restore:
 	./scripts/catalog_snapshot.sh load
 
+# `supabase test db` runs against the LIVE local db — there is no shadow
+# database. The pgTAP suite is written to own its users from a clean slate,
+# which is correct, so it aborts once anyone has driven the app and the
+# fixtures collide with real rows (GLO-221).
 db-test:
+	supabase test db
+
+# The clean-slate run. Deliberately NOT what `db-test` does: two lanes share
+# this database, and a test command that silently resets would take a peer's
+# drive out from under them mid-session. HANDOFF's standing rule is to ping
+# before you reset — so this is the explicit door, and the catalog survives it.
+db-test-clean:
+	$(MAKE) db-reset
 	supabase test db
 
 # Edge Functions are Deno, so they sit outside the Swift toolchain entirely.
