@@ -59,6 +59,15 @@ public enum TasteReceipt {
         )
     }
 
+    /// The read, gated — the whole path from seam to speakable rows, kept
+    /// here beside the rule rather than in the model, so there is exactly one
+    /// place a row can pass through. A missing seam or a failed read is
+    /// silence: the receipt is chrome over the picks and never costs them.
+    static func speakable(from store: DiscoverStore) async -> [AffinityRow] {
+        guard let read = store.affinity, let rows = try? await read() else { return [] }
+        return speakable(rows)
+    }
+
     /// The card's eyebrow. Names the source, not the subject: these are the
     /// caller's own logs talking, and the words never turn that into an
     /// identity.

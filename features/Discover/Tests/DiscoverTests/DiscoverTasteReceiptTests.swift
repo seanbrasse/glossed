@@ -110,6 +110,21 @@ private func pick() throws -> DiscoverHit {
 }
 
 @MainActor
+@Test func aSpeakingVectorDoesNotRescueAnEmptyScreen() async {
+    // Deliberate, and pinned so it cannot drift: nothing picked is still the
+    // empty phase, whose one message is how picks get made (delta 10). A
+    // receipt beside "nothing picked yet" would be two messages, and taste
+    // never picked a row anyway.
+    var store = DiscoverStore(feed: { _ in [] }, crosswalk: { _ in [] })
+    store.affinity = { try [row("fragrance-free", n: 12, shrunk: 0.8)] }
+    let model = DiscoverModel(store: store)
+    model.load()
+    await model.loadTask?.value
+    #expect(!model.taste.isEmpty, "the vector did speak…")
+    #expect(model.phase == .empty, "…and the screen is still the empty one")
+}
+
+@MainActor
 @Test func noAffinitySeamMeansNoCardRatherThanAnEmptyOne() async throws {
     let picks = try [pick()]
     let store = DiscoverStore(feed: { _ in picks }, crosswalk: { _ in [] })

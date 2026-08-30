@@ -28,7 +28,9 @@ public final class DiscoverModel {
     /// only otherwise invent.
     private var categoryLabels: [String: String] = [:]
     /// The speakable rows of the caller's taste vector (GLO-229), gated by
-    /// `TasteReceipt` — empty until it has enough behind it to speak.
+    /// `TasteReceipt` — empty until it has enough behind it to speak. It does
+    /// NOT rescue an empty screen: `phase` still turns on picks and crosswalk,
+    /// because the empty state is one message (delta 10) and taste picks no row.
     public private(set) var taste: [AffinityRow] = []
 
     /// One card in the feed's stream. The surface is a single scroll of
@@ -156,10 +158,9 @@ public final class DiscoverModel {
             // hiccup must not blank the picks, nor the reverse.
             async let feed = try? store.feed(12)
             async let partners = try? store.crosswalk(6)
-            // Reference data, and the third read that must not blank the
-            // other two: a categories hiccup costs the eyebrow, nothing else.
+            // Two more reads, chrome only: a hiccup in either costs its own
             async let labels = Self.labels(from: store)
-            async let receipt = Self.speakableTaste(from: store)
+            async let receipt = TasteReceipt.speakable(from: store)
             let (loadedPicks, loadedPartners) = await (feed, partners)
             let (loadedLabels, loadedTaste) = await (labels, receipt)
             guard !Task.isCancelled else { return }
@@ -177,12 +178,6 @@ public final class DiscoverModel {
     private nonisolated static func labels(from store: DiscoverStore) async -> [String: String] {
         guard let read = store.categories, let rows = try? await read() else { return [:] }
         return Dictionary(rows.map { ($0.slug, $0.label) }, uniquingKeysWith: { first, _ in first })
-    }
-
-    /// The vector, gated. A missing seam or a failed read is silence.
-    private nonisolated static func speakableTaste(from store: DiscoverStore) async -> [AffinityRow] {
-        guard let read = store.affinity, let rows = try? await read() else { return [] }
-        return TasteReceipt.speakable(rows)
     }
 
     /// `G.Discover`'s per-cell `<Eyebrow>{c.type}</Eyebrow>` — `CREAM BLUSH`
