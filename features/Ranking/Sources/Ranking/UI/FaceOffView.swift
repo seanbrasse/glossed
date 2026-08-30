@@ -1,11 +1,6 @@
 import DesignSystem
 import SwiftUI
 
-/// The face-off: two products, one question, no stars anywhere.
-///
-/// The view owns only presentation — every ordering decision comes from
-/// `RankingEngine`, so what a session means is decided by tested logic rather
-/// than by whichever branch the UI happened to take.
 /// What the host needs to render one side of a comparison.
 ///
 /// Outside `FaceOffView` rather than nested in it: a type nested in a generic
@@ -21,6 +16,11 @@ public struct FaceOffContender: Identifiable, Equatable {
     }
 }
 
+/// The face-off: two products, one question, no stars anywhere.
+///
+/// The view owns only presentation — every ordering decision comes from
+/// `RankingEngine`, so what a session means is decided by tested logic rather
+/// than by whichever branch the UI happened to take.
 public struct FaceOffView<Card: View>: View {
     public typealias Contender = FaceOffContender
 
@@ -134,7 +134,12 @@ public struct FaceOffView<Card: View>: View {
             Text("#\(state.finalPosition)")
                 .font(Typography.display(56))
                 .foregroundStyle(Tokens.Cherry.base)
-            Text("of \(state.finalListLength) \(state.categoryLabel)").meta()
+            // "in <label>", not the frame's "of 5 blushes". `categories.label`
+            // is singular in the database — `blush`, `cleanser` — so the
+            // frame's plural cannot be produced from the data, and suffixing
+            // one on is wrong the moment the label is `serums + actives`
+            // (GLO-203's shape). Driving it showed "of 4 blush" (GLO-250).
+            Text("of \(state.finalListLength) in \(state.categoryLabel)").meta()
             if let saveFailure {
                 // The placement on screen was optimistic. It did not land, and
                 // a toast on top of a failed write would be the app telling

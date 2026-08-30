@@ -93,11 +93,10 @@ public struct RankItView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .foregroundStyle(Tokens.Ink.primary)
-            EvidenceLine(
-                n: have,
-                of: need,
-                label: "in \(model.categoryLabel) you can rank"
-            )
+            // "in <label> so far", never "<label>s": `categories.label` is
+            // singular in the database and one of them is `serums + actives`,
+            // so there is no suffix that reads right everywhere (GLO-250).
+            EvidenceLine(n: have, of: need, label: "in \(model.categoryLabel) so far")
             Text("chips and a like still land on every one of them")
                 .meta()
                 .multilineTextAlignment(.center)
