@@ -116,13 +116,14 @@ public struct PlusIcon: View {
     }
 }
 
-/// Renders one of the drawer's four kit glyphs at the kit's own `size={18}`.
+/// Renders one of the drawer's kit glyphs at the kit's own `size={18}`.
 ///
 /// GLO-64's second slice. The first ported the nav's three marks; these are the
-/// + drawer's four — `search` · `file` · `folder` · `layers` — read straight
+/// + drawer's — `search` · `file` · `folder` · `layers` — read straight
 /// off `G.ICONS` this session, and cross-checked by pulling `sparkles` and
 /// `shelf` from the same object and finding them identical to what is already
-/// drawn above.
+/// drawn above. `camera` joined them for GLO-254's fifth door, fetched from the
+/// same `G.ICONS` rather than drawn from scratch.
 struct DrawerGlyphView: View {
     let glyph: ActionDrawer.Glyph
     /// `G.drawerOptions` draws every one of the four at `size={18}`.
@@ -148,6 +149,7 @@ private struct DrawerGlyphShape: Shape {
         case .file: FileShape().path(in: rect)
         case .folder: FolderShape().path(in: rect)
         case .layers: LayersShape().path(in: rect)
+        case .camera: CameraShape().path(in: rect)
         }
     }
 }
@@ -199,6 +201,35 @@ private struct FileShape: Shape {
         path.move(to: grid.point(14, 3))
         path.addLine(to: grid.point(14, 8))
         path.addLine(to: grid.point(19, 8))
+        return path
+    }
+}
+
+/// `ICONS.camera` — the body with the viewfinder hump stepped into its top
+/// edge, and the lens as a separate circle:
+/// `<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/>`
+/// `<circle cx="12" cy="13" r="3"/>`
+private struct CameraShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let grid = KitGrid(rect: rect)
+        let radius = 2 * grid.scale
+        var path = Path()
+        // The hump first, then the body clockwise from its top-left corner.
+        path.move(to: grid.point(14.5, 4))
+        path.addLine(to: grid.point(9.5, 4))
+        path.addLine(to: grid.point(7, 7))
+        path.addLine(to: grid.point(4, 7))
+        path.addArc(tangent1End: grid.point(2, 7), tangent2End: grid.point(2, 20), radius: radius)
+        path.addArc(tangent1End: grid.point(2, 20), tangent2End: grid.point(22, 20), radius: radius)
+        path.addArc(tangent1End: grid.point(22, 20), tangent2End: grid.point(22, 7), radius: radius)
+        path.addArc(tangent1End: grid.point(22, 7), tangent2End: grid.point(17, 7), radius: radius)
+        path.addLine(to: grid.point(17, 7))
+        // The kit's `z`: the hump's right shoulder back up to where it started.
+        path.closeSubpath()
+        path.addEllipse(in: CGRect(
+            origin: grid.point(9, 10),
+            size: CGSize(width: 6 * grid.scale, height: 6 * grid.scale)
+        ))
         return path
     }
 }

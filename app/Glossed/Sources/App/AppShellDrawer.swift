@@ -53,8 +53,31 @@ extension AppShell {
         .transition(.opacity.animation(.easeOut(duration: Tokens.Motion.med)))
     }
 
-    /// The four doors. Labels, subtitles, tints and glyphs are `G.drawerOptions`
-    /// verbatim; what changes here is where two of them lead.
+    /// The five doors. The first four are `G.drawerOptions` verbatim — labels,
+    /// subtitles, tints and glyphs; what changes there is where two of them
+    /// lead.
+    ///
+    /// **The fifth is Sean's, and it is a stated divergence from the frame.**
+    /// Asked where looks are created he answered with the whole list — *"add a
+    /// product, import a list, new collection, routine, **post a look**"* —
+    /// which overrules the screen map's caption for this drawer (*"posting a
+    /// look is not V1"*) and delta 9's four-door list. The caption predates
+    /// delta 11, which put looks and the feed in V1, and `tech/00` §2 states
+    /// deltas supersede: the caption's reason expired while the caption stayed
+    /// standing, which is GLO-242's landing tab exactly. `G.drawerOptions`
+    /// still draws four, so the row's label is Sean's and its subtitle and tint
+    /// are this lane's; the mark is not invented, `G.ICONS.camera` is the kit's
+    /// own (GLO-64).
+    ///
+    /// **Why the subtitle says what it says.** `post a look` is Sean's word for
+    /// the door and it stays, but the composer behind it calls `saveDraft` —
+    /// nothing in the app publishes, and `ComposerView`'s own line ("saves to
+    /// your account. nothing shows it to anyone yet") is the claim of record.
+    /// So the subtitle names what the composer *does* — photos, and tags drawn
+    /// from what you already own — and claims nothing about who will see it.
+    /// GLO-189's law is the binding one here and it holds in both directions:
+    /// no copy on this path implies a look is reviewed, and none implies it is
+    /// published either.
     ///
     /// **GLO-189 cuts both ways, and this is the direction nobody was watching.**
     /// `new routine` said *"routines land with GLO-21"* while the composer had
@@ -117,6 +140,21 @@ extension AppShell {
                 drawerOpen = false
                 routineTrip = UUID()
                 routineOpen = true
+            },
+            .init(
+                label: "post a look",
+                subtitle: "photos · tag what you own",
+                glyph: .camera,
+                // Five doors, four kit tints, so one repeats. Mint rather than
+                // cherry: cherry is the app's one loud voice and `new routine`
+                // already wears it here, so a second would sit directly under
+                // the first and read as two pops in one sheet. Mint's twin is
+                // four rows away, which is as far apart as this list goes.
+                tint: .mint
+            ) {
+                drawerOpen = false
+                lookTrip = UUID()
+                lookOpen = true
             }
         ])
         // The kit's sheet curve overshoots on purpose, so mid-flight the sheet
