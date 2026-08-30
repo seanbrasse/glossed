@@ -34,10 +34,15 @@ public struct PrivacyStore: Sendable {
 /// tested one, but there are no looks to scope yet and a row governing nothing
 /// is a promise the app cannot keep. It joins the list when looks ship.
 public enum PrivacyRow: CaseIterable, Sendable {
-    case shelf, rankings, routines
+    /// Frame order (G.Privacy), looks first. It is on this screen because
+    /// `overallScope` already counts it: with looks absent, setting the other
+    /// three to public left the header reading "mixed" over four identical
+    /// rows, with nothing on screen a user could touch to resolve it.
+    case looks, shelf, rankings, routines
 
     public var surface: VisibilitySurface {
         switch self {
+        case .looks: .looks
         case .shelf: .shelf
         case .rankings: .rankings
         case .routines: .routines
@@ -46,6 +51,7 @@ public enum PrivacyRow: CaseIterable, Sendable {
 
     public var title: String {
         switch self {
+        case .looks: "your looks"
         case .shelf: "your shelf"
         case .rankings: "your rankings"
         case .routines: "your routines"
@@ -56,6 +62,7 @@ public enum PrivacyRow: CaseIterable, Sendable {
     /// screen is a way of not answering the question.
     public var detail: String {
         switch self {
+        case .looks: "the photos you post, and the products tagged in them."
         case .shelf: "the products you've logged, and what you think of them."
         case .rankings: "your ordered lists, and where each product sits."
         case .routines: "your am, pm, weekly and wash-day steps."
@@ -111,6 +118,25 @@ public final class PrivacyModel {
         }
     }
 
+    /// The frame's master control. The repository sets one surface at a
+    /// time, so this is four writes, and a failure partway leaves the database
+    /// holding some of them. Reverting to `previous` would then show a state
+    /// the database does not have — so on failure this re-reads rather than
+    /// guesses, and only falls back to the old value if the read fails too.
+    public func setAll(to scope: PrivacyScope) async {
+        let previous = scopes
+        scopes = Self.applying(all: scope, in: scopes)
+        errorMessage = nil
+        do {
+            for row in PrivacyRow.allCases {
+                try await store.setScope(row.surface, scope)
+            }
+        } catch {
+            noteFailure(error)
+            scopes = await (try? store.load()) ?? previous
+        }
+    }
+
     public func setDiscoverable(_ on: Bool) async {
         let previous = scopes
         scopes = Self.applying(discoverable: on, in: scopes)
@@ -139,7 +165,18 @@ public final class PrivacyModel {
             shelf: row == .shelf ? scope : current.shelf,
             rankings: row == .rankings ? scope : current.rankings,
             routines: row == .routines ? scope : current.routines,
-            looks: current.looks,
+            looks: row == .looks ? scope : current.looks,
+            discoverable: current.discoverable
+        )
+    }
+
+    /// Every surface at once — the frame's "one switch for all of it".
+    /// `discoverable` is untouched on purpose: being visible and asking to be
+    /// surfaced are different decisions (§1.3), which is why it is a separate
+    /// card rather than a fifth row.
+    static func applying(all scope: PrivacyScope, in current: PrivacyScopes) -> PrivacyScopes {
+        PrivacyScopes(
+            shelf: scope, rankings: scope, routines: scope, looks: scope,
             discoverable: current.discoverable
         )
     }

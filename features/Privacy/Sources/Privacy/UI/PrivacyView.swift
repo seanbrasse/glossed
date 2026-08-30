@@ -4,9 +4,15 @@ import SwiftUI
 
 /// The privacy screen. GLO-119, `docs/tech/02` §1.
 ///
-/// Built from the design system rather than a frame (Sean, Aug 29: no frames
-/// for 1.5). The kit's two privacy frames are reference only, and their missing
-/// `discoverable` row is superseded — that control ships as designed in §1.2.
+/// Structured to the kit's `G.Privacy` frame (Sean, Aug 30: "make sure the
+/// switches match what we have in our designs") — master card, four rows, a
+/// scope dot each, built from design-system primitives.
+///
+/// Three deliberate departures from the frame: the `discoverable` card, which
+/// the frame lacks and §1.2 supersedes it on; `only you` rather than the
+/// frame's `just you` (Sean's rename, Aug 29); and no trailing `save` button,
+/// because every change here writes immediately and a save button on a saved
+/// screen misdescribes what a tap did.
 public struct PrivacyView: View {
     @State private var model: PrivacyModel
 
@@ -21,6 +27,8 @@ public struct PrivacyView: View {
                 if model.isLoading {
                     ProgressView().padding(.top, Tokens.Space.s8)
                 } else {
+                    everythingCard
+                    Text("OR ONE AT A TIME").eyebrow()
                     ForEach(PrivacyRow.allCases, id: \.self) { row in
                         scopeCard(row)
                     }
@@ -49,6 +57,68 @@ public struct PrivacyView: View {
             Text(summaryDetail)
                 .font(.system(size: Typography.Size.small))
                 .foregroundStyle(Tokens.Ink.soft)
+            // The frame's aside, minus its trailing ✿ — that glyph is not in
+            // Caveat, so it never draws (GLO-69).
+            Text("three scopes, four things, one switch for all of it")
+                .handAside()
+                .rotationEffect(Tokens.Rotate.r3)
+        }
+    }
+
+    /// The frame's headline: one control that moves all four at once. Without
+    /// it the screen states "mixed" but offers no way to un-mix.
+    private var everythingCard: some View {
+        GlossedCard(tint: .butter) {
+            VStack(alignment: .leading, spacing: Tokens.Space.s3) {
+                HStack(spacing: Tokens.Space.s2) {
+                    Text("everything")
+                        .font(Typography.display(Typography.Size.h3, weight: 800))
+                        .foregroundStyle(Tokens.Ink.primary)
+                    Spacer(minLength: Tokens.Space.s2)
+                    if let overall = model.scopes.overallScope {
+                        Badge("all four · \(overall.label)", tone: .mint)
+                    } else {
+                        Badge("mixed", tone: .lilac)
+                    }
+                }
+
+                Segmented(
+                    options: PrivacyScope.allCases.map(\.label),
+                    selection: Binding(
+                        get: { model.scopes.overallScope?.label ?? "" },
+                        set: { label in
+                            guard let scope = PrivacyScope.allCases.first(where: { $0.label == label })
+                            else { return }
+                            Task { await model.setAll(to: scope) }
+                        }
+                    )
+                )
+                .disabled(model.isLockedByAgeGate)
+
+                Text(model.scopes.overallScope == nil
+                    ? "set each one below, or tap a scope here to move all four at once."
+                    : "one tap moves all four. change any single one below and this reads mixed.")
+                    .font(.system(size: Typography.Size.meta))
+                    .foregroundStyle(Tokens.Ink.soft)
+            }
+        }
+    }
+
+    /// The frame's scope dot: current state legible without reading the
+    /// control under it.
+    private func scopeDot(_ scope: PrivacyScope) -> some View {
+        Circle()
+            .fill(dotFill(scope))
+            .frame(width: 12, height: 12)
+            .overlay(Circle().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.hair))
+            .accessibilityHidden(true)
+    }
+
+    private func dotFill(_ scope: PrivacyScope) -> Color {
+        switch scope {
+        case .onlyYou: Tokens.Support.mintSoft
+        case .friends: Tokens.Support.lilacSoft
+        case .publicScope: Tokens.Support.butterSoft
         }
     }
 
@@ -63,9 +133,13 @@ public struct PrivacyView: View {
     private func scopeCard(_ row: PrivacyRow) -> some View {
         GlossedCard {
             VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-                Text(row.title)
-                    .font(.system(size: Typography.Size.h3, weight: .semibold))
-                    .foregroundStyle(Tokens.Ink.primary)
+                HStack(spacing: Tokens.Space.s2) {
+                    Text(row.title)
+                        .font(.system(size: Typography.Size.h3, weight: .semibold))
+                        .foregroundStyle(Tokens.Ink.primary)
+                    Spacer(minLength: Tokens.Space.s2)
+                    scopeDot(model.scopes.scope(for: row.surface))
+                }
                 Text(row.detail)
                     .font(.system(size: Typography.Size.small))
                     .foregroundStyle(Tokens.Ink.soft)
