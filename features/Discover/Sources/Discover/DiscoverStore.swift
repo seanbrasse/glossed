@@ -59,13 +59,13 @@ public struct DiscoverStore: Sendable {
             crosswalk: { try await aggregates.crosswalk(limit: $0) },
             dismiss: { try await taste.dismissRecommendation(productID: $0, reason: $1) }
         )
-        // One call for every domain, not one per domain: a stream mixes
-        // makeup with skincare, and `categories(domain:)` already takes nil
-        // to mean all of them (the add-ladder's create rung does the same).
         // Already on the repository the caller handed us, so the receipt
         // needs no new argument and no app-side change at all.
         store.affinity = { try await aggregates.affinity() }
         if let catalog {
+            // One call for every domain, not one per domain: a stream mixes
+            // makeup with skincare, and `categories(domain:)` already takes
+            // nil to mean all of them (the create rung does the same).
             store.categories = { try await catalog.categories(domain: nil) }
         }
         return store
