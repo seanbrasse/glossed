@@ -94,10 +94,15 @@ public final class SearchRungModel {
 
     public func search() async {
         isSearching = true
-        failure = nil
         defer { isSearching = false }
         do {
             result = try await rung.typeahead(query, domain: domain)
+            // Cleared only once an answer actually arrives, matching the
+            // near-match rung. Clearing on the way in took the retry button
+            // off screen the instant it was pressed — the affordance is gated
+            // on `failure != nil` — so the one control that says the state is
+            // recoverable vanished for the length of the request.
+            failure = nil
         } catch {
             result = SearchRung.Result(hits: [], isMiss: false)
             failure = error
