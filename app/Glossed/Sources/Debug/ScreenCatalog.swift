@@ -54,6 +54,8 @@
             ProductEntries.lookupFailed,
             ProductEntries.notAnAnchor,
             RoutineEntry.composer,
+            RoutineEntry.saveFailed,
+            RoutineEntry.emptyShelf,
             OnboardingEntry.wholeTrip,
             OnboardingEntry.quizAnchor,
             OnboardingEntry.tour,
