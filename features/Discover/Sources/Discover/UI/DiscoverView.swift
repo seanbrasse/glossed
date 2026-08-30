@@ -40,12 +40,7 @@ public struct DiscoverView: View {
                 case .empty:
                     emptyState
                 case .loaded:
-                    if !model.picks.isEmpty {
-                        picksSection
-                    }
-                    if !model.crosswalk.isEmpty {
-                        crosswalkCard
-                    }
+                    stream
                 }
             }
             .padding(.init(top: 14, leading: 16, bottom: 110, trailing: 16))
@@ -55,30 +50,56 @@ public struct DiscoverView: View {
         .task { model.load() }
     }
 
-    // MARK: - picks
+    // MARK: - the stream
 
-    private var picksSection: some View {
+    /// One scroll of mixed, self-labeling cards (GLO-195). No section
+    /// headers: the header was labeling a shelf of cards, which is a
+    /// catalog's shape — each card's basis line carries its own why.
+    private var stream: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-            HStack {
-                Text("PICKED FOR YOU").eyebrow()
-                Spacer(minLength: 0)
-                // hidden when the app wires nothing — an affordance that
-                // leads nowhere is not offered (the full-page rule)
-                if let onOpenTrending {
-                    Button(action: onOpenTrending) {
-                        Text("trending ↗")
-                            .font(Typography.mono(11))
-                            .foregroundStyle(Tokens.Semantic.accentText)
-                            .underline()
+            ForEach(model.stream) { card in
+                switch card {
+                case let .pick(pick):
+                    pickCard(pick)
+                case let .crosswalk(rows):
+                    crosswalkCard(rows)
+                case .trendingTeaser:
+                    // dropped when the app wires nothing — an affordance
+                    // that leads nowhere is not offered (the full-page rule)
+                    if let onOpenTrending {
+                        trendingTeaser(onOpenTrending)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("open trending")
                 }
             }
-            ForEach(model.picks) { pick in
-                pickCard(pick)
-            }
         }
+    }
+
+    /// Trending as a card in the stream, not a header link. It navigates
+    /// rather than claims, so it carries no n — the claims live on the
+    /// other side of it, where every row shows its count (GLO-129).
+    private func trendingTeaser(_ open: @escaping () -> Void) -> some View {
+        Button(action: open) {
+            HStack(alignment: .firstTextBaseline, spacing: Tokens.Space.s2) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("WHAT PEOPLE ARE LOGGING").eyebrow()
+                    Text("trending, overall and in your skin type").meta()
+                }
+                Spacer(minLength: 0)
+                Text("→")
+                    .font(Typography.mono(13, bold: true))
+                    .foregroundStyle(Tokens.Semantic.accentText)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Tokens.Space.s3)
+            .background(Tokens.Ground.card)
+            .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.lg))
+            .overlay(
+                RoundedRectangle(cornerRadius: Tokens.Radius.lg)
+                    .strokeBorder(Tokens.Ground.line, lineWidth: Tokens.Border.hair)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("open trending")
     }
 
     private func pickCard(_ pick: DiscoverHit) -> some View {
@@ -139,12 +160,12 @@ public struct DiscoverView: View {
 
     // MARK: - crosswalk
 
-    private var crosswalkCard: some View {
+    private func crosswalkCard(_ rows: [CrosswalkHit]) -> some View {
         GlossedCard(tint: .lilac) {
             VStack(alignment: .leading, spacing: Tokens.Space.s3) {
                 // never "your match" — people who wear what you wear
                 Text("PEOPLE WHO WEAR WHAT YOU WEAR").eyebrow()
-                ForEach(model.crosswalk) { row in
+                ForEach(rows) { row in
                     crosswalkRow(row)
                 }
             }

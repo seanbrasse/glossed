@@ -22,6 +22,52 @@ public final class DiscoverModel {
     public private(set) var picks: [DiscoverHit] = []
     public private(set) var crosswalk: [CrosswalkHit] = []
 
+    /// One card in the feed's stream. The surface is a single scroll of
+    /// mixed, self-labeling kinds (GLO-195: discovery is incorporated into
+    /// the feed — "we are not a store") — a sectioned page of product cards
+    /// is a catalog layout, and the section header was doing the labeling
+    /// work each card's basis line already does better.
+    ///
+    /// Look posts join this enum in GLO-196; the composition below is the
+    /// architecture they interleave into.
+    public enum StreamCard: Identifiable {
+        case pick(DiscoverHit)
+        /// One card holding all partner rows — the crosswalk is one thought.
+        case crosswalk([CrosswalkHit])
+        /// The way to trending, as a card IN the stream rather than a header
+        /// link: a stream has no headers to hang a link on, and a card can
+        /// say what is behind it. It makes no claim and carries no n; the
+        /// view drops it when the app wires no destination (the full-page
+        /// rule — an affordance that leads nowhere is not offered).
+        case trendingTeaser
+
+        public var id: String {
+            switch self {
+            case let .pick(hit): "pick-\(hit.id)"
+            case .crosswalk: "crosswalk"
+            case .trendingTeaser: "trending"
+            }
+        }
+    }
+
+    /// The stream, composed deterministically — no randomness, so the order
+    /// is testable and two loads of the same data read the same.
+    ///
+    /// Picks keep the SERVER's order untouched: 0040 ranks them and the
+    /// client does not second-guess it. The crosswalk lands after the second
+    /// pick — early enough to be part of the feed's opening, late enough
+    /// that the top of the stream is picks about *you*. Trending lands after
+    /// the fifth, where the stream turns from "for you" toward "everyone".
+    /// Short streams degrade by appending: every card still appears.
+    public var stream: [StreamCard] {
+        var cards: [StreamCard] = picks.map { .pick($0) }
+        if !crosswalk.isEmpty {
+            cards.insert(.crosswalk(crosswalk), at: min(2, cards.count))
+        }
+        cards.insert(.trendingTeaser, at: min(6, cards.count))
+        return cards
+    }
+
     private let store: DiscoverStore?
     private let imageBase: URL?
     private let tracker: Tracker?
