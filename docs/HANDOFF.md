@@ -1219,6 +1219,48 @@ deno run --allow-run --allow-env scripts/merge_feeder.ts --pending
 # somehow re-enter under the 800px floor)
 ```
 
+**You should not need those seven scripts twice.** The catalog snapshot store
+(GLO-223) lives at **`~/.glossed/catalog`** — deliberately OUTSIDE the repo,
+because the first version kept its one copy at `supabase/.catalog-snapshot.sql`
+and that copy was found sitting in one worktree of six, invisible to every
+other lane and one `git clean` from gone. Override with `GLOSSED_CATALOG_HOME`.
+
+```bash
+make catalog-generations   # what the store holds, newest first, with row counts
+make catalog-snapshot      # take one now
+make catalog-restore       # put the newest one back
+```
+
+- **It refreshes itself.** Any script that grows the catalog leaves a fresh
+  snapshot behind — the hook is in `scripts/db.ts`, which all eight import
+  scripts must import to reach the database, so a script written later is
+  covered without being wired up. It does not fire for a remote
+  `GLOSSED_DB_URL`, when the row count did not move, or on a Ctrl-C — so
+  `make catalog-snapshot` is still the explicit door.
+- **Several generations are kept** (`GLOSSED_CATALOG_KEEP`, default 5), so a
+  bad snapshot can never be the only snapshot. A save under
+  `GLOSSED_CATALOG_MIN_PCT` (default 90%) of the last one is **refused** until
+  you pass `--allow-shrink`; the old script only refused at zero rows, which
+  meant 22,668 → 400 was silent.
+- Each snapshot carries a `.meta` manifest (per-table counts, timestamp, git
+  sha) and **restore verifies against it** — per-table counts plus an orphan
+  check — and dies rather than half-succeeding.
+- The dump is `--rows-per-insert --on-conflict-do-nothing`, not COPY, because
+  the restore lands in a database `supabase db reset` has already seeded and
+  `seed.sql` re-inserts brands/products/variants under **fixed uuids the
+  snapshot also contains**. Plain COPY hits a duplicate key and the
+  single-transaction restore rolls the whole catalog back. Restore is therefore
+  idempotent — running it twice is a no-op, proven.
+- `pg_dump --disable-triggers` **does not work here** and the old comment
+  claiming it would was wrong: this container's `postgres` has `usesuper = f`,
+  so it dies with `permission denied: … is a system trigger`. The restore uses
+  `set session_replication_role = replica`, which Supabase does permit.
+
+**Proven against a real `supabase db reset`**, not a rolled-back transaction:
+22,668 rows before, 22,668 after (products 3,206 · variants 9,019 ·
+brands 497). The fresh-machine path — no in-repo snapshot, store only — was
+exercised in the same run.
+
 **The simulator canon: iPhone 16 Pro (iOS 18.0), UDID
 `0E1EF64B-E2E3-4A51-B322-29BBEFCEEFE1` — one booted device, always;** shut
 down strays, borrow with a ping when two lanes run. Bundle id
