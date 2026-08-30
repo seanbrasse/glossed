@@ -20,6 +20,40 @@ GLO-177), [#284](https://github.com/seanbrasse/glossed/pull/284) (GLO-180),
 [GLO-178](https://linear.app/glossed/issue/GLO-178), waiting on Sean because the
 question inside it is a product call, not a code one.
 
+## -1. The feed epic — what the late session built (read this before touching Discover, Looks, Media, or 0043)
+
+**Sean's direction moved twice on Aug 30, both first-hand:** the feed is in V1
+(deltas 11–14, `tech/00`), and then *discovery is incorporated into the feed —
+there is no separate feed surface* (delta 15). The late session built
+everything code alone could deliver:
+
+| Merged | What |
+|---|---|
+| #314 | Discover is the feed's STREAM — one scroll of self-labeling cards, no sections ("a sectioned page of product cards is a store's shape") |
+| #318 | Migration **0043**: `looks`/`look_photos`/`look_tags`. Minor deny in the INSERT policies via `can_post_look()`; public read = `state='public' AND can_view(owner,'looks') AND not blocked`, fail-closed on unknown states. 16 pgTAP assertions |
+| #320 | The stream's **injected card slots** — features never import features, so the app composes (the FitPromptCard answer, generalized). Position = final index, ties by id, deterministic. The onboarding lane's tune card is its first consumer |
+| #324, #327 | `features/Looks`: the composer, model + UI, four picker states driven against promises written first. A failed save loses NOTHING |
+| #330 | **`core/Media` EXISTS** (GLO-148 closed by building it): `PhotoPreparer` (screen → strip-by-omission → bound → JPEG; the strip test proves the fixture carried GPS first) and `PresignedUploader` (deliberately dumb). The SCA seam FAILS CLOSED — a checker that errors blocks |
+| #333 | `LooksRepository` under Sean's session opening (spent, expired). Idempotency = client-minted PRIMARY KEY (the first draft invented a `client_id` column 0043 doesn't have — diff against the real migration, always) |
+| #334 | `storage_presign`'s third namespace: `look_id` + `position`. Same-predicate-as-policy; one byte-identical 403 (no minor-status oracle); **per-kind content types** — looks take jpeg, cutouts keep png/heic because alpha is the shelf's whole look |
+
+**What the pipeline can and cannot do:** a composer draft flows prepare →
+presign → PUT → rows, end to end, idempotently. It cannot SHOW anyone
+anything: nothing moves a look to `public` until image moderation exists
+(GLO-26, V1-Urgent, vendor is Sean's) — and no copy anywhere promises a
+review that is not built (GLO-189's law).
+
+**Open on the epic:** GLO-196 + GLO-200's look-card half (blocked on GLO-26 +
+the tab-name/composition rulings; carries GLO-205's body-facts constraint —
+never a literal value, match-or-nothing, badge opt-in only). The composer has
+no app entry point yet — deliberate; it rides the look-card slice. `searchShelf`
+answers empty until the tag-picker sheet lands.
+
+**Sweep-loop note:** the package count is now **16** (Media, Looks, Onboarding,
+Leaderboard, Browse all landed inside 24h) and the test total was **644 at
+`4aeca47`**. The §9 glob loop found every one of them unaided. Do not trust
+either number; re-measure.
+
 ## 0. Read this first
 
 **Nothing forces `supabase_migrations.schema_migrations` to agree with the
