@@ -114,9 +114,10 @@ struct AppShell: View {
             if !itemSheetOpen {
                 FloatingNav(
                     tabs: [
-                        .init(id: ShellTab.discover, label: "discover", systemImage: "sparkles"),
-                        .init(id: ShellTab.shelf, label: "shelf", systemImage: "square.split.1x2"),
-                        .init(id: ShellTab.you, label: "you", systemImage: "person.crop.circle")
+                        .init(id: ShellTab.discover, label: "discover", glyph: .discover),
+                        .init(id: ShellTab.shelf, label: "shelf", glyph: .shelf),
+                        // maya = the dev sign-in; real names are GLO-204's.
+                        .init(id: ShellTab.you, label: "you", glyph: .avatar(name: "maya"))
                     ],
                     active: $tab,
                     onPlus: { drawerOpen = true }

@@ -1,26 +1,30 @@
 import SwiftUI
 
-/// The nav grows with its labels now (GLO-201, Sean's ruling), so its icons
-/// grow too. Caption type reaches roughly 3.2x at the largest accessibility
-/// size, and an icon that stopped at the shared 1.6 would sit small in a bar
-/// that kept going.
-private let navMaxScale: CGFloat = 3.2
-
-/// The app's floating tab bar: three tabs in V1, with the plus button riding
-/// OUTSIDE the capsule on its right, vertically inline (Sean's Aug 29 ruling —
-/// the add action is not a tab, and inside the capsule it read as one). A
-/// fourth tab arrives only with the feed in phase 2 — V1 ships nothing
-/// user-visible-to-user, so there is nothing to feed.
+/// The app's floating tab bar, built to the kit's own FloatingNav: an
+/// ink-ringed capsule of ICON-ONLY tabs (the label is for screen readers —
+/// the kit never draws it) with the plus riding OUTSIDE on the right
+/// (Sean's Aug 29 ruling — the add action is not a tab). The active tab
+/// wears cherry-soft in its own ring; inactive tabs sit at half opacity.
+/// The "you" tab is the kit's Avatar, not a person glyph — the nav points
+/// at YOUR profile, so it wears your initial.
 public struct FloatingNav<TabID: Hashable>: View {
+    /// What a tab draws — the kit's three marks. `avatar` carries the
+    /// signed-in name; the shell supplies it.
+    public enum Glyph {
+        case discover, shelf
+        case avatar(name: String)
+    }
+
     public struct Tab: Identifiable {
         public let id: TabID
+        /// Screen-reader name only — never rendered (the kit draws no text).
         public let label: String
-        public let systemImage: String
+        public let glyph: Glyph
 
-        public init(id: TabID, label: String, systemImage: String) {
+        public init(id: TabID, label: String, glyph: Glyph) {
             self.id = id
             self.label = label
-            self.systemImage = systemImage
+            self.glyph = glyph
         }
     }
 
@@ -42,12 +46,13 @@ public struct FloatingNav<TabID: Hashable>: View {
     }
 
     private var capsule: some View {
-        HStack(spacing: Tokens.Space.s1) {
+        HStack(spacing: 2) {
             ForEach(tabs) { tab in
                 tabButton(tab)
             }
         }
-        .padding(Tokens.Space.s2)
+        .padding(.vertical, 5)
+        .padding(.horizontal, Tokens.Space.s2)
         .background(Tokens.Ground.card)
         .clipShape(Capsule())
         .overlay(Capsule().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.std))
@@ -57,45 +62,21 @@ public struct FloatingNav<TabID: Hashable>: View {
         )
     }
 
-    /// The plus is an icon in a circle with nothing to truncate, so it grows
-    /// to stay a comfortable target rather than tracking the labels — at
-    /// caption's full curve it would eat a third of the screen's width.
-    @ScaledMetric(relativeTo: .caption) private var plusGrown: CGFloat = 46
-    private var plusSize: CGFloat {
-        min(plusGrown, 46 * Typography.controlMaxScale)
-    }
-
-    /// Height grows freely — that is the ruling, and vertical space is what a
-    /// floating bar has to give. Width is capped at 1.4x, which is all three
-    /// tabs plus the plus button can spend on the narrowest phone we support
-    /// (375pt) before the bar runs off the screen. Sizes against .caption to
-    /// track Typography.mono, which is what the label is.
-    @ScaledMetric(relativeTo: .caption) private var tabWidthGrown: CGFloat = 56
-    @ScaledMetric(relativeTo: .caption) private var tabHeight: CGFloat = 46
-    private var tabWidth: CGFloat {
-        min(tabWidthGrown, 56 * 1.4)
-    }
-
     private func tabButton(_ tab: Tab) -> some View {
         let isActive = tab.id == active
         return Button {
             active = tab.id
         } label: {
-            VStack(spacing: 3) {
-                Image(systemName: tab.systemImage)
-                    .font(Typography.control(17, weight: isActive ? .bold : .medium, maxScale: navMaxScale))
-                Text(tab.label)
-                    .font(Typography.mono(9.5))
-                    // One line that shrinks, never a broken one. A tab label is
-                    // a single word, so wrapping it splits it mid-word —
-                    // "discov / er" — and a name in halves is worse than a name
-                    // slightly smaller. It still ends up far larger than the
-                    // frozen 9.5pt this replaced.
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-            }
-            .foregroundStyle(isActive ? Tokens.Cherry.deep : Tokens.Ink.soft)
-            .frame(width: tabWidth, height: tabHeight)
+            glyphView(tab.glyph)
+                .foregroundStyle(Tokens.Ink.primary)
+                .frame(width: 50, height: 42)
+                .background(isActive ? Tokens.Cherry.soft : Color.clear)
+                .clipShape(Capsule())
+                .overlay(Capsule().strokeBorder(
+                    isActive ? Tokens.Ink.primary : Color.clear,
+                    lineWidth: Tokens.Border.thin
+                ))
+                .opacity(isActive ? 1 : 0.5)
         }
         .buttonStyle(.plain)
         .animation(Tokens.Motion.pop(), value: isActive)
@@ -103,24 +84,33 @@ public struct FloatingNav<TabID: Hashable>: View {
         .accessibilityAddTraits(isActive ? [.isSelected] : [])
     }
 
+    @ViewBuilder
+    private func glyphView(_ glyph: Glyph) -> some View {
+        switch glyph {
+        case .discover:
+            SparklesIcon()
+        case .shelf:
+            ShelfIcon()
+        case let .avatar(name):
+            Avatar(name: name, size: 26)
+        }
+    }
+
     private var plusButton: some View {
         Button(action: onPlus) {
-            Image(systemName: "plus")
-                .font(Typography.control(20, maxScale: navMaxScale))
+            PlusIcon()
                 .foregroundStyle(.white)
-                .frame(width: plusSize, height: plusSize)
+                .frame(width: 52, height: 52)
                 .background(Tokens.Cherry.base)
                 .clipShape(Circle())
-                .overlay(Circle().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.thin))
-                // Standing alone now, it floats the way the capsule does —
-                // same hard ink shadow, or the two read as different layers.
+                .overlay(Circle().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.std))
                 .background(
                     Circle().fill(Tokens.Ink.primary)
                         .offset(x: Tokens.Shadow.lg, y: Tokens.Shadow.lg)
                 )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("add")
+        .accessibilityLabel("create")
     }
 }
 
