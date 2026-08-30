@@ -136,6 +136,24 @@ public final class OwnProfileModel {
         profile?.displayName ?? handle ?? "?"
     }
 
+    /// The name and the bio as they are PUBLISHED, which is not the same as
+    /// the ones you typed.
+    ///
+    /// Both come from `public_profile`, so the bio is the `approved` body from
+    /// `public_texts` (`tech/02` §3.2) and a pending edit reads as the previous
+    /// text or as nothing. That is the point rather than a rounding error: this
+    /// screen is where you find out what is actually visible, and showing the
+    /// draft here would tell you a review had finished when it had not. The
+    /// settings row is the other half — it shows what you typed, with the
+    /// row's own `state` read back beside it (#363).
+    public var displayName: String? {
+        profile?.displayName
+    }
+
+    public var bio: String? {
+        profile?.bio
+    }
+
     /// True when the handle exists but the PROFILE is not reachable — which is
     /// not a moderation state. The handle itself is public the moment it is
     /// claimed (GLO-187); this covers the profile read failing for another

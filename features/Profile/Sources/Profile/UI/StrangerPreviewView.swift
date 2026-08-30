@@ -65,7 +65,11 @@ public struct StrangerPreviewView: View {
                         .font(.system(size: Typography.Size.small))
                         .foregroundStyle(Tokens.Ink.primary)
                 }
-                let badges = [preview.skinType, preview.anchor, preview.hairPattern].compactMap(\.self)
+                let badges = ProfileBadgeRow.badges(
+                    skinType: preview.skinType,
+                    anchor: preview.anchor,
+                    hairPattern: preview.hairPattern
+                )
                 if badges.isEmpty {
                     // Published and unmatched is not the same as unpublished,
                     // and since GLO-205 both render as no badges here. Saying
@@ -82,9 +86,11 @@ public struct StrangerPreviewView: View {
                         .foregroundStyle(Tokens.Ink.faint)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
-                    HStack(spacing: Tokens.Space.s2) {
-                        ForEach(badges, id: \.self) { Badge($0, tone: .lilac) }
-                    }
+                    ProfileBadgeRow(
+                        skinType: preview.skinType,
+                        anchor: preview.anchor,
+                        hairPattern: preview.hairPattern
+                    )
                 }
                 if preview.nothingIsPublic {
                     Text("your handle is all they get. everything else is private.")
