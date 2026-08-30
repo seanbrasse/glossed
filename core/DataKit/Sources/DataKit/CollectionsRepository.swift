@@ -29,12 +29,24 @@ public struct CollectionsRepository: Sendable {
     /// `security_invoker` and filters `deleted_at is null` itself. That is what
     /// makes `itemN` the count of what the collection will actually DRAW —
     /// see `assemble`.
+    ///
+    /// **`user_id` is pinned in the query, and RLS is not what makes this
+    /// "mine".** `collections` carries TWO select policies — `collections_own`
+    /// and `collections_public` — and Postgres OR's policies for the same
+    /// command. So an unfiltered select returns your own rows *plus* every
+    /// collection `collection_is_visible()` says you may read, which is
+    /// somebody else's card in your own grid.
+    ///
+    /// Probed, not reasoned: as user A, `select … from collections where
+    /// deleted_at is null` returned "A own collection + B public collection".
+    /// The predicate below is what makes the name on this function true.
     public func mine() async throws(GlossedError) -> [MyCollection] {
-        _ = try await client.requireUserID()
+        let userID = try await client.requireUserID()
         let collections: [OwnCollectionRow] = try await run {
             try await client.supabase
                 .from("collections")
                 .select("id,title,cover_tint,visibility,created_at")
+                .eq("user_id", value: userID.uuidString)
                 .is("deleted_at", value: nil)
                 .order("created_at", ascending: false)
                 .execute()
@@ -61,6 +73,14 @@ public struct CollectionsRepository: Sendable {
     /// an item whose shelf entry was soft-deleted, and the membership row for
     /// it is skipped rather than rendered as a gap — the same choice
     /// `RoutinesRepository.mine` makes for an unreadable step.
+    ///
+    /// **Handed somebody else's public collection id, this returns `[]` rather
+    /// than their shelf.** `collection_items_public` would let the first read
+    /// see their membership rows, but the second goes through
+    /// `user_shelf_items`, which is `security_invoker` and so answers only for
+    /// YOUR shelf — their `user_items` are not yours, so every row is dropped
+    /// by `ordered`. Stated rather than left to be rediscovered: the safety
+    /// here is the view's, not this function's.
     public func items(collectionID: UUID) async throws(GlossedError) -> [ShelfRow] {
         _ = try await client.requireUserID()
         let members: [MemberRow] = try await run {
