@@ -32,6 +32,8 @@ packages:
     path: features/Privacy
   Profile:
     path: features/Profile
+  Browse:
+    path: features/Browse
 targets:
   Glossed:
     type: application
@@ -49,6 +51,7 @@ targets:
       - package: Discover
       - package: Privacy
       - package: Profile
+      - package: Browse
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.glossed.app
