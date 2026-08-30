@@ -90,7 +90,7 @@ public struct CreateRungView: View {
                         model.pick(brand: brand)
                     } label: {
                         Text(brand.name)
-                            .font(.system(size: Typography.Size.body, weight: .semibold))
+                            .font(Typography.control(Typography.Size.body, weight: .semibold))
                             .foregroundStyle(Tokens.Ink.primary)
                             .padding(.horizontal, Tokens.Space.s4)
                             .frame(minHeight: 38)
