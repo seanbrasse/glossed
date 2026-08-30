@@ -137,13 +137,21 @@ button coming back from "saving…" had never been seen by anyone. The empty
 shelf was the same — `shelf:` returned five rows unconditionally, so the "log a
 product or two first" copy was unreachable too.
 
-The tell is not in the code you are reading; it is in the *seam's* type. **Ask
-of every fixture: what input makes this one return the sad answer?** If there
-isn't one, the promise on the other side of it is undriven no matter how many
-entries the picker has. Two sibling entries — one throwing `URLError(.timedOut)`,
-one returning `[]` — cost six lines and turned two of the composer's best
-promises into cells the sweep can take. The Looks composer already had exactly
-this (`composer · the save failed`); the pattern existed and was not copied.
+**Why it survives review is the part to internalise: a fixture that cannot fail
+does not merely leave the sad path undriven — it makes the screen look
+FINISHED.** Nothing is missing. The entry is there, the test is green, the
+model is right. There is no absence to notice.
+
+So the tell is not in the code you are reading; it is in the *seam's* type, and
+the rule is a test with a verdict rather than a habit of care: **for every
+promise a screen makes, name the input that makes it false. If you cannot, the
+promise is decoration.** (Sharpened by the privacy lane, whose formulation this
+is — the earlier version of this paragraph asked the question without stating
+what a missing answer proves.) Two sibling entries — one throwing
+`URLError(.timedOut)`, one returning `[]` — cost six lines and turned two of
+the composer's best promises into cells the sweep can take. The Looks composer
+already had exactly this (`composer · the save failed`); the pattern existed
+and was not copied.
 
 **An inherited "there is no frame" deserves the same suspicion as an inherited
 "known failure".** The routines composer's doc comment says *"No kit frame
