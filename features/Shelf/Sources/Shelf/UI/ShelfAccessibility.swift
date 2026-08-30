@@ -42,7 +42,7 @@ extension ShelfView {
             model.showsWishlist.toggle()
         } label: {
             Image(systemName: model.showsWishlist ? "bookmark.fill" : "bookmark")
-                .font(.system(size: 13, weight: .medium))
+                .font(Typography.control(13, weight: .medium))
                 .foregroundStyle(Tokens.Ink.primary)
                 .frame(width: 34, height: 30)
                 .background(model.showsWishlist ? Tokens.Cherry.soft : Tokens.Ground.card)

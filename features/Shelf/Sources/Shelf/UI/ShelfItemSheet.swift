@@ -161,7 +161,7 @@ public struct ShelfItemSheet: View {
             header
             if let benefit = item.benefitLine {
                 Text(benefit)
-                    .font(.system(size: 14))
+                    .font(Typography.control(14, weight: .regular))
                     .lineSpacing(3)
                     .foregroundStyle(Tokens.Ink.primary)
                     .padding(.top, 12)

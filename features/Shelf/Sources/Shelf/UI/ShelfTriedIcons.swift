@@ -59,7 +59,7 @@ struct ShelfTriedIcons: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: system)
-                .font(.system(size: 16, weight: .medium))
+                .font(Typography.control(16, weight: .medium))
                 .foregroundStyle(isActive ? Tokens.Ink.primary : Tokens.Ink.soft)
                 .frame(width: Tokens.hitTarget, height: Tokens.hitTarget)
                 .contentShape(Rectangle())

@@ -188,7 +188,7 @@ public struct ShelfView: View {
             }
         } label: {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 13, weight: .medium))
+                .font(Typography.control(13, weight: .medium))
                 .foregroundStyle(Tokens.Ink.primary)
                 .frame(width: 34, height: 30)
                 .background(isSearchOpen ? Tokens.Cherry.soft : Tokens.Ground.card)
@@ -226,7 +226,7 @@ public struct ShelfView: View {
             ForEach(ShelfViewMode.allCases, id: \.self) { mode in
                 Button { model.viewMode = mode } label: {
                     Image(systemName: mode == .shelf ? "square.split.1x2" : "list.bullet")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(Typography.control(14, weight: .medium))
                         .foregroundStyle(Tokens.Ink.primary)
                         .frame(width: 38, height: 30)
                         .background(model.viewMode == mode ? Tokens.Cherry.soft : Tokens.Ground.card)

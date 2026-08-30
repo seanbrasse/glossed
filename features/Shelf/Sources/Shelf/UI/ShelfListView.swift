@@ -77,7 +77,7 @@ public struct ShelfListView: View {
                 Text("\(section.items.count) items").meta()
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Typography.control(14, weight: .semibold))
                     .foregroundStyle(Tokens.Ink.soft)
                     .rotationEffect(.degrees(openSection == section.slug ? 180 : 0))
                     .animation(Tokens.Motion.pop(Tokens.Motion.med), value: openSection)
