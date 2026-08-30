@@ -6,22 +6,52 @@ public struct SettingsStore: Sendable {
     public var profile: @Sendable () async throws -> Profile?
     public var anchor: @Sendable () async throws -> ShadeAnchorFact?
     public var signOut: @Sendable () async throws -> Void
+    /// Read-modify-write, and it has to be: `saveProfile` upserts the WHOLE
+    /// row. Anything this draft omits with a default is written as that
+    /// default — `concerns` is non-optional and defaults to `[]`, so a partial
+    /// draft erases the user's skin concerns (GLO-215). Every field is carried
+    /// across from the current profile deliberately.
+    public var saveDisplayName: @Sendable (String) async throws -> Void
 
     public init(
         profile: @escaping @Sendable () async throws -> Profile?,
         anchor: @escaping @Sendable () async throws -> ShadeAnchorFact?,
-        signOut: @escaping @Sendable () async throws -> Void
+        signOut: @escaping @Sendable () async throws -> Void,
+        saveDisplayName: @escaping @Sendable (String) async throws -> Void = { _ in }
     ) {
         self.profile = profile
         self.anchor = anchor
         self.signOut = signOut
+        self.saveDisplayName = saveDisplayName
     }
 
     public static func live(_ repository: ProfileRepository, client: GlossedClient) -> SettingsStore {
         SettingsStore(
             profile: { try await repository.own() },
             anchor: { try await repository.anchor() },
-            signOut: { try await client.signOut() }
+            signOut: { try await client.signOut() },
+            saveDisplayName: { name in
+                guard let current = try await repository.own() else {
+                    throw GlossedError(
+                        .notFound,
+                        userMessage: "finish signing up first — then a name has somewhere to save."
+                    )
+                }
+                try await repository.saveProfile(ProfileDraft(
+                    birthYearMonth: current.birthYearMonth,
+                    domains: current.domains,
+                    skinType: current.skinType,
+                    toneBand: current.toneBand,
+                    hairPattern: current.hairPattern,
+                    // Carried, not defaulted. See saveDisplayName's note.
+                    concerns: current.concerns,
+                    climate: current.climate,
+                    displayName: name,
+                    // nil means "not asked" — the only field with that
+                    // contract, and this screen does not ask about brands.
+                    brandAffinities: nil
+                ))
+            }
         )
     }
 }
@@ -50,9 +80,13 @@ public struct SettingsRow: Identifiable, Equatable, Sendable {
 @Observable
 public final class SettingsModel {
     public private(set) var rows: [SettingsRow] = []
+    /// Kept so the name editor can open prefilled without a second read.
+    public private(set) var displayName: String?
     public private(set) var isLoading = true
     public private(set) var errorMessage: String?
-    private let store: SettingsStore
+    /// Internal so the name editor can reach its save without the model
+    /// re-declaring every store function it does not otherwise use.
+    let store: SettingsStore
 
     public init(store: SettingsStore) {
         self.store = store
@@ -63,12 +97,19 @@ public final class SettingsModel {
         defer { isLoading = false }
         let profile = try? await store.profile()
         let anchor = try? await store.anchor()
+        displayName = (profile ?? nil)?.displayName
         rows = Self.rows(profile: profile ?? nil, anchor: anchor ?? nil)
     }
 
     /// Sign-out failure is stated rather than swallowed. A tap that appears to
     /// do nothing on the row that ends your session is worse than an error —
     /// the next thing the user does is assume they are signed out.
+    /// Re-reads after the name changes so the row shows what was saved rather
+    /// than what was typed — the two differ if the write is trimmed or refused.
+    public func reload() async {
+        await load()
+    }
+
     public func signOut() async -> Bool {
         errorMessage = nil
         do {
@@ -89,6 +130,7 @@ public final class SettingsModel {
     /// already (GLO-189, copy promising a review nobody performs).
     static func rows(profile: Profile?, anchor: ShadeAnchorFact?) -> [SettingsRow] {
         [
+            SettingsRow(id: "name", label: "your name", value: profile?.displayName),
             SettingsRow(id: "skin", label: "skin profile", value: skinLine(profile)),
             SettingsRow(id: "anchor", label: "shade anchor", value: anchorLine(anchor)),
             SettingsRow(id: "hair", label: "hair type", value: profile?.hairPattern),
