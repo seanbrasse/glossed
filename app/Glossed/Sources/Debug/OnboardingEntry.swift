@@ -93,6 +93,61 @@
             )
         }
 
+        static let tour = ScreenEntry(
+            id: "onb-tour",
+            title: "onboarding · the tour",
+            note: "two slides over a stand-in shell — scrim, pop card, and the finger on the tab. "
+                + "first-onboarding only; returning users and reruns never see it (the app owns the marker)"
+        ) {
+            TourHost()
+        }
+
+        static let welcome = ScreenEntry(
+            id: "onb-welcome",
+            title: "onboarding · welcome in",
+            note: "three doors, all real destinations — and the honest footer about why finding "
+                + "friends is not one of them"
+        ) {
+            OnbWelcomeView(onBuild: {}, onImport: {}, onBrowse: {})
+        }
+
+        /// A stand-in shell for the overlay: milk ground + a real FloatingNav,
+        /// so the finger points at actual tabs. The real mount (over the live
+        /// shell, first onboarding only) arrives with the account PR.
+        private struct TourHost: View {
+            @State private var tab = "shelf"
+            @State private var done = false
+
+            var body: some View {
+                ZStack(alignment: .bottom) {
+                    Tokens.Ground.milk.ignoresSafeArea()
+                    Text(done ? "tour done → welcome" : "the app would be here")
+                        .meta()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    FloatingNav(
+                        tabs: [
+                            .init(id: "discover", label: "discover", systemImage: "sparkles"),
+                            .init(id: "shelf", label: "shelf", systemImage: "square.split.1x2"),
+                            .init(id: "you", label: "you", systemImage: "person.crop.circle")
+                        ],
+                        active: $tab,
+                        onPlus: {}
+                    )
+                    .padding(.bottom, Tokens.Space.s3)
+                    if !done {
+                        TourOverlay(
+                            model: TourModel(),
+                            // Fixture anchors, read off the stand-in nav's
+                            // own tab centers — the shell computes real ones.
+                            anchorX: { $0 == "shelf" ? 175 : 112 },
+                            onTabChange: { tab = $0 },
+                            onDone: { done = true }
+                        )
+                    }
+                }
+            }
+        }
+
         private struct OnboardingTrip: View {
             private enum Stop {
                 case hook, quiz, payoff

@@ -55,6 +55,8 @@
             ProductEntries.notAnAnchor,
             OnboardingEntry.wholeTrip,
             OnboardingEntry.quizAnchor,
+            OnboardingEntry.tour,
+            OnboardingEntry.welcome,
             ImportEntries.sourcePick,
             ImportEntries.parsed,
             ImportEntries.nothingMatched,
