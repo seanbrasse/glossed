@@ -4,13 +4,13 @@
 surface against empty, one, extreme and error, driven on the canon simulator
 (iPhone 16 Pro, `0E1EF64B`) rather than reasoned about.
 
-**Status: 34 driven. Every named cell is now driven.** What is left is two
-whole axes rather than scattered cells — Dynamic Type, run on exactly one
-surface ([GLO-172](https://linear.app/glossed/issue/GLO-172)) and nowhere else,
-and the ladder's transitions, which cannot be driven at all yet
-([GLO-180](https://linear.app/glossed/issue/GLO-180)). The unfinished rows are
-listed as unfinished; a blank cell is a cell nobody has looked at, and saying so
-is the point of the file.
+**Status: 34 Phase-1 cells driven, plus five Phase-1.5 claims checked against
+the database** — a different instrument, and the last section explains why it
+had to be. The unfinished rows are listed as unfinished; a blank cell is a cell
+nobody has looked at, and saying so is the point of the file.
+
+What is left is two axes rather than scattered cells — **Dynamic Type** and the
+**ladder's remaining transitions**. Both are detailed under *Still to drive*.
 
 **A ✅ on a single-rung ladder row still means the rung renders and holds its
 promise, not that you can get off it** — those entries host one rung bare. The
@@ -210,10 +210,26 @@ evidence of absence — surviving contact with three separate authors.
 Every named cell from the last round is done. Two things remain, and both are
 axes rather than cells:
 
-**Every surface except the shelf at accessibility text sizes.**
-[GLO-172](https://linear.app/glossed/issue/GLO-172) is one screen's worth of a
-check nobody has run anywhere else, and it found the shelf unusable. Nine other
-surfaces have never been looked at above the default size.
+**Every surface except the shelf at accessibility text sizes — and the ground
+moved underneath this twice in one night.**
+[GLO-172](https://linear.app/glossed/issue/GLO-172) found the shelf unusable,
+and nine other surfaces have never been looked at above the default size. Then
+[GLO-186](https://linear.app/glossed/issue/GLO-186) found the reason the picture
+was misleading: `Typography.display()` **never scaled on iOS at all** —
+`variableFont` accepted a `relativeTo:` argument and dropped it, so every
+heading and product name was frozen while `mono` scaled around them. An 11pt
+label rendering larger than a 13pt one on the same row is what gave it away.
+
+Fix (1) has landed, so **every heading in the app changed behaviour**, and
+GLO-172's three candidate fixes were derived against the frozen world. Re-driven
+on `d55ba3d` and posted to that ticket: the shelf now overflows **both**
+horizontal edges rather than one row, and the nav's own labels truncate. Do not
+pick from that menu without reading the comment first.
+
+Fix (2) — the 13 primitives still on fixed `.system(size:)`, including
+`FloatingNav` and `GlossedButton` — is **unclaimed**, and carries a design
+question (cap the scaling, or let controls grow freely) that is Sean's.
+
 `xcrun simctl ui <udid> content_size accessibility-extra-large` — underscore,
 not a hyphen.
 
@@ -255,3 +271,83 @@ it means.
 
 Both are listed rather than quietly skipped, because a grid with an unmarked
 cell reads as covered.
+
+## Phase 1.5 — a different kind of cell
+
+The 1.5 surfaces (privacy, profile, browse) needed the method changed, and
+[GLO-187](https://linear.app/glossed/issue/GLO-187) is why. That defect was a
+screen saying a claimed handle was *"pending review"* while `public_profile`
+returned it unfiltered — the handle was live the whole time. Eight passing tests
+could not see it, and neither could looking at the screen, because the screen
+looked exactly as intended.
+
+So for these surfaces the question is not *"does it render?"* but:
+
+> **Is this sentence true of what the read path returns?**
+
+Every reassuring string is a claim, and a claim is checked against the query
+that decides it — never against the writer's intent. The 1.5 lane put it
+better than I did after finding their own bug: *treat "waiting to be reviewed"
+and every other reassuring string as a claim to verify, not as design.*
+
+### The precondition, which every cell below depends on
+
+**These results were measured with hand-inserted `profiles` rows for maya and
+juli**, added by the 1.5 lane to work around
+[GLO-182](https://linear.app/glossed/issue/GLO-182) so the age-gated surfaces
+could be exercised at all. A `db reset` removes them and returns every seeded
+user to `is_minor_user = true`, at which point **none of these cells reproduce**
+— every age-gated surface locks and the empty states you get are the gate, not
+the design.
+
+A cell whose result depends on a hand-made database state and does not say so is
+a false clean cell. That is why this paragraph exists.
+
+### Claims checked against the read path
+
+| The claim, verbatim | Checked against | Held? |
+|---|---|---|
+| *"a handle is how people find you. nothing of yours is public until you pick one."* | all four public read paths | ✅ `public_profile` and `suggested_people` both select `from handles`; `browse_routines` **inner joins** it; `trending` returns only variant/product columns and no user identity at all. No handle, no reachability — the strongest privacy claim in the app, and it holds |
+| *"they won't see you and you won't see them. any follows between you are removed."* | `sever_follows_on_block` | ✅ **both clauses, empirically.** In a rolled-back transaction: 2 follows → insert block → **0 follows**, and `is_blocked` symmetric in both directions. It is an `after insert` trigger, so it is enforced by the database and a client cannot skip it |
+| *"all three are off until you turn them on."* | `profile_badges` column defaults | ✅ `show_skin_type`, `show_anchor`, `show_hair_pattern` all default `false`. Per tech/02 §3.4 the badges are the only path by which Regulated data reaches another human |
+| *"no suggestions yet. people show up here once they've chosen to share what they wear."* | `suggested_people`'s reason branches | ✅ **precisely accurate.** A suggestion needs a *reason*; both reason branches require `show_anchor` or `show_skin_type`. So "chosen to share what they wear" **is** literally the badge opt-in. Proven in both directions — 0 rows with the badge off, and with it on in a rolled-back transaction juli appears with a named reason |
+| the privacy screen showing `only you` for a user with **no** `privacy_scopes` row | `can_view` | ✅ the UI derives the same answer the database does. 0020 comments it: *"No row is not a missing answer. No row is `only_you`."* Default-deny, and the screen agrees with it rather than inventing a default of its own |
+
+### What it found
+
+**[GLO-188](https://linear.app/glossed/issue/GLO-188) — the floating nav ate the last element of every tab.** Fixed in [#302](https://github.com/seanbrasse/glossed/pull/302).
+On the you-tab that element was `privacyLink`, the door to all four privacy
+settings: one letter visible, unscrollable, and still hit-testable — you could
+open it only by tapping the sliver beside the nav pill. `AppShell` layered the
+nav as a `ZStack` sibling, which paints over content without reserving space, so
+it was latent on **every** tab and the you-tab was simply the first whose content
+ended there.
+
+**[GLO-189](https://linear.app/glossed/issue/GLO-189) — a review promised before a render that does not exist.** Open, low.
+*"saved. it won't show on your profile until it's been reviewed"* is literally
+true and its implication is false: `linked_social` appears in the whole schema
+exactly twice, both enum declarations, and no RPC returns one. It will not show
+after review either. Secondary cost: `moderate_text` covered all five kinds, so
+every saved link spent a Claude call classifying text nothing renders.
+
+**[GLO-190](https://linear.app/glossed/issue/GLO-190) — the model is correct and unverifiable.** Open. There is no way to
+see your own profile as a stranger sees it, so a user sets four scopes and three
+badges and can never confirm the result. Not a defect; the reason the copy
+defects above were invisible for as long as they were.
+
+### Three method notes worth keeping
+
+**Verify against the read path, not the writer's intent.** Three of the four
+defects on these surfaces were a sentence about who can see something
+disagreeing with the query that decides it.
+
+**A rolled-back transaction is the right instrument on a shared database.**
+`BEGIN … ROLLBACK` gives real behaviour with nothing persisted and nothing to
+announce — which is how the block trigger and the suggestion opt-in were proven
+without touching a database three lanes were using.
+
+**`create or replace` means the LAST migration wins.** §9's rule — *grep the
+object name out of the migration file* — is not enough on its own: reading
+`suggested_people` from 0032 gave a reason string that 0034 had already
+replaced. `select prosrc from pg_proc` is the live truth, and `grep -l` for
+*every* file defining the object is the cheap version.
