@@ -9,24 +9,28 @@ public struct OwnProfileView: View {
     @State private var model: OwnProfileModel
     @State private var viewing: SuggestedPerson?
     @State private var editingSocials = false
+    @State private var previewing = false
     private let onClaimHandle: () -> Void
     private let onOpenPrivacy: () -> Void
 
     private let suggestionsStore: ViewedProfileStore
     private let safetyStore: SafetyActionsStore
     private let socialsStore: LinkedSocialsStore
+    private let previewStore: StrangerPreviewStore
 
     public init(
         store: OwnProfileStore,
         suggestionsStore: ViewedProfileStore,
         safetyStore: SafetyActionsStore,
         socialsStore: LinkedSocialsStore,
+        previewStore: StrangerPreviewStore,
         onClaimHandle: @escaping () -> Void,
         onOpenPrivacy: @escaping () -> Void
     ) {
         self.suggestionsStore = suggestionsStore
         self.safetyStore = safetyStore
         self.socialsStore = socialsStore
+        self.previewStore = previewStore
         _model = State(wrappedValue: OwnProfileModel(store: store))
         self.onClaimHandle = onClaimHandle
         self.onOpenPrivacy = onOpenPrivacy
@@ -45,6 +49,7 @@ public struct OwnProfileView: View {
                         counts
                         badgeSection
                         SuggestedPeopleCard(store: suggestionsStore) { viewing = $0 }
+                        previewLink
                         socialsLink
                         privacyLink
                     }
@@ -62,6 +67,9 @@ public struct OwnProfileView: View {
         // A suggestion carries the user id the follow graph needs — the only
         // place a client legitimately holds one for someone else, since
         // public_profile deliberately does not return it.
+        .sheet(isPresented: $previewing) {
+            StrangerPreviewView(store: previewStore)
+        }
         .sheet(isPresented: $editingSocials) {
             LinkedSocialsView(store: socialsStore)
         }
@@ -119,6 +127,13 @@ public struct OwnProfileView: View {
     /// Privacy lives one tap away rather than inline: these badges publish
     /// specific facts, while the scopes decide who sees the surfaces at all.
     /// Mixing them on one screen would blur two different questions.
+    /// The privacy model is correct and invisible; this is where a user can
+    /// check it rather than trust the copy (GLO-190).
+    private var previewLink: some View {
+        Button("what a stranger sees", action: { previewing = true })
+            .buttonStyle(.glossed(.primary, block: true))
+    }
+
     private var socialsLink: some View {
         Button("where else you are", action: { editingSocials = true })
             .buttonStyle(.glossed(.secondary, block: true))
