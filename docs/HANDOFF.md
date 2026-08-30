@@ -1,17 +1,24 @@
-# Session handoff — Aug 29 2026 (session 11: the Phase-1 journal lane, and the state sweep that outperformed the test suite)
+# Session handoff — Aug 29–30 2026 (session 12: the sweep finished, the discover loop closed, and a harness that could not reach its own bug class)
 
 Where Phase 1 stands, what to do next, and what this session learned. Read
 `docs/README.md` first for the design; this file is only about state.
 
-**Two lanes ran concurrently all session and both merged into main.** This
-file is written by the **Phase-1 journal lane** (shelf, sheet, product page,
-ladder, the state sweep). The **Phase-1.5 lane** landed migrations 0033–0040,
-five DataKit repositories, `docs/tech/07`, and — while this very file sat in
-review — the privacy screen ([#259](https://github.com/seanbrasse/glossed/pull/259))
-and the discover opening ([#261](https://github.com/seanbrasse/glossed/pull/261)).
-Their [#263](https://github.com/seanbrasse/glossed/pull/263) is still open and is
-**not this lane's to merge or speak for**. Where a number below belongs to them it
-says so.
+**Up to three lanes ran concurrently and all merged into main.** This file is
+now written by more than one of them, and each section says whose work it
+describes. The **Phase-1 journal lane** owns shelf, sheet, product page, ladder
+and the state sweep; the **Phase-1.5 / taste lane** owns migrations, DataKit
+reads, discover and browse. **Do not speak for a lane that is not yours** — and
+before editing this file, check whether someone else already updated the same
+row, because on Aug 30 two lanes refreshed it within the hour.
+
+**The journal lane finished GLO-110.** The grid is at 34 cells; every named cell
+from the previous round is driven. It filed five issues and closed four in the
+same stretch — [#276](https://github.com/seanbrasse/glossed/pull/276) (the
+grid), [#280](https://github.com/seanbrasse/glossed/pull/280) (GLO-176 +
+GLO-177), [#284](https://github.com/seanbrasse/glossed/pull/284) (GLO-180),
+[#286](https://github.com/seanbrasse/glossed/pull/286) (GLO-179). One is left,
+[GLO-178](https://linear.app/glossed/issue/GLO-178), waiting on Sean because the
+question inside it is a product call, not a code one.
 
 ## 0. Read this first
 
@@ -61,6 +68,35 @@ time. It was the only thing in the repo detecting it.
 So the rule runs both ways. Check before you file, **and** check before you
 dismiss. "Known failure" is a claim that needs the same evidence as "new bug",
 and a shared assumption is the easiest place for one to hide.
+
+**"Verify before you dismiss" has a third face, and it nearly cost the journal
+lane its best finding: a PLAUSIBLE OUTPUT stops you examining the input.**
+Driving the near-match rung's name field I typed twenty-two characters, got
+three candidates, and moved on — it looked exactly like success. It was not.
+The field had deleted itself after the *first* keystroke and the search ran on
+one letter; the stub returned the same three matches for any non-empty query, so
+a broken input wore the shape of a working screen. Typing a single `l` is what
+made it visible (GLO-176).
+
+That is session 8's `queued`/`pending` and session 11's fabricated migration
+deficit in a third costume, and the taste lane hit a fourth the same night
+(fixtures that all satisfied a precondition could not tell that the precondition
+was load-bearing — §8, GLO-173). All four share one move: a result that looked
+right stopped the check. **When a fixture cannot vary its answer, its answer is
+not evidence — it only tells you the screen did something.** Give a state the
+SMALLEST input that should work rather than a realistic one, and prefer fixtures
+whose output depends on their input (`ladder · the whole trip`'s stub filters on
+the query for exactly this reason).
+
+**Another session driving the SAME simulator will swap your binary out from
+under you, silently.** On Aug 30 the foreground app became a live catalog
+product page mid-sweep. No crash log, nothing in my own transcript to explain
+it — it was another lane's `simctl terminate/install/launch` for their own
+ticket, a normal recipe that happens to replace whatever is installed. The tell
+is content you have no fixture for. **The fix is the ping, not a diagnosis**:
+`ListAgents`, ask, then re-install your own build before trusting anything you
+drove afterwards. The journal lane re-drove the cell its main finding rested on;
+the finding held, but it did not know that until it checked.
 
 **Analytics fail SILENTLY, and the drop notices are now visible but only in
 the log stream.** Nothing serves functions locally by default — the
@@ -124,7 +160,8 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 | [#287](https://github.com/seanbrasse/glossed/pull/287) — trending-on-discover wiring | Open at handoff, CI running, watcher armed. Merges itself on green under the standing grant; if the session died first, it is one squash-merge — the drive already passed (screenshot with Sean) |
 | Save/wishlist — the registry's +0.5 row | **A mapping decision before code**: tech/07 §2 reserved +0.5 for "save", and the app's existing save-shaped concept is `want_to_try` — but 0035 deliberately EXCLUDES want_to_try from affinity ("unworn is not evidence"). Those reconcile (intent ≠ experience evidence; +0.5 is an intent weight) but that is a ruling to get from Sean, not to slip into a migration comment |
 | [GLO-184](https://linear.app/glossed/issue/GLO-184) — migration comment density | Sean's correction, lands on BOTH lanes: 0030–0034 and 0035–0042 run 40–60% comments against the repo's 7–9%. Future migrations at house density; the ticket carries what should survive in the merged ones |
-| [GLO-110](https://linear.app/glossed/issue/GLO-110) — finish the state sweep | **In progress and the highest-yield thing in the repo right now.** 26 cells driven; its own "what the sweep found" section names six findings — five merged fixes ([#236](https://github.com/seanbrasse/glossed/pull/236), [#237](https://github.com/seanbrasse/glossed/pull/237), [#238](https://github.com/seanbrasse/glossed/pull/238), [#242](https://github.com/seanbrasse/glossed/pull/242), [#260](https://github.com/seanbrasse/glossed/pull/260)) and one open ticket (GLO-172). The grid and what remains live in [docs/ux-state-sweep.md](docs/ux-state-sweep.md). Remaining: the ladder's search and near-match rungs, `product · thin`, `import · pick a source`, and `shelf · remove failed` (unit-tested; needs the local stack down, so pair it with the §0 reset) |
+| [GLO-110](https://linear.app/glossed/issue/GLO-110) — the sweep's two remaining AXES | **Still the highest-yield instrument in the repo, but what is left changed shape.** 34 cells driven and every named cell done, so this is no longer a list of cells: it is (a) **Dynamic Type on the nine surfaces nobody has checked** — GLO-172 found the shelf unusable at accessibility sizes and no other screen has been looked at above default (`xcrun simctl ui <udid> content_size accessibility-extra-large`, underscore); and (b) **the rest of the ladder's transitions**, drivable at last via `ladder · the whole trip` (GLO-180). Two paths are driven; a log that fails mid-trip is not, and neither is GLO-96's own question, which that entry exists to ask — finish a trip, the flow restarts on a fresh id, *does it come back empty?* |
+| [GLO-178](https://linear.app/glossed/issue/GLO-178) — import's screenshot source | **Low, and it needs one sentence from Sean, not code.** `screenshot of a haul · we read the text, you confirm` opens the same bare `TextEditor` as the other two sources — no photo picker anywhere, because photo extract is unbuilt (GLO-19). The question is whether a card should promise a capability we do not have; the codebase's own precedent says no (`import · nothing matched` was recorded clean *for having no add button rather than a dead one*), but the card is the kit's. There is a safe half needing no ruling: the editor carries `.accessibilityLabel("your list, one product per line")` and **no visible placeholder**, so VoiceOver users are told what to type and nobody else is |
 | [GLO-172](https://linear.app/glossed/issue/GLO-172) — accessibility text sizes | **High, and it needs a design call, not more code.** At accessibility-extra-large the shelf's control row overflows and clips the products. The obvious fix (wrap `controls` in a ScrollView) works completely *and* clips the view toggle at the DEFAULT size — because `sortPills`/`viewToggle` carry `.fixedSize()` and the row had been silently compressing to fit. `ViewThatFits` does not help; it picks by ideal size. Three candidate fixes are written on the ticket; **pick one with Sean** rather than re-deriving them |
 | [GLO-156](https://linear.app/glossed/issue/GLO-156) — chip order | **Needs Sean, not code.** The per-category vocabulary means likes and dislikes now interleave alphabetically in the sheet. Grouping by valence is one line in `ShelfChipsModel`; *which group leads, and whether they should be separated rather than merely ordered*, is a feel question — the same class as the shelf label and the fit gate, both of which he ruled on directly. Render both against real chips and let him pick |
 | [GLO-164](https://linear.app/glossed/issue/GLO-164) — the duplicated Fit ↔ FitAnswer mapping | Low, small, and self-contained. `Shelf` and `ProductPage` each carry a private copy of the same two switches. It cannot move to a feature (features never import features), so it is a DesignSystem or DataKit call — which makes it **an opening question, not a refactor** |
@@ -134,7 +171,17 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 | [GLO-85](https://linear.app/glossed/issue/GLO-85) queue consumer | Unchanged. **Do not start without Sean's direct word** |
 | GLO-16's matched-barcode gap | A log from a matched barcode carries no category, so no fit prompt and no event. **Not drivable in the simulator** (no camera) — needs a device or a seam that fakes the scan |
 
-**Done this stretch — 26 PRs merged into main between
+**Done by the journal lane on Aug 30: four PRs, all merged.**
+[#276](https://github.com/seanbrasse/glossed/pull/276) finished the sweep grid
+(26 → 34 cells) and filed GLO-176/177/178/179/180;
+[#280](https://github.com/seanbrasse/glossed/pull/280) fixed the near-match
+rung's self-deleting name field and its "check the photo" claim;
+[#284](https://github.com/seanbrasse/glossed/pull/284) added `ladder · the whole
+trip`, the first fixture able to drive a rung-to-rung transition at all;
+[#286](https://github.com/seanbrasse/glossed/pull/286) gave the ladder's failed
+lookups something to press.
+
+**Done earlier — 26 PRs merged into main between
 [#234](https://github.com/seanbrasse/glossed/pull/234) and
 [#262](https://github.com/seanbrasse/glossed/pull/262), across both lanes.**
 
@@ -187,25 +234,27 @@ the dismissal cost exactly one CTE, one weight, one union arm.
 | `core/Tracking` | track() real, and **a dropped batch now says so** — `os.Logger` on `com.glossed.tracking` in DEBUG, plus `droppedCount` (GLO-147). 15 tests |
 | `features/Shelf` | + fit gated on tried (GLO-145), live chip + note store (GLO-16), "would you buy it again?" (GLO-87), a bounded scrolling sheet (GLO-160), the label band and scale-down (GLO-149/155), four named empty states (GLO-166). 133 tests |
 | `features/ProductPage` | + the catalog image (GLO-153), and the fit answer now persists and is offered only where a `userItemID` exists to persist it to (GLO-47/165). 20 tests |
-| `features/AddLadder` | + GLO-93's scan-miss fill (`BarcodeFilling`/`BarcodeFillSuggestion` live HERE, not in DataKit), the 40-shade fixture and its cap guard (GLO-168). 108 tests |
+| `features/AddLadder` | + GLO-93's scan-miss fill (`BarcodeFilling`/`BarcodeFillSuggestion` live HERE, not in DataKit), the 40-shade fixture and its cap guard (GLO-168), and the journal lane's rung fixes: the name field survives being typed into, the photo instruction only appears where photos do (GLO-176/177), and both failed lookups now offer a retry (GLO-179). **118 tests** |
 | `features/Privacy` | Landed by the 1.5 lane in [#259](https://github.com/seanbrasse/glossed/pull/259). Four surfaces, one derived summary. 11 tests |
 | `features/Profile` | Landed by the 1.5 lane in [#265](https://github.com/seanbrasse/glossed/pull/265) — the handle claim screen. 11 tests |
 | `features/Discover` | Picks, crosswalk, the wander (#263) — then LIVE as tab 1 (#266), instrumented (#273/#281), tap-through (#274), the dismissal gesture (#281), and the trending seam (#287). **10 tests**, including wire-level event assertions (a capturing poster reads what actually flushed) |
 | `features/Browse` | Trending (#282, 1.5 lane, 7 tests) — reachable from discover once #287 lands. Routines browse in flight (#288, theirs) |
 | `features/Ranking` / `features/Import` | Untouched this stretch. 29 / 12 tests |
-| `app/` | Tracker wiring, fit-at-log seam + FitPromptCard (the prompt lives HERE, not in Shelf), catalogImageBase, and `AppShellProductPage` — closing the page re-opens the sheet so it re-reads `item_fits` |
+| `app/` | Tracker wiring, fit-at-log seam + FitPromptCard (the prompt lives HERE, not in Shelf), catalogImageBase, `AppShellProductPage`, and the debug screen picker — **now including `ladder · the whole trip`, the only entry hosting `LadderFlowView` rather than a bare rung** (GLO-180). The app target has NO test target (`project.yml` scheme `test.targets: []`); every test lives in a package |
 | `web/landing/` | Static landing page for the affiliate applications. On main, NOT deployed (§7) |
 | `scripts/` | shopify_import, obf_import (+ `--brands`), shopify_images, catalog_images, obf_requalify, brand_merge, merge_feeder, **inci_enrich** (new, GLO-170) |
-| `supabase/functions` | **7 functions, 82 deno tests, all passing, none deployed**; nothing serves them by default and the silence is dangerous (§0) |
+| `supabase/functions` | **8 functions, 82 deno tests, all passing, none deployed** (re-run at `63739aa`); nothing serves them by default and the silence is dangerous (§0) |
 
-**Verified totals — 469 Swift tests across 11 packages, all counted at
-`7114918`** (DataKit 83, DesignSystem 42, Tracking 15, Shelf 133, AddLadder
-108, Ranking 29, ProductPage 20, Import 12, Privacy 11, Profile 11, Discover
-5) — **plus 82 deno.**
+**Verified totals — 514 Swift tests across 12 packages, counted at `63739aa`**
+(DataKit 85, DesignSystem 42, Tracking 15, Shelf 133, AddLadder 118, Ranking 29,
+ProductPage 20, Import 12, Privacy 11, Profile 32, Discover 10, Browse 7) —
+**plus 82 deno across 8 functions.** This replaces the 469/11 figure; the taste
+lane had already flagged it as stale without restating it.
 
-**Do not trust that number; re-measure it.** It went 438 → 453 → 469 and the
-package count went 8 → 9 → 11 *while this file was being written*, because
-the 1.5 lane is landing a package roughly every twenty minutes. The count is
+**Do not trust that number either; re-measure it.** It has gone 438 → 453 →
+469 → 499 → 500 → 513 → 514, and the package count 8 → 9 → 11 → 12. The journal
+lane was rebased mid-PR because `features/Browse` landed underneath it, and the
+§9 loop found the new package unaided because it globs. The count is
 stamped with the commit it was taken at for exactly that reason. **§9's sweep
 loop discovers packages by glob rather than listing them** — copy that loop,
 never a list, because a list cannot notice a package that did not exist when
@@ -279,9 +328,10 @@ Standing: `supabase test db` runs against the **live local DB** — there is no
 shadow database, only `postgres`. So a red can still be drive-drift from
 seeded rows someone's drive mutated. Check row timestamps and `is_seeded`
 before resetting; **ping the other session before you reset**, and budget the
-restore (§9, seven scripts, ~50 min). Current baseline: **546 assertions / 1
-known failure (`shelf_view` 14)**, held by the 1.5 lane and reproduced after
-the Aug 29 colima restart.
+restore (§9, seven scripts, ~50 min). Current baseline: **567 assertions / 1
+known LOCAL failure (`shelf_view` 14; CI is zero)** — the taste lane's count
+after 0042's suite landed, and the number §2 carries. The journal lane did not
+re-run it.
 
 New: **the events partitions.** Migration 0033 fixed a real leak — `anon`
 could SELECT every partition, demonstrated with `set role anon`, not inferred.
@@ -310,8 +360,14 @@ repo's migration head (§0); and a `.build` cache from before a core change
 will report a package as broken when CI says it is fine (§8).
 
 **The state sweep (GLO-110) is the newer instrument and is outperforming the
-test pass per hour.** Its own findings section names six, of which five are
-merged fixes. Every one was invisible to the automated suite, because they are
+test pass per hour.** Across two sessions it has produced eleven findings, nine
+of them merged fixes. Aug 30 alone filed five and closed four, every one
+invisible to the suite: a field that deleted itself on the first keystroke, an
+instruction to check photographs that were drawings, a source card promising a
+capability the app does not have, a "try again" with nothing to press, and the
+discovery that **the harness itself could not reach the bug class it was built
+for** — no fixture hosted `LadderFlowView`, so no rung-to-rung transition was
+drivable at all, which is exactly GLO-96's shape. Every one was invisible to the automated suite, because they are
 defects of *what is offered*, not of what is computed: a fit control that
 could not save and did not say so, a blank shelf that would not say which of
 four causes it was, a 40-shade case reachable only by finding a real 40-shade
@@ -329,7 +385,8 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 
 | Thread | Where |
 |---|---|
-| The state sweep is 26 cells in and unfinished; five named cells remain | [GLO-110](https://linear.app/glossed/issue/GLO-110) / [docs/ux-state-sweep.md](docs/ux-state-sweep.md) |
+| The sweep is 34 cells in; the named cells are done and what remains is two axes — Dynamic Type everywhere but the shelf, and the ladder's remaining transitions | [GLO-110](https://linear.app/glossed/issue/GLO-110) / [docs/ux-state-sweep.md](docs/ux-state-sweep.md) |
+| Import's `screenshot of a haul` promises text extraction that does not exist, and the editor has no visible placeholder while carrying an accessibility one | [GLO-178](https://linear.app/glossed/issue/GLO-178) → [GLO-19](https://linear.app/glossed/issue/GLO-19) |
 | The shelf is unusable at accessibility text sizes; three candidate fixes written, none picked | [GLO-172](https://linear.app/glossed/issue/GLO-172) |
 | Chips render alphabetically, so likes and dislikes interleave — a feel question for Sean | [GLO-156](https://linear.app/glossed/issue/GLO-156) |
 | The Fit ↔ FitAnswer mapping is duplicated in two features with no legal shared home | [GLO-164](https://linear.app/glossed/issue/GLO-164) |
@@ -356,6 +413,7 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 |---|---|---|
 | [GLO-172](https://linear.app/glossed/issue/GLO-172)'s fix | **A design decision, not a slot.** Three candidate fixes are on the ticket; the correct one changes how the shelf's control row behaves at default size, which is Sean's call | Sean |
 | [GLO-156](https://linear.app/glossed/issue/GLO-156) chip order | Same class — render both and let him pick | Sean |
+| [GLO-178](https://linear.app/glossed/issue/GLO-178)'s card | One sentence: should `screenshot of a haul` stay while photo extract is unbuilt? The codebase's precedent says an absent affordance beats a dead one, but the card is the kit's. The placeholder half needs no ruling | Sean |
 | Landing-page deploy (→ Rakuten/Impact applications) | Vercel MCP token cannot create projects (403, team role). Create an empty project named `glossed` OR raise the integration's role; the deploy payload is one command away | Sean |
 | Rakuten + Impact publisher accounts | Signups (GLO-90/91 carry the exact steps); need the channel URL above | Sean |
 | Beauty API key | Free Sandbox+Barcode signup at thebeautyapi.com → `BEAUTY_API_KEY` secret | Sean |
@@ -590,6 +648,45 @@ branch reads as if it deletes the siblings' work. Rebase before trusting any
 local diff — the wiring branch briefly read as "removes DataKit code" when
 the delta was pure staleness.
 
+**Session 12 (the journal lane, Aug 30):**
+
+*The twenty-two character drive that proved nothing.* In §0 because it is the
+stretch's whole lesson; the operational form is short — **give a state the
+smallest input that should work, not a realistic one.** Twenty-two characters
+into the near-match name field returned three candidates and read as success;
+one character exposed that the field deletes itself (GLO-176). The stub answered
+any non-empty query identically, so the screen could not tell me what it had
+actually received.
+
+*A doc comment can state a contract the code beneath it does not implement.*
+`NearMatchRungView`'s eyebrow gate is documented as "a list that failed to load
+has no photos to check" — and it tested list *completeness*, never whether a
+photo existed, so it told people to check drawings for 430 of 497 brands
+(GLO-177). **When a comment states a rule, check that the expression under it
+tests that rule.** A comment is a claim like any other.
+
+*I nearly filed a bug against my own fixture.* `add to shelf` in the new
+ladder-trip entry looked dead — sheet up, nothing happening. The cause was my
+own entry leaving `onClose` at its default no-op, so nothing dismissed the flow.
+**Check what you wired before filing against what someone else did.**
+
+*A finding traced is not a finding walked.* GLO-176's reachability was argued
+from `react(to:)` and `BarcodeRungModel.noneOfThese()` when filed; GLO-180's
+fixture later let me walk it in four taps, and it held. Tracing is enough to
+file. It is not enough to be sure.
+
+*The file-length ceiling bit again*, and the answer is the split this repo has
+already made four times (`AnchorSheetEntry`, `ShelfLifecycleEntry`,
+`NearMatchFixtures`, `ScreenData`) — never a suppression.
+
+*And two lanes refreshed THIS FILE within the hour.* I wrote a full update, then
+found the taste lane had already landed one that fixed several of the same rows
+— including a real pgTAP number (567) where mine would have written "not
+re-measured". Re-applying my edits onto their version, rather than rebasing over
+it, is the only reason that number survived. **Before editing a shared document,
+diff it against the commit you started from** — and where the other lane's
+version is better, take theirs.
+
 ## 9. Local setup
 
 ```bash
@@ -599,13 +696,13 @@ make setup && make dev
 # hardcoded list cannot notice a package that did not exist when it was written.
 for p in $(ls -d core/*/ features/*/ | sed 's:/$::'); do
   [ -f "$p/Package.swift" ] || continue
-  echo "== $p"; (cd $p && swift test)   # 469 total at 7114918
+  echo "== $p"; (cd $p && swift test)   # 514 total at 63739aa — RE-MEASURE
 done
 make functions-test       # 82 deno tests
-supabase test db          # 546 assertions / 1 known failure (shelf_view 14)
-# schema_migrations UNDER-REPORTS (§0) — it says 29, the schema is at 40. To ask
-# whether a migration landed, grep its object name out of the file and look for
-# THAT, never a name you remembered:
+supabase test db          # 567 assertions / 1 known LOCAL failure (shelf_view 14)
+# schema_migrations agreed at 42/42 when last checked (§0) — but nothing
+# enforces it. To ask whether a migration landed, grep its object name out of
+# the file and look for THAT, never a name you remembered:
 grep -oE "create (or replace )?function [a-z_.]+" supabase/migrations/<file>.sql
 ```
 
