@@ -46,8 +46,24 @@ differences were decisions.
 
 ## Which document wins where they disagree
 
-`tech/00` §2's deltas supersede the PRD, and they postdate the kit. For
-Discover, three matter:
+**The governing order for Discover is: deltas 15 and 19 → PRD §10 → the frame**
+— and the frame only for elements the deltas do not touch. `tech/00` §2 says
+deltas supersede the PRD, and they postdate the kit.
+
+**`G.Discover` is partly STALE, and building to it naively would regress a
+merged feature.** Independently found by the coordinating session and by this
+slice, from the same source bytes: the frame's two-column grid of product
+cards *under an eyebrow* is the sectioned-store shape delta 15 killed, and the
+screen-map caption confirms the frame's intent — *"picked for you from the
+anchor, the tuning card, and the gap card."* #314's one-scroll, no-sections
+stream is **correct**; the frame is out of date. `docs/DESIGN.md`'s "build to
+the frame" rule assumes the frame is current, and for this screen it is not.
+
+That does not make the frame worthless. Elements that are **chrome rather than
+section shape** are not superseded and are audited on their merits below: the
+search field, the tune entry card, and the `leaderboards →` door.
+
+Three deltas decide the disputed rows:
 
 - **Delta 15** — *"discovery is incorporated into the feed… No sections, no
   headers — a sectioned page of product cards is a store's shape."* This
@@ -71,8 +87,8 @@ missing from the built screen and no delta accounts for its absence.
 | 1 | `<Input placeholder="vibe search: dewy blush that lasts…" />`, the **first** element on the screen | nothing — no search anywhere on discover | **diverges** (missing) | frame + PRD §10 bullet 1, `Search + filters V1`. No delta touches it. See GLO-224 |
 | 2 | `sharpen your matches` button → `go('tune')`; sub `skin type · concerns · brands — moved out of onboarding`; `background:var(--lilac-soft)`, `borderRadius:14`, chevron-right glyph | `TuneCard`, injected by the app at position 0. Copy is `SHARPEN YOUR MATCHES` (eyebrow) + `skin type, concerns, the brands you rate — three taps`; `Tokens.Support.butterSoft`; affordance is `tune →` | **diverges** (present, three cosmetic differences) | frame. Gated by `TuneGate` — correct and beyond the frame. See GLO-225 |
 | 3 | `<Eyebrow color="var(--cherry-deep)">PICKED FOR YOU · FENTY 240 · 3B</Eyebrow>` | absent | **matches the governing rule, not the frame** | **delta 15** removes it; **delta 19** would only allow it back with an n. Correctly dropped |
-| 4 | `leaderboards →` — mono 11, `--cherry-deep`, underlined, `go('leaderboard')` | absent. The board is reachable only as pick → product page → `onLeaderboard`, three taps deep, and only for that product's category | **diverges** (missing) | frame. Delta 15 removes the header this sat in, not the door. Built in this lane |
-| 5 | `gridTemplateColumns:'1fr 1fr'`, `gap:'30px 16px'`; per cell `G.Mock h={98} rotate={[-3,2,3,-2][i]}` | one column of full-width `GlossedCard`s, each wrapping a horizontal `ProductCard` | **diverges** (layout) | no delta mandates one column — delta 15 forbids *sections*, not a grid. Unmeasured. See GLO-226 |
+| 4 | `leaderboards →` — mono 11, `--cherry-deep`, underlined, `go('leaderboard')` | absent. The board is reachable only as pick → product page → `onLeaderboard`, three taps deep, and only for that product's category | **diverges** (missing) | **PRD §10 line 312**, above the frame in the governing order: *"Leaderboards `V1` — best-ranked **per category** from percentiles, and the spicy one: lowest-ranked, with the chip reasons why."* Per-category browsing needs a door that is not locked to whichever product you happened to tap. Delta 15 deleted the header this link sat in, not the link. Built in this lane |
+| 5 | `gridTemplateColumns:'1fr 1fr'`, `gap:'30px 16px'`; per cell `G.Mock h={98} rotate={[-3,2,3,-2][i]}` | one column of full-width `GlossedCard`s, each wrapping a horizontal `ProductCard` | **frame is stale — the build is correct** | the grid sits *under the section eyebrow*, and the two together are the store shape delta 15 killed. #314's stream is right. **Do not build this row.** GLO-226 keeps only its eyebrow half |
 | 6 | per-cell `<Eyebrow>{c.type}</Eyebrow>` — `CREAM BLUSH`, `LIP OIL`, `CURL CREAM`, `CONCEALER` | absent | **diverges** (missing) | frame. `CatalogHit.categorySlug` is already on the wire, so this needs no new read. See GLO-226 |
 | 7 | name `font-display` 800 / 18 / `lineHeight:1.05`; brand in mono under it | `ProductCard(meta:)` renders brand + name + variant | **matches** (in substance) | — |
 | 8 | up to two `Chip`s per cell: one `kind:'attribute'` (`dewy`), one `kind:'like'` with `count:'×89'` (`lasts on combo`), `rotate={[-1,0.8]}` | absent | **diverges** (missing, blocked) | frame + PRD §03 *"chips become search"*. **Blocked**: `CatalogHit` carries no chips and `AggregatesRepository.payoff` is per-*variant*; a per-product chip read is a DataKit opening. See GLO-227 |
@@ -106,23 +122,33 @@ frame, element for element, including the copy.
 | Verdict | Count |
 |---|---|
 | matches | 9 |
-| diverges — built in this lane | 1 (#4) |
-| diverges — ticket filed, buildable | 3 (#1, #5+#6, #2) |
-| diverges — ticket filed, blocked on a DataKit opening | 2 (#8, #9) |
-| frame draws a post-V1 element; PRD phases it out | 1 (#10) |
-| correctly superseded by a delta | 1 (#3) |
+| diverges — built in this lane | 1 (#4, the leaderboards door) |
+| diverges — ticket filed, buildable | 2 (#1 search, #2 TuneCard cosmetics, #6 category eyebrow) |
+| diverges — ticket filed, blocked on a DataKit opening | 2 (#8 cell chips, #9 the hand aside) |
+| **frame is stale; the build is correct** | 2 (#3 the section header, #5 the grid) |
+| frame draws a post-V1 element; PRD phases it out | 1 (#10 `GapCard`) |
 | additions beyond the frame, all justified | 5 |
+
+**Checked, because a duplicate here would have been easy:** the frame's tune
+entry card and the onboarding lane's in-stream tune card (#329) are **the same
+thing, not two**. The app injects `TuneCardHost` at stream position 0 through
+the GLO-200 slot API, gated by `TuneGate` on real profile facts. Nothing was
+built twice; the only divergence is cosmetic (GLO-225).
 
 ## PRD §10 asks for things neither the frame nor the code has
 
 Listed separately because these are not frame divergences.
 
+Quoted with line numbers, because `~/Downloads/glossed-prd-v2.0.md` (762 lines)
+is local to one machine and nobody reviewing from another can open it.
+
 | PRD §10 / §11 | State |
 |---|---|
-| **Search + filters** `V1` — *"by category, brand, skin type fit, chip attributes, price band. The filter learns."* | No search on discover at all. `CatalogRepository.search` exists and is public (name/brand FTS); category, chip-attribute and price-band filters do not. GLO-224 |
-| **Leaderboards** `V1` — *"best-ranked per category… and the spicy one: lowest-ranked, with the chip reasons why"* | Built (`G.Leaderboard`, both boards, dislike reasons on the lowest). Only the door from discover was missing |
-| **Attribute affinity is visible to the user** §11 — *"Visible, and it's a feature. Explains itself: '8 of your top 10 are fragrance-free.'"* | `AggregatesRepository.affinity()` is public, returns `[AffinityRow]` with the label, `nSignals` and the confidence `w` — **and is consumed by nothing in the app.** The receipts surface the PRD calls a feature is unbuilt. GLO-229 |
-| **Gap cards** `V1.5` | Primitive built, unused. Correctly not on V1 discover. GLO-228 |
+| **line 311** — *"**Search + filters** `V1` — by category, brand, skin type fit, chip attributes, price band. Skin-type fit comes from chip data conditioned on reviewer skin, not marketing copy. **The filter learns.**"* | No search on discover at all. `CatalogRepository.search` exists and is public (name/brand FTS); category, chip-attribute and price-band filters do not. GLO-224 |
+| **line 312** — *"**Leaderboards** `V1` — best-ranked per category from percentiles, and the spicy one: **lowest-ranked**, with the chip reasons why."* | Built (`G.Leaderboard`, both boards, dislike reasons on the lowest). Only the door from discover was missing — built in this lane |
+| **line 318** — *"**Trending** `V1.5` — overall and per skin type, as cutout stickers."* | Built and wired (#287) ahead of its phase. Renders only when the app supplies a destination |
+| **line 321** — `### Gap cards` `V1.5` | Primitive built, unused. Correctly not on V1 discover. GLO-228 |
+| **line 406** — *"Attribute affinity \| **Visible, and it's a feature.** Explains itself: ' 8 of your top 10 are fragrance-free.' **Disagreement is a correction signal** — free training data"* | `AggregatesRepository.affinity()` is public, returns `[AffinityRow]` with the label, `nSignals` and the confidence `w` — **and is consumed by nothing in the app.** The receipts surface the PRD calls a feature is unbuilt. GLO-229 |
 | Feed / seam / #shadetwins / creator curation `V2` | Out of Phase-1 scope; delta 11 pulls the *looks feed* into V1, tracked on the feed epic, not here |
 
 ## Open product questions this audit could not settle
@@ -136,10 +162,9 @@ Listed separately because these are not frame divergences.
    (PRD §03: *"chips become search"*). `search_catalog` is name/brand FTS.
    Shipping the frame's placeholder over the built search would promise a
    capability we do not have — the GLO-178 line.
-3. **One column or two?** The frame's grid is a browsing shape; the built
-   stream is a feed shape, and delta 15 argued for the feed. Delta 15's
-   objection was to *sections*, so a two-column stream is not obviously
-   forbidden — but it is a look, and looks are Sean's.
+3. ~~**One column or two?**~~ **Answered: the frame is stale.** The grid sits
+   under the section eyebrow and the pair is the store shape delta 15 killed.
+   The built stream is correct and this row should not be built.
 4. **Is `avatar_seed`-style dead data the pattern here too?** `GapCard` and
    `affinity()` are both built, correct, and reachable by nothing. Each is
    either a missing surface or a dead artifact, and the answer differs.
