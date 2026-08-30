@@ -12,14 +12,17 @@ public struct OwnProfileView: View {
     private let onOpenPrivacy: () -> Void
 
     private let suggestionsStore: ViewedProfileStore
+    private let safetyStore: SafetyActionsStore
 
     public init(
         store: OwnProfileStore,
         suggestionsStore: ViewedProfileStore,
+        safetyStore: SafetyActionsStore,
         onClaimHandle: @escaping () -> Void,
         onOpenPrivacy: @escaping () -> Void
     ) {
         self.suggestionsStore = suggestionsStore
+        self.safetyStore = safetyStore
         _model = State(wrappedValue: OwnProfileModel(store: store))
         self.onClaimHandle = onClaimHandle
         self.onOpenPrivacy = onOpenPrivacy
@@ -55,7 +58,10 @@ public struct OwnProfileView: View {
         // place a client legitimately holds one for someone else, since
         // public_profile deliberately does not return it.
         .sheet(item: $viewing) { person in
-            ViewedProfileView(store: suggestionsStore, handle: person.handle, userID: person.userID)
+            ViewedProfileView(
+                store: suggestionsStore, handle: person.handle,
+                userID: person.userID, safety: safetyStore
+            )
         }
     }
 
