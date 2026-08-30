@@ -42,22 +42,7 @@ extension AppShell {
                     ProfileRepository(client: client), client: client,
                     safety: SafetyRepository(client: client)
                 ),
-                onSignedOut: { session.signedOut() },
-                routinesStore: .live(RoutinesRepository(client: client)),
-                collectionsStore: ProfileCollectionsStore(
-                    mine: {
-                        try await CollectionsRepository(client: client).mine().map {
-                            ProfileCollection(
-                                id: $0.collectionID, title: $0.title,
-                                tint: $0.coverTint?.rawValue, itemN: $0.itemN
-                            )
-                        }
-                    },
-                    rename: { try await CollectionsRepository(client: client)
-                        .rename(collectionID: $0, to: $1)
-                    }
-                ),
-                onCreateLook: {}
+                onSignedOut: { session.signedOut() }
             )
         } else {
             unbuiltTab("you", ticket: "GLO-21", line: "profile · collections · settings")
