@@ -97,7 +97,7 @@ public struct RoutineComposerView: View {
                 model.move(step, up: true)
             } label: {
                 Image(systemName: "chevron.up")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(Typography.control(13, weight: .bold))
                     .foregroundStyle(position == 1 ? Tokens.Ink.faint : Tokens.Ink.primary)
                     .frame(width: 30, height: 30)
             }
@@ -107,7 +107,7 @@ public struct RoutineComposerView: View {
                 model.move(step, up: false)
             } label: {
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(Typography.control(13, weight: .bold))
                     .foregroundStyle(position == model.steps.count ? Tokens.Ink.faint : Tokens.Ink.primary)
                     .frame(width: 30, height: 30)
             }
@@ -148,7 +148,7 @@ public struct RoutineComposerView: View {
         } label: {
             HStack(spacing: Tokens.Space.s3) {
                 Image(systemName: picked ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(Typography.control(18, weight: .semibold))
                     .foregroundStyle(picked ? Tokens.Cherry.base : Tokens.Ground.line)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(row.name)

@@ -83,7 +83,7 @@ public struct BarcodeRungView: View {
                 .accessibilityLabel("barcode scanner")
         } else {
             Image(systemName: "barcode")
-                .font(.system(size: 40, weight: .medium))
+                .font(Typography.control(40, weight: .medium))
                 .foregroundStyle(Tokens.Ink.primary)
                 .accessibilityHidden(true)
         }

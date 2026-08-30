@@ -77,7 +77,7 @@ public struct LadderOptionRow: View {
             .frame(width: LadderCard.thumbWidth)
         case .noneOfThese:
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 20, weight: .medium))
+                .font(Typography.control(20, weight: .medium))
                 .foregroundStyle(Tokens.Ink.primary)
                 .frame(width: LadderCard.thumbWidth, height: LadderCard.thumbHeight)
                 .overlay(
