@@ -8,21 +8,25 @@ import SwiftUI
 public struct OwnProfileView: View {
     @State private var model: OwnProfileModel
     @State private var viewing: SuggestedPerson?
+    @State private var editingSocials = false
     private let onClaimHandle: () -> Void
     private let onOpenPrivacy: () -> Void
 
     private let suggestionsStore: ViewedProfileStore
     private let safetyStore: SafetyActionsStore
+    private let socialsStore: LinkedSocialsStore
 
     public init(
         store: OwnProfileStore,
         suggestionsStore: ViewedProfileStore,
         safetyStore: SafetyActionsStore,
+        socialsStore: LinkedSocialsStore,
         onClaimHandle: @escaping () -> Void,
         onOpenPrivacy: @escaping () -> Void
     ) {
         self.suggestionsStore = suggestionsStore
         self.safetyStore = safetyStore
+        self.socialsStore = socialsStore
         _model = State(wrappedValue: OwnProfileModel(store: store))
         self.onClaimHandle = onClaimHandle
         self.onOpenPrivacy = onOpenPrivacy
@@ -41,6 +45,7 @@ public struct OwnProfileView: View {
                         counts
                         badgeSection
                         SuggestedPeopleCard(store: suggestionsStore) { viewing = $0 }
+                        socialsLink
                         privacyLink
                     }
                 }
@@ -57,6 +62,9 @@ public struct OwnProfileView: View {
         // A suggestion carries the user id the follow graph needs — the only
         // place a client legitimately holds one for someone else, since
         // public_profile deliberately does not return it.
+        .sheet(isPresented: $editingSocials) {
+            LinkedSocialsView(store: socialsStore)
+        }
         .sheet(item: $viewing) { person in
             ViewedProfileView(
                 store: suggestionsStore, handle: person.handle,
@@ -111,6 +119,11 @@ public struct OwnProfileView: View {
     /// Privacy lives one tap away rather than inline: these badges publish
     /// specific facts, while the scopes decide who sees the surfaces at all.
     /// Mixing them on one screen would blur two different questions.
+    private var socialsLink: some View {
+        Button("where else you are", action: { editingSocials = true })
+            .buttonStyle(.glossed(.secondary, block: true))
+    }
+
     private var privacyLink: some View {
         Button("who can see your surfaces", action: onOpenPrivacy)
             .buttonStyle(.glossed(.secondary, block: true))

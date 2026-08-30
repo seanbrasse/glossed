@@ -64,6 +64,13 @@ public struct PublicText: Codable, Sendable, Equatable {
         case body, state
     }
 
+    public init(kind: PublicTextKind, subjectID: UUID?, body: String, state: ModerationState) {
+        self.kind = kind
+        self.subjectID = subjectID
+        self.body = body
+        self.state = state
+    }
+
     /// Whether anyone else can see this yet. A public surface reads only
     /// `approved` (§3.2), so a pending edit renders the previously approved
     /// body or nothing — never the pending text. The author's own screen shows
