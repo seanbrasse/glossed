@@ -68,16 +68,21 @@ public struct Chip: View {
         self.action = action
     }
 
+    /// The dot is decorative but carries the valence, so it grows with the
+    /// glyph inside it. Uncapped against the glyph's 1.6x ceiling, which keeps
+    /// the circle ahead of its contents rather than behind them.
+    @ScaledMetric(relativeTo: .body) private var dotSize: CGFloat = 13
+
     public var body: some View {
         let content = HStack(spacing: 6) {
             ZStack {
-                Circle().fill(kind.dot).frame(width: 13, height: 13)
+                Circle().fill(kind.dot).frame(width: dotSize, height: dotSize)
                 Text(kind.glyph)
-                    .font(.system(size: 9, weight: .heavy))
+                    .font(Typography.control(9, weight: .heavy))
                     .foregroundStyle(.white)
             }
             Text(label)
-                .font(.system(size: size.font, weight: .bold))
+                .font(Typography.control(size.font))
             if let week {
                 Text("w\(week)").font(Typography.mono(10))
                     .foregroundStyle(Tokens.Ink.soft)

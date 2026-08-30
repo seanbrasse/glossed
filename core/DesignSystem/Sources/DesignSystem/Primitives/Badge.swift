@@ -63,7 +63,7 @@ public struct PhaseTag: View {
 
     public var body: some View {
         Text(phase.rawValue)
-            .font(.system(size: Typography.Size.tag, weight: .heavy))
+            .font(Typography.control(Typography.Size.tag, weight: .heavy))
             .kerning(Typography.Size.tag * 0.1)
             .foregroundStyle(phase.foreground)
             .padding(.vertical, 4)

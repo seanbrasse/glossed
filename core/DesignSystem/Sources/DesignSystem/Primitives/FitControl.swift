@@ -100,7 +100,7 @@ public struct FitControl: View {
             selection = FitControl.picked(answer, from: selection)
         } label: {
             Text(answer.label)
-                .font(.system(size: 12.5, weight: .bold))
+                .font(Typography.control(12.5))
                 .foregroundStyle(Tokens.Ink.primary)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 38)

@@ -49,6 +49,24 @@ public enum Typography {
         .custom(bold ? "Space Mono Bold" : "Space Mono", size: size, relativeTo: .caption)
     }
 
+    /// Controls: the system sans of buttons, chips, switches and the tab bar.
+    /// Scales with Dynamic Type, but bounded — the controls a low-vision user
+    /// most needs to hit were the ones frozen at default size, while a tab bar
+    /// that triples in height is its own defect (GLO-186).
+    public static func control(
+        _ size: CGFloat, weight: Font.Weight = .bold, maxScale: CGFloat = controlMaxScale
+    ) -> Font {
+        #if canImport(UIKit)
+            Font(scaledControl(size: size, weight: weight, maxScale: maxScale))
+        #else
+            .system(size: size, weight: weight)
+        #endif
+    }
+
+    /// The ceiling controls share unless one asks for its own: 1.6x carries a
+    /// 13pt segment label to ~21pt — legible without bursting its capsule.
+    public static let controlMaxScale: CGFloat = 1.6
+
     private static func relative(_ size: CGFloat) -> Font.TextStyle {
         switch size {
         case ..<18: .body
@@ -79,6 +97,34 @@ public enum Typography {
             return .custom(family, size: size, relativeTo: style)
         #endif
     }
+
+    #if canImport(UIKit)
+        /// Split out from `control(_:weight:maxScale:)` because `Font` is
+        /// opaque and `UIFont` reports its `pointSize` — the cap is only
+        /// assertable on this side of the wrapper.
+        static func scaledControl(
+            size: CGFloat, weight: Font.Weight, maxScale: CGFloat,
+            compatibleWith traits: UITraitCollection? = nil
+        ) -> UIFont {
+            let base = UIFont.systemFont(ofSize: size, weight: uiWeight(weight))
+            return UIFontMetrics(forTextStyle: .body)
+                .scaledFont(for: base, maximumPointSize: size * maxScale, compatibleWith: traits)
+        }
+
+        private static func uiWeight(_ weight: Font.Weight) -> UIFont.Weight {
+            switch weight {
+            case .black: .black
+            case .heavy: .heavy
+            case .bold: .bold
+            case .semibold: .semibold
+            case .medium: .medium
+            case .light: .light
+            case .thin: .thin
+            case .ultraLight: .ultraLight
+            default: .regular
+            }
+        }
+    #endif
 
     #if canImport(UIKit)
         /// The bridge UIKit never shipped. Only the styles `relative(_:)`
