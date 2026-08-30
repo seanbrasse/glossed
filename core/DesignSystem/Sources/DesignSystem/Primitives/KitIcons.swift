@@ -115,3 +115,143 @@ public struct PlusIcon: View {
         }
     }
 }
+
+/// Renders one of the drawer's four kit glyphs at the kit's own `size={18}`.
+///
+/// GLO-64's second slice. The first ported the nav's three marks; these are the
+/// + drawer's four — `search` · `file` · `folder` · `layers` — read straight
+/// off `G.ICONS` this session, and cross-checked by pulling `sparkles` and
+/// `shelf` from the same object and finding them identical to what is already
+/// drawn above.
+struct DrawerGlyphView: View {
+    let glyph: ActionDrawer.Glyph
+    /// `G.drawerOptions` draws every one of the four at `size={18}`.
+    var size: CGFloat = 18
+
+    var body: some View {
+        DrawerGlyphShape(glyph: glyph)
+            .stroke(style: KitIcon.strokeStyle(for: size))
+            .frame(width: size, height: size)
+    }
+}
+
+/// One `Shape` switching on the glyph rather than four views, because a
+/// `@ViewBuilder` switch produces a `View` and `.stroke` is a `Shape` member —
+/// the four would each have to carry their own stroke, and then the kit's one
+/// stroke weight would live in four places.
+private struct DrawerGlyphShape: Shape {
+    let glyph: ActionDrawer.Glyph
+
+    func path(in rect: CGRect) -> Path {
+        switch glyph {
+        case .search: SearchShape().path(in: rect)
+        case .file: FileShape().path(in: rect)
+        case .folder: FolderShape().path(in: rect)
+        case .layers: LayersShape().path(in: rect)
+        }
+    }
+}
+
+/// The kit's grid helper: every path below is written in the kit's own 24×24
+/// coordinates and scaled to the frame, so re-syncing against `screens.jsx` is
+/// reading the numbers off rather than re-deriving them.
+private struct KitGrid {
+    let rect: CGRect
+
+    var scale: CGFloat {
+        rect.width / 24
+    }
+
+    func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+        CGPoint(x: rect.minX + x * scale, y: rect.minY + y * scale)
+    }
+}
+
+/// `ICONS.search` — `<circle cx=11 cy=11 r=8/><path d="m21 21-4.3-4.3"/>`
+private struct SearchShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let grid = KitGrid(rect: rect)
+        var path = Path()
+        path.addEllipse(in: CGRect(
+            origin: grid.point(3, 3),
+            size: CGSize(width: 16 * grid.scale, height: 16 * grid.scale)
+        ))
+        path.move(to: grid.point(21, 21))
+        path.addLine(to: grid.point(16.7, 16.7))
+        return path
+    }
+}
+
+/// `ICONS.file` — a page with the top-right corner folded. The kit's `z` is
+/// what draws the fold's hypotenuse, so closing the subpath is load-bearing
+/// here rather than tidiness.
+private struct FileShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let grid = KitGrid(rect: rect)
+        let radius = 2 * grid.scale
+        var path = Path()
+        path.move(to: grid.point(14, 3))
+        path.addArc(tangent1End: grid.point(5, 3), tangent2End: grid.point(5, 21), radius: radius)
+        path.addArc(tangent1End: grid.point(5, 21), tangent2End: grid.point(19, 21), radius: radius)
+        path.addArc(tangent1End: grid.point(19, 21), tangent2End: grid.point(19, 8), radius: radius)
+        path.addLine(to: grid.point(19, 8))
+        path.closeSubpath()
+        path.move(to: grid.point(14, 3))
+        path.addLine(to: grid.point(14, 8))
+        path.addLine(to: grid.point(19, 8))
+        return path
+    }
+}
+
+/// `ICONS.folder` — one closed outline whose top edge steps up into the tab.
+private struct FolderShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let grid = KitGrid(rect: rect)
+        let radius = 2 * grid.scale
+        var path = Path()
+        path.move(to: grid.point(20, 20))
+        path.addArc(tangent1End: grid.point(22, 20), tangent2End: grid.point(22, 6), radius: radius)
+        path.addArc(tangent1End: grid.point(22, 6), tangent2End: grid.point(12.1, 6), radius: radius)
+        path.addLine(to: grid.point(12.1, 6))
+        // The tab's shoulder: the kit's two small arcs (`a2 2 0 0 1 -1.69-.9`
+        // and `A2 2 0 0 0 7.93 3`) with the sharp vertex as the control point —
+        // the same approximation SparklesIcon already makes for the kit's
+        // filleted corners, and at r=2 on a 24 grid it is under half a point.
+        path.addQuadCurve(to: grid.point(10.41, 5.1), control: grid.point(11.4, 5.6))
+        path.addLine(to: grid.point(9.6, 3.9))
+        path.addQuadCurve(to: grid.point(7.93, 3), control: grid.point(9.1, 3.2))
+        path.addLine(to: grid.point(4, 3))
+        path.addArc(tangent1End: grid.point(2, 3), tangent2End: grid.point(2, 20), radius: radius)
+        path.addArc(tangent1End: grid.point(2, 20), tangent2End: grid.point(20, 20), radius: radius)
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// `ICONS.layers` — a rounded rhombus over two sweeps, the stack read
+/// edge-on. Three subpaths, exactly as the kit draws them.
+private struct LayersShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let grid = KitGrid(rect: rect)
+        var path = Path()
+        path.move(to: grid.point(12.83, 2.18))
+        path.addQuadCurve(to: grid.point(11.17, 2.18), control: grid.point(12, 1.75))
+        path.addLine(to: grid.point(2.6, 6.08))
+        path.addQuadCurve(to: grid.point(2.6, 7.91), control: grid.point(1.85, 7))
+        path.addLine(to: grid.point(11.18, 11.82))
+        path.addQuadCurve(to: grid.point(12.84, 11.82), control: grid.point(12, 12.25))
+        path.addLine(to: grid.point(21.42, 7.92))
+        path.addQuadCurve(to: grid.point(21.42, 6.09), control: grid.point(22.15, 7))
+        path.closeSubpath()
+        for baseline in [12.65, 17.65] as [CGFloat] {
+            path.move(to: grid.point(22, baseline))
+            path.addLine(to: grid.point(12.83, baseline + 4.16))
+            path.addQuadCurve(
+                to: grid.point(11.17, baseline + 4.16),
+                control: grid.point(12, baseline + 4.6)
+            )
+            path.addLine(to: grid.point(2, baseline))
+        }
+        return path
+    }
+}
