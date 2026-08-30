@@ -34,19 +34,60 @@ public struct ProfileRoutinesStore: Sendable {
     }
 }
 
+/// One card of the collections grid — the whole of what the frame draws, and
+/// nothing more.
+///
+/// **A local shape rather than DataKit's `MyCollection`, deliberately.** The
+/// two carry the same facts, but `MyCollection` also carries `visibility`, and
+/// a field on a struct this screen renders is an invitation to write copy
+/// about it. V1 creates every collection `only_you` and no surface here can
+/// change, honour or truthfully report that — copy about a scope no screen
+/// controls is the GLO-208 shape. What is not carried cannot be claimed.
+///
+/// `tint` is the wire word from `collections.cover_tint`, not a colour: the
+/// column is nullable `text` with no check constraint, so an unrecognised
+/// value is a real possibility and draws untinted rather than throwing.
+public struct ProfileCollection: Identifiable, Equatable, Sendable {
+    public let id: UUID
+    public let title: String
+    public let tint: String?
+    /// The frame's `mono(c.count + ' products')`. A count of YOUR OWN
+    /// collection — no cohort, no evidence chrome.
+    public let itemN: Int
+
+    public init(id: UUID, title: String, tint: String?, itemN: Int) {
+        self.id = id
+        self.title = title
+        self.tint = tint
+        self.itemN = itemN
+    }
+}
+
+/// The collections half of the seam.
+public struct ProfileCollectionsStore: Sendable {
+    public var mine: @Sendable () async throws -> [ProfileCollection]
+
+    public init(mine: @escaping @Sendable () async throws -> [ProfileCollection]) {
+        self.mine = mine
+    }
+}
+
 /// The tab strip's state, and the copy each card wears.
 @MainActor
 @Observable
 public final class ProfileTabsModel {
     public var tab: ProfileTab = .routines
     public private(set) var routines: [MyRoutine] = []
+    public private(set) var collections: [ProfileCollection] = []
     public private(set) var isLoading = true
     public private(set) var errorMessage: String?
 
     private let routinesStore: ProfileRoutinesStore?
+    private let collectionsStore: ProfileCollectionsStore?
 
-    public init(routines: ProfileRoutinesStore?) {
+    public init(routines: ProfileRoutinesStore?, collections: ProfileCollectionsStore? = nil) {
         routinesStore = routines
+        collectionsStore = collections
     }
 
     /// Only the tabs that have a seam behind them, in the frame's order.
@@ -57,20 +98,44 @@ public final class ProfileTabsModel {
     private func available(_ tab: ProfileTab) -> Bool {
         switch tab {
         case .routines: routinesStore != nil
-        case .collections: false
+        case .collections: collectionsStore != nil
         }
     }
 
+    /// Both tabs load together, because the segmented control switches between
+    /// two things that are already there — a tab that starts a fetch when it is
+    /// tapped puts a spinner behind a control that reads as instant.
+    ///
+    /// One failure does not blank the other tab: each read keeps whatever it
+    /// got, and the first message wins. A user with routines and a collections
+    /// read that timed out should still see their routines.
     public func load() async {
         isLoading = true
         defer { isLoading = false }
-        guard let routinesStore else { return }
-        do {
-            routines = try await routinesStore.mine()
-        } catch {
-            errorMessage = (error as? GlossedError)?.userMessage
-                ?? "couldn't load your routines. pull to try again."
+        if let routinesStore {
+            do {
+                routines = try await routinesStore.mine()
+            } catch {
+                note(error, fallback: "couldn't load your routines. pull to try again.")
+            }
         }
+        if let collectionsStore {
+            do {
+                collections = try await collectionsStore.mine()
+            } catch {
+                note(error, fallback: "couldn't load your collections. pull to try again.")
+            }
+        }
+        // The frame opens on `routines`; if that tab was never wired, open on
+        // the one that was rather than on a blank pane.
+        if !available(tab), let first = tabs.first {
+            tab = first
+        }
+    }
+
+    private func note(_ error: Error, fallback: String) {
+        guard errorMessage == nil else { return }
+        errorMessage = (error as? GlossedError)?.userMessage ?? fallback
     }
 
     /// The frame's `mono(r.steps.length + ' steps · ' + r.since)`.
@@ -132,6 +197,11 @@ public final class ProfileTabsModel {
         "jan", "feb", "mar", "apr", "may", "jun",
         "jul", "aug", "sep", "oct", "nov", "dec"
     ]
+
+    /// The frame's `mono(c.count + ' products')`, singular at one.
+    nonisolated static func productsLine(_ n: Int) -> String {
+        "\(n) \(n == 1 ? "product" : "products")"
+    }
 
     /// One step, named by the thing you own. `brand · product · shade`, and
     /// the shade only when the row has one — a step that prints an empty
