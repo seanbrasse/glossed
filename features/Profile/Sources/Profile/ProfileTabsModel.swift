@@ -1,85 +1,17 @@
 import DataKit
 import Foundation
 
-/// The profile's lower half — `G.Profile`'s `Segmented ['routines','collections']`
-/// and whichever tab it selects (GLO-230).
-///
-/// The frame declares both options unconditionally because its data is a
-/// fixture. Here the set is derived from the seams the app actually filled, so
-/// a segment never appears in front of a surface that cannot answer: a tab
-/// whose content is "coming soon" is the drawer's `collections land with
-/// GLO-21` mistake wearing different words (GLO-189).
-public enum ProfileTab: String, CaseIterable, Sendable {
-    case routines, collections
-
-    /// Lowercase, like every label in the app. The kit's segment words are
-    /// the enum's own.
-    public var label: String {
-        rawValue
-    }
-}
-
-/// How the profile's tabs reach persistence. Closures, not repositories, for
-/// the reason `LooksStore` and `CollectionsStore` are: features never import
-/// features, and the model is driven in tests with no client present.
-public struct ProfileRoutinesStore: Sendable {
-    public var mine: @Sendable () async throws -> [MyRoutine]
-
-    public init(mine: @escaping @Sendable () async throws -> [MyRoutine]) {
-        self.mine = mine
-    }
-
-    public static func live(_ routines: RoutinesRepository) -> ProfileRoutinesStore {
-        ProfileRoutinesStore(mine: { try await routines.mine() })
-    }
-}
-
-/// One card of the collections grid — the whole of what the frame draws, and
-/// nothing more.
-///
-/// **A local shape rather than DataKit's `MyCollection`, deliberately.** The
-/// two carry the same facts, but `MyCollection` also carries `visibility`, and
-/// a field on a struct this screen renders is an invitation to write copy
-/// about it. V1 creates every collection `only_you` and no surface here can
-/// change, honour or truthfully report that — copy about a scope no screen
-/// controls is the GLO-208 shape. What is not carried cannot be claimed.
-///
-/// `tint` is the wire word from `collections.cover_tint`, not a colour: the
-/// column is nullable `text` with no check constraint, so an unrecognised
-/// value is a real possibility and draws untinted rather than throwing.
-public struct ProfileCollection: Identifiable, Equatable, Sendable {
-    public let id: UUID
-    public let title: String
-    public let tint: String?
-    /// The frame's `mono(c.count + ' products')`. A count of YOUR OWN
-    /// collection — no cohort, no evidence chrome.
-    public let itemN: Int
-
-    public init(id: UUID, title: String, tint: String?, itemN: Int) {
-        self.id = id
-        self.title = title
-        self.tint = tint
-        self.itemN = itemN
-    }
-}
-
-/// The collections half of the seam.
-public struct ProfileCollectionsStore: Sendable {
-    public var mine: @Sendable () async throws -> [ProfileCollection]
-
-    public init(mine: @escaping @Sendable () async throws -> [ProfileCollection]) {
-        self.mine = mine
-    }
-}
-
 /// The tab strip's state, and the copy each card wears.
 @MainActor
 @Observable
 public final class ProfileTabsModel {
     public var tab: ProfileTab = .routines
+    public var isEditing = false
+    public var renaming: RenameTarget?
     public private(set) var routines: [MyRoutine] = []
     public private(set) var collections: [ProfileCollection] = []
     public private(set) var isLoading = true
+    public private(set) var isSavingRename = false
     public private(set) var errorMessage: String?
 
     private let routinesStore: ProfileRoutinesStore?
@@ -136,6 +68,93 @@ public final class ProfileTabsModel {
     private func note(_ error: Error, fallback: String) {
         guard errorMessage == nil else { return }
         errorMessage = (error as? GlossedError)?.userMessage ?? fallback
+    }
+
+    // MARK: - Edit mode (the frame's `edit profile` / `done editing`)
+
+    /// Whether the tab now showing has anything to rename. The button is not
+    /// drawn otherwise: an `edit profile` that turns nothing into a target is
+    /// a control that does nothing, and this project has shipped that already.
+    public var canEdit: Bool {
+        renameWrite(for: tab) != nil
+    }
+
+    public var editButtonLabel: String {
+        isEditing ? "done editing" : "edit profile"
+    }
+
+    /// The frame's mono hint, shown only while editing.
+    public var editHint: String? {
+        isEditing ? "tap any card to rename it" : nil
+    }
+
+    public func toggleEditing() {
+        isEditing.toggle()
+        if !isEditing {
+            renaming = nil
+        }
+    }
+
+    public func beginRename(_ target: RenameTarget) {
+        guard isEditing, renameWrite(for: tab) != nil else { return }
+        errorMessage = nil
+        renaming = target
+    }
+
+    private func renameWrite(for tab: ProfileTab) -> (@Sendable (UUID, String) async throws -> Void)? {
+        switch tab {
+        case .routines: routinesStore?.rename
+        case .collections: collectionsStore?.rename
+        }
+    }
+
+    /// Writes the new title, then updates the row in place.
+    ///
+    /// In place rather than by reloading: the write returned, so the stored
+    /// title is the trimmed string that was sent, and a reload would flash a
+    /// spinner over a list that is already correct. The trim is done here as
+    /// well as in the repository so the two cannot disagree about what landed.
+    ///
+    /// A blank title is refused before the round trip, in the repository's own
+    /// words — `routines.title` is `not null` but has no length check, and a
+    /// routine with a blank name is unaddressable in a list.
+    public func saveRename() async {
+        guard let target = renaming, let write = renameWrite(for: target.tabForKind) else { return }
+        let trimmed = target.value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            errorMessage = "give it a name."
+            return
+        }
+        isSavingRename = true
+        defer { isSavingRename = false }
+        errorMessage = nil
+        do {
+            try await write(target.id, trimmed)
+            apply(trimmed, to: target)
+            renaming = nil
+        } catch {
+            // The sheet stays open with what was typed. A rename that closes
+            // on failure loses the words and tells you it worked.
+            errorMessage = (error as? GlossedError)?.userMessage ?? "that didn't save. try again."
+        }
+    }
+
+    private func apply(_ title: String, to target: RenameTarget) {
+        switch target.kind {
+        case .routine:
+            routines = routines.map {
+                guard $0.routineID == target.id else { return $0 }
+                return MyRoutine(
+                    routineID: $0.routineID, title: title, slot: $0.slot,
+                    startedOn: $0.startedOn, createdAt: $0.createdAt, steps: $0.steps
+                )
+            }
+        case .collection:
+            collections = collections.map {
+                guard $0.id == target.id else { return $0 }
+                return ProfileCollection(id: $0.id, title: title, tint: $0.tint, itemN: $0.itemN)
+            }
+        }
     }
 
     /// The frame's `mono(r.steps.length + ' steps · ' + r.since)`.

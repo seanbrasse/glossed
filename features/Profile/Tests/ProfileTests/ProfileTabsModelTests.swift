@@ -79,6 +79,126 @@ private func collection(
     #expect(model.errorMessage == "you're offline.")
 }
 
+// MARK: - Edit mode and rename (GLO-230)
+
+@MainActor
+private func editableModel(
+    routines: [MyRoutine] = [],
+    rename: @escaping @Sendable (UUID, String) async throws -> Void = { _, _ in }
+) -> ProfileTabsModel {
+    ProfileTabsModel(routines: ProfileRoutinesStore(mine: { routines }, rename: rename))
+}
+
+@MainActor
+@Test func editProfileIsNotOfferedWhenNothingCanBeRenamed() async {
+    // A control that turns nothing into a target is a control that does
+    // nothing, and this project has shipped that once already (GLO-189).
+    let readOnly = ProfileTabsModel(routines: ProfileRoutinesStore(mine: { [] }))
+    #expect(!readOnly.canEdit)
+    #expect(editableModel().canEdit)
+}
+
+@MainActor
+@Test func theButtonAndItsHintAreTheFramesWords() async {
+    let model = editableModel()
+    #expect(model.editButtonLabel == "edit profile")
+    #expect(model.editHint == nil)
+    model.toggleEditing()
+    #expect(model.editButtonLabel == "done editing")
+    #expect(model.editHint == "tap any card to rename it")
+}
+
+@MainActor
+@Test func leavingEditModeClosesAnOpenRenameSheet() async {
+    let model = editableModel()
+    model.toggleEditing()
+    model.beginRename(RenameTarget(kind: .routine, id: UUID(), value: "am"))
+    #expect(model.renaming != nil)
+    model.toggleEditing()
+    #expect(model.renaming == nil)
+}
+
+@MainActor
+@Test func aCardIsNotARenameTargetUntilEditModeIsOn() async {
+    let model = editableModel()
+    model.beginRename(RenameTarget(kind: .routine, id: UUID(), value: "am"))
+    #expect(model.renaming == nil)
+}
+
+@MainActor
+@Test func aSavedRenameUpdatesTheRowInPlaceAndTrimsFirst() async {
+    let existing = routine(title: "am")
+    nonisolated(unsafe) var wrote: (UUID, String)?
+    let model = editableModel(routines: [existing], rename: { wrote = ($0, $1) })
+    await model.load()
+    model.toggleEditing()
+    model.beginRename(RenameTarget(kind: .routine, id: existing.routineID, value: "  morning glass skin  "))
+    await model.saveRename()
+
+    #expect(wrote?.0 == existing.routineID)
+    // Trimmed on this side too, so the list and the column cannot disagree
+    // about what landed.
+    #expect(wrote?.1 == "morning glass skin")
+    #expect(model.routines.first?.title == "morning glass skin")
+    // The steps and the slot survive the rewrite.
+    #expect(model.routines.first?.slot == .am)
+    #expect(model.renaming == nil)
+}
+
+@MainActor
+@Test func aBlankNameIsRefusedBeforeTheRoundTrip() async {
+    nonisolated(unsafe) var called = false
+    let model = editableModel(routines: [routine()], rename: { _, _ in called = true })
+    await model.load()
+    model.toggleEditing()
+    model.beginRename(RenameTarget(kind: .routine, id: UUID(), value: "   "))
+    await model.saveRename()
+    #expect(!called)
+    #expect(model.errorMessage == "give it a name.")
+    // The sheet stays open — the words are still there to fix.
+    #expect(model.renaming != nil)
+}
+
+@MainActor
+@Test func aFailedRenameKeepsTheSheetAndTheTypedWords() async {
+    let existing = routine(title: "am")
+    let model = editableModel(routines: [existing], rename: { _, _ in
+        throw GlossedError(.offline, userMessage: "you're offline.")
+    })
+    await model.load()
+    model.toggleEditing()
+    model.beginRename(RenameTarget(kind: .routine, id: existing.routineID, value: "pm reset"))
+    await model.saveRename()
+    #expect(model.errorMessage == "you're offline.")
+    #expect(model.renaming?.value == "pm reset")
+    // And the list still says what the database says.
+    #expect(model.routines.first?.title == "am")
+}
+
+@Test func theEyebrowNamesWhatIsBeingRenamed() {
+    // The kit builds it by uppercasing the tab key and dropping the trailing s.
+    #expect(RenameTarget(kind: .routine, id: UUID(), value: "").eyebrow == "RENAME ROUTINE")
+    #expect(RenameTarget(kind: .collection, id: UUID(), value: "").eyebrow == "RENAME COLLECTION")
+}
+
+@MainActor
+@Test func theWriteFollowsTheTargetNotTheTabShowing() async {
+    // A tab switched under an open sheet must not send a routine's id to the
+    // collections rename.
+    nonisolated(unsafe) var routineWrites = 0
+    nonisolated(unsafe) var collectionWrites = 0
+    let model = ProfileTabsModel(
+        routines: ProfileRoutinesStore(mine: { [] }, rename: { _, _ in routineWrites += 1 }),
+        collections: ProfileCollectionsStore(mine: { [] }, rename: { _, _ in collectionWrites += 1 })
+    )
+    model.toggleEditing()
+    model.beginRename(RenameTarget(kind: .routine, id: UUID(), value: "am"))
+    model.tab = .collections
+    await model.saveRename()
+    #expect(routineWrites == 1)
+    #expect(collectionWrites == 0)
+}
+
 @Test func theProductsLineIsSingularForOne() {
     #expect(ProfileTabsModel.productsLine(0) == "0 products")
     #expect(ProfileTabsModel.productsLine(1) == "1 product")

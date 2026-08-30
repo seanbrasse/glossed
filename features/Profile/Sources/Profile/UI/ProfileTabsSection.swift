@@ -14,6 +14,9 @@ struct ProfileTabsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s3) {
+            if model.canEdit {
+                editRow
+            }
             if model.tabs.count > 1 {
                 HStack {
                     Segmented(options: model.tabs.map(\.label), selection: selection)
@@ -22,6 +25,19 @@ struct ProfileTabsSection: View {
                 }
             }
             content
+        }
+    }
+
+    /// The frame's `edit profile` / `done editing`, its variant flipping
+    /// secondary → mint, with the mono hint beside it while editing.
+    private var editRow: some View {
+        HStack(spacing: Tokens.Space.s2) {
+            Button(model.editButtonLabel) { model.toggleEditing() }
+                .buttonStyle(.glossed(model.isEditing ? .mint : .secondary, size: .sm))
+            if let hint = model.editHint {
+                Text(hint).meta()
+            }
+            Spacer(minLength: 0)
         }
     }
 
@@ -53,7 +69,17 @@ struct ProfileTabsSection: View {
                 ],
                 spacing: Tokens.Space.s3
             ) {
-                ForEach(model.collections) { CollectionCard(collection: $0) }
+                ForEach(model.collections) { collection in
+                    CollectionCard(collection: collection)
+                        .renameTarget(
+                            editing: model.isEditing,
+                            label: collection.title
+                        ) {
+                            model.beginRename(
+                                RenameTarget(kind: .collection, id: collection.id, value: collection.title)
+                            )
+                        }
+                }
             }
         }
     }
@@ -81,7 +107,17 @@ struct ProfileTabsSection: View {
             emptyRoutines
         } else {
             VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-                ForEach(model.routines) { RoutineCard(routine: $0) }
+                ForEach(model.routines) { routine in
+                    RoutineCard(routine: routine)
+                        .renameTarget(
+                            editing: model.isEditing,
+                            label: routine.title
+                        ) {
+                            model.beginRename(
+                                RenameTarget(kind: .routine, id: routine.routineID, value: routine.title)
+                            )
+                        }
+                }
             }
         }
     }

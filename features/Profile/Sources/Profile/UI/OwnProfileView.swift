@@ -82,6 +82,10 @@ public struct OwnProfileView: View {
         .background(Tokens.Ground.milk)
         .task { await model.load() }
         .task { await tabs.load() }
+        // Outside the ScrollView, like the shell's + drawer: the frame's scrim
+        // is `inset:0` on the screen, and an overlay inside the scroller would
+        // be clipped to the content and travel with it.
+        .overlay { RenameOverlay(model: tabs) }
         .overlay(alignment: .bottom) {
             if let message = model.errorMessage {
                 Toast(message).padding(.bottom, Tokens.Space.s8)
