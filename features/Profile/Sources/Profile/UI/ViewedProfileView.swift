@@ -68,11 +68,20 @@ public struct ViewedProfileView: View {
     /// The pop moment: whose profile this is.
     private func header(_ profile: PublicProfile) -> some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s2) {
-            Text("@\(profile.handle)")
-                .font(Typography.display(Typography.Size.h1))
-                .foregroundStyle(Tokens.Ink.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+            HStack(spacing: Tokens.Space.s3) {
+                // No tone ring here, deliberately. The ring carries a tone
+                // band, tone band is Regulated (domain.md §5), and the badges
+                // are the ONLY path by which a body fact reaches another
+                // person (tech/02 §3.4). There is no tone badge, so there is
+                // no consent to draw one.
+                Avatar(name: profile.displayName ?? profile.handle, size: 48)
+                    .accessibilityHidden(true)
+                Text("@\(profile.handle)")
+                    .font(Typography.display(Typography.Size.h1))
+                    .foregroundStyle(Tokens.Ink.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
             if let name = profile.displayName {
                 Text(name)
                     .font(.system(size: Typography.Size.body))
