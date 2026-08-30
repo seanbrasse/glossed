@@ -12,12 +12,11 @@ and the ladder's transitions, which cannot be driven at all yet
 listed as unfinished; a blank cell is a cell nobody has looked at, and saying so
 is the point of the file.
 
-**One thing the grid cannot tell you, and it took driving to learn:** none of
-the ladder cells below is a claim about *transitions*. The picker hosts every
-rung bare, so `LadderFlowView` — where every rung-to-rung move actually lives —
-has no fixture at all ([GLO-180](https://linear.app/glossed/issue/GLO-180)).
-A ✅ on a ladder row means the rung renders and holds its promise, not that you
-can get off it.
+**A ✅ on a single-rung ladder row still means the rung renders and holds its
+promise, not that you can get off it** — those entries host one rung bare. The
+moves between rungs now have their own entry, `ladder · the whole trip`
+([GLO-180](https://linear.app/glossed/issue/GLO-180)), and they are a separate
+row because they fail separately.
 
 ## Why the file exists
 
@@ -52,7 +51,7 @@ Two rules govern the cells:
 | Import — source pick | ❌ [GLO-178](https://linear.app/glossed/issue/GLO-178) | — | — | — |
 | Import — parsed | ✅ nothing matched | — | ✅ messy list | ✅ parse failed |
 | **Dynamic Type** | — | — | ❌ [GLO-172](https://linear.app/glossed/issue/GLO-172) | — |
-| **Ladder transitions** | ⬜ [GLO-180](https://linear.app/glossed/issue/GLO-180) | ⬜ | ⬜ | ⬜ |
+| **Ladder transitions** | ✅ escape chain, search → scan → near | ✅ a hit opens the shade pick | ⬜ | ⬜ a log that fails mid-trip |
 
 ✅ driven and passing · ❌ driven and failing · ⬜ not yet driven · — not applicable
 
@@ -139,16 +138,22 @@ is to edit a query that was already correct. Two sibling failure states — the
 logging sheet's and the item sheet's — both give you a live `try again`. The
 inconsistency is what makes it a defect rather than a preference.
 
-**[GLO-180](https://linear.app/glossed/issue/GLO-180) — the instrument cannot reach the bug class it was built for.**
-Open. `LadderFlowView` appears in exactly two files: itself and `AppShell`. The
+**[GLO-180](https://linear.app/glossed/issue/GLO-180) — the instrument could not reach the bug class it was built for.**
+Fixed: `ladder · the whole trip`. `LadderFlowView` appears in exactly two files: itself and `AppShell`. The
 picker hosts every rung bare, so no rung-to-rung transition is drivable without
 the live stack. Two consequences showed up while driving: tapping a search hit
 does nothing (nothing observes `pickedHit`), and tapping the escape advances the
 progress rail while the body stays put — a state the real app cannot produce.
 This file's own opening names [GLO-96](https://linear.app/glossed/issue/GLO-96),
 *"the ladder resumed a stale flow"*, as one of the three bugs it exists to
-prevent. That is a transition bug, and transitions are the one thing the grid
-cannot currently speak to.
+prevent. That is a transition bug, and transitions were the one thing the grid
+could not speak to.
+
+The fixture also settled GLO-176's reachability by walking it rather than
+reading it. The claim on that ticket — search with nothing typed → the scan
+rung's escape → a near-match rung holding neither a query nor a GTIN — was
+traced through `react(to:)` and `BarcodeRungModel.noneOfThese()`. It is now a
+path someone has actually walked on the device, in four taps.
 
 **Two stale fixture notes.** Fixed in [#238](https://github.com/seanbrasse/glossed/pull/238). The picker's notes are what a
 driver checks the screen *against*, so a wrong one is worse than none.
@@ -212,9 +217,12 @@ surfaces have never been looked at above the default size.
 `xcrun simctl ui <udid> content_size accessibility-extra-large` — underscore,
 not a hyphen.
 
-**Every ladder transition.** [GLO-180](https://linear.app/glossed/issue/GLO-180)
-— not drivable from the picker at all today, so it needs the fixture before it
-needs the sweep.
+**The rest of the ladder's transitions.** The fixture now exists
+([GLO-180](https://linear.app/glossed/issue/GLO-180)) and two paths are driven:
+the escape chain, and a hit opening the shade pick. Still undriven — a log that
+fails mid-trip, and GLO-96's own question, which the entry is built to ask:
+finish a trip and the flow restarts on a fresh id, so *does it come back
+empty?*
 
 ## What this round changed about how to drive a cell
 
