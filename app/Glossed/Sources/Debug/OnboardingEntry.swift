@@ -1,5 +1,6 @@
 #if DEBUG
 
+    import DataKit
     import DesignSystem
     import Onboarding
     import SwiftUI
@@ -93,17 +94,34 @@
         }
 
         private struct OnboardingTrip: View {
-            @State private var inQuiz = false
+            private enum Stop {
+                case hook, quiz, payoff
+            }
+
+            @State private var stop = Stop.hook
 
             var body: some View {
-                if inQuiz {
+                switch stop {
+                case .hook:
+                    OnbHookView(onCreateAccount: { stop = .quiz })
+                case .quiz:
                     OnbQuizView(
                         model: OnboardingModel(),
                         anchorCatalog: OnboardingEntry.fixtureCatalog,
-                        onFinished: { inQuiz = false }
+                        onFinished: { stop = .payoff }
                     )
-                } else {
-                    OnbHookView(onCreateAccount: { inQuiz = true })
+                case .payoff:
+                    // A backed fixture — the neutral gate's sides are unit
+                    // tested; the trip shows the claim the frame shows.
+                    OnbPayoffView(
+                        model: PayoffModel(
+                            anchor: .init(brand: "fenty beauty", shadeCode: "240", variantID: UUID()),
+                            payoff: { _ in
+                                PayoffEvidence(exactShadeCount: 12, withFitCount: 9, evidenceBacked: true)
+                            }
+                        ),
+                        onContinue: { stop = .hook }
+                    )
                 }
             }
         }
