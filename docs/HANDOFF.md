@@ -7,9 +7,13 @@ Where Phase 1 stands, what to do next, and what this session learned. Read
 now written by more than one of them, and each section says whose work it
 describes. The **Phase-1 journal lane** owns shelf, sheet, product page, ladder
 and the state sweep; the **Phase-1.5 / taste lane** owns migrations, DataKit
-reads, discover and browse. **Do not speak for a lane that is not yours** — and
+reads, discover and browse; the **onboarding lane** (Aug 30 daytime) owns
+leaderboard UI, the GLO-18 flow, tune, and the kit nav; the **feed lane**
+(Aug 30 late) owns §-1. **Do not speak for a lane that is not yours** — and
 before editing this file, check whether someone else already updated the same
-row, because on Aug 30 two lanes refreshed it within the hour.
+row, because on Aug 30 two lanes refreshed it within the hour (and this
+version was written on top of the feed lane's PR before it merged, for the
+same reason).
 
 **The journal lane finished GLO-110.** The grid is at 34 cells; every named cell
 from the previous round is driven. It filed five issues and closed four in the
@@ -190,8 +194,12 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Next | Why |
 |---|---|
-| `features/Leaderboard` — GLO-20's last surface | **Everything under it merged tonight**: 0042's `leaderboard()` (claims nulled below min-n, rows never hidden, lowest board carries thresholded dislike reasons, 'yours' resolved server-side) and the DataKit read (#285, `LeaderboardRow.isRankable`). The kit frame is REAL for this screen — pull `G.Leaderboard` via docs/DESIGN.md's GetFile recipe and build to it: rank numbers fade to "—" below min-n, empty copy is exactly "not enough face-offs yet · n of 5", butter badge, footer rule line. One frame element deferred deliberately: the scoped ConfidenceMeter has no defined live source — do not invent a number for it. Then wire the product page's `onLeaderboard` (a dead closure since GLO-151) |
-| [#287](https://github.com/seanbrasse/glossed/pull/287) — trending-on-discover wiring | Open at handoff, CI running, watcher armed. Merges itself on green under the standing grant; if the session died first, it is one squash-merge — the drive already passed (screenshot with Sean) |
+| [GLO-21](https://linear.app/glossed/issue/GLO-21) — routines, mid-flight | **The composer is BUILT and UNDRIVEN** on `feat/GLO-21-routines` (`591be60`): model + view + 7 tests + a debug-picker entry with a fixture shelf, lint clean, app build green. Steps order by tap order; `RoutineStore.create` is a stubbed seam because the write needs a **DataKit opening Sean has been asked for and has NOT granted** (routines/collections CRUD). Drive it first (`routines · composer` in the picker), open its PR, then either get the opening or ship read-only. Schema is already live: `routines`/`routine_steps`/`collections`, own-row policies verified by psql this session |
+| [GLO-204](https://linear.app/glossed/issue/GLO-204) — display name + bio editor | The avatar half merged as [#328](https://github.com/seanbrasse/glossed/pull/328) (not this lane's). What remains is the name/bio form — and the **bio moderation trap** (§7): `public_texts` rows land `pending` and nothing approves them, so a naive editor writes bios nobody will ever see. Get Sean's call before building the save path |
+| [#335](https://github.com/seanbrasse/glossed/pull/335) — the kit nav | Open at handoff, iOS running. Icon-only tabs with drawn glyphs (`KitIcons`), your initial as the third tab, plus outside the capsule. Merges itself on green under the standing grant; if the session died first it is one squash-merge — the drive passed, screenshots went to Sean |
+| [GLO-23](https://linear.app/glossed/issue/GLO-23) — real auth | The account steps (#312) run the full UI against a stubbed `AccountStore`; Sign in with Apple + Twilio phone codes need **Sean at the keyboard** (capabilities, secrets). When it lands: the real entry point replaces the debug door, the returning-user path, the tour-seen marker, and an XCUITest over the trip |
+| ~~`features/Leaderboard` — GLO-20's last surface~~ | **DONE by the onboarding lane** — built to `G.Leaderboard` ([#293](https://github.com/seanbrasse/glossed/pull/293)), both doors into the board wired ([#294](https://github.com/seanbrasse/glossed/pull/294), [#297](https://github.com/seanbrasse/glossed/pull/297)). The scoped ConfidenceMeter stayed deferred-not-decorated, as instructed |: 0042's `leaderboard()` (claims nulled below min-n, rows never hidden, lowest board carries thresholded dislike reasons, 'yours' resolved server-side) and the DataKit read (#285, `LeaderboardRow.isRankable`). The kit frame is REAL for this screen — pull `G.Leaderboard` via docs/DESIGN.md's GetFile recipe and build to it: rank numbers fade to "—" below min-n, empty copy is exactly "not enough face-offs yet · n of 5", butter badge, footer rule line. One frame element deferred deliberately: the scoped ConfidenceMeter has no defined live source — do not invent a number for it. Then wire the product page's `onLeaderboard` (a dead closure since GLO-151) |
+| ~~[#287](https://github.com/seanbrasse/glossed/pull/287) — trending-on-discover wiring~~ | **MERGED** (`43d0ac0`) — the watcher did its job |
 | Save/wishlist — the registry's +0.5 row | **A mapping decision before code**: tech/07 §2 reserved +0.5 for "save", and the app's existing save-shaped concept is `want_to_try` — but 0035 deliberately EXCLUDES want_to_try from affinity ("unworn is not evidence"). Those reconcile (intent ≠ experience evidence; +0.5 is an intent weight) but that is a ruling to get from Sean, not to slip into a migration comment |
 | [GLO-184](https://linear.app/glossed/issue/GLO-184) — migration comment density | Sean's correction, lands on BOTH lanes: 0030–0034 and 0035–0042 run 40–60% comments against the repo's 7–9%. Future migrations at house density; the ticket carries what should survive in the merged ones |
 | [GLO-110](https://linear.app/glossed/issue/GLO-110) — the sweep's two remaining AXES | **Still the highest-yield instrument in the repo, but what is left changed shape.** 34 cells driven and every named cell done, so this is no longer a list of cells: it is (a) **Dynamic Type on the nine surfaces nobody has checked** — GLO-172 found the shelf unusable at accessibility sizes and no other screen has been looked at above default (`xcrun simctl ui <udid> content_size accessibility-extra-large`, underscore); and (b) **the rest of the ladder's transitions**, drivable at last via `ladder · the whole trip` (GLO-180). Two paths are driven; a log that fails mid-trip is not, and neither is GLO-96's own question, which that entry exists to ask — finish a trip, the flow restarts on a fresh id, *does it come back empty?* |
@@ -204,6 +212,34 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 | Beauty API key + Vercel project | Unchanged, still keyboard-minutes for Sean, still the long pole for GLO-90/91/93 |
 | [GLO-85](https://linear.app/glossed/issue/GLO-85) queue consumer | Unchanged. **Do not start without Sean's direct word** |
 | GLO-16's matched-barcode gap | A log from a matched barcode carries no category, so no fit prompt and no event. **Not drivable in the simulator** (no camera) — needs a device or a seam that fakes the scan |
+
+**Done by the onboarding lane, Aug 30 daytime: sixteen PRs merged, one in CI.**
+GLO-20's UI closed — the board built to frame
+([#293](https://github.com/seanbrasse/glossed/pull/293), 16 tests), both doors
+([#294](https://github.com/seanbrasse/glossed/pull/294),
+[#297](https://github.com/seanbrasse/glossed/pull/297)), and
+`variableFont` actually scaling on iOS
+([#298](https://github.com/seanbrasse/glossed/pull/298)). Then **GLO-18
+end-to-end behind the debug door** (`onboarding · the whole trip`): the
+reordered quiz ([#304](https://github.com/seanbrasse/glossed/pull/304)) on the
+kit's `ShadeAnchorPicker` ([#300](https://github.com/seanbrasse/glossed/pull/300)),
+the payoff that runs evidence-backed or stays quiet
+([#306](https://github.com/seanbrasse/glossed/pull/306)), account steps with a
+typed birthday gate ([#312](https://github.com/seanbrasse/glossed/pull/312)),
+the tour + welcome ([#309](https://github.com/seanbrasse/glossed/pull/309)),
+the shelf starter's four doors
+([#323](https://github.com/seanbrasse/glossed/pull/323)), and tune — screen
+([#325](https://github.com/seanbrasse/glossed/pull/325)), DataKit opening
+([#326](https://github.com/seanbrasse/glossed/pull/326)), and the card in the
+stream, offered by facts and gone when tuned
+([#329](https://github.com/seanbrasse/glossed/pull/329) — driven live on both
+sides of the gate). Two Sean-granted DataKit openings, **both spent and
+expired**: [#301](https://github.com/seanbrasse/glossed/pull/301)
+(`ProfileRepository`) and #326 (brand affinities + the anchor read; the anchor
+*write* dissolved — `user_shade_anchor` is a VIEW, logging + fit IS setting
+it). Also: shopify handles stopped being thrown away
+([#295](https://github.com/seanbrasse/glossed/pull/295)), and 44 Onboarding
+tests, all counts verified at merge time.
 
 **Done by the journal lane on Aug 30: four PRs, all merged.**
 [#276](https://github.com/seanbrasse/glossed/pull/276) finished the sweep grid
@@ -263,16 +299,20 @@ the dismissal cost exactly one CTE, one weight, one union arm.
 |---|---|
 | Schema | **42 migration files, all applied and stamped** (the tracker read 29 on Aug 29 and was reconciled the same night — §0; 0041–0042 stamped at apply time). 0033–0042 landed Aug 29, split across the 1.5 and taste lanes. The slot rotates by announcement — claim it in a message to the other lanes, never infer it from `gh pr list` (§8). **Hosted is at 42 and verified** — the taste lane applied 0035–0042 there via MCP and checked ACLs + cron rows after each, never inferring from local |
 | Catalog data | **3,206 products / 9,019 variants / 7,625 images / 497 brands / 22 categories**, local-only; **2,112 pending merge_candidates**, image queue ZERO. (Counted just now against the local DB.) Every image meets the standard (OBF's 588 sub-800px purged, GLO-104). Search knows what things ARE: product_type/tags/origin live on 1,836+ rows. Restore recipe: §9 — now SEVEN scripts. Maya's shelf carries drive-drift rows — fine for dev; a pgTAP run wants a reset + ping |
-| `core/DataKit` | **Frozen; openings are per-session and all of Aug 29's expired with their sessions.** **85 tests.** The taste lane's opening (Sean's "go for it all", Aug 29 evening) added the discover reads, `LeaderboardRow`, and `TasteRepository` (the registry's write side) on top of the 1.5 lane's five repositories |
-| `core/DesignSystem` | + `YesNoControl` (a question you can leave unanswered — `Segmented` always has one option selected, which is right for a status and wrong for a question), scaling `ProductSticker`. 42 tests |
+| `core/DataKit` | **Frozen; openings are per-session and every one granted so far is spent and expired.** The taste lane's opening added the discover reads, `LeaderboardRow`, and `TasteRepository`; the onboarding lane's two (Aug 30) added `ProfileRepository` — `own()`, `saveProfile` with typed validation, `anchor()` off the view, and `brandAffinities` that **encodes only when asked: `nil` leaves the column untouched, `[]` deliberately wipes** (#301/#326); the feed lane's added `LooksRepository` (#333, §-1). A fourth (routines/collections writes) is ASKED, not granted. Test count has moved past 85 — re-measure |
+| `core/DesignSystem` | + `YesNoControl`, scaling `ProductSticker`, the kit's `ShadeAnchorPicker` (#300), the GLO-186 Dynamic Type series (#313/#316/#317/#319, another lane's), and the `Avatar` aligned to the kit. [#335](https://github.com/seanbrasse/glossed/pull/335) (in CI at handoff) rewrites `FloatingNav` to the kit — icon-only, drawn `KitIcons` glyphs, initial avatar tab — and *removes* GLO-201's label scaling, superseded with Sean's knowledge. Test count moved past 42 — re-measure |
 | `core/Tracking` | track() real, and **a dropped batch now says so** — `os.Logger` on `com.glossed.tracking` in DEBUG, plus `droppedCount` (GLO-147). 15 tests |
 | `features/Shelf` | + fit gated on tried (GLO-145), live chip + note store (GLO-16), "would you buy it again?" (GLO-87), a bounded scrolling sheet (GLO-160), the label band and scale-down (GLO-149/155), four named empty states (GLO-166). 133 tests |
 | `features/ProductPage` | + the catalog image (GLO-153), and the fit answer now persists and is offered only where a `userItemID` exists to persist it to (GLO-47/165). 20 tests |
 | `features/AddLadder` | + GLO-93's scan-miss fill (`BarcodeFilling`/`BarcodeFillSuggestion` live HERE, not in DataKit), the 40-shade fixture and its cap guard (GLO-168), and the journal lane's rung fixes: the name field survives being typed into, the photo instruction only appears where photos do (GLO-176/177), and both failed lookups now offer a retry (GLO-179). **118 tests** |
 | `features/Privacy` | Landed by the 1.5 lane in [#259](https://github.com/seanbrasse/glossed/pull/259). Four surfaces, one derived summary. 11 tests |
 | `features/Profile` | Landed by the 1.5 lane in [#265](https://github.com/seanbrasse/glossed/pull/265) — the handle claim screen. 11 tests |
-| `features/Discover` | Picks, crosswalk, the wander (#263) — then LIVE as tab 1 (#266), instrumented (#273/#281), tap-through (#274), the dismissal gesture (#281), and the trending seam (#287). **10 tests**, including wire-level event assertions (a capturing poster reads what actually flushed) |
+| `features/Discover` | Picks, crosswalk, the wander (#263) — then LIVE as tab 1 (#266), instrumented (#273/#281), tap-through (#274), the dismissal gesture (#281), and the trending seam (#287). Then Aug 30: the sectioned page became the feed's STREAM (#314, §-1), grew **injected card slots** (#320), and the tune card rides slot 0 when the gate says so (#329). Wire-level event assertions throughout; test count moved past 10 — re-measure |
 | `features/Browse` | Trending (#282, 1.5 lane, 7 tests) — reachable from discover once #287 lands. Routines browse in flight (#288, theirs) |
+| `features/Leaderboard` | NEW (onboarding lane, #293) — built to `G.Leaderboard`: slug→ID resolution, yours/everyone scope, ranks skip unrankable rows, sub-min-n rows say so instead of hiding. Reached from the product page's both doors (#294/#297). 16 tests |
+| `features/Onboarding` | NEW (onboarding lane, #304–#329) — hook → quiz → payoff → account → build → welcome, plus the tour overlay and tune. **Runs end to end behind the debug door only**; `AccountStore` is stubbed until GLO-23. Steps derive live from domain answers; the payoff renders only what the RPC evidence-backs. 44 tests |
+| `features/Looks` / `core/Media` | Feed lane, §-1. Composer has no app entry yet, deliberately |
+| `features/Routines` | **Branch only** — `feat/GLO-21-routines` (`591be60`), built + 7 tests, UNDRIVEN, write seam stubbed pending the opening. Not on main |
 | `features/Ranking` / `features/Import` | Untouched this stretch. 29 / 12 tests |
 | `app/` | Tracker wiring, fit-at-log seam + FitPromptCard (the prompt lives HERE, not in Shelf), catalogImageBase, `AppShellProductPage`, and the debug screen picker — **now including `ladder · the whole trip`, the only entry hosting `LadderFlowView` rather than a bare rung** (GLO-180). The app target has NO test target (`project.yml` scheme `test.targets: []`); every test lives in a package |
 | `web/landing/` | Static landing page for the affiliate applications. On main, NOT deployed (§7) |
@@ -295,9 +335,11 @@ never a list, because a list cannot notice a package that did not exist when
 it was written. **pgTAP: 567 assertions / 1 known LOCAL failure (`shelf_view` 14; CI is
 zero)** — the taste lane's count after 0042's suite landed. The Swift totals
 above predate that lane's evening (Discover 5→10, DataKit 83→85, + Browse 7);
-re-measure with §9's glob loop rather than trusting any list here.
-`core/Media` is NOT among the packages: it is named in both CLAUDE.md files but
-**has never existed** ([GLO-148](https://linear.app/glossed/issue/GLO-148)).
+re-measure with §9's glob loop rather than trusting any list here. **These
+totals predate Aug 30 entirely** — the freshest count is §-1's 644 across 16
+packages at `4aeca47`, carrying the same re-measure warning. `core/Media`
+exists now (#330 built it; [GLO-148](https://linear.app/glossed/issue/GLO-148)
+closed by construction).
 
 The sentence that is true about all of it: **the app is live against the local
 stack only** — and as of Aug 29 evening the discover tab is real end to end
@@ -436,7 +478,11 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | OBF foreign names (category crawl only — brand mode sidesteps); krave maps 0 | [GLO-84](https://linear.app/glossed/issue/GLO-84) / [GLO-79](https://linear.app/glossed/issue/GLO-79) |
 | `glossed.app` domain is TAKEN — tech/02's share-URL plan needs a new domain (glossed.beauty was $1.99 at check) | GLO-89 finding |
 | A browse TAB: trending + routines-browse are "what other people do", discover is "what fits you" — a real seam, and the kit's nav is three tabs + plus | parked with Sean (GLO-20 thread) |
-| `features/Leaderboard` + the product page's dead `onLeaderboard` — data and DataKit halves are merged, UI is not | [GLO-20](https://linear.app/glossed/issue/GLO-20) / §1 |
+| ~~`features/Leaderboard` + the product page's dead `onLeaderboard`~~ — **closed**, #293/#294/#297 | [GLO-20](https://linear.app/glossed/issue/GLO-20) / §1 |
+| GLO-21 routines: composer undriven on its branch, write seam stubbed, opening asked-not-granted; collections composer unstarted; the + drawer's `collection`/`routine` options still dead | [GLO-21](https://linear.app/glossed/issue/GLO-21) / §1 |
+| GLO-204's remaining half (name + bio editor) is one moderation decision away from buildable | [GLO-204](https://linear.app/glossed/issue/GLO-204) / §7 |
+| Hair-type privacy: profile badges must never name a body fact — ruling filed off the tune-card work, db half in [#331](https://github.com/seanbrasse/glossed/pull/331) (another lane's, open at handoff) | [GLO-205](https://linear.app/glossed/issue/GLO-205) |
+| The tour has no real-entry trigger — it mounts from the debug door; wiring it to first-launch is part of GLO-23's entry work | [GLO-23](https://linear.app/glossed/issue/GLO-23) |
 | The scoped ConfidenceMeter in G.Leaderboard has no defined live data source — deferred, not decorated | GLO-20 / §1 |
 | Save/wishlist (+0.5) needs the want_to_try-as-intent ruling before code | tech/07 §2 / §1 |
 | Un-dismiss management UI (the row is deletable by construction; no surface offers it yet) | [GLO-181](https://linear.app/glossed/issue/GLO-181) note |
@@ -451,7 +497,9 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | Landing-page deploy (→ Rakuten/Impact applications) | Vercel MCP token cannot create projects (403, team role). Create an empty project named `glossed` OR raise the integration's role; the deploy payload is one command away | Sean |
 | Rakuten + Impact publisher accounts | Signups (GLO-90/91 carry the exact steps); need the channel URL above | Sean |
 | Beauty API key | Free Sandbox+Barcode signup at thebeautyapi.com → `BEAUTY_API_KEY` secret | Sean |
-| Any DataKit opening | Per-session authorization. Aug 29 saw two (the 1.5 bundle; the taste lane's discover/leaderboard/taste reads-and-write) — **both expired with their sessions** | Sean |
+| Any DataKit opening | Per-session authorization. Aug 29 saw two, Aug 30 three more (onboarding lane's #301 + #326, feed lane's #333) — **all spent and expired**. A routines/collections-write opening was ASKED and not answered; re-ask, don't assume | Sean |
+| GLO-204's bio save path | `public_texts` rows land `pending` and no moderation approves them (GLO-26 parked) — auto-approve for beta, an "in review" state, or hold the editor? One sentence decides whether the feature is buildable | Sean |
+| GLO-23 Apple + phone auth | Sign in with Apple capability + Twilio account/secrets are keyboard-minutes; every account screen already exists against the stub | Sean |
 | The browse-tab IA question | Trending + routines browse both exist now; whether they earn a fourth tab or stay one tap behind discover is a nav decision the kit does not answer | Sean |
 | Save/wishlist mapping | Whether `want_to_try` IS the +0.5 save signal (intent, distinct from 0035's unworn-is-not-evidence rule) | Sean |
 | Any migration slot | Per-migration. Sean authorized `0033` for GLO-150 on Aug 29 after it was flagged as not-purely-additive; that authorization is spent | Sean |
@@ -720,6 +768,68 @@ re-measured". Re-applying my edits onto their version, rather than rebasing over
 it, is the only reason that number survived. **Before editing a shared document,
 diff it against the commit you started from** — and where the other lane's
 version is better, take theirs.
+
+### The onboarding lane, Aug 30 daytime (GLO-20 UI, GLO-18, tune, kit nav)
+
+*§0's invented-name scar recurred INSIDE A TEST FIXTURE, same session it was
+re-read.* The payoff test's wire JSON used `exact_shade_count`; the decoder's
+CodingKeys say `n_exact_shade`. A fixture with a wrong key decodes to nil and
+the test passes by testing nothing. Caught only by reading the CodingKeys
+before writing the fixture — which is the same rule as §0's: **grep the name
+out of the file, never type it from memory. Fixture keys are queries too.**
+
+*The CI formatter is NEWER than the local one, and they disagree.* CI's
+SwiftFormat enforces `wrapIfExpressionBodies`; the local `make format`
+re-breaks that exact wrapping — so formatting a pushed branch locally UNDID a
+CI fix and failed the next run. And SwiftFormat's multiline `if let x, cond {`
+output violates SwiftLint's `opening_brace`. The escapes: fold format output
+into the pushed commit (never a follow-up commit that local format will
+fight), and refactor the fought-over expression into a computed property so
+neither tool has an opinion. **When two formatters disagree, restructure the
+code out of the disputed shape rather than arbitrating.**
+
+*`swift test` builds macOS, and a `View`'s statics are MainActor there.*
+Calling one from a nonisolated test traps at runtime (signal 5) — not a
+compile error. Mark pure statics `nonisolated` (`TuneCard.line`,
+`LeaderboardModel.n(of:)` both carry this). Same family: iOS-only modifiers
+(`.keyboardType`, `.datePickerStyle(.wheel)`) need `#if os(iOS)` or the test
+build breaks before any test runs.
+
+*`AppShell.swift` sits at exactly 300/300 lines — it CANNOT grow.* Every new
+shell wire goes in a new file as an `extension AppShell`, and anything needing
+stored state gets its own host view (`TuneCardHost` owns its `@State`; the
+shell cannot). Do not shave a comment to buy a line twice; the repo has split
+four times for this and splitting is the answer.
+
+*`ProfileDraft.brandAffinities` is `nil ≠ []` and the difference is a user's
+data.* `nil` omits the key and the upsert leaves the column untouched; `[]`
+wipes it — a deliberate answer. A caller that "defaults to empty" erases
+brands. This was asked live by another lane and is worth restating here:
+**never default an optional-collection draft field.**
+
+*A live fixture read as vandalized, and `updated_at` said nobody touched it.*
+Maya's fenty row looked flipped own→finished mid-drive; before reverting I
+checked timestamps and found two pre-existing duplicate rows — nothing
+flipped, and a "restore" would have been the actual data damage.
+**Check-before-dismiss has a mirror: check before you REPAIR.** The evidence
+bar for fixing data is the same as for filing against it.
+
+*Two shell habits that silently no-op:* `docker exec psql <<heredoc` without
+`-i` runs nothing and exits 0 — the heredoc needs stdin attached; and zsh
+treats `===` as a glob (`echo ===CHECKS===` died AGAIN this session, twice
+across sessions now) — quote any separator with repeated `=`.
+
+*A magic offset let two views disagree about the same point.* The tour's
+pulsing ring and its arrow each computed the target x independently
+(`x − 27` vs `offset(x: 17)`); Sean saw the misalignment before I did. One
+shared 54pt column now positions both. **Two views pointing at one thing get
+one geometry, not two arithmetics.**
+
+*Merging a peer's docs branch to avoid a file collision dragged their whole
+epic's CODE into my docs PR.* Squash-merge means their branch's commits never
+share SHAs with main, so `git merge` re-applies all of it. The fix:
+`git checkout <branch> -- docs/HANDOFF.md` — **take the file, never the
+branch.**
 
 ## 9. Local setup
 
