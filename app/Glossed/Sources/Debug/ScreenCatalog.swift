@@ -53,6 +53,7 @@
             ProductEntries.thinSample,
             ProductEntries.lookupFailed,
             ProductEntries.notAnAnchor,
+            RoutineEntry.composer,
             OnboardingEntry.wholeTrip,
             OnboardingEntry.quizAnchor,
             OnboardingEntry.tour,
