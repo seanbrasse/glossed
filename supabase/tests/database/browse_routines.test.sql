@@ -17,8 +17,11 @@ end $$;
 \set rid  '80000000-0000-0000-0000-0000000000a1'
 
 select test_as(:'maya');
+-- Upserts: the seed writes both profiles rows now (GLO-182).
 insert into profiles (user_id, birth_year_month, domains, skin_type, hair_pattern)
-values (:'maya', '1998-04', '{skincare}', 'combo', '3b');
+values (:'maya', '1998-04', '{skincare}', 'combo', '3b')
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month,
+    domains = excluded.domains, skin_type = excluded.skin_type, hair_pattern = excluded.hair_pattern;
 select claim_handle('maya_k');
 -- browse_routines selects FROM privacy_scopes, so a user with no row is not a
 -- candidate at all. Without this the later `update privacy_scopes` hits zero
@@ -32,7 +35,8 @@ insert into routine_steps (routine_id, user_item_id, position)
 values (:'rid', '50000000-0000-0000-0000-0000000000c1', 1);
 
 select test_as(:'juli');
-insert into profiles (user_id, birth_year_month, domains) values (:'juli', '1996-09', '{skincare}');
+insert into profiles (user_id, birth_year_month, domains) values (:'juli', '1996-09', '{skincare}')
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month, domains = excluded.domains;
 
 -- ---------------------------------------------------------------------------
 -- Each of the four exclusions, one at a time, from a fully-eligible baseline.

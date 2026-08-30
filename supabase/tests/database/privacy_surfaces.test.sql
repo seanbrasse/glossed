@@ -21,10 +21,13 @@ end $$;
 -- and can_view short-circuits on the minor lock — which would make every
 -- assertion below pass for the wrong reason.
 select test_as(:'maya');
-insert into profiles (user_id, birth_year_month, domains) values (:'maya', '1998-04', '{makeup}');
+-- Upserts: the seed writes both profiles rows now (GLO-182).
+insert into profiles (user_id, birth_year_month, domains) values (:'maya', '1998-04', '{makeup}')
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month, domains = excluded.domains;
 insert into privacy_scopes (user_id) values (:'maya');
 select test_as(:'juli');
-insert into profiles (user_id, birth_year_month, domains) values (:'juli', '1996-09', '{makeup}');
+insert into profiles (user_id, birth_year_month, domains) values (:'juli', '1996-09', '{makeup}')
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month, domains = excluded.domains;
 
 -- maya owns one shelf item (own) and one wishlist item (want_to_try).
 select test_as(:'maya');

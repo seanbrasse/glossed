@@ -24,10 +24,14 @@ end $$;
 -- maya is an adult and the viewer. juli is our minor owner: born 15 years ago,
 -- so is_minor() is unambiguous regardless of when this runs.
 select test_as(:'maya');
-insert into profiles (user_id, birth_year_month, domains) values (:'maya', '1998-04', '{makeup}');
+-- Upserts: the seed writes both rows as adults (GLO-182) and this suite needs
+-- juli to be fifteen. Overriding the seed is the fixture's whole job here.
+insert into profiles (user_id, birth_year_month, domains) values (:'maya', '1998-04', '{makeup}')
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month, domains = excluded.domains;
 select test_as(:'juli');
 insert into profiles (user_id, birth_year_month, domains)
-values (:'juli', to_char(current_date - interval '15 years', 'YYYY-MM'), '{makeup}');
+values (:'juli', to_char(current_date - interval '15 years', 'YYYY-MM'), '{makeup}')
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month, domains = excluded.domains;
 
 -- is_minor_user is revoked from authenticated on purpose (0020), so these two
 -- run as postgres. Who may reach it is asserted in privacy_core.test.sql.

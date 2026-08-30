@@ -11,10 +11,16 @@ end $$;
 
 -- maya logs her anchor foundation (fenty 240) with a fit
 select test_as('00000000-0000-0000-0000-000000000001');
+-- Upsert, not insert: the seed now gives maya a profiles row (GLO-182), and a
+-- suite that owns its own fixtures must survive finding one. The assertion
+-- keeps its teeth either way — RLS governs the UPDATE arm as well as the
+-- INSERT arm, so this still fails if maya may not write her own profile.
 select lives_ok($$
     insert into profiles (user_id, birth_year_month, domains, skin_type, tone_band)
     values ('00000000-0000-0000-0000-000000000001', '1998-04', '{makeup,skincare,haircare}', 'combo', 6)
-$$, 'maya creates her profile');
+    on conflict (user_id) do update set birth_year_month = excluded.birth_year_month,
+        domains = excluded.domains, skin_type = excluded.skin_type, tone_band = excluded.tone_band
+$$, 'maya writes her own profile');
 select lives_ok($$
     insert into user_items (id, user_id, variant_id, client_id)
     values ('50000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001',

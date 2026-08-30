@@ -32,18 +32,22 @@ select is(
 -- Fixtures. BOTH users need a profiles row before anything below is meaningful:
 -- is_minor_user() is coalesce(..., true), so a user without one reads as a minor
 -- and can_view short-circuits to false on the minor lock — which would make the
--- scope assertions below pass for entirely the wrong reason. The seeded DB has
--- no profiles rows, so this is not hypothetical.
+-- scope assertions below pass for entirely the wrong reason. The seed now
+-- writes both rows (GLO-182), so these upsert rather than insert; the suite
+-- still owns its fixture because it may also run against a database that was
+-- driven, or reset, or neither.
 -- ---------------------------------------------------------------------------
 select test_as('00000000-0000-0000-0000-000000000001');
 select lives_ok($$
     insert into profiles (user_id, birth_year_month, domains)
     values ('00000000-0000-0000-0000-000000000001', '1998-04', '{makeup}')
+    on conflict (user_id) do update set birth_year_month = excluded.birth_year_month
 $$, 'maya has a profile, so she is not treated as a minor');
 select test_as('00000000-0000-0000-0000-000000000002');
 select lives_ok($$
     insert into profiles (user_id, birth_year_month, domains)
     values ('00000000-0000-0000-0000-000000000002', '1996-09', '{makeup}')
+    on conflict (user_id) do update set birth_year_month = excluded.birth_year_month
 $$, 'juli has a profile too');
 
 -- ---------------------------------------------------------------------------

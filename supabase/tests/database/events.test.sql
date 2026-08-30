@@ -55,8 +55,12 @@ select is(age_bracket('1998-04', '2026-08-28'::date), '25-34', 'maya lands in 25
 -- user_facts snapshots the profile without copying regulated raw values
 -- beyond what tech/06 §4 names.
 select test_as('00000000-0000-0000-0000-000000000001');
+-- Upsert: the seed writes maya's profile now (GLO-182), and this suite needs
+-- the skin_type and tone_band the snapshot reads, which the seed leaves null.
 insert into profiles (user_id, birth_year_month, domains, skin_type, tone_band)
-values ('00000000-0000-0000-0000-000000000001', '1998-04', '{makeup,skincare}', 'combo', 6);
+values ('00000000-0000-0000-0000-000000000001', '1998-04', '{makeup,skincare}', 'combo', 6)
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month,
+    domains = excluded.domains, skin_type = excluded.skin_type, tone_band = excluded.tone_band;
 insert into user_items (id, user_id, variant_id, client_id)
 values ('50000000-0000-0000-0000-000000000031', '00000000-0000-0000-0000-000000000001',
         '40000000-0000-0000-0000-000000000004', 'ffffffff-0000-0000-0000-000000000001');

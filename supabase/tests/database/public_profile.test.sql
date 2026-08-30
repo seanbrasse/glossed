@@ -27,10 +27,15 @@ values (:'kid', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authen
 -- (by writing past claim_handle, since that function correctly refuses minors —
 -- the point is to prove the READ path refuses too, not just the write path).
 select test_as(:'maya');
+-- Upserts: the seed writes both profiles rows now (GLO-182).
 insert into profiles (user_id, birth_year_month, domains, skin_type, hair_pattern, display_name, avatar_seed)
-values (:'maya', '1998-04', '{makeup}', 'combo', '3b', 'maya k.', 'seed-maya');
+values (:'maya', '1998-04', '{makeup}', 'combo', '3b', 'maya k.', 'seed-maya')
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month,
+    domains = excluded.domains, skin_type = excluded.skin_type, hair_pattern = excluded.hair_pattern,
+    display_name = excluded.display_name, avatar_seed = excluded.avatar_seed;
 select test_as(:'juli');
-insert into profiles (user_id, birth_year_month, domains) values (:'juli', '1996-09', '{makeup}');
+insert into profiles (user_id, birth_year_month, domains) values (:'juli', '1996-09', '{makeup}')
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month, domains = excluded.domains;
 select set_config('role', 'postgres', true);
 insert into profiles (user_id, birth_year_month, domains)
 values (:'kid', to_char(current_date - interval '15 years', 'YYYY-MM'), '{makeup}');

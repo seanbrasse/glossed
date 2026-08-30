@@ -31,10 +31,14 @@ values (:'kid', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authen
         'kid2@local.test', '', now(), '{}', '{}', now(), now(), '', '', '', '', '', '', '', '');
 
 select test_as(:'maya');
+-- Upserts: the seed writes both profiles rows now (GLO-182), without a band.
 insert into profiles (user_id, birth_year_month, domains, tone_band)
-values (:'maya', '1998-04', '{makeup}', 6);
+values (:'maya', '1998-04', '{makeup}', 6)
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month,
+    domains = excluded.domains, tone_band = excluded.tone_band;
 select test_as(:'juli');
-insert into profiles (user_id, birth_year_month, domains) values (:'juli', '1996-09', '{makeup}');
+insert into profiles (user_id, birth_year_month, domains) values (:'juli', '1996-09', '{makeup}')
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month, domains = excluded.domains;
 select set_config('role', 'postgres', true);
 insert into profiles (user_id, birth_year_month, domains)
 values (:'kid', to_char(current_date - interval '15 years', 'YYYY-MM'), '{makeup}');
