@@ -1,7 +1,7 @@
 -- Handles, moderated public text, badge opt-ins (0023). GLO-120.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(32);
+select plan(33);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -27,9 +27,13 @@ select test_as(:'maya');
 select is(claim_handle('Maya_K'), 'maya_k', 'claim_handle lowercases and trims');
 select is((select handle from handles where user_id = :'maya'), 'maya_k', 'the row landed lowercase');
 
--- the handle is moderated text like any other, and it lands pending
-select is((select state::text from public_texts where user_id = :'maya' and kind = 'handle'),
-    'pending', 'claiming queues the handle for moderation as `pending` — nothing renders it yet');
+-- A handle is an identifier, not moderated text (GLO-191). This assertion is
+-- inverted rather than deleted: it used to require the `pending` row, and its
+-- own message claimed "nothing renders it yet", which was never true —
+-- public_profile selects h.handle unfiltered by state (GLO-187). Claiming now
+-- writes no moderation record at all, and this fails if one comes back.
+select is((select count(*)::int from public_texts where user_id = :'maya' and kind = 'handle'),
+    0, 'claiming writes no moderation row — the handle is checked at claim time, not after');
 
 -- Uniqueness is case-insensitive because storage is lowercase. This needs a
 -- third ADULT: juli is a minor, so claim_handle refuses her on the minor gate
@@ -88,9 +92,11 @@ select ok(handle_available('a_free_one'), 'a free, well-shaped handle is availab
 -- the gate is. The two assertions below described the old timing — a bio
 -- landing pending, and an edit returning it to pending — and are re-specified
 -- rather than removed. The invariant further down, that approval cannot be
--- self-declared, is untouched and now runs against the handle row, which still
--- lands pending: testing it against a bio would be testing a gate that is
--- already open.
+-- self-declared, is untouched, but it needed a new vehicle: it used to run
+-- against the handle row, and 0047 (GLO-191) stops writing one. It now runs
+-- against a `linked_social`, which is the remaining kind that genuinely lands
+-- pending — testing it against a bio would be testing a gate that is already
+-- open, which is no test at all.
 select isnt(set_public_text('bio', null, 'tone 6 · combo'), null, 'set_public_text returns an id');
 select is((select state::text from public_texts where user_id = :'maya' and kind = 'bio'),
     'approved', 'a bio lands approved while bios_auto_approve() is on — nothing reviews it, so pending would mean never rendering at all');
@@ -126,10 +132,12 @@ select throws_ok(
 -- SILENTLY rather than raising — the shelf_isolation precedent. So the honest
 -- property is not "it throws", it is "nothing changed". A throws_ok here would
 -- have been a test that only passes when something else is wrong.
+select isnt(set_public_text('linked_social', null, '@maya on instagram'), null,
+    'a linked_social is written through the RPC and lands pending — bios_auto_approve() covers bios only');
 select lives_ok($$ update public_texts set state = 'approved' where user_id = '00000000-0000-0000-0000-000000000001' $$,
     'the self-approve update runs without error — RLS filters it to zero rows rather than raising');
-select is((select state::text from public_texts where user_id = :'maya' and kind = 'handle'),
-    'pending', 'and it changed NOTHING — the handle is still pending, so approval cannot be self-declared');
+select is((select state::text from public_texts where user_id = :'maya' and kind = 'linked_social'),
+    'pending', 'and it changed NOTHING — still pending, so approval cannot be self-declared');
 
 -- ---------------------------------------------------------------------------
 -- Isolation

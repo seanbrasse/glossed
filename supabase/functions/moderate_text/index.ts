@@ -124,6 +124,12 @@ Deno.serve(async (req: Request) => {
     // call per save on text nobody will ever see. Remove this filter when a
     // surface renders them.
     .neq("kind", "linked_social")
+    // `handle` is no longer written at all (GLO-191) — a handle is checked
+    // synchronously at claim time, not reviewed afterwards. The filter stays
+    // for the rows this queue could still be holding when the migration lands
+    // mid-run, and because a rejected handle has nothing to act on: there is
+    // no release, rename or re-claim flow to trigger.
+    .neq("kind", "handle")
     .order("created_at")
     .limit(MAX_CALLS_PER_RUN);
   if (claimError) return json({ error: "claim failed" }, 500);
