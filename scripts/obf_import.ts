@@ -23,11 +23,16 @@
 // fetched 7s apart. A full run at the current taxonomy (~1.3k mappable
 // records) takes a few minutes.
 
+import { psqlArgs, targetLabel } from "./db.ts";
+
+// Say the destination before writing to it: a catalog run that names no
+// database is how thousands of rows land in the wrong one.
+console.log(`→ writing to ${targetLabel()}`);
+
 const USER_AGENT = "Glossed-Dev/0.1 (seanbrasse@gmail.com)";
 const BASE = "https://world.openbeautyfacts.org/api/v2/search";
 const PAGE_SIZE = 100;
 const SEARCH_INTERVAL_MS = 7_000;
-const CONTAINER = Deno.env.get("GLOSSED_DB_CONTAINER") ?? "supabase_db_glossed";
 
 // Our category tree (seeded slugs) → OBF taxonomy tags, verified live against
 // the facets on Aug 28 2026. Counts then: cleansers 303, facial-creams 454,
@@ -272,7 +277,7 @@ async function fetchPage(tag: string, page: number, key = "categories_tags"): Pr
 
 async function runSQL(statements: string): Promise<string> {
   const psql = new Deno.Command("docker", {
-    args: ["exec", "-i", CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-q"],
+    args: psqlArgs(["-q"]),
     stdin: "piped",
     stdout: "piped",
     stderr: "piped",
