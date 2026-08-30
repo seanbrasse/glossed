@@ -1,8 +1,10 @@
 import SwiftUI
 
-/// Tighter than Typography's shared ceiling because the tab box is a fixed
-/// 56x46 — the one container in this pass that cannot give.
-private let navMaxScale: CGFloat = 1.15
+/// The nav grows with its labels now (GLO-201, Sean's ruling), so its icons
+/// grow too. Caption type reaches roughly 3.2x at the largest accessibility
+/// size, and an icon that stopped at the shared 1.6 would sit small in a bar
+/// that kept going.
+private let navMaxScale: CGFloat = 3.2
 
 /// The app's floating tab bar: three tabs in V1, with the plus button riding
 /// OUTSIDE the capsule on its right, vertically inline (Sean's Aug 29 ruling —
@@ -55,6 +57,25 @@ public struct FloatingNav<TabID: Hashable>: View {
         )
     }
 
+    /// The plus is an icon in a circle with nothing to truncate, so it grows
+    /// to stay a comfortable target rather than tracking the labels — at
+    /// caption's full curve it would eat a third of the screen's width.
+    @ScaledMetric(relativeTo: .caption) private var plusGrown: CGFloat = 46
+    private var plusSize: CGFloat {
+        min(plusGrown, 46 * Typography.controlMaxScale)
+    }
+
+    /// Height grows freely — that is the ruling, and vertical space is what a
+    /// floating bar has to give. Width is capped at 1.4x, which is all three
+    /// tabs plus the plus button can spend on the narrowest phone we support
+    /// (375pt) before the bar runs off the screen. Sizes against .caption to
+    /// track Typography.mono, which is what the label is.
+    @ScaledMetric(relativeTo: .caption) private var tabWidthGrown: CGFloat = 56
+    @ScaledMetric(relativeTo: .caption) private var tabHeight: CGFloat = 46
+    private var tabWidth: CGFloat {
+        min(tabWidthGrown, 56 * 1.4)
+    }
+
     private func tabButton(_ tab: Tab) -> some View {
         let isActive = tab.id == active
         return Button {
@@ -65,9 +86,16 @@ public struct FloatingNav<TabID: Hashable>: View {
                     .font(Typography.control(17, weight: isActive ? .bold : .medium, maxScale: navMaxScale))
                 Text(tab.label)
                     .font(Typography.mono(9.5))
+                    // One line that shrinks, never a broken one. A tab label is
+                    // a single word, so wrapping it splits it mid-word —
+                    // "discov / er" — and a name in halves is worse than a name
+                    // slightly smaller. It still ends up far larger than the
+                    // frozen 9.5pt this replaced.
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
             .foregroundStyle(isActive ? Tokens.Cherry.deep : Tokens.Ink.soft)
-            .frame(width: 56, height: 46)
+            .frame(width: tabWidth, height: tabHeight)
         }
         .buttonStyle(.plain)
         .animation(Tokens.Motion.pop(), value: isActive)
@@ -80,7 +108,7 @@ public struct FloatingNav<TabID: Hashable>: View {
             Image(systemName: "plus")
                 .font(Typography.control(20, maxScale: navMaxScale))
                 .foregroundStyle(.white)
-                .frame(width: 46, height: 46)
+                .frame(width: plusSize, height: plusSize)
                 .background(Tokens.Cherry.base)
                 .clipShape(Circle())
                 .overlay(Circle().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.thin))

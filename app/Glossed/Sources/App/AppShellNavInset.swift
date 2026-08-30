@@ -7,7 +7,11 @@ import SwiftUI
 private struct NavInset: ViewModifier {
     /// Scales with text size: the nav grows at accessibility sizes, so a fixed
     /// inset would under-clear it exactly where the occlusion is worst.
-    @ScaledMetric(relativeTo: .body) private var navHeight: CGFloat = 88
+    ///
+    /// Against .caption to match what the nav itself is sized against (GLO-201).
+    /// On body's slower curve this reserved less than the bar occupied, which
+    /// is the same lag that truncated the labels.
+    @ScaledMetric(relativeTo: .caption) private var navHeight: CGFloat = 88
 
     func body(content: Content) -> some View {
         content.safeAreaInset(edge: .bottom) {
