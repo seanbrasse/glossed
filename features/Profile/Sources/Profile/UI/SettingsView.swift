@@ -9,6 +9,7 @@ import SwiftUI
 public struct SettingsView: View {
     @State private var model: SettingsModel
     @State private var confirmingSignOut = false
+    @State private var editingName = false
     private let onOpenPrivacy: () -> Void
     private let onSignedOut: () -> Void
     private let onBack: () -> Void
@@ -53,6 +54,17 @@ public struct SettingsView: View {
                 Toast(message).padding(.bottom, Tokens.Space.s8)
             }
         }
+        .sheet(isPresented: $editingName) {
+            DisplayNameView(
+                current: model.displayName,
+                save: { try await model.store.saveDisplayName($0) },
+                onSaved: {
+                    editingName = false
+                    Task { await model.reload() }
+                },
+                onBack: { editingName = false }
+            )
+        }
         .confirmationDialog("sign out?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
             Button("sign out", role: .destructive) {
                 Task {
@@ -83,7 +95,21 @@ public struct SettingsView: View {
         }
     }
 
-    private func factRow(_ row: SettingsRow) -> some View {
+    /// The name row opens an editor; every other row states a fact set
+    /// elsewhere (onboarding, the tune sheet, the shelf). Only the ones that
+    /// can be changed here are tappable.
+    @ViewBuilder private func factRow(_ row: SettingsRow) -> some View {
+        if row.id == "name" {
+            Button { editingName = true } label: {
+                factRowBody(row, opensSomething: true)
+            }
+            .buttonStyle(.plain)
+        } else {
+            factRowBody(row, opensSomething: false)
+        }
+    }
+
+    private func factRowBody(_ row: SettingsRow, opensSomething: Bool) -> some View {
         HStack(spacing: Tokens.Space.s3) {
             Text(row.label)
                 .font(Typography.display(Typography.Size.small, weight: 700))
@@ -93,8 +119,14 @@ public struct SettingsView: View {
             Text(row.value ?? "not set yet")
                 .meta(color: row.value == nil ? Tokens.Ink.faint : Tokens.Ink.soft)
                 .multilineTextAlignment(.trailing)
+            if opensSomething {
+                Image(systemName: "chevron.right")
+                    .font(Typography.control(11))
+                    .foregroundStyle(Tokens.Ink.faint)
+            }
         }
         .padding(.vertical, Tokens.Space.s3)
+        .contentShape(Rectangle())
     }
 
     /// Cherry, per the frame — the one row that ends something.

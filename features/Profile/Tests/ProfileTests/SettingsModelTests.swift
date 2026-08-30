@@ -7,6 +7,7 @@ import Testing
 // read, or says it is unset. It never borrows the frame's example value.
 
 private func profile(
+    name: String? = "maya k.",
     skin: SkinType? = .combo,
     tone: Int? = 6,
     hair: String? = "3b",
@@ -14,7 +15,8 @@ private func profile(
     birth: String = "1998-04"
 ) throws -> Profile {
     let json = """
-    {"user_id":"\(UUID().uuidString)","display_name":"maya k.","birth_year_month":"\(birth)",
+    {"user_id":"\(UUID().uuidString)","display_name":\(name
+        .map { "\"\($0)\"" } ?? "null"),"birth_year_month":"\(birth)",
      "domains":[\(domains.map { "\"\($0.rawValue)\"" }.joined(separator: ","))],
      "skin_type":\(skin.map { "\"\($0.rawValue)\"" } ?? "null"),
      "concerns":[],"tone_band":\(tone.map(String.init) ?? "null"),
@@ -39,7 +41,7 @@ private func profile(
     // answered the quiz has none of that, and printing the fixture would be a
     // settings screen describing somebody else.
     let rows = try SettingsModel.rows(
-        profile: profile(skin: nil, tone: nil, hair: nil, domains: []),
+        profile: profile(name: nil, skin: nil, tone: nil, hair: nil, domains: []),
         anchor: nil
     )
     for row in rows where row.id != "birthday" {
@@ -76,4 +78,51 @@ private func profile(
     let anchor = try JSONDecoder().decode(ShadeAnchorFact.self, from: Data(json.utf8))
     #expect(SettingsModel.anchorLine(anchor) == "fit logged · just right")
     #expect(SettingsModel.anchorLine(nil) == nil)
+}
+
+@MainActor
+@Test func theNameRowIsFirstAndCarriesWhatIsSet() throws {
+    let rows = try SettingsModel.rows(profile: profile(), anchor: nil)
+    #expect(rows.first?.id == "name")
+    #expect(rows.first?.value == "maya k.")
+}
+
+@MainActor
+@Test func savingANameCarriesEveryOtherFieldForward() async throws {
+    // GLO-215: saveProfile upserts the WHOLE row, and `concerns` is
+    // non-optional with a default of [] — so a draft that forgets it erases
+    // the user's skin concerns and the compiler says nothing. This asserts the
+    // editor's store carries them, because the type will not.
+    final class Captured: @unchecked Sendable {
+        var draft: ProfileDraft?
+    }
+    let captured = Captured()
+    let existing = try profile()
+    let repository = SettingsStore(
+        profile: { existing },
+        anchor: { nil },
+        signOut: {},
+        saveDisplayName: { name in
+            captured.draft = ProfileDraft(
+                birthYearMonth: existing.birthYearMonth,
+                domains: existing.domains,
+                skinType: existing.skinType,
+                toneBand: existing.toneBand,
+                hairPattern: existing.hairPattern,
+                concerns: existing.concerns,
+                climate: existing.climate,
+                displayName: name,
+                brandAffinities: nil
+            )
+        }
+    )
+    try await repository.saveDisplayName("renamed")
+    let draft = try #require(captured.draft)
+    #expect(draft.displayName == "renamed")
+    #expect(draft.birthYearMonth == existing.birthYearMonth)
+    #expect(draft.domains == existing.domains)
+    #expect(draft.concerns == existing.concerns)
+    // nil, never [] — nil omits the key and leaves brands alone; [] is a real
+    // answer meaning "cleared" and would wipe them.
+    #expect(draft.brandAffinities == nil)
 }
