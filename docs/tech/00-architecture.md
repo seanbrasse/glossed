@@ -64,6 +64,54 @@ Recorded so they don't get relitigated (Handbook principle 7). Source: the Claud
 14. **Shelf images are the user's own products, background-removed on device, scaled to real dimensions** — the half-used bottle with the smudged label is the point. Catalog images (product pages, search, discover, where consistency matters) come from **retailer affiliate feeds, not OBF** — OBF is the stopgap until GLO-90/91 unblock GLO-194. Fallback order, always: user's photo → catalog image → typographic tile; never a broken image. (Whether the drawn `ProductMock` counts as the typographic tile is flagged on GLO-194 for a ruling.)
 15. **Discovery is incorporated into the feed — there is no separate feed surface.** (Sean, Aug 30, later the same day.) The discover tab's stream IS the feed: discovery cards and, when GLO-32/26 land, look posts interleave in one scroll of self-labeling cards (GLO-195/196). No sections, no headers — a sectioned page of product cards is a store's shape, and *"we are not a store."* Every claiming card keeps its n (delta 12); look posts are attributed content and never claims, and the two kinds stay visually distinct. The tab-name question (discover vs feed) rides GLO-196.
 
+16. **A feed event is a costly action.** (Sean, Aug 30, later again — 16–20
+    postdate delta 15.) Something earns a slot only if the
+    user did something deliberate: a **look posted** (photo + tagged products +
+    caption), a **routine published**, a **rank or re-rank**, a **dethroning**
+    (a product displaced a #1), a **product logged**, a **shadetwin discovered**
+    (a person card, not a product card), a **collection published**, and
+    **first-logger** (first person here to log a product). That list is the
+    whole taxonomy, not examples of one.
+
+    **Saves and wishlists are explicitly NOT feed events.** *"A ranking is
+    costly and deliberate; a save is cheap and contaminated by hype. A feed of
+    saves is a product feed wearing a person's name."* This is delta 13's rule
+    arriving from a third side — want-to-try never feeds affinity, and now it
+    never fills the feed either. Wishlist data lives on the **product page**
+    instead, as the try-arc stat *"47 wanted to try this, 12 tried it, 3 kept
+    it"* (GLO-193). **One narrow exception:** a shadetwin's save may appear,
+    **capped, never stacked.**
+
+17. **Routines link to looks.** A look is a moment; a routine is a system.
+    Connecting them answers *"how did you get that face"* with a tappable
+    object instead of a comment thread asking for one — which matters more than
+    usual here, because comments are permanently held back (delta 11), so the
+    link is the answer rather than a shortcut to one. Nothing else in the
+    category does this.
+
+18. **Captions ship on looks and routines.** Safe where comments are not,
+    because an author writing on their own post cannot pile on. Still needs
+    text moderation and a report path — **a smaller lift than comments, not
+    zero.** (`looks.caption` exists in 0043; routines have no caption column
+    yet.)
+
+19. **Editorial carousels are allowed, and the headline must cite people.**
+    Retailer *format* is fine; retailer *voice* is not:
+
+    | not this | this |
+    |---|---|
+    | "Newness you'll love" | "New this month, ranked highest by people with your anchors (n=34)" |
+    | "Fresh makeup finds" | "Logged by 40 people with combo skin this week" |
+
+    Delta 12 still governs: **if a card cannot show its n, it does not render.**
+
+20. **Out of scope, decided.** **Hairstyle content** — a look is a photo with
+    tagged products, and a cut or a style has no product attached; hair looks
+    *with* tagged products are fine and already covered. **Events and popups
+    near you** — marked **Reach** (phase 4): a different product entirely,
+    needing location permissions and an event data source that does not
+    obviously exist, with no connection to anyone's shelf.
+
 ## 3. System architecture
 
 ```
