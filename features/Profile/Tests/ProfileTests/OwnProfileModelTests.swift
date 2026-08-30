@@ -91,12 +91,33 @@ private func store(
 @Test func everyBadgeRowSaysWhatItPublishes() {
     // The consequence belongs next to the control, not in a policy nobody
     // opens. Each row names what becomes visible and to whom.
+    //
+    // The audience check used to look for "profile" or "suggested", because
+    // the audience WAS "anyone who can see your profile". Sean's Aug 30
+    // ruling (GLO-205) changed who that is — a body fact now reaches only
+    // someone it matches — so the proxy is re-specified rather than the copy
+    // bent to satisfy a stale one.
     #expect(BadgeRow.all.count == ProfileBadges.Badge.allCases.count)
     for row in BadgeRow.all {
         #expect(row.title == row.title.lowercased())
         #expect(row.detail == row.detail.lowercased())
-        #expect(row.detail.contains("profile") || row.detail.contains("suggested"))
+        #expect(row.detail.contains("people"))
     }
+}
+
+@Test func bodyFactRowsPromiseAMatchRatherThanPublication() {
+    // GLO-205. The switch may no longer offer to show the value, because the
+    // read path no longer returns it — and a control that promises more than
+    // public_profile will deliver is how the copy and the query drift apart.
+    for row in BadgeRow.all where row.badge != .anchor {
+        #expect(row.detail.contains("matches"))
+        #expect(!row.detail.contains("sees it."))
+    }
+
+    // The anchor is exempt on purpose: a shade you wear is a product you own,
+    // not a body fact, and it still appears verbatim.
+    let anchor = BadgeRow.all.first { $0.badge == .anchor }
+    #expect(anchor?.detail.contains("appears on your profile") == true)
 }
 
 @MainActor
