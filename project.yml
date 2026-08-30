@@ -16,6 +16,8 @@ packages:
     path: core/DataKit
   Tracking:
     path: core/Tracking
+  Media:
+    path: core/Media
   Ranking:
     path: features/Ranking
   AddLadder:
@@ -49,6 +51,7 @@ targets:
       - package: DesignSystem
       - package: DataKit
       - package: Tracking
+      - package: Media
       - package: Ranking
       - package: AddLadder
       - package: Shelf
