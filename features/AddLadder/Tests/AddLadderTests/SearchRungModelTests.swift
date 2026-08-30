@@ -118,3 +118,46 @@ private func model(hits: [CatalogHit] = [], failure: GlossedError? = nil) -> Sea
     #expect(live.ladder.rung == .search)
     #expect(live.ladder.query == "glow")
 }
+
+// MARK: - GLO-179: the retry the hint promises
+
+/// Fails the first call and succeeds after, so a *retry* can be told apart from
+/// a first attempt. `FakeCatalog` is all-or-nothing by design and cannot.
+actor FlakyCatalog: CatalogSearching {
+    private let hits: [CatalogHit]
+    private(set) var calls = 0
+
+    init(hits: [CatalogHit]) {
+        self.hits = hits
+    }
+
+    func search(_: String, limit _: Int) async throws(GlossedError) -> [CatalogHit] {
+        calls += 1
+        if calls == 1 {
+            throw GlossedError(.offline, userMessage: "no connection — try again in a sec.")
+        }
+        return hits
+    }
+
+    func recordFailedSearch(_: String, domain _: Domain?) async {}
+}
+
+@MainActor
+@Test func aFailedSearchCanBeRetriedIntoAnAnswer() async throws {
+    // `failure != nil` is the exact condition the retry button is gated on, so
+    // this pins the affordance's predicate even though the button itself lives
+    // in the view. The recovery always existed — editing the query re-ran the
+    // search — but nothing on screen said so, and two sibling failure states
+    // hand you a button.
+    let catalog = try FlakyCatalog(hits: [hit(name: "watermelon glow")])
+    let live = SearchRungModel(catalog: catalog, query: "watermelon")
+
+    await live.search()
+    #expect(live.failure != nil, "the button appears")
+    #expect(live.options.count == 1, "the way out, and nothing dressed up as a result")
+
+    await live.search()
+    #expect(live.failure == nil, "the button goes away")
+    #expect(await catalog.calls == 2, "a retry is a second ask, not a replayed answer")
+    #expect(live.options.count == 2, "one hit plus the way out")
+}
