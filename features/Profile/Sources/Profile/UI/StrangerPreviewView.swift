@@ -48,9 +48,13 @@ public struct StrangerPreviewView: View {
     private func card(_ preview: StrangerPreview) -> some View {
         GlossedCard {
             VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-                Text("@\(preview.handle)")
-                    .font(Typography.display(Typography.Size.h3))
-                    .foregroundStyle(Tokens.Ink.primary)
+                HStack(spacing: Tokens.Space.s3) {
+                    Avatar(name: preview.displayName ?? preview.handle, size: 36)
+                        .accessibilityHidden(true)
+                    Text("@\(preview.handle)")
+                        .font(Typography.display(Typography.Size.h3))
+                        .foregroundStyle(Tokens.Ink.primary)
+                }
                 if let name = preview.displayName {
                     Text(name)
                         .font(.system(size: Typography.Size.small))

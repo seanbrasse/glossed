@@ -85,11 +85,18 @@ public struct OwnProfileView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s2) {
             Text("YOU").eyebrow()
-            Text(model.handle.map { "@\($0)" } ?? "no handle yet")
-                .font(Typography.display(Typography.Size.h1))
-                .foregroundStyle(model.handle == nil ? Tokens.Ink.faint : Tokens.Ink.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+            HStack(spacing: Tokens.Space.s3) {
+                // Hidden from VoiceOver: it is the same initial the handle
+                // beside it already says, and announcing "m" then "@maya_k"
+                // reads as two facts when it is one.
+                Avatar(name: model.handle ?? "?", size: 52)
+                    .accessibilityHidden(true)
+                Text(model.handle.map { "@\($0)" } ?? "no handle yet")
+                    .font(Typography.display(Typography.Size.h1))
+                    .foregroundStyle(model.handle == nil ? Tokens.Ink.faint : Tokens.Ink.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
             if model.profileUnreachable {
                 Badge("profile not loading", tone: .lilac)
             }
@@ -178,10 +185,15 @@ public struct OwnProfileView: View {
                     }
                 }
             }
-            Text("all three are off until you turn them on.")
-                .font(.system(size: Typography.Size.meta))
-                .foregroundStyle(Tokens.Ink.soft)
-                .padding(.horizontal, Tokens.Space.s2)
+            // Only true while it is true. The line described the default, but
+            // read as a statement about now — so with one switch on it sat
+            // under a green toggle claiming everything was off.
+            if BadgeRow.all.allSatisfy({ !model.badges.isOn($0.badge) }) {
+                Text("all three are off until you turn them on.")
+                    .font(.system(size: Typography.Size.meta))
+                    .foregroundStyle(Tokens.Ink.soft)
+                    .padding(.horizontal, Tokens.Space.s2)
+            }
         }
     }
 }
