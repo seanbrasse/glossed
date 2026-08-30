@@ -26,14 +26,17 @@ struct AppShell: View {
     @State var drawerOpen = false
     @State var privacyOpen = false
     @State var handleOpen = false
-    @State private var ladderOpen = false
+    /// Internal, not private: the drawer's doors live in `AppShellDrawer.swift`
+    /// now, and an extension in another file cannot see a private member. Same
+    /// reason `drawerOpen` and `openProduct` already are.
+    @State var ladderOpen = false
     /// Regenerated every time the drawer opens the ladder: the cover keeps
     /// its content's identity across presentations, so without this a second
     /// "add a product" resumes the first trip — stale query, stale rung, and
     /// a reused log idempotency key across two distinct intentions (GLO-96).
-    @State private var ladderTrip = UUID()
+    @State var ladderTrip = UUID()
     /// One line naming the ticket for a drawer option that is not built yet.
-    @State private var notice: String?
+    @State var notice: String?
     /// The row the ladder just wrote, held until the cover dismisses — asking
     /// "did it fit?" under a closing full-screen cover is a question nobody
     /// sees.
@@ -132,9 +135,7 @@ struct AppShell: View {
         }
         .animation(Tokens.Motion.pop(Tokens.Motion.med), value: itemSheetOpen)
         .overlay {
-            if drawerOpen {
-                drawer
-            }
+            drawer
             if let notice {
                 noticeCard(notice)
             }
@@ -190,81 +191,6 @@ struct AppShell: View {
         case .you:
             youTab
         }
-    }
-
-    // MARK: - The + drawer
-
-    /// Scrim + the ported `ActionDrawer`, presented the way the item sheet is.
-    private var drawer: some View {
-        ZStack(alignment: .bottom) {
-            Button {
-                drawerOpen = false
-            } label: {
-                Rectangle().fill(Tokens.Ink.primary.opacity(0.4))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("close")
-
-            ActionDrawer(options: [
-                .init(
-                    label: "add a product",
-                    subtitle: "search · barcode · near matches · create",
-                    systemImage: "magnifyingglass",
-                    tint: .mint
-                ) {
-                    drawerOpen = false
-                    ladderTrip = UUID()
-                    ladderOpen = true
-                },
-                .init(
-                    label: "import a list",
-                    subtitle: "notes · csv · a screenshot",
-                    systemImage: "doc.text",
-                    tint: .butter
-                ) {
-                    drawerOpen = false
-                    notice = "import lands with GLO-19"
-                },
-                .init(
-                    label: "new collection",
-                    subtitle: "group products your way",
-                    systemImage: "folder",
-                    tint: .lilac
-                ) {
-                    drawerOpen = false
-                    notice = "collections land with GLO-21"
-                },
-                .init(
-                    label: "new routine",
-                    subtitle: "am / pm · ordered steps",
-                    systemImage: "square.stack",
-                    tint: .cherry
-                ) {
-                    drawerOpen = false
-                    notice = "routines land with GLO-21"
-                }
-            ])
-        }
-        .ignoresSafeArea()
-        .transition(.move(edge: .bottom))
-    }
-
-    private func noticeCard(_ text: String) -> some View {
-        VStack(spacing: Tokens.Space.s3) {
-            Text(text).meta()
-            Button("ok") { notice = nil }
-                .buttonStyle(.glossed(.secondary))
-        }
-        .padding(Tokens.Space.s5)
-        .background(Tokens.Ground.card)
-        .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.lg))
-        .overlay(
-            RoundedRectangle(cornerRadius: Tokens.Radius.lg)
-                .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.std)
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Tokens.Ink.primary.opacity(0.4))
-        .ignoresSafeArea()
     }
 
     // MARK: - The ladder
