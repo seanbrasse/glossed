@@ -39,6 +39,14 @@ public final class AccountModel {
     /// the screen renders its `userMessage`, never a raw string.
     public private(set) var ageError: GlossedError?
     public private(set) var isCreating = false
+    /// The login path's terminal. Signup ends at `createAccount`'s
+    /// `onCreated`; login had no equivalent, so `verifyCode` and
+    /// `chooseApple` in `.login` mode set a stage they were already on and
+    /// the returning user stopped dead on the code screen. The map's
+    /// returning path is `log in → phone → code → straight to discover`, so
+    /// the walk has to be able to SAY it is done — the caller reads this and
+    /// lands them.
+    public private(set) var isAuthenticated = false
 
     public let mode: Mode
     private let store: AccountStore?
@@ -59,7 +67,11 @@ public final class AccountModel {
         method = .apple
         // Login lands straight in — nothing re-asked. Signup still owes the
         // birthday, the one thing Apple cannot supply.
-        stage = mode == .login ? .method : .birthday
+        if mode == .login {
+            isAuthenticated = true
+        } else {
+            stage = .birthday
+        }
     }
 
     public func choosePhone() {
@@ -75,7 +87,13 @@ public final class AccountModel {
 
     public func verifyCode() {
         guard canVerify else { return }
-        stage = mode == .login ? .code : .birthday
+        // "same six digits, no birthday, no quiz" — login ends here, and
+        // says so rather than re-entering the stage it is already on.
+        if mode == .login {
+            isAuthenticated = true
+        } else {
+            stage = .birthday
+        }
     }
 
     /// The kit's back map, verbatim. Returns false when back leaves the
