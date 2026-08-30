@@ -37,6 +37,15 @@ extension AppShell {
                 model: model,
                 onOpenProduct: { openFromCatalog($0) },
                 onOpenTrending: { showTrending = true },
+                // `G.Discover`'s `leaderboards →`. The stream names the
+                // category — the first claiming pick's — because the board
+                // needs one and the frame's link does not carry one; its
+                // own pills move from there.
+                onOpenLeaderboards: { hit in
+                    discoverBoard = BoardContext(
+                        categorySlug: hit.categorySlug, domain: hit.domain
+                    )
+                },
                 // The tune card (GLO-18): rendered only for the id the gate
                 // armed; anything else stays nil and renders nothing.
                 injectedCard: { id in
@@ -49,6 +58,19 @@ extension AppShell {
             .sheet(isPresented: $showTrending) {
                 if let client = session.client {
                     TrendingView(store: .live(BrowseRepository(client: client)))
+                }
+            }
+            // Built here rather than through `leaderboardSheet`, which
+            // closes over `openBoard`: this door has its own state, so it
+            // needs its own close.
+            .sheet(item: $discoverBoard) { board in
+                if let client = session.client {
+                    LeaderboardBoardSheet(
+                        board: board,
+                        client: client,
+                        imageBase: session.imageBase,
+                        onClose: { discoverBoard = nil }
+                    )
                 }
             }
             .fullScreenCover(item: $openCatalogPage) { page in

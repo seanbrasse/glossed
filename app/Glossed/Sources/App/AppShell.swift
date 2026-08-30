@@ -51,6 +51,10 @@ struct AppShell: View {
     @State var showTrending = false
     /// The category board the product page's "leaderboard" button opened.
     @State var openBoard: BoardContext?
+    /// The board discover's own `leaderboards →` opened. Its own state on
+    /// purpose: `openBoard` presents from inside the product page's cover,
+    /// and one binding driving two sheets in two contexts is a race.
+    @State var discoverBoard: BoardContext?
     /// Non-nil while the fit prompt is up: the shelf row it writes to.
     @State private var fitPromptItemID: UUID?
 

@@ -16,6 +16,9 @@ public struct DiscoverView: View {
     @State private var model: DiscoverModel
     private let onOpenProduct: ((CatalogHit) -> Void)?
     private let onOpenTrending: (() -> Void)?
+    /// `G.Discover`'s `leaderboards →`. Nil wires no link at all — the door
+    /// is not offered rather than offered dead (the trending teaser's rule).
+    private let onOpenLeaderboards: ((CatalogHit) -> Void)?
     /// Renders an app-injected card by id (GLO-200). Nil for an id the app no
     /// longer recognises renders nothing — an affordance that leads nowhere is
     /// not offered, and a stale id must not become a blank card.
@@ -25,20 +28,20 @@ public struct DiscoverView: View {
         model: DiscoverModel,
         onOpenProduct: ((CatalogHit) -> Void)? = nil,
         onOpenTrending: (() -> Void)? = nil,
+        onOpenLeaderboards: ((CatalogHit) -> Void)? = nil,
         injectedCard: ((String) -> AnyView?)? = nil
     ) {
         _model = State(initialValue: model)
         self.onOpenProduct = onOpenProduct
         self.onOpenTrending = onOpenTrending
+        self.onOpenLeaderboards = onOpenLeaderboards
         self.injectedCard = injectedCard
     }
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Tokens.Space.s5) {
-                Text("discover")
-                    .font(Typography.display(30))
-                    .foregroundStyle(Tokens.Ink.primary)
+                titleRow
 
                 switch model.phase {
                 case .loading:
@@ -54,6 +57,38 @@ public struct DiscoverView: View {
         }
         .background(Tokens.Ground.milk)
         .task { model.load() }
+    }
+
+    // MARK: - the title row
+
+    /// The frame's top row, restored: a heading on the left and
+    /// `leaderboards →` trailing it, mono, cherry, underlined.
+    ///
+    /// `G.Discover` hangs this link off the `PICKED FOR YOU · FENTY 240 · 3B`
+    /// row. **Delta 15 deleted that header, not the door** — its objection
+    /// was that a sectioned page of product cards is a store's shape, and a
+    /// screen's own title bar is not a section of the stream. So the label
+    /// half stays gone (it also carries no n, which delta 19 would now
+    /// require of any headline) and the link half comes back, in the frame's
+    /// own geometry and treatment.
+    ///
+    /// It navigates rather than claims, so it carries no n: every number is
+    /// on the other side of it, where the board shows one per row.
+    private var titleRow: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("discover")
+                .font(Typography.display(30))
+                .foregroundStyle(Tokens.Ink.primary)
+            Spacer(minLength: Tokens.Space.s2)
+            if let onOpenLeaderboards, let entry = model.leaderboardEntry {
+                Button("leaderboards →") { onOpenLeaderboards(entry) }
+                    .buttonStyle(.plain)
+                    .font(Typography.mono(11, bold: true))
+                    .foregroundStyle(Tokens.Semantic.accentText)
+                    .underline()
+                    .accessibilityLabel("open leaderboards")
+            }
+        }
     }
 
     // MARK: - the stream
