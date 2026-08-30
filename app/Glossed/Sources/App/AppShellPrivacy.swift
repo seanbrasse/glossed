@@ -35,7 +35,11 @@ extension AppShell {
                     safety: SafetyRepository(client: client)
                 ),
                 onClaimHandle: { handleOpen = true },
-                onOpenPrivacy: { privacyOpen = true }
+                onOpenPrivacy: { privacyOpen = true },
+                // Settings is a state of this screen, not a tab — the frame's
+                // gear opens it (GLO-213).
+                settingsStore: .live(ProfileRepository(client: client), client: client),
+                onSignedOut: { session.signedOut() }
             )
         } else {
             unbuiltTab("you", ticket: "GLO-21", line: "profile · collections · settings")
@@ -62,7 +66,14 @@ extension View {
     func privacySheet(isPresented: Binding<Bool>, client: GlossedClient?) -> some View {
         sheet(isPresented: isPresented) {
             if let client {
-                PrivacyView(store: .live(PrivacyRepository(client: client)))
+                PrivacyView(
+                    store: .live(PrivacyRepository(client: client)),
+                    // The badge switches live here now (GLO-213): they are the
+                    // only path by which a body fact reaches another person,
+                    // so the privacy screen is the whole answer rather than
+                    // half of it.
+                    badgeStore: .live(safety: SafetyRepository(client: client))
+                )
             }
         }
     }

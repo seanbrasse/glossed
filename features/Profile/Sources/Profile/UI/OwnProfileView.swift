@@ -10,8 +10,11 @@ public struct OwnProfileView: View {
     @State private var viewing: SuggestedPerson?
     @State private var editingSocials = false
     @State private var previewing = false
+    @State private var showingSettings = false
     private let onClaimHandle: () -> Void
     private let onOpenPrivacy: () -> Void
+    private let settingsStore: SettingsStore?
+    private let onSignedOut: () -> Void
 
     private let suggestionsStore: ViewedProfileStore
     private let safetyStore: SafetyActionsStore
@@ -25,7 +28,9 @@ public struct OwnProfileView: View {
         socialsStore: LinkedSocialsStore,
         previewStore: StrangerPreviewStore,
         onClaimHandle: @escaping () -> Void,
-        onOpenPrivacy: @escaping () -> Void
+        onOpenPrivacy: @escaping () -> Void,
+        settingsStore: SettingsStore? = nil,
+        onSignedOut: @escaping () -> Void = {}
     ) {
         self.suggestionsStore = suggestionsStore
         self.safetyStore = safetyStore
@@ -34,6 +39,8 @@ public struct OwnProfileView: View {
         _model = State(wrappedValue: OwnProfileModel(store: store))
         self.onClaimHandle = onClaimHandle
         self.onOpenPrivacy = onOpenPrivacy
+        self.settingsStore = settingsStore
+        self.onSignedOut = onSignedOut
     }
 
     public var body: some View {
@@ -47,11 +54,9 @@ public struct OwnProfileView: View {
                         claimPrompt
                     } else {
                         counts
-                        badgeSection
                         SuggestedPeopleCard(store: suggestionsStore) { viewing = $0 }
                         previewLink
                         socialsLink
-                        privacyLink
                     }
                 }
             }
@@ -67,6 +72,19 @@ public struct OwnProfileView: View {
         // A suggestion carries the user id the follow graph needs — the only
         // place a client legitimately holds one for someone else, since
         // public_profile deliberately does not return it.
+        .sheet(isPresented: $showingSettings) {
+            if let settingsStore {
+                SettingsView(
+                    store: settingsStore,
+                    // Settings closes first: privacy is another feature's
+                    // screen and the shell presents it, so handing it up
+                    // through a sheet that is still open stacks two.
+                    onOpenPrivacy: { showingSettings = false; onOpenPrivacy() },
+                    onSignedOut: { showingSettings = false; onSignedOut() },
+                    onBack: { showingSettings = false }
+                )
+            }
+        }
         .sheet(isPresented: $previewing) {
             StrangerPreviewView(store: previewStore)
         }
@@ -96,11 +114,25 @@ public struct OwnProfileView: View {
                     .foregroundStyle(model.handle == nil ? Tokens.Ink.faint : Tokens.Ink.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
+                Spacer(minLength: Tokens.Space.s2)
+                // The frame's entry to settings, and the only one — settings
+                // is a state of this screen, not a tab.
+                IconButton("gearshape", label: "settings") { showingSettings = true }
             }
             if model.profileUnreachable {
                 Badge("profile not loading", tone: .lilac)
             }
         }
+    }
+
+    private var previewLink: some View {
+        Button("what a stranger sees", action: { previewing = true })
+            .buttonStyle(.glossed(.primary, block: true))
+    }
+
+    private var socialsLink: some View {
+        Button("where else you are", action: { editingSocials = true })
+            .buttonStyle(.glossed(.secondary, block: true))
     }
 
     private var claimPrompt: some View {
@@ -131,26 +163,6 @@ public struct OwnProfileView: View {
         }
     }
 
-    /// Privacy lives one tap away rather than inline: these badges publish
-    /// specific facts, while the scopes decide who sees the surfaces at all.
-    /// Mixing them on one screen would blur two different questions.
-    /// The privacy model is correct and invisible; this is where a user can
-    /// check it rather than trust the copy (GLO-190).
-    private var previewLink: some View {
-        Button("what a stranger sees", action: { previewing = true })
-            .buttonStyle(.glossed(.primary, block: true))
-    }
-
-    private var socialsLink: some View {
-        Button("where else you are", action: { editingSocials = true })
-            .buttonStyle(.glossed(.secondary, block: true))
-    }
-
-    private var privacyLink: some View {
-        Button("who can see your surfaces", action: onOpenPrivacy)
-            .buttonStyle(.glossed(.secondary, block: true))
-    }
-
     private func countCell(_ n: Int, _ one: String, _ many: String) -> some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s1) {
             Text("\(n)")
@@ -159,41 +171,6 @@ public struct OwnProfileView: View {
             Text(n == 1 ? one : many)
                 .font(.system(size: Typography.Size.meta))
                 .foregroundStyle(Tokens.Ink.soft)
-        }
-    }
-
-    /// Each switch says what it publishes BEFORE it is flipped. These three are
-    /// the only path by which skin type, the anchor shade and hair pattern
-    /// reach another person (§3.4), so the consequence belongs next to the
-    /// control rather than in a policy.
-    private var badgeSection: some View {
-        VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-            Text("WHAT YOU SHOW").eyebrow()
-            ForEach(BadgeRow.all) { row in
-                GlossedCard {
-                    VStack(alignment: .leading, spacing: Tokens.Space.s2) {
-                        GlossedSwitch(
-                            isOn: Binding(
-                                get: { model.badges.isOn(row.badge) },
-                                set: { on in Task { await model.setBadge(row.badge, on: on) } }
-                            ),
-                            label: row.title
-                        )
-                        Text(row.detail)
-                            .font(.system(size: Typography.Size.meta))
-                            .foregroundStyle(Tokens.Ink.faint)
-                    }
-                }
-            }
-            // Only true while it is true. The line described the default, but
-            // read as a statement about now — so with one switch on it sat
-            // under a green toggle claiming everything was off.
-            if BadgeRow.all.allSatisfy({ !model.badges.isOn($0.badge) }) {
-                Text("all three are off until you turn them on.")
-                    .font(.system(size: Typography.Size.meta))
-                    .foregroundStyle(Tokens.Ink.soft)
-                    .padding(.horizontal, Tokens.Space.s2)
-            }
         }
     }
 }
