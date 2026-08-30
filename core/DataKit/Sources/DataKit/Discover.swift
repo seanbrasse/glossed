@@ -110,3 +110,44 @@ public struct AffinityRow: Decodable, Sendable, Identifiable, Hashable {
         case shrunkScore = "shrunk_score"
     }
 }
+
+/// One leaderboard row (0042): a catalog hit plus the board's numbers. The
+/// claim arrives ALREADY GATED — `meanPercentile` is nil below the face-off
+/// minimum, nulled by the RPC so no client can accidentally rank what the
+/// evidence cannot. `needed` travels with the row ("k of 5" needs no client
+/// constant), and `dislikeReasons` is non-nil only on the lowest board,
+/// where the question is why.
+public struct LeaderboardRow: Decodable, Sendable, Identifiable, Hashable {
+    public let hit: CatalogHit
+    /// Nil means "not enough face-offs yet", never "zero score".
+    public let meanPercentile: Double?
+    public let nUsers: Int
+    public let needed: Int
+    public let dislikeReasons: [String]?
+
+    public var id: UUID {
+        hit.id
+    }
+
+    /// The render rule's discriminator: a row below min-n shows "—" and the
+    /// not-enough line instead of a rank.
+    public var isRankable: Bool {
+        meanPercentile != nil
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case meanPercentile = "mean_percentile"
+        case nUsers = "n_users"
+        case needed
+        case dislikeReasons = "dislike_reasons"
+    }
+
+    public init(from decoder: Decoder) throws {
+        hit = try CatalogHit(from: decoder)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        meanPercentile = try container.decodeIfPresent(Double.self, forKey: .meanPercentile)
+        nUsers = try container.decode(Int.self, forKey: .nUsers)
+        needed = try container.decode(Int.self, forKey: .needed)
+        dislikeReasons = try container.decodeIfPresent([String].self, forKey: .dislikeReasons)
+    }
+}

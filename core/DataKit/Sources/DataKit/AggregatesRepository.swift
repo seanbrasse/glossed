@@ -67,6 +67,39 @@ public struct AggregatesRepository: Sendable {
         }
     }
 
+    /// The board (0042). `scope` is "all" or "yours" — "yours" resolves the
+    /// caller's cohort server-side, so no cohort key is ever built here.
+    /// Ascending is the lowest board, and only it carries reasons.
+    public func leaderboard(
+        categoryID: UUID,
+        scope: String = "all",
+        ascending: Bool = false,
+        limit: Int = 25
+    ) async throws(GlossedError) -> [LeaderboardRow] {
+        struct Params: Encodable {
+            let pCategory: String
+            let pScope: String
+            let pAscending: Bool
+            let pLimit: Int
+
+            enum CodingKeys: String, CodingKey {
+                case pCategory = "p_category"
+                case pScope = "p_scope"
+                case pAscending = "p_ascending"
+                case pLimit = "p_limit"
+            }
+        }
+        return try await run {
+            try await client.supabase
+                .rpc("leaderboard", params: Params(
+                    pCategory: categoryID.uuidString, pScope: scope,
+                    pAscending: ascending, pLimit: limit
+                ))
+                .execute()
+                .value
+        }
+    }
+
     private func run<T>(_ work: () async throws -> T) async throws(GlossedError) -> T {
         do {
             return try await work()
