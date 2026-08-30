@@ -23,6 +23,15 @@ public struct StrangerPreview: Sendable, Equatable {
     /// rather than previewed: `friends` needs a real mutual follow to mean
     /// anything, and a fake one would be its own lie.
     public let friendsOnlySurfaces: [String]
+    /// A body-fact badge is switched ON but reaches nobody here.
+    ///
+    /// Before GLO-205 these were the same thing: a badge either published its
+    /// value to everyone who could see the profile, or was off. Since 0044 a
+    /// badge renders only to a signed-in viewer whose own value matches — and
+    /// a stranger who isn't signed in matches nothing, always. So "no badges
+    /// showing" stopped meaning "no badges published", and the screen said the
+    /// second while meaning the first.
+    public let hasUnmatchedBodyBadges: Bool
 
     /// A stranger sees a surface only when its scope is `public`. `friends` is
     /// not a stranger — that distinction is the whole point of having three
@@ -45,6 +54,9 @@ public struct StrangerPreview: Sendable, Equatable {
         friendsOnlySurfaces = [
             (scopes.shelf, "shelf"), (scopes.rankings, "rankings"), (scopes.routines, "routines")
         ].filter { $0.0 == .friends }.map(\.1)
+        // The anchor is excluded on purpose: it is a product fact, renders
+        // unconditionally on its opt-in, and so a stranger DOES see it.
+        hasUnmatchedBodyBadges = badges.showSkinType || badges.showHairPattern
     }
 
     public var visibleSurfaces: [(label: String, visible: Bool)] {

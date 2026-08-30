@@ -67,9 +67,20 @@ public struct StrangerPreviewView: View {
                 }
                 let badges = [preview.skinType, preview.anchor, preview.hairPattern].compactMap(\.self)
                 if badges.isEmpty {
-                    Text("no badges — you haven't published any.")
+                    // Published and unmatched is not the same as unpublished,
+                    // and since GLO-205 both render as no badges here. Saying
+                    // "you haven't published any" to someone who just switched
+                    // one on is the lie this screen exists to prevent.
+                    Text(preview.hasUnmatchedBodyBadges
+                        ? """
+                        your skin type and hair pattern only show to people \
+                        they match — a stranger who isn't signed in matches \
+                        nothing.
+                        """
+                        : "no badges — you haven't published any.")
                         .font(.system(size: Typography.Size.meta))
                         .foregroundStyle(Tokens.Ink.faint)
+                        .fixedSize(horizontal: false, vertical: true)
                 } else {
                     HStack(spacing: Tokens.Space.s2) {
                         ForEach(badges, id: \.self) { Badge($0, tone: .lilac) }
