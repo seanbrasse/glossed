@@ -152,8 +152,26 @@ public struct ImportView: View {
             .frame(maxWidth: .infinity, alignment: .center)
     }
 
+    /// GLO-178: the box said "your list, one product per line" to VoiceOver
+    /// and nothing to anyone else. Same words, both audiences — `TextEditor`
+    /// has no `prompt:`, so it is drawn behind, hidden once there is text, and
+    /// `.accessibilityHidden` so the label is not read twice.
     private var editor: some View {
         TextEditor(text: $model.text)
+            .overlay(alignment: .topLeading) {
+                if model.text.isEmpty {
+                    Text("your list, one product per line")
+                        .font(Typography.mono(12))
+                        .foregroundStyle(Tokens.Ink.faint)
+                        // TextEditor's own text inset, so the placeholder sits
+                        // exactly where the first character will — measured on
+                        // the sim, not guessed.
+                        .padding(.top, 8)
+                        .padding(.leading, 5)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
             .font(Typography.mono(12))
             .lineSpacing(4)
             .foregroundStyle(Tokens.Ink.primary)
@@ -173,13 +191,14 @@ public struct ImportView: View {
                     .offset(x: Tokens.Shadow.sm, y: Tokens.Shadow.sm)
             )
             .accessibilityLabel("your list, one product per line")
+            .plainTyping()
     }
 
     /// Two numbers that are not the same one. The left counts the paste, the
     /// right counts what the catalog could stand behind.
     private var counts: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text("we read \(model.rawLines.count) lines")
+            Text("we read \(model.rawLines.count) line\(model.rawLines.count == 1 ? "" : "s")")
                 .eyebrow(color: Tokens.Cherry.deep)
             Spacer(minLength: 0)
             if !model.lines.isEmpty {
