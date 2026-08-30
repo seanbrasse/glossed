@@ -40,7 +40,7 @@ import SwiftUI
             Text("FORMS").eyebrow()
             FormsPreviewRow()
 
-            Text("no wrong answers ✿")
+            Text("no wrong answers ✿\u{FE0E}")
                 .handAside()
                 .rotationEffect(Tokens.Rotate.r3)
         }

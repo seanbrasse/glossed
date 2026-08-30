@@ -118,7 +118,13 @@ public struct FaceOffView<Card: View>: View {
             if state.isApproximate {
                 Text("we placed it here — rank it again any time to sharpen").meta()
             } else {
-                Toast("ranked! nice taste ✿", hand: true)
+                // U+FE0E forces the TEXT presentation. Caveat has no glyph for ✿
+                // (GLO-69), so it always falls back — without the selector iOS
+                // picks Apple Color Emoji and drops a pink sticker into a
+                // monochrome cherry hand line. ImportView fixed this and its
+                // comment said the same fix was owed everywhere else; this is
+                // that debt (GLO-214).
+                Toast("ranked! nice taste ✿\u{FE0E}", hand: true)
             }
         }
     }

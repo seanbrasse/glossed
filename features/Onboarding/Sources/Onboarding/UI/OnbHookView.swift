@@ -119,7 +119,9 @@ public struct OnbHookView: View {
                 + Text("*").foregroundStyle(Tokens.Cherry.base))
                 .font(Typography.display(52))
                 .tracking(-1.8)
-            Text("your whole shelf, ranked ✿")
+            // U+FE0E: text presentation, not the colour emoji (GLO-214).
+            // This is the first line of the app.
+            Text("your whole shelf, ranked ✿\u{FE0E}")
                 .handAside()
                 .rotationEffect(.degrees(-1.5))
         }

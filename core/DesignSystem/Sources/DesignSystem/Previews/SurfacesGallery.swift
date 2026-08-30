@@ -24,7 +24,7 @@ import SwiftUI
         HStack(spacing: Tokens.Space.s3) {
             IconButton("gearshape", label: "settings") {}
             IconButton("plus", label: "add a product", pop: true) {}
-            Toast("ranked! nice taste ✿", hand: true)
+            Toast("ranked! nice taste ✿\u{FE0E}", hand: true)
         }
 
         GlossedSheet {
