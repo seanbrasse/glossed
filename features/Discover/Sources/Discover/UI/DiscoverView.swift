@@ -111,6 +111,8 @@ public struct DiscoverView: View {
                     pickCard(pick)
                 case let .crosswalk(rows):
                     crosswalkCard(rows)
+                case let .tasteReceipt(rows):
+                    TasteReceiptCard(rows: rows)
                 case .trendingTeaser:
                     // dropped when the app wires nothing — an affordance
                     // that leads nowhere is not offered (the full-page rule)

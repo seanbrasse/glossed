@@ -27,6 +27,9 @@ public final class DiscoverModel {
     /// does not render, which is the correct degrade for a label we could
     /// only otherwise invent.
     private var categoryLabels: [String: String] = [:]
+    /// The speakable rows of the caller's taste vector (GLO-229), gated by
+    /// `TasteReceipt` — empty until it has enough behind it to speak.
+    public private(set) var taste: [AffinityRow] = []
 
     /// One card in the feed's stream. The surface is a single scroll of
     /// mixed, self-labeling kinds (GLO-195: discovery is incorporated into
@@ -46,6 +49,9 @@ public final class DiscoverModel {
         /// view drops it when the app wires no destination (the full-page
         /// rule — an affordance that leads nowhere is not offered).
         case trendingTeaser
+        /// The taste receipt (GLO-229) — receipts, not personas: each row is
+        /// an attribute and the count of the caller's OWN logs behind it.
+        case tasteReceipt([AffinityRow])
         /// A card the APP built and injected (GLO-200). Features never import
         /// features, so a look post or the tune card cannot be a case here —
         /// the app composes them and the stream only knows an identity and a
@@ -57,6 +63,7 @@ public final class DiscoverModel {
             case let .pick(hit): "pick-\(hit.id)"
             case .crosswalk: "crosswalk"
             case .trendingTeaser: "trending"
+            case .tasteReceipt: "taste"
             case let .injected(id): "injected-\(id)"
             }
         }
@@ -92,6 +99,10 @@ public final class DiscoverModel {
         var cards: [StreamCard] = picks.map { .pick($0) }
         if !crosswalk.isEmpty {
             cards.insert(.crosswalk(crosswalk), at: min(2, cards.count))
+        }
+        if !taste.isEmpty {
+            // after the crosswalk, before trending: it explains the picks
+            cards.insert(.tasteReceipt(taste), at: min(4, cards.count))
         }
         cards.insert(.trendingTeaser, at: min(6, cards.count))
         // Ascending position, DESCENDING id within a position: each insert
@@ -148,22 +159,30 @@ public final class DiscoverModel {
             // Reference data, and the third read that must not blank the
             // other two: a categories hiccup costs the eyebrow, nothing else.
             async let labels = Self.labels(from: store)
-            let (loadedPicks, loadedPartners, loadedLabels) = await (feed, partners, labels)
+            async let receipt = Self.speakableTaste(from: store)
+            let (loadedPicks, loadedPartners) = await (feed, partners)
+            let (loadedLabels, loadedTaste) = await (labels, receipt)
             guard !Task.isCancelled else { return }
             picks = loadedPicks ?? []
             crosswalk = loadedPartners ?? []
             categoryLabels = loadedLabels
+            taste = loadedTaste
             phase = picks.isEmpty && crosswalk.isEmpty ? .empty : .loaded
             recordImpressions()
         }
     }
 
     /// One categories read, folded to the slug → label map the eyebrow needs.
-    /// A store with no `categories` returns empty, and so does a failure —
-    /// the eyebrow is chrome, and chrome never costs the screen its picks.
+    /// No seam or a failed read is silence — chrome never costs the picks.
     private nonisolated static func labels(from store: DiscoverStore) async -> [String: String] {
         guard let read = store.categories, let rows = try? await read() else { return [:] }
         return Dictionary(rows.map { ($0.slug, $0.label) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// The vector, gated. A missing seam or a failed read is silence.
+    private nonisolated static func speakableTaste(from store: DiscoverStore) async -> [AffinityRow] {
+        guard let read = store.affinity, let rows = try? await read() else { return [] }
+        return TasteReceipt.speakable(rows)
     }
 
     /// `G.Discover`'s per-cell `<Eyebrow>{c.type}</Eyebrow>` — `CREAM BLUSH`
