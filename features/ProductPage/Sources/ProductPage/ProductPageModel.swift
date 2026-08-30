@@ -135,6 +135,24 @@ public final class ProductPageModel {
         product.userItemID != nil && fitStore != nil
     }
 
+    /// Whether "rank it" can lead anywhere.
+    ///
+    /// A face-off asks *which do you reach for?*, and the answer is an ordering
+    /// of things you have — `rank_positions` keys on `user_item_id`, so a page
+    /// opened from search or a leaderboard has nothing to place. The button has
+    /// been offered on those pages since GLO-47 and has done nothing but
+    /// dismiss them ever since (GLO-240), which is the same defect GLO-165
+    /// fixed one control higher up this screen: an answer offered where it
+    /// cannot be given.
+    ///
+    /// Deliberately *not* also gated on the ranking store, the way
+    /// `canCaptureFit` is gated on the fit store: this page does not hold that
+    /// store — the host opens the face-off — so the only thing the page can
+    /// honestly check is whether the product is one of yours.
+    public var canRank: Bool {
+        product.userItemID != nil
+    }
+
     /// Reads the saved answer. Safe to call when the page cannot save — it
     /// simply does nothing.
     public func loadFit() {
