@@ -22,13 +22,13 @@ public struct GlossedCheckbox: View {
                         .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.thin)
                     if isOn {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 11, weight: .black))
+                            .font(Typography.control(11, weight: .black))
                             .foregroundStyle(Tokens.Ink.primary)
                     }
                 }
                 .frame(width: 22, height: 22)
                 Text(label)
-                    .font(.system(size: Typography.Size.small, weight: .semibold))
+                    .font(Typography.control(Typography.Size.small, weight: .semibold))
                     .foregroundStyle(Tokens.Ink.primary)
             }
             .frame(minHeight: Tokens.hitTarget, alignment: .leading)
@@ -56,7 +56,7 @@ public struct GlossedSwitch: View {
             HStack(spacing: Tokens.Space.s3) {
                 if let label {
                     Text(label)
-                        .font(.system(size: Typography.Size.small, weight: .semibold))
+                        .font(Typography.control(Typography.Size.small, weight: .semibold))
                         .foregroundStyle(Tokens.Ink.primary)
                     Spacer(minLength: Tokens.Space.s2)
                 }
