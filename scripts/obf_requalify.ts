@@ -12,10 +12,15 @@
 // Run: SUPABASE_SERVICE_ROLE_KEY=<legacy JWT> deno run --allow-net \
 //        --allow-run --allow-env --allow-read --allow-write scripts/obf_requalify.ts
 
+import { psqlArgs, targetLabel } from "./db.ts";
+
+// Say the destination before writing to it: a catalog run that names no
+// database is how thousands of rows land in the wrong one.
+console.log(`→ writing to ${targetLabel()}`);
+
 const USER_AGENT = "Glossed-Dev/0.1 (seanbrasse@gmail.com)";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "http://127.0.0.1:54321";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const CONTAINER = Deno.env.get("GLOSSED_DB_CONTAINER") ?? "supabase_db_glossed";
 const BUCKET = "catalog";
 const OBF_HOST = "https://images.openbeautyfacts.org/";
 const MIN_SOURCE_SIDE = 800;
@@ -28,7 +33,7 @@ if (SERVICE_KEY.length === 0) {
 
 async function psql(sql: string): Promise<string> {
   const run = await new Deno.Command("docker", {
-    args: ["exec", "-i", CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-tA", "-c", sql],
+    args: psqlArgs(["-tA", "-c", sql]),
     stdout: "piped",
     stderr: "piped",
   }).output();

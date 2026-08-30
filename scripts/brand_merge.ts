@@ -18,7 +18,12 @@
 //
 // Run: deno run --allow-run --allow-env scripts/brand_merge.ts [--dry-run]
 
-const CONTAINER = Deno.env.get("GLOSSED_DB_CONTAINER") ?? "supabase_db_glossed";
+import { psqlArgs, targetLabel } from "./db.ts";
+
+// Say the destination before writing to it: a catalog run that names no
+// database is how thousands of rows land in the wrong one.
+console.log(`→ writing to ${targetLabel()}`);
+
 const dryRun = Deno.args.includes("--dry-run");
 
 /// winner normalized_name ← loser normalized_names.
@@ -42,7 +47,7 @@ function quote(raw: string): string {
 
 async function psql(sql: string): Promise<string> {
   const run = await new Deno.Command("docker", {
-    args: ["exec", "-i", CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-tA", "-c", sql],
+    args: psqlArgs(["-tA", "-c", sql]),
     stdout: "piped",
     stderr: "piped",
   }).output();

@@ -24,8 +24,13 @@
 // Usage:
 //   deno run --allow-net --allow-run --allow-env scripts/shopify_import.ts [--dry-run] [--store host]
 
+import { psqlArgs, targetLabel } from "./db.ts";
+
+// Say the destination before writing to it: a catalog run that names no
+// database is how thousands of rows land in the wrong one.
+console.log(`→ writing to ${targetLabel()}`);
+
 const USER_AGENT = "Glossed-Dev/0.1 (seanbrasse@gmail.com)";
-const CONTAINER = Deno.env.get("GLOSSED_DB_CONTAINER") ?? "supabase_db_glossed";
 const PAGE_SIZE = 250;
 const FETCH_INTERVAL_MS = 1_000;
 
@@ -493,7 +498,7 @@ async function fetchPage(host: string, page: number): Promise<ShopifyProduct[]> 
 
 async function runSQL(statements: string): Promise<string> {
   const psql = new Deno.Command("docker", {
-    args: ["exec", "-i", CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-q"],
+    args: psqlArgs(["-q"]),
     stdin: "piped",
     stdout: "piped",
     stderr: "piped",
