@@ -26,7 +26,7 @@ private func routine(
 private let marchFirst = Date(timeIntervalSince1970: 1_772_323_200)
 
 @MainActor
-@Test func aTabWithNoSeamBehindItNeverAppears() async {
+@Test func aTabWithNoSeamBehindItNeverAppears() {
     // The frame declares both segments because its data is a fixture. A
     // segment in front of a surface that cannot answer is the drawer's
     // "collections land with GLO-21" mistake in different words.
