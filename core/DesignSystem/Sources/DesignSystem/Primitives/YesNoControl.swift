@@ -55,7 +55,7 @@ public struct YesNoControl: View {
             selection = YesNoControl.picked(answer, from: selection)
         } label: {
             Text(label)
-                .font(.system(size: 12.5, weight: .bold))
+                .font(Typography.control(12.5))
                 .foregroundStyle(Tokens.Ink.primary)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 38)

@@ -28,11 +28,11 @@ public struct GlossedSelect: View {
             } label: {
                 HStack(spacing: Tokens.Space.s2) {
                     Text(selection)
-                        .font(.system(size: Typography.Size.body, weight: .semibold))
+                        .font(Typography.control(Typography.Size.body, weight: .semibold))
                         .foregroundStyle(Tokens.Ink.primary)
                     Spacer(minLength: Tokens.Space.s2)
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(Typography.control(12))
                         .foregroundStyle(Tokens.Ink.soft)
                 }
                 .padding(.horizontal, Tokens.Space.s4)
