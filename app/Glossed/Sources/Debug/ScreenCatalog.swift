@@ -64,6 +64,8 @@
             LooksEntry.composed,
             LooksEntry.extreme,
             LooksEntry.saveFailed,
+            LooksEntry.mediaDeck,
+            LooksEntry.mediaSingle,
             ImportEntries.sourcePick,
             ImportEntries.parsed,
             ImportEntries.nothingMatched,
