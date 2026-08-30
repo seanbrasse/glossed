@@ -66,6 +66,71 @@ private func profile(
     #expect(SettingsModel.birthdayLine(nil) == nil)
 }
 
+// MARK: - GLO-257: the birthday is not editable, and settings is categories
+
+@MainActor
+@Test func theBirthdayIsRenderedAndNeverOffered() throws {
+    // It is the 18+ gate — "18+ gate and recs only, never on the profile" —
+    // and a gate the gated party can edit is not a gate. No affordance, not a
+    // disabled one.
+    let rows = try SettingsModel.rows(profile: profile(), anchor: nil, bio: "")
+    let birthday = try #require(rows.first { $0.id == "birthday" })
+    #expect(birthday.value == "04 / 1998")
+    #expect(!birthday.isEditable)
+}
+
+@MainActor
+@Test func onlyTheNameAndTheBioCanBeChangedHere() throws {
+    // Everything else states a fact set elsewhere — onboarding, the tune
+    // sheet, the shelf — or, for the birthday, set nowhere at all.
+    let rows = try SettingsModel.rows(profile: profile(), anchor: nil, bio: "")
+    #expect(rows.filter(\.isEditable).map(\.id) == ["name", "bio"])
+}
+
+@MainActor
+@Test func everyRowLandsInExactlyOneCategory() throws {
+    // A row that falls out of the grouping vanishes from the screen. This is
+    // the test that catches a new row nobody filed.
+    let rows = try SettingsModel.rows(profile: profile(), anchor: nil, bio: "")
+    let grouped = SettingsModel.categories(rows).flatMap(\.rows).map(\.id)
+    #expect(Set(grouped) == Set(rows.map(\.id)))
+    #expect(grouped.count == rows.count)
+}
+
+@MainActor
+@Test func theTwoCategoriesSplitWhatPeopleSeeFromWhatTheAppKnows() throws {
+    // tech/02 §3.3: `public_profile` returns display_name and bio. §3.4: the
+    // body facts reach another person only as an opt-in badge, published from
+    // the privacy screen — so they are answers, not profile fields.
+    let categories = try SettingsModel.categories(
+        SettingsModel.rows(profile: profile(), anchor: nil, bio: "")
+    )
+    #expect(categories.map(\.id) == ["profile", "personal"])
+    #expect(categories[0].rows.map(\.id) == ["name", "bio"])
+    #expect(categories[1].rows.map(\.id) == ["skin", "anchor", "hair", "domains", "birthday"])
+}
+
+@MainActor
+@Test func aCategoryWithNothingInItIsNotShown() throws {
+    // The bio row is omitted when there is no editor to open (GLO-213). With
+    // no name either, `your profile` has nothing to descend into and the root
+    // does not offer a door onto an empty room.
+    let rows = try SettingsModel.rows(profile: profile(name: nil), anchor: nil, bio: nil)
+        .filter { $0.id != "name" }
+    #expect(SettingsModel.categories(rows).map(\.id) == ["personal"])
+}
+
+@MainActor
+@Test func theRootCardSaysWhatIsInsideBeforeYouOpenIt() throws {
+    // The preview is the affordance — there is no chevron, because the kit's
+    // `ICONS.chevronRight` is not ported and an SF Symbol is GLO-64 exactly.
+    let categories = try SettingsModel.categories(
+        SettingsModel.rows(profile: profile(), anchor: nil, bio: "")
+    )
+    #expect(categories[0].summary == "your name · your bio")
+    #expect(categories[1].summary == "skin profile · shade anchor · hair type · what you buy · birthday")
+}
+
 @MainActor
 @Test func theAnchorRowNamesTheFitNotAShadeItCannotRead() throws {
     // user_shade_anchor carries a variant id and a fit, not a brand or shade

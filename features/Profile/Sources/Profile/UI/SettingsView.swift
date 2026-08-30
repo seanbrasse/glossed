@@ -8,6 +8,7 @@ import SwiftUI
 /// rather than unbuilt.
 public struct SettingsView: View {
     @State private var model: SettingsModel
+    @State private var path = NavigationPath()
     @State private var confirmingSignOut = false
     @State private var editingName = false
     @State private var editingBio = false
@@ -28,27 +29,14 @@ public struct SettingsView: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Tokens.Space.s4) {
-                Button("← back", action: onBack)
-                    .buttonStyle(.plain)
-                    .font(Typography.mono(Typography.Size.meta))
-                    .foregroundStyle(Tokens.Cherry.deep)
-
-                Text("settings")
-                    .font(Typography.display(Typography.Size.h2))
-                    .foregroundStyle(Tokens.Ink.primary)
-
-                if model.isLoading {
-                    ProgressView().padding(.top, Tokens.Space.s6)
-                } else {
-                    factsCard
-                    privacyRow
-                }
-            }
-            .padding(Tokens.Space.s5)
+        NavigationStack(path: $path) {
+            root
+                // A push rather than a state swap, so going back returns to
+                // the root exactly as it was — GLO-257 asks for that in as
+                // many words, and a swapped `@State` loses the scroller.
+                .navigationDestination(for: SettingsCategory.self, destination: categoryScreen)
+                .hidingNavigationChrome()
         }
-        .background(Tokens.Ground.milk)
         .task { await model.load() }
         .overlay(alignment: .bottom) {
             if let message = model.errorMessage {
@@ -88,33 +76,94 @@ public struct SettingsView: View {
         }
     }
 
-    /// One card, rows divided by a hairline, exactly as the frame draws it.
-    private var factsCard: some View {
-        GlossedCard {
-            VStack(spacing: 0) {
-                ForEach(Array(model.rows.enumerated()), id: \.element.id) { index, row in
-                    if index > 0 {
-                        Divider().overlay(Tokens.Ground.line)
-                    }
-                    factRow(row)
+    /// The root: three ways in and a sign-out, and nothing else.
+    ///
+    /// **Sean's ruling, and a deliberate divergence from `G.Profile`**, whose
+    /// settings state is one bordered card of seven flat rows: *"categories the
+    /// user clicks into, so settings looks less busy at first glance."* A later
+    /// conformance audit should read `SettingsCategory`'s doc before restoring
+    /// the flat list.
+    private var root: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Tokens.Space.s4) {
+                backButton("← back", action: onBack)
+                Text("settings")
+                    .font(Typography.display(Typography.Size.h2))
+                    .foregroundStyle(Tokens.Ink.primary)
+                if model.isLoading {
+                    ProgressView().padding(.top, Tokens.Space.s6)
+                } else {
+                    ForEach(model.categories) { categoryCard($0) }
+                    privacyRow
+                    signOutCard
                 }
-                Divider().overlay(Tokens.Ground.line)
-                signOutRow
             }
+            .padding(Tokens.Space.s5)
         }
+        .background(Tokens.Ground.milk)
     }
 
-    /// The name and bio rows open editors; every other row states a fact set
-    /// elsewhere (onboarding, the tune sheet, the shelf). Only the ones that
-    /// can be changed here are tappable.
-    @ViewBuilder private func factRow(_ row: SettingsRow) -> some View {
-        if row.id == "name" {
-            Button { editingName = true } label: {
-                factRowBody(row, opensSomething: true)
+    private func categoryCard(_ category: SettingsCategory) -> some View {
+        NavigationLink(value: category) {
+            GlossedCard {
+                VStack(alignment: .leading, spacing: Tokens.Space.s1) {
+                    Text(category.label)
+                        .font(Typography.display(Typography.Size.small, weight: 700))
+                        .foregroundStyle(Tokens.Ink.primary)
+                    // What is inside, in the app's own voice. The preview IS
+                    // the affordance — there is no chevron, because the kit
+                    // ships `ICONS.chevronRight` and DesignSystem has not
+                    // ported it, and reaching for `Image(systemName:)` is
+                    // GLO-64 exactly.
+                    Text(category.summary).meta()
+                }
             }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(category.label), \(category.summary)")
+    }
+
+    /// One category's rows, one card, divided by hairlines — the frame's own
+    /// card, just holding fewer rows than it used to.
+    private func categoryScreen(_ category: SettingsCategory) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Tokens.Space.s4) {
+                backButton("← settings") { path.removeLast(path.count) }
+                Text(category.label)
+                    .font(Typography.display(Typography.Size.h2))
+                    .foregroundStyle(Tokens.Ink.primary)
+                GlossedCard {
+                    VStack(spacing: 0) {
+                        ForEach(Array(category.rows.enumerated()), id: \.element.id) { index, row in
+                            if index > 0 {
+                                Divider().overlay(Tokens.Ground.line)
+                            }
+                            factRow(row)
+                        }
+                    }
+                }
+            }
+            .padding(Tokens.Space.s5)
+        }
+        .background(Tokens.Ground.milk)
+        .hidingNavigationChrome()
+    }
+
+    private func backButton(_ label: String, action: @escaping () -> Void) -> some View {
+        Button(label, action: action)
             .buttonStyle(.plain)
-        } else if row.id == "bio" {
-            Button { editingBio = true } label: {
+            .font(Typography.mono(Typography.Size.meta))
+            .foregroundStyle(Tokens.Cherry.deep)
+    }
+
+    /// Only `row.isEditable` opens anything. Every other row states a fact set
+    /// elsewhere — onboarding, the tune sheet, the shelf — and **the birthday
+    /// states one that is set nowhere at all** (GLO-257): it is the 18+ gate,
+    /// and a gate the gated party can edit is not a gate. It renders with no
+    /// affordance, not a disabled one, and no copy about appealing it.
+    @ViewBuilder private func factRow(_ row: SettingsRow) -> some View {
+        if row.isEditable {
+            Button { open(row) } label: {
                 factRowBody(row, opensSomething: true)
             }
             .buttonStyle(.plain)
@@ -123,6 +172,19 @@ public struct SettingsView: View {
         }
     }
 
+    private func open(_ row: SettingsRow) {
+        switch row.id {
+        case "name": editingName = true
+        case "bio": editingBio = true
+        default: break
+        }
+    }
+
+    /// `opensSomething` no longer draws a chevron: the two `Image(systemName:
+    /// "chevron.right")` that used to sit here and on the privacy card were
+    /// SF Symbols, which GLO-64 is open about and which GLO-257 names as a
+    /// constraint. It now sets the trait instead, so the row still announces
+    /// as a button without a glyph the kit does not own.
     private func factRowBody(_ row: SettingsRow, opensSomething: Bool) -> some View {
         HStack(spacing: Tokens.Space.s3) {
             Text(row.label)
@@ -136,51 +198,60 @@ public struct SettingsView: View {
                 // A bio is sentences; the row is a row. Two lines, then an
                 // ellipsis — the editor shows the whole thing.
                 .lineLimit(2)
-            if opensSomething {
-                Image(systemName: "chevron.right")
-                    .font(Typography.control(11))
-                    .foregroundStyle(Tokens.Ink.faint)
-            }
         }
         .padding(.vertical, Tokens.Space.s3)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(opensSomething ? [.isButton] : [])
     }
 
-    /// Cherry, per the frame — the one row that ends something.
-    private var signOutRow: some View {
+    /// Cherry, per the frame — the one row that ends something. It stays at the
+    /// root rather than moving into a category: signing out is not a detail
+    /// about you, and burying it would be its own kind of dark pattern.
+    private var signOutCard: some View {
         Button { confirmingSignOut = true } label: {
-            HStack {
-                Text("sign out")
-                    .font(Typography.display(Typography.Size.small, weight: 700))
-                    .foregroundStyle(Tokens.Cherry.deep)
-                Spacer()
+            GlossedCard {
+                HStack {
+                    Text("sign out")
+                        .font(Typography.display(Typography.Size.small, weight: 700))
+                        .foregroundStyle(Tokens.Cherry.deep)
+                    Spacer(minLength: 0)
+                }
             }
-            .padding(.vertical, Tokens.Space.s3)
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 
     /// Its own card in the frame, and it earns that: it is the only row that
-    /// opens a screen rather than stating a fact.
+    /// opens a screen rather than stating a fact. It is not a
+    /// `NavigationLink` because the screen belongs to another feature and the
+    /// shell presents it — settings closes first.
     private var privacyRow: some View {
         Button(action: onOpenPrivacy) {
             GlossedCard {
-                HStack(spacing: Tokens.Space.s3) {
-                    VStack(alignment: .leading, spacing: Tokens.Space.s1) {
-                        Text("privacy")
-                            .font(Typography.display(Typography.Size.small, weight: 700))
-                            .foregroundStyle(Tokens.Ink.primary)
-                        Text("who can see your surfaces, and what you show")
-                            .meta()
-                    }
-                    Spacer(minLength: Tokens.Space.s2)
-                    Image(systemName: "chevron.right")
-                        .font(Typography.control(12))
-                        .foregroundStyle(Tokens.Ink.soft)
+                VStack(alignment: .leading, spacing: Tokens.Space.s1) {
+                    Text("privacy")
+                        .font(Typography.display(Typography.Size.small, weight: 700))
+                        .foregroundStyle(Tokens.Ink.primary)
+                    Text("who can see your surfaces, and what you show")
+                        .meta()
                 }
             }
         }
         .buttonStyle(.plain)
+    }
+}
+
+private extension View {
+    /// Both screens draw the frame's own `← back` in mono cherry, so the
+    /// platform's bar and its back button would be a second one. iOS-only:
+    /// the package also builds for macOS so tests run without a simulator,
+    /// and neither modifier exists there.
+    func hidingNavigationChrome() -> some View {
+        #if os(iOS)
+            return toolbar(.hidden, for: .navigationBar).navigationBarBackButtonHidden(true)
+        #else
+            return self
+        #endif
     }
 }

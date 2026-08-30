@@ -73,7 +73,7 @@ public struct SettingsStore: Sendable {
 /// reads "tone 6 · warm · combo"; a real account that never answered the quiz
 /// has none of that, and printing the fixture would be a settings screen
 /// describing someone else.
-public struct SettingsRow: Identifiable, Equatable, Sendable {
+public struct SettingsRow: Identifiable, Hashable, Sendable {
     public let id: String
     public let label: String
     public let value: String?
@@ -83,12 +83,65 @@ public struct SettingsRow: Identifiable, Equatable, Sendable {
         self.label = label
         self.value = value
     }
+
+    /// Which rows open an editor. **Derived here rather than decided in the
+    /// view**, so "the birthday is not editable" is one expression a test can
+    /// hold instead of an `if` in a `@ViewBuilder` that a later refactor can
+    /// quietly widen.
+    ///
+    /// The birthday is the one that matters (GLO-257). It is the **18+ gate** —
+    /// the screen map's caption on the onboarding birthday step is *"18+ gate
+    /// and recs only, never on the profile"* — and a gate the gated party can
+    /// edit is not a gate. It also feeds `is_minor_user`, which every Phase-1.5
+    /// surface depends on; GLO-182 is what a wrong answer looks like.
+    ///
+    /// It is rendered and **not offered**: no disabled field, no affordance,
+    /// and no copy promising an appeal, because no appeal is built (GLO-189).
+    /// If it needs to change, that is support's problem, not a text field.
+    ///
+    /// Every other row is either editable here or stated here and set
+    /// elsewhere — onboarding, the tune sheet, the shelf.
+    public var isEditable: Bool {
+        id == "name" || id == "bio"
+    }
+}
+
+/// One tap-into group on the settings root (GLO-257).
+///
+/// **A deliberate divergence from `G.Profile`, on Sean's direct instruction:**
+/// *"We need better organization of settings… categories the user clicks into,
+/// so settings looks less busy at first glance."* The frame draws a single
+/// bordered card of seven flat rows. Recorded here so a later conformance
+/// audit reads this before "fixing" it back.
+public struct SettingsCategory: Identifiable, Hashable, Sendable {
+    public let id: String
+    public let label: String
+    public let rows: [SettingsRow]
+
+    public init(id: String, label: String, rows: [SettingsRow]) {
+        self.id = id
+        self.label = label
+        self.rows = rows
+    }
+
+    /// What the root card says under the category name — the labels it holds,
+    /// in order, in mono.
+    ///
+    /// This is the affordance as well as the preview: a category you can see
+    /// into is one you only open when you want it, which is the whole of what
+    /// Sean asked for. It is also why there is no chevron — the kit ships
+    /// `ICONS.chevronRight` and DesignSystem has not ported it yet, and
+    /// reaching for `Image(systemName:)` is GLO-64 exactly.
+    public var summary: String {
+        rows.map(\.label).joined(separator: " · ")
+    }
 }
 
 @MainActor
 @Observable
 public final class SettingsModel {
     public private(set) var rows: [SettingsRow] = []
+    public private(set) var categories: [SettingsCategory] = []
     /// Kept so the name editor can open prefilled without a second read.
     public private(set) var displayName: String?
     /// What the bio row shows. Read from `public_texts`, not the profile row —
@@ -119,6 +172,7 @@ public final class SettingsModel {
             profile: profile ?? nil, anchor: anchor ?? nil,
             bio: store.bio == nil ? nil : (bio?.body ?? "")
         )
+        categories = Self.categories(rows)
     }
 
     /// Sign-out failure is stated rather than swallowed. A tap that appears to
@@ -161,6 +215,39 @@ public final class SettingsModel {
             SettingsRow(id: "hair", label: "hair type", value: profile?.hairPattern),
             SettingsRow(id: "domains", label: "what you buy", value: domainLine(profile)),
             SettingsRow(id: "birthday", label: "birthday", value: birthdayLine(profile))
+        ].compactMap(\.self)
+    }
+
+    /// The rows grouped into the two categories the root offers.
+    ///
+    /// Sean's examples were *personal details · user profile details ·
+    /// privacy*. Checked against `docs/tech/02` §3 and PRD §09 before
+    /// committing to it, and the split those two argue for is **what people
+    /// see** versus **what the app knows**:
+    ///
+    /// - `your profile` is the published projection — §3.3's `public_profile`
+    ///   returns exactly `display_name` and `bio` (plus badges, which are
+    ///   published from the privacy screen, not here). These are the two rows
+    ///   that change what a stranger reads.
+    /// - `personal details` is everything the app knows and nobody sees. §3.4:
+    ///   the body facts reach another person **only** as an opt-in badge, so
+    ///   they are not profile fields, they are answers. PRD §09's two axes say
+    ///   the same thing from the other side — contribution is always on and
+    ///   invisible; visibility is the separate choice, and it is made under
+    ///   `privacy`.
+    ///
+    /// Privacy is not a category here because it is already one screen
+    /// (GLO-213 condensed it) owned by another feature, and it is opened
+    /// rather than descended into.
+    static func categories(_ rows: [SettingsRow]) -> [SettingsCategory] {
+        let byID = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
+        func group(_ id: String, _ label: String, _ ids: [String]) -> SettingsCategory? {
+            let members = ids.compactMap { byID[$0] }
+            return members.isEmpty ? nil : SettingsCategory(id: id, label: label, rows: members)
+        }
+        return [
+            group("profile", "your profile", ["name", "bio"]),
+            group("personal", "personal details", ["skin", "anchor", "hair", "domains", "birthday"])
         ].compactMap(\.self)
     }
 
