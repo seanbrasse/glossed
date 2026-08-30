@@ -67,7 +67,7 @@ public struct GlossedButtonStyle: ButtonStyle {
         let pressed = configuration.isPressed && isEnabled
         let shadow = pressed ? 0 : Tokens.Shadow.lg
         configuration.label
-            .font(.system(size: size.font, weight: .bold))
+            .font(Typography.control(size.font))
             .padding(.vertical, size.vertical)
             .padding(.horizontal, Tokens.Space.s5)
             .frame(maxWidth: block ? .infinity : nil, minHeight: size == .sm ? 0 : Tokens.hitTarget)

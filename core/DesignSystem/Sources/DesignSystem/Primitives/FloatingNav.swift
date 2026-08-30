@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// Tighter than Typography's shared ceiling because the tab box is a fixed
+/// 56x46 — the one container in this pass that cannot give.
+private let navMaxScale: CGFloat = 1.15
+
 /// The app's floating tab bar: three tabs in V1, with the plus button riding
 /// OUTSIDE the capsule on its right, vertically inline (Sean's Aug 29 ruling —
 /// the add action is not a tab, and inside the capsule it read as one). A
@@ -58,7 +62,7 @@ public struct FloatingNav<TabID: Hashable>: View {
         } label: {
             VStack(spacing: 3) {
                 Image(systemName: tab.systemImage)
-                    .font(.system(size: 17, weight: isActive ? .bold : .medium))
+                    .font(Typography.control(17, weight: isActive ? .bold : .medium, maxScale: navMaxScale))
                 Text(tab.label)
                     .font(Typography.mono(9.5))
             }
@@ -74,7 +78,7 @@ public struct FloatingNav<TabID: Hashable>: View {
     private var plusButton: some View {
         Button(action: onPlus) {
             Image(systemName: "plus")
-                .font(.system(size: 20, weight: .bold))
+                .font(Typography.control(20, maxScale: navMaxScale))
                 .foregroundStyle(.white)
                 .frame(width: 46, height: 46)
                 .background(Tokens.Cherry.base)
@@ -175,7 +179,7 @@ public struct ActionDrawer: View {
                     Button(action: option.action) {
                         HStack(spacing: Tokens.Space.s3) {
                             Image(systemName: option.systemImage)
-                                .font(.system(size: 17, weight: .semibold))
+                                .font(Typography.control(17, weight: .semibold))
                                 .foregroundStyle(Tokens.Ink.primary)
                                 .frame(width: 42, height: 42)
                                 .background(option.tint.fill)
