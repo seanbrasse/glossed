@@ -56,7 +56,8 @@ extension AppShell {
                     rename: { try await CollectionsRepository(client: client)
                         .rename(collectionID: $0, to: $1)
                     }
-                )
+                ),
+                onCreateLook: {}
             )
         } else {
             unbuiltTab("you", ticket: "GLO-21", line: "profile · collections · settings")
