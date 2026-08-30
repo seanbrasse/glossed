@@ -119,6 +119,11 @@ Deno.serve(async (req: Request) => {
     .select("id, kind, body")
     .eq("state", "pending")
     .is("decided_at", null)
+    // linked_social has no read path anywhere (GLO-189) — no RPC returns one
+    // and public_profile has no field for it. Classifying it spends a Claude
+    // call per save on text nobody will ever see. Remove this filter when a
+    // surface renders them.
+    .neq("kind", "linked_social")
     .order("created_at")
     .limit(MAX_CALLS_PER_RUN);
   if (claimError) return json({ error: "claim failed" }, 500);

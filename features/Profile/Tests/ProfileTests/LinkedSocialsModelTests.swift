@@ -15,30 +15,18 @@ private func store(
 }
 
 @MainActor
-@Test func aPendingLinkSaysItIsNotOnTheProfileYet() async {
-    // Moderation is parked, so pending is the indefinite state rather than a
-    // brief interstitial. The copy must not imply it is live.
-    let model = LinkedSocialsModel(store: store(load: { [text("@maya", .pending)] }))
-    await model.load()
-    #expect(model.isPending)
-    #expect(model.stateLine.contains("won't show"))
-    #expect(!model.stateLine.contains("visible on your profile"))
-}
-
-@MainActor
-@Test func anApprovedLinkSaysItIsVisible() async {
-    let model = LinkedSocialsModel(store: store(load: { [text("@maya", .approved)] }))
-    await model.load()
-    #expect(!model.isPending)
-    #expect(model.stateLine == "visible on your profile.")
-}
-
-@MainActor
-@Test func aRejectedLinkSaysSoRatherThanGoingQuiet() async {
-    // Silence would leave someone believing it is still pending forever.
-    let model = LinkedSocialsModel(store: store(load: { [text("@maya", .rejected)] }))
-    await model.load()
-    #expect(model.stateLine.contains("wasn't approved"))
+@Test func theCopyDoesNotPromiseAReviewOrAnAppearance() async {
+    // Nothing renders a linked social to anyone (GLO-189): no RPC returns one
+    // and public_profile has no field for it. "not yet reviewed" implies review
+    // is the only thing in the way, which is false in the reassuring direction.
+    for state in [ModerationState.pending, .approved, .rejected] {
+        let model = LinkedSocialsModel(store: store(load: { [text("@maya", state)] }))
+        await model.load()
+        #expect(model.stateLine.contains("nothing shows it to anyone yet"))
+        for promise in ["reviewed", "review", "approved"] {
+            #expect(!model.stateLine.contains(promise))
+        }
+    }
 }
 
 @MainActor

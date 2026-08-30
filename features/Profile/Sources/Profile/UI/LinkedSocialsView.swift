@@ -18,9 +18,6 @@ public struct LinkedSocialsView: View {
                     ProgressView()
                 } else {
                     field
-                    if model.isPending {
-                        Badge("waiting to be reviewed", tone: .lilac)
-                    }
                     Text(model.stateLine)
                         .font(.system(size: Typography.Size.meta))
                         .foregroundStyle(Tokens.Ink.faint)
@@ -64,7 +61,7 @@ public struct LinkedSocialsView: View {
     /// Says what the app will not do, because the safe behaviour is invisible
     /// and someone will otherwise expect a preview card.
     private var note: some View {
-        Text("shown as plain text. we don't open or preview links.")
+        Text("when it does show, it'll be plain text — we don't open or preview links.")
             .font(.system(size: Typography.Size.meta))
             .foregroundStyle(Tokens.Ink.soft)
     }
