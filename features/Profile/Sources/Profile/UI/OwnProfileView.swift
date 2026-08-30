@@ -177,30 +177,10 @@ public struct OwnProfileView: View {
         }
     }
 
-    /// Every count in mono, and the shelf count as an explicit claim with its
-    /// n. Zero is shown, not hidden — a claim that vanishes when it is
-    /// unflattering is not evidence.
+    /// The frame's stat line: one row of mono counts under the bio, not a card
+    /// of cells. See `OwnProfileModel.statLine` for what each part is and why
+    /// the frame's third clause is absent.
     private var counts: some View {
-        GlossedCard {
-            VStack(alignment: .leading, spacing: Tokens.Space.s4) {
-                HStack(spacing: Tokens.Space.s6) {
-                    countCell(model.followersN, "follower", "followers")
-                    countCell(model.followingN, "following", "following")
-                    countCell(model.rankedListsN, "ranked list", "ranked lists")
-                }
-                EvidenceLine(n: model.profile?.shelfN ?? 0, label: "on your shelf")
-            }
-        }
-    }
-
-    private func countCell(_ n: Int, _ one: String, _ many: String) -> some View {
-        VStack(alignment: .leading, spacing: Tokens.Space.s1) {
-            Text("\(n)")
-                .font(Typography.mono(Typography.Size.h2, bold: true))
-                .foregroundStyle(Tokens.Ink.primary)
-            Text(n == 1 ? one : many)
-                .font(.system(size: Typography.Size.meta))
-                .foregroundStyle(Tokens.Ink.soft)
-        }
+        Text(model.statLine).meta()
     }
 }
