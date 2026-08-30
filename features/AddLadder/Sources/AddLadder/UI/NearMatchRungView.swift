@@ -32,7 +32,6 @@ public struct NearMatchRungView: View {
                     label: "the scan came up empty",
                     hint: hint
                 )
-                .plainTyping()
             } else if let hint {
                 // The field is where a hint normally lives, so without this a
                 // failed lookup on a rung that has no field says nothing at
