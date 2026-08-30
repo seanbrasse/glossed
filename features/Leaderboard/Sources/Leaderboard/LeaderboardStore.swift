@@ -9,11 +9,11 @@ public struct LeaderboardStore: Sendable {
     public var rows: @Sendable (_ categoryID: UUID, _ scope: String, _ ascending: Bool) async throws -> [LeaderboardRow]
     /// The category pills — same-domain siblings of wherever the board was
     /// opened from.
-    public var categories: @Sendable (_ domain: Domain) async throws -> [Category]
+    public var categories: @Sendable (_ domain: Domain) async throws -> [DataKit.Category]
 
     public init(
         rows: @escaping @Sendable (UUID, String, Bool) async throws -> [LeaderboardRow],
-        categories: @escaping @Sendable (Domain) async throws -> [Category]
+        categories: @escaping @Sendable (Domain) async throws -> [DataKit.Category]
     ) {
         self.rows = rows
         self.categories = categories

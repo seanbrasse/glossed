@@ -18,11 +18,17 @@ public final class LeaderboardModel {
     }
 
     public private(set) var rows: [LeaderboardRow] = []
-    public private(set) var categories: [Category] = []
+    public private(set) var categories: [DataKit.Category] = []
     public private(set) var isLoading = true
-    public private(set) var selectedCategoryID: UUID
-    public private(set) var domain: Domain
-    public var scope: Scope = .everyone {
+    /// Nil until the opening slug resolves against the loaded categories —
+    /// and it stays nil when the slug names no category in the domain, which
+    /// renders as an empty board, never a wrong one.
+    public private(set) var selectedCategoryID: UUID?
+    public let domain: Domain
+
+    /// The frame opens scoped ("your shade") — the board's whole point is
+    /// rank among people whose evidence transfers to you.
+    public var scope: Scope = .yours {
         didSet { load() }
     }
 
@@ -32,12 +38,24 @@ public final class LeaderboardModel {
     }
 
     private let store: LeaderboardStore?
+    private let imageBase: URL?
+    /// Both doors onto this screen hold a slug, not an id (`ShelfItem`
+    /// carries `categorySlug`, `CatalogHit` both) — so the model resolves it
+    /// against the pills it fetches anyway, and the screen opens instantly
+    /// instead of waiting on a lookup before it can exist.
+    private let openedFromSlug: String
     var loadTask: Task<Void, Never>?
 
-    public init(store: LeaderboardStore?, categoryID: UUID, domain: Domain) {
+    public init(
+        store: LeaderboardStore?,
+        categorySlug: String,
+        domain: Domain,
+        imageBase: URL? = nil
+    ) {
         self.store = store
-        selectedCategoryID = categoryID
+        openedFromSlug = categorySlug
         self.domain = domain
+        self.imageBase = imageBase
     }
 
     public func select(categoryID: UUID) {
@@ -52,9 +70,18 @@ public final class LeaderboardModel {
             return
         }
         isLoading = rows.isEmpty
-        loadTask = Task { [id = selectedCategoryID, wire = scope.wire, asc = ascending] in
+        loadTask = Task { [wire = scope.wire, asc = ascending] in
             if categories.isEmpty {
-                categories = (try? await store.categories(domain)) ?? []
+                categories = await (try? store.categories(domain)) ?? []
+            }
+            if selectedCategoryID == nil {
+                selectedCategoryID = categories.first { $0.slug == openedFromSlug }?.id
+            }
+            guard let id = selectedCategoryID else {
+                guard !Task.isCancelled else { return }
+                rows = []
+                isLoading = false
+                return
             }
             let loaded = try? await store.rows(id, wire, asc)
             guard !Task.isCancelled, id == selectedCategoryID else { return }
@@ -70,6 +97,12 @@ public final class LeaderboardModel {
         return rows.prefix(while: { $0.id != row.id }).filter(\.isRankable).count + 1
     }
 
+    /// The scoped segment's word for "people like you" — hair matches by
+    /// type, everything else by shade.
+    public var yoursOption: String {
+        domain == .haircare ? "your type" : "your shade"
+    }
+
     /// Every claim names whose n it is (domain.md §5). The kit's fixture
     /// names the exact anchor ("face-offs in fenty 240"); the client does
     /// not know the anchor yet, so the cohort is named by kind.
@@ -81,7 +114,23 @@ public final class LeaderboardModel {
         }
     }
 
-    public static func emptyLine(n: Int, needed: Int) -> String {
+    public nonisolated static func emptyLine(n: Int, needed: Int) -> String {
         "not enough face-offs yet · \(n) of \(needed)"
+    }
+
+    /// The footer rule line. The threshold comes off the rows (`needed`
+    /// travels with every one) so the sentence cannot drift from the gate
+    /// it describes; 5 is only the wordless-screen fallback.
+    public var footerLine: String {
+        let needed = rows.first?.needed ?? 5
+        return "every row shows its n — a product needs \(needed) face-offs"
+            + " in a scope before it can be ranked in it"
+    }
+
+    /// Storage key → fetchable URL, the shelf's composition rule: nil base or
+    /// nil key degrades to the drawn mock, never a broken image (GLO-83).
+    public func imageURL(for hit: CatalogHit) -> URL? {
+        guard let imageBase, let key = hit.catalogImageKey else { return nil }
+        return imageBase.appending(path: key)
     }
 }
