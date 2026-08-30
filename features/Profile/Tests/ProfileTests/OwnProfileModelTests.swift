@@ -64,14 +64,28 @@ private func store(
     // unflattering is not evidence.
     let model = OwnProfileModel(store: store(profileFor: { _ in profile(shelfN: 0) }))
     await model.load()
-    #expect(model.shelfLine.contains("0"))
+    #expect(model.statLine.hasPrefix("0 shelved"))
 }
 
 @MainActor
-@Test func theShelfLineIsSingularForOne() async {
-    let model = OwnProfileModel(store: store(profileFor: { _ in profile(shelfN: 1) }))
+@Test func theStatLineIsTheFramesOneMonoRow() async {
+    // `G.Profile` writes `34 shelved · 7 ranked lists · 1 product you
+    // created`. The third clause has no column behind it; follows do, and
+    // arrived after the frame was drawn.
+    let model = OwnProfileModel(store: store(profileFor: { _ in
+        profile(shelfN: 34, followers: 12, following: 9, ranked: 7)
+    }))
     await model.load()
-    #expect(model.shelfLine == "1 thing on your shelf")
+    #expect(model.statLine == "34 shelved · 7 ranked lists · 12 followers · 9 following")
+}
+
+@MainActor
+@Test func everyStatLineCountIsSingularForOne() async {
+    let model = OwnProfileModel(store: store(profileFor: { _ in
+        profile(shelfN: 1, followers: 1, following: 1, ranked: 1)
+    }))
+    await model.load()
+    #expect(model.statLine == "1 shelved · 1 ranked list · 1 follower · 1 following")
 }
 
 @MainActor

@@ -97,14 +97,35 @@ public final class OwnProfileModel {
         (error as? GlossedError)?.userMessage ?? "that didn't save. try again."
     }
 
-    /// The profile's own claim, carrying its n.
+    /// The frame's one mono stat line, which the built screen had split into
+    /// three count cells and an `EvidenceLine`.
     ///
-    /// A profile with an empty shelf says "0 things" rather than hiding the
-    /// line: the count IS the claim, and a claim that disappears when it is
-    /// unflattering is not evidence, it is marketing.
-    public var shelfLine: String {
-        let n = profile?.shelfN ?? 0
-        return "\(n) \(n == 1 ? "thing" : "things") on your shelf"
+    /// `G.Profile` writes `34 shelved · 7 ranked lists · 1 product you
+    /// created`. The third clause is dropped: `public_profile` returns no
+    /// created-product count, and printing the fixture's `1` would be the
+    /// profile describing someone else. Follows are appended instead — the
+    /// frame predates handles and following entirely, and delta 11 shipped
+    /// both, so the line carries the facts this build actually has in the
+    /// shape the frame draws them.
+    ///
+    /// Every part is a count of YOUR OWN things, not a claim about people, so
+    /// none of it takes an `EvidenceLine` — that primitive is for a claim with
+    /// a cohort behind it, and borrowing its chrome here would dress four
+    /// counts up as evidence.
+    ///
+    /// Zero is shown, not hidden: a count that disappears when it is
+    /// unflattering is not a count.
+    public var statLine: String {
+        [
+            Self.count(profile?.shelfN ?? 0, "shelved", "shelved"),
+            Self.count(rankedListsN, "ranked list", "ranked lists"),
+            Self.count(followersN, "follower", "followers"),
+            "\(followingN) following"
+        ].joined(separator: " · ")
+    }
+
+    nonisolated static func count(_ n: Int, _ one: String, _ many: String) -> String {
+        "\(n) \(n == 1 ? one : many)"
     }
 
     public var followersN: Int {
