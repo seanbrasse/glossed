@@ -67,11 +67,34 @@ public enum Typography {
                 .family: family,
                 kCTFontVariationAttribute as UIFontDescriptor.AttributeName: [weightAxis: weight]
             ])
-            return Font(UIFont(descriptor: descriptor, size: size))
+            // Through UIFontMetrics, or `relativeTo:` is a signature that
+            // lies: a bare Font(UIFont) is fixed-size, which froze every
+            // heading and product name at accessibility sizes while mono —
+            // on the .custom path — scaled around them (GLO-186). SwiftUI
+            // re-evaluates bodies when the type size changes, so the scale
+            // applied here follows the setting live.
+            let metrics = UIFontMetrics(forTextStyle: uiStyle(for: style))
+            return Font(metrics.scaledFont(for: UIFont(descriptor: descriptor, size: size)))
         #else
             return .custom(family, size: size, relativeTo: style)
         #endif
     }
+
+    #if canImport(UIKit)
+        /// The bridge UIKit never shipped. Only the styles `relative(_:)`
+        /// and `hand()` hand over, plus a fallthrough that keeps a future
+        /// style scaling like body text rather than not at all.
+        private static func uiStyle(for style: Font.TextStyle) -> UIFont.TextStyle {
+            switch style {
+            case .largeTitle: .largeTitle
+            case .title: .title1
+            case .title2: .title2
+            case .title3: .title3
+            case .caption: .caption1
+            default: .body
+            }
+        }
+    #endif
 }
 
 // MARK: - Text style helpers
