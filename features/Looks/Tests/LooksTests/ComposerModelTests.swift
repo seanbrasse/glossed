@@ -53,6 +53,117 @@ private let png = Data([0x89, 0x50, 0x4E, 0x47])
     #expect(model.tags.count == 1, "tags pin to the look, not a photo")
 }
 
+// MARK: - reorder (GLO-232)
+
+@MainActor
+@Test func movingAPhotoReordersItAndKeepsPositionsDense() {
+    let model = ComposerModel(store: store())
+    for _ in 0 ..< 4 {
+        model.addPhoto(png)
+    }
+    let ids = model.photos.map(\.id)
+
+    model.movePhoto(from: 3, to: 0)
+
+    #expect(model.photos.map(\.id) == [ids[3], ids[0], ids[1], ids[2]])
+    #expect(model.photos.map(\.position) == [0, 1, 2, 3], "dense from zero, and unique")
+}
+
+@MainActor
+@Test func aReorderDoesNotDisturbTheTags() {
+    // The assertion this ticket is really about: tags pin to the LOOK, not
+    // to a photo, so moving photos around must leave them exactly as they
+    // were — same count, same variants, same pins.
+    let model = ComposerModel(store: store())
+    model.addPhoto(png)
+    model.addPhoto(png)
+    model.addPhoto(png)
+    let blush = UUID()
+    model.tag(ShelfTagCandidate(variantID: blush, label: "rare beauty soft pinch · joy"), x: 0.7, y: 0.6)
+    model.tag(ShelfTagCandidate(variantID: UUID(), label: "fenty pro filt'r · 330"), x: 0.3, y: 0.4)
+    let before = model.tags
+
+    model.movePhoto(from: 0, to: 2)
+    model.movePhoto(from: 2, to: 1)
+
+    #expect(model.tags == before, "tags pin to the look, not to a photo")
+    #expect(model.tags.contains { $0.variantID == blush && $0.x == 0.7 && $0.y == 0.6 })
+}
+
+@MainActor
+@Test func aMoveThenARemoveRenumbersThroughTheSameOnePath() {
+    let model = ComposerModel(store: store())
+    for _ in 0 ..< 4 {
+        model.addPhoto(png)
+    }
+    let ids = model.photos.map(\.id)
+
+    model.movePhoto(from: 0, to: 3)
+    model.removePhoto(ids[2])
+
+    #expect(model.photos.map(\.id) == [ids[1], ids[3], ids[0]])
+    #expect(model.photos.map(\.position) == [0, 1, 2])
+}
+
+@MainActor
+@Test func aMoveByIdIgnoresAPayloadThatIsNotOurs() {
+    // The drop handler carries an identity off a drag pasteboard; a stale or
+    // foreign one must move nothing rather than move something arbitrary.
+    let model = ComposerModel(store: store())
+    model.addPhoto(png)
+    model.addPhoto(png)
+    let ids = model.photos.map(\.id)
+
+    model.movePhoto(UUID(), to: 0)
+    #expect(model.photos.map(\.id) == ids)
+
+    model.movePhoto(ids[1], to: 0)
+    #expect(model.photos.map(\.id) == [ids[1], ids[0]])
+}
+
+@MainActor
+@Test func outOfRangeAndNoOpMovesLeaveTheOrderAlone() {
+    let model = ComposerModel(store: store())
+    model.addPhoto(png)
+    model.addPhoto(png)
+    let ids = model.photos.map(\.id)
+
+    model.movePhoto(from: 9, to: 0)
+    model.movePhoto(from: -1, to: 1)
+    model.movePhoto(from: 0, to: 0)
+    #expect(model.photos.map(\.id) == ids)
+
+    // A destination past the end clamps to the last slot rather than trapping.
+    model.movePhoto(from: 0, to: 99)
+    #expect(model.photos.map(\.id) == [ids[1], ids[0]])
+    #expect(model.photos.map(\.position) == [0, 1])
+}
+
+@MainActor
+@Test func theOrderTheUserSeesIsTheOrderThatSaves() async {
+    // Positions are what 0043 stores, so the store must receive them in the
+    // moved order — not the order the photos were added in.
+    let seen = CapturedPositions()
+    let model = ComposerModel(store: LooksStore(
+        save: { _, photos, _ in
+            await seen.set(photos.map(\.position))
+            return UUID()
+        },
+        searchShelf: { _ in [] }
+    ))
+    for _ in 0 ..< 3 {
+        model.addPhoto(png)
+    }
+    let last = model.photos[2].id
+    model.movePhoto(from: 2, to: 0)
+
+    model.post()
+    await model.saveTask?.value
+
+    #expect(model.photos[0].id == last)
+    #expect(await seen.positions == [0, 1, 2])
+}
+
 @MainActor
 @Test func reTaggingAVariantMovesThePinRatherThanStacking() {
     let model = ComposerModel(store: store())
@@ -147,6 +258,14 @@ private actor FlakySaver {
             throw Offline()
         }
         return UUID()
+    }
+}
+
+private actor CapturedPositions {
+    private(set) var positions: [Int] = []
+
+    func set(_ positions: [Int]) {
+        self.positions = positions
     }
 }
 
