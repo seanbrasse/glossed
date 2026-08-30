@@ -28,7 +28,8 @@ private func item(
     variant: String? = "freckle",
     benefit: String? = "the natural flush",
     rank: Int? = 2,
-    of: Int? = 5
+    of: Int? = 5,
+    userItemID: UUID? = nil
 ) -> ProductPageItem {
     ProductPageItem(
         variantID: UUID(),
@@ -40,7 +41,8 @@ private func item(
         packaging: .compact,
         isAnchor: true,
         rank: rank,
-        rankedInCategory: of
+        rankedInCategory: of,
+        userItemID: userItemID
     )
 }
 
@@ -125,6 +127,27 @@ private func model(
     #expect(model(item(rank: nil)).showsRank == false)
     #expect(model(item(of: nil)).showsRank == false)
     #expect(model(item(of: 0)).showsRank == false)
+}
+
+@MainActor
+@Test func rankItIsOfferedOnlyForSomethingYouActuallyHave() {
+    // A face-off orders the things you own — `rank_positions` keys on
+    // `user_item_id`. A page opened from search or a leaderboard has nothing to
+    // place, and offering the button there is GLO-165's defect one control
+    // lower: an answer offered where it cannot be given.
+    #expect(model(item(userItemID: UUID())).canRank)
+    #expect(model(item(userItemID: nil)).canRank == false)
+}
+
+@MainActor
+@Test func rankingAndFitAreGatedSeparately() {
+    // Both need a shelf row, but only fit needs a store: this page holds the
+    // fit store and writes through it, while the face-off is opened by the
+    // host. Collapsing them into one flag would hide "rank it" on the debug
+    // picker, where the fit store is deliberately a no-op stand-in.
+    let owned = model(item(userItemID: UUID()))
+    #expect(owned.canRank)
+    #expect(owned.canCaptureFit == false, "no fit store was handed in")
 }
 
 // MARK: - The confidence meter's baseline

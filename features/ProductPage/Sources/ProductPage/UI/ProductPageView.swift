@@ -176,14 +176,26 @@ public struct ProductPageView: View {
         (model.anchorsWithFit ?? 0) + (model.fit.isEmpty ? 0 : 1)
     }
 
+    /// The frame's two buttons — and only the ones that lead somewhere.
+    ///
+    /// `rank it` places this product among the ones you already have, so a page
+    /// reached without owning it has nothing to place (GLO-241). The board does
+    /// not need you to own anything, so it is always here, and takes the whole
+    /// row when it is alone rather than sitting half-width beside a gap.
     private var actions: some View {
         HStack(spacing: 10) {
-            Button("rank it", action: onRank)
-                .buttonStyle(.glossed(block: true))
-                .frame(maxWidth: .infinity)
-            Button("leaderboard", action: onLeaderboard)
-                .buttonStyle(.glossed(.secondary))
-                .fixedSize()
+            if model.canRank {
+                Button("rank it", action: onRank)
+                    .buttonStyle(.glossed(block: true))
+                    .frame(maxWidth: .infinity)
+                Button("leaderboard", action: onLeaderboard)
+                    .buttonStyle(.glossed(.secondary))
+                    .fixedSize()
+            } else {
+                Button("leaderboard", action: onLeaderboard)
+                    .buttonStyle(.glossed(.secondary, block: true))
+                    .frame(maxWidth: .infinity)
+            }
         }
     }
 }
