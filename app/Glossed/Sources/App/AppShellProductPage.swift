@@ -72,8 +72,16 @@ extension AppShell {
                     fitStore: .repository(ShelfRepository(client: client))
                 ),
                 onBack: dismiss,
-                onRank: dismiss
+                onRank: dismiss,
+                // GLO-20's last surface: the board opens scoped to this
+                // item's category — the shelf row carries the slug + domain.
+                onLeaderboard: {
+                    openBoard = BoardContext(categorySlug: item.categorySlug, domain: item.domain)
+                }
             )
+            .sheet(item: $openBoard) { board in
+                leaderboardSheet(board)
+            }
         }
     }
 }
