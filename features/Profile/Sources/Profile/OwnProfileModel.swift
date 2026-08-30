@@ -157,13 +157,11 @@ public final class OwnProfileModel {
         profile?.rankedListsN ?? 0
     }
 
-    /// True when the handle exists but nothing public renders it yet.
-    ///
-    /// `claim_handle` writes a pending `public_texts` row and a public surface
-    /// reads only `approved` (§3.2). With moderation parked nothing approves
-    /// it, so the profile screen has to keep saying this rather than showing a
-    /// handle that strangers cannot actually see.
-    public var handleAwaitingReview: Bool {
+    /// True when the handle exists but the PROFILE is not reachable — which is
+    /// not a moderation state. The handle itself is public the moment it is
+    /// claimed (GLO-187); this covers the profile read failing for another
+    /// reason, and says nothing about review.
+    public var profileUnreachable: Bool {
         handle != nil && profile == nil
     }
 }

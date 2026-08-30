@@ -40,18 +40,16 @@ private func store(
     await model.load()
     #expect(!model.needsHandle)
     #expect(model.followersN == 12)
-    #expect(!model.handleAwaitingReview)
+    #expect(!model.profileUnreachable)
 }
 
 @MainActor
-@Test func aHandleWithNoPublicProfileYetSaysAwaitingReview() async {
-    // claim_handle writes a PENDING public_texts row and a public surface
-    // renders only approved (§3.2). With moderation parked nothing approves
-    // it, so the profile must keep saying so rather than showing a handle
-    // strangers cannot see.
+@Test func aHandleWithNoReadableProfileSaysSoWithoutInventingAReview() async {
+    // The handle is public immediately (GLO-187), so a missing profile read is
+    // not a moderation state and must not be reported as one.
     let model = OwnProfileModel(store: store(profileFor: { _ in nil }))
     await model.load()
-    #expect(model.handleAwaitingReview)
+    #expect(model.profileUnreachable)
 }
 
 @MainActor

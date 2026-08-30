@@ -160,13 +160,11 @@ public final class HandleClaimModel {
 
     /// Shown after a successful claim.
     ///
-    /// **It must not say the handle is live.** `claim_handle` writes a
-    /// `pending` row to `public_texts`, and a public surface renders only
-    /// `approved` (§3.2) — so the handle is reserved to this account but does
-    /// not appear on a profile yet. With moderation parked (Sean, Aug 29)
-    /// nothing moves it, so "waiting to be reviewed" is the honest and
-    /// indefinite truth.
+    /// The handle is live IMMEDIATELY: `public_profile` returns `h.handle`
+    /// unfiltered by moderation state, so a stranger can reach the profile at
+    /// once. Its `public_texts` row is a retrospective moderation record, not
+    /// a gate (GLO-187).
     public var claimedText: String {
-        "@\(claimed ?? typed) is yours. it'll show on your profile once it's been reviewed."
+        "@\(claimed ?? typed) is yours, and it's live — people can find you at it now."
     }
 }
