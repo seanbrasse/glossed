@@ -66,16 +66,13 @@ public final class LinkedSocialsModel {
         }
     }
 
-    /// What is actually visible, which is nothing until a review that is not
-    /// happening. Moderation is parked, so this is the indefinite truth rather
-    /// than a brief interstitial.
+    /// Nothing renders a linked social to anyone (GLO-189): no RPC returns
+    /// one, and `public_profile` has no field for it. So the state cannot be
+    /// described in terms of review — "not yet reviewed" implies review is the
+    /// only thing in the way, and it is not.
     public var stateLine: String {
-        guard let saved else { return "" }
-        switch saved.state {
-        case .approved: return "visible on your profile."
-        case .pending: return "saved. it won't show on your profile until it's been reviewed."
-        case .rejected: return "this wasn't approved, so it isn't shown."
-        }
+        guard saved != nil else { return "" }
+        return "saved to your account. nothing shows it to anyone yet — that part isn't built."
     }
 
     public var isPending: Bool {
