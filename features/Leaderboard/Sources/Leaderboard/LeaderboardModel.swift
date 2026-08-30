@@ -118,6 +118,14 @@ public final class LeaderboardModel {
         "not enough face-offs yet · \(n) of \(needed)"
     }
 
+    /// The n a row renders. The label says "face-offs" and the min-n gate
+    /// counts face-offs, so this is the face-off count — never `nUsers`,
+    /// which the first drive showed on screen: a row with 21 face-offs from
+    /// 13 users read "13 face-offs", a claim off by its own label.
+    public nonisolated static func n(of row: LeaderboardRow) -> Int {
+        row.hit.faceOffCount ?? 0
+    }
+
     /// The footer rule line. The threshold comes off the rows (`needed`
     /// travels with every one) so the sentence cannot drift from the gate
     /// it describes; 5 is only the wordless-screen fallback.

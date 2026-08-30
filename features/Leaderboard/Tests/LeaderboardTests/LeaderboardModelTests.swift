@@ -13,17 +13,19 @@ private func lbRow(
     pct: Double?,
     n: Int,
     needed: Int = 5,
-    reasons: [String]? = nil
+    reasons: [String]? = nil,
+    faceOffs: Int? = nil
 ) throws -> LeaderboardRow {
     let quoted: [String] = (reasons ?? []).map { "\"\($0)\"" }
     let reasonsJSON: String = reasons == nil ? "null" : "[" + quoted.joined(separator: ",") + "]"
     let pctJSON: String = pct.map { String($0) } ?? "null"
+    let faceOffsJSON: String = faceOffs.map { String($0) } ?? "null"
     let id: String = UUID().uuidString
     let categoryID: String = UUID().uuidString
     let raw = Data("""
     {"id":"\(id)","name":"\(name)","brand_name":"b",
      "category_id":"\(categoryID)","category_slug":"blush","domain":"makeup",
-     "scope":"canonical","n_face_offs":null,"variant_label":null,
+     "scope":"canonical","n_face_offs":\(faceOffsJSON),"variant_label":null,
      "catalog_image_key":null,"catalog_image_width":null,"catalog_image_height":null,
      "mean_percentile":\(pctJSON),"n_users":\(n),
      "needed":\(needed),"dislike_reasons":\(reasonsJSON)}
@@ -257,6 +259,15 @@ private func recordingStore(
     let bare = LeaderboardModel(store: nil, categorySlug: "blush", domain: .makeup)
     #expect(based.imageURL(for: row.hit) == nil) // no key → mock, never broken
     #expect(bare.imageURL(for: row.hit) == nil)
+}
+
+@Test func theDisplayedNIsTheFaceOffCountNotTheUserCount() throws {
+    // the first drive's finding: 21 face-offs from 13 users read
+    // "13 face-offs" — the label's word and the gate's number are both
+    // face-offs, so that is the n a row renders
+    let row = try lbRow("a", pct: 0.9, n: 13, faceOffs: 21)
+    #expect(LeaderboardModel.n(of: row) == 21)
+    #expect(row.nUsers == 13) // still decoded, just not the rendered n
 }
 
 // ── the rows decode what 0042 sends ────────────────────────────────────────

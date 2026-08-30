@@ -207,12 +207,13 @@ public struct LeaderboardView: View {
     @ViewBuilder
     private func evidence(_ row: LeaderboardRow) -> some View {
         if row.isRankable {
-            EvidenceLine(n: row.nUsers, label: model.evidenceLabel())
+            EvidenceLine(n: LeaderboardModel.n(of: row), label: model.evidenceLabel())
         } else {
             // Not routed through EvidenceLine's own empty heuristic (n < 5):
             // the gate here is the RPC's nulled percentile, and the words
             // quote the row's own threshold, whatever it is.
-            Text(LeaderboardModel.emptyLine(n: row.nUsers, needed: row.needed)).meta()
+            Text(LeaderboardModel.emptyLine(n: LeaderboardModel.n(of: row), needed: row.needed))
+                .meta()
         }
     }
 
