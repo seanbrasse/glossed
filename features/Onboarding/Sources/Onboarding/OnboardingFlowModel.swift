@@ -1,0 +1,202 @@
+import DesignSystem
+import Foundation
+import Observation
+
+/// FLOW 1, the whole trip, as one state machine.
+///
+/// Every screen in this package matched its frame already; what did not exist
+/// anywhere was the **flow** — the edges between them. The sequence lived in
+/// a DEBUG entry in the app layer, untested, and it disagreed with the kit's
+/// own graph in three places: the tour never ran, the returning-user path had
+/// no way in, and the payoff cited a fixture anchor rather than the one the
+/// quiz produced. This type is the edges, in the package, under test.
+///
+/// The kit's `screens.jsx` navigates like this — read off `G.*` directly:
+///
+/// ```
+/// OnbHook  → quiz | discover (apple login) | signin (phone login)
+/// OnbQuiz  → payoff
+/// OnbPayoff→ account
+/// OnbAccount → build (signup) | discover (login) | onb-hook (back out)
+/// OnbBuild → tour
+/// OnbTour  → welcome
+/// ```
+///
+/// and `screen-map.html`'s captions add the two rules the graph cannot carry:
+/// the tour is "**two frames, after the shelf exists**", and a returning user
+/// gets "no tour, no shelf starter, nothing re-asked."
+@MainActor
+@Observable
+public final class OnboardingFlowModel {
+    /// The thirteen frames, collapsed to the seven the app actually mounts:
+    /// 2/3/3b/3c are the quiz's own step list (`OnboardingModel.steps`, which
+    /// is where the conditional branches belong), and 5a–5d are the account
+    /// screen's stages.
+    public enum Stop: String, Equatable, Sendable {
+        case hook, quiz, payoff, account, shelfStarter, tour, welcome
+    }
+
+    /// Which of the two paths off the start screen the user took. Login is
+    /// not a shorter signup — it asks nothing and shows nothing.
+    public enum Path: String, Equatable, Sendable {
+        case signup, login
+    }
+
+    /// Where onboarding hands back to the app. The app owns every one of
+    /// these destinations; the flow only names them.
+    public enum Exit: String, Equatable, Sendable {
+        /// Both "just browse" and the whole returning-user path.
+        case discover
+        case buildShelf
+        case importList
+    }
+
+    public private(set) var stop = Stop.hook
+    public private(set) var path = Path.signup
+    /// Non-nil exactly once, when onboarding is over. The app reads it and
+    /// leaves; nothing here routes.
+    public private(set) var exit: Exit?
+
+    /// One quiz for the whole trip — the account stage batch-writes ITS
+    /// answers, so the two cannot be separate instances.
+    public let quiz: OnboardingModel
+
+    /// The account walk, built when the flow reaches it and never during a
+    /// render. Phone login arrives at the number rather than the method pick
+    /// — `G.OnbSignIn` is `G.OnbAccount` with the method already chosen.
+    public private(set) var account: AccountModel?
+
+    /// The tour is first-onboarding only ("returning users and reruns never
+    /// see it"). The seen marker is device-local and the app's to keep, so it
+    /// arrives as a fact rather than being stored here.
+    private let showsTour: Bool
+
+    /// Resolves the quiz's brand/product/shade into the catalog variant the
+    /// payoff can ask about. Returning nil is the honest answer — the payoff
+    /// then runs its neutral fallback rather than claiming anything.
+    private let resolveVariant: @Sendable (String, String, String) -> UUID?
+
+    /// The seams the account walk needs, held until the flow reaches it.
+    private let store: AccountStore?
+    private let today: Date
+
+    public init(
+        quiz: OnboardingModel = OnboardingModel(),
+        showsTour: Bool = true,
+        store: AccountStore? = nil,
+        today: Date = Date(),
+        resolveVariant: @escaping @Sendable (String, String, String) -> UUID? = { _, _, _ in nil }
+    ) {
+        self.quiz = quiz
+        self.showsTour = showsTour
+        self.store = store
+        self.today = today
+        self.resolveVariant = resolveVariant
+    }
+
+    // MARK: - the start screen's three doors
+
+    public func createAccount() {
+        path = .signup
+        stop = .quiz
+    }
+
+    /// "apple lands straight in" — the kit's own edge, `OnbHook → discover`.
+    public func logInWithApple() {
+        path = .login
+        exit = .discover
+    }
+
+    /// `OnbHook → signin`, and `G.OnbSignIn` is `G.OnbAccount` in login mode
+    /// with the phone method already chosen — the kit's ruling, "so the two
+    /// paths can't drift apart."
+    public func logInWithPhone() {
+        path = .login
+        account = makeAccount()
+        stop = .account
+    }
+
+    // MARK: - the signup walk
+
+    public func quizFinished() {
+        stop = .payoff
+    }
+
+    public func payoffContinued() {
+        // Rebuilt on each arrival: backing out to the payoff and returning
+        // should offer the method pick again, not resume mid-verification.
+        account = makeAccount()
+        stop = .account
+    }
+
+    /// Signup's terminal is the batch write; login's is a verified code. They
+    /// land in different places and that is the whole difference between the
+    /// two paths.
+    public func accountFinished() {
+        switch path {
+        case .login:
+            // "no tour, no shelf starter, nothing re-asked."
+            exit = .discover
+        case .signup:
+            stop = .shelfStarter
+        }
+    }
+
+    /// Back out of the account screen's first stage. The map: "back goes to
+    /// the payoff" on signup; login came from the start screen.
+    public func accountExited() {
+        stop = path == .login ? .hook : .payoff
+    }
+
+    /// The missing edge. `OnbBuild → tour`, and the tour's caption is
+    /// explicit that it comes "**after the shelf exists**" — which is why it
+    /// cannot be moved earlier and why skipping it left frame 7 orphaned.
+    public func shelfStarterFinished() {
+        stop = showsTour ? .tour : .welcome
+    }
+
+    /// `OnbTour → welcome`. Skipping the tour IS seeing it — the same one
+    /// shot either way.
+    public func tourFinished() {
+        stop = .welcome
+    }
+
+    public func welcomeChose(_ exit: Exit) {
+        self.exit = exit
+    }
+
+    // MARK: - what the payoff is allowed to claim
+
+    /// The anchor the QUIZ produced, or nil. Nothing invents one: "not
+    /// listed", "i don't wear any foundation", and an unfinished pick are all
+    /// nil, and a nil anchor is what makes `PayoffModel` run its neutral
+    /// fallback instead of a claim.
+    ///
+    /// This is the whole of GLO-189 at this screen. The debug trip used to
+    /// hand the payoff a fixture, so a user who answered "i don't wear any
+    /// foundation" was still told "12 people wear your exact shade · fenty
+    /// beauty 240 · your anchor" — a real n attached to somebody else's
+    /// anchor.
+    public var payoffAnchor: PayoffModel.Anchor? {
+        guard
+            let brand = quiz.anchor.brand,
+            let product = quiz.anchor.product,
+            let shade = quiz.anchor.shade,
+            shade != ShadeAnchorPicker.notListed,
+            !quiz.noFoundation
+        else { return nil }
+        return PayoffModel.Anchor(
+            brand: brand,
+            shadeCode: shade,
+            variantID: resolveVariant(brand, product, shade)
+        )
+    }
+
+    private func makeAccount() -> AccountModel {
+        let model = AccountModel(mode: path == .login ? .login : .signup, store: store, today: today)
+        if path == .login {
+            model.choosePhone()
+        }
+        return model
+    }
+}
