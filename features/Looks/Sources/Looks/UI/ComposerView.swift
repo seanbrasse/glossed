@@ -137,7 +137,14 @@ public struct ComposerView: View {
             model.movePhoto(dragged, to: index)
             return true
         } isTargeted: { targeted in
-            dropTargetID = targeted ? photo.id : (dropTargetID == photo.id ? nil : dropTargetID)
+            // Only the tile that claimed the highlight may clear it —
+            // otherwise the tile the drag just LEFT wipes the one it
+            // arrived at, and the outline flickers off mid-drag.
+            if targeted {
+                dropTargetID = photo.id
+            } else if dropTargetID == photo.id {
+                dropTargetID = nil
+            }
         }
     }
 
