@@ -108,16 +108,9 @@ extension AppShell {
         guard let client = session.client else { return }
         let catalog = CatalogRepository(client: client)
         Task { @MainActor in
-            guard let variants = try? await catalog.variants(productID: hit.id), !variants.isEmpty
+            guard let choice = await CatalogVariantChoice.resolve(hit, catalog: catalog)
             else { return }
-            let category = try? await catalog.categories(domain: hit.domain)
-                .first(where: { $0.slug == hit.categorySlug })
-            let label = category?.label ?? hit.categorySlug
-            let anchor = category?.isAnchor ?? false
-            let choice = CatalogVariantChoice(
-                hit: hit, variants: variants, isAnchor: anchor, categoryLabel: label
-            )
-            if variants.count == 1, let only = variants.first {
+            if choice.variants.count == 1, let only = choice.variants.first {
                 openCatalogPage = CatalogPage.build(choice, variant: only, imageBase: session.imageBase)
             } else {
                 catalogVariantChoice = choice
@@ -175,4 +168,20 @@ struct CatalogVariantChoice {
     let variants: [Variant]
     let isAnchor: Bool
     let categoryLabel: String
+
+    /// The hit → page groundwork every catalog door shares (discover
+    /// tap-through, leaderboard rows): fetch the variants, name the
+    /// category. Nil when the product has no variants to open.
+    static func resolve(_ hit: CatalogHit, catalog: CatalogRepository) async -> CatalogVariantChoice? {
+        guard let variants = try? await catalog.variants(productID: hit.id), !variants.isEmpty
+        else { return nil }
+        let category = try? await catalog.categories(domain: hit.domain)
+            .first(where: { $0.slug == hit.categorySlug })
+        return CatalogVariantChoice(
+            hit: hit,
+            variants: variants,
+            isAnchor: category?.isAnchor ?? false,
+            categoryLabel: category?.label ?? hit.categorySlug
+        )
+    }
 }
