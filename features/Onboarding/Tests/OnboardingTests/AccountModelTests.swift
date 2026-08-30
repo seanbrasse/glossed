@@ -158,6 +158,55 @@ private let fixedToday = date(2026, 8, 29)
 @Test func loginModeLandsWithoutABirthday() {
     // returning users answer nothing again — apple goes straight through
     let model = AccountModel(mode: .login, today: fixedToday)
+    #expect(!model.isAuthenticated)
     model.chooseApple()
-    #expect(model.stage == .method) // no birthday stage entered; the caller lands them
+    #expect(model.stage == .method) // no birthday stage entered
+    #expect(model.isAuthenticated) // …and it SAYS so, so the caller can land them
+}
+
+@MainActor
+@Test func theLoginCodeIsTheLastThingAskedOfAReturningUser() {
+    // the map's returning path: log in → phone → code → straight to
+    // discover. Before this said so, verifyCode set `.code` while already on
+    // `.code` and the walk had no terminal at all.
+    let model = AccountModel(mode: .login, today: fixedToday)
+    model.choosePhone()
+    model.phoneNumber = "+1 555 0134"
+    model.sendCode()
+    #expect(model.stage == .code)
+    model.enterCode("482913")
+    model.verifyCode()
+    #expect(model.isAuthenticated)
+    #expect(model.stage == .code) // never a birthday stage — nothing re-asked
+    #expect(model.birthday == nil)
+}
+
+@MainActor
+@Test func fiveOfSixDigitsIsNotAWayIn() {
+    let model = AccountModel(mode: .login, today: fixedToday)
+    model.choosePhone()
+    model.phoneNumber = "+1 555 0134"
+    model.sendCode()
+    model.enterCode("48291")
+    model.verifyCode()
+    #expect(!model.isAuthenticated)
+}
+
+@MainActor
+@Test func signupNeverAuthenticatesOnTheWayThrough() {
+    // the terminal belongs to login alone: signup ends at the batch write,
+    // and a signup that flipped this would skip the birthday gate.
+    let model = AccountModel(today: fixedToday)
+    model.chooseApple()
+    #expect(!model.isAuthenticated)
+    #expect(model.stage == .birthday)
+
+    let phone = AccountModel(today: fixedToday)
+    phone.choosePhone()
+    phone.phoneNumber = "5550134"
+    phone.sendCode()
+    phone.enterCode("482913")
+    phone.verifyCode()
+    #expect(!phone.isAuthenticated)
+    #expect(phone.stage == .birthday)
 }

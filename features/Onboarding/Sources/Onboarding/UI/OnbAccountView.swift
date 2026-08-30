@@ -11,6 +11,9 @@ public struct OnbAccountView: View {
     private let quiz: OnboardingModel
     /// Back from the method stage — the caller's screen (payoff / hook).
     private let onExit: () -> Void
+    /// The screen's terminal, both modes: the batch write on signup, the
+    /// verified login on login. Login used to have none — the returning
+    /// user pressed "verify" and stayed on the code boxes.
     private let onCreated: () -> Void
 
     public init(
@@ -208,27 +211,18 @@ public struct OnbAccountView: View {
                     .strokeBorder(Tokens.Ground.line, lineWidth: Tokens.Border.hair)
             )
         if let error = model.ageError {
-            // The typed rejection (PRD §17): a hard block in words, with
-            // its reference — never a validation hint.
-            VStack(alignment: .leading, spacing: Tokens.Space.s1) {
-                Text(error.userMessage)
-                    .font(Typography.display(15, weight: 700))
-                    .foregroundStyle(Tokens.Ink.primary)
-                Text("ref \(error.supportReference)").meta()
-            }
-            .padding(.vertical, 10)
-            .padding(.horizontal, Tokens.Space.s3)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Tokens.Cherry.soft)
-            .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: Tokens.Radius.md)
-                    .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.std)
-            )
+            AgeRefusal(error: error)
         }
         if let error = model.creationError {
             Text(error.userMessage).meta()
         }
+    }
+
+    /// Login's terminal, read straight off the model. Signup never sets it —
+    /// that path ends at the batch write, birthday gate and all.
+    private func landIfAuthenticated() {
+        guard model.isAuthenticated else { return }
+        onCreated()
     }
 
     // MARK: - footer (pinned, the kit's rule)
@@ -239,6 +233,7 @@ public struct OnbAccountView: View {
             case .method:
                 Button {
                     model.chooseApple()
+                    landIfAuthenticated()
                 } label: {
                     Label("sign in with apple", systemImage: "apple.logo")
                 }
@@ -260,9 +255,12 @@ public struct OnbAccountView: View {
                     .meta()
                     .frame(maxWidth: .infinity)
             case .code:
-                Button("verify") { model.verifyCode() }
-                    .buttonStyle(.glossed(block: true))
-                    .disabled(!model.canVerify)
+                Button("verify") {
+                    model.verifyCode()
+                    landIfAuthenticated()
+                }
+                .buttonStyle(.glossed(block: true))
+                .disabled(!model.canVerify)
                 Button("wrong number? change it →") { _ = model.back() }
                     .buttonStyle(.plain)
                     .font(Typography.mono())
