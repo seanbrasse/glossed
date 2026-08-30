@@ -5,9 +5,19 @@ import SwiftUI
 /// Someone else's profile. GLO-125, `docs/tech/02` §3.3 and §3.5.
 public struct ViewedProfileView: View {
     @State private var model: ViewedProfileModel
+    @State private var reporting = false
+    private let safety: SafetyActionsStore?
+    private let userID: UUID?
 
-    public init(store: ViewedProfileStore, handle: String, userID: UUID? = nil) {
+    public init(
+        store: ViewedProfileStore,
+        handle: String,
+        userID: UUID? = nil,
+        safety: SafetyActionsStore? = nil
+    ) {
         _model = State(wrappedValue: ViewedProfileModel(store: store, handle: handle, userID: userID))
+        self.safety = safety
+        self.userID = userID
     }
 
     public var body: some View {
@@ -23,12 +33,18 @@ public struct ViewedProfileView: View {
                     counts(profile)
                     badges(profile)
                     surfaces
+                    reportLink
                 }
             }
             .padding(Tokens.Space.s5)
         }
         .background(Tokens.Ground.milk)
         .task { await model.load() }
+        .sheet(isPresented: $reporting) {
+            if let safety {
+                ReportSheet(store: safety, subject: .profile, subjectUserID: userID)
+            }
+        }
         .overlay(alignment: .bottom) {
             if let message = model.errorMessage {
                 Toast(message).padding(.bottom, Tokens.Space.s8)
@@ -83,6 +99,14 @@ public struct ViewedProfileView: View {
                 .buttonStyle(.glossed(.primary, block: true))
         case .unavailable:
             EmptyView()
+        }
+    }
+
+    /// Only offered when there is someone to report and a store to do it with.
+    @ViewBuilder private var reportLink: some View {
+        if safety != nil, userID != nil {
+            Button("report this profile") { reporting = true }
+                .buttonStyle(.glossed(.secondary, block: true))
         }
     }
 
