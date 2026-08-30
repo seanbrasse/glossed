@@ -115,9 +115,9 @@ public struct OwnProfileView: View {
         GlossedCard {
             VStack(alignment: .leading, spacing: Tokens.Space.s4) {
                 HStack(spacing: Tokens.Space.s6) {
-                    countCell(model.followersN, "followers")
-                    countCell(model.followingN, "following")
-                    countCell(model.rankedListsN, "ranked lists")
+                    countCell(model.followersN, "follower", "followers")
+                    countCell(model.followingN, "following", "following")
+                    countCell(model.rankedListsN, "ranked list", "ranked lists")
                 }
                 EvidenceLine(n: model.profile?.shelfN ?? 0, label: "on your shelf")
             }
@@ -144,12 +144,12 @@ public struct OwnProfileView: View {
             .buttonStyle(.glossed(.secondary, block: true))
     }
 
-    private func countCell(_ n: Int, _ label: String) -> some View {
+    private func countCell(_ n: Int, _ one: String, _ many: String) -> some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s1) {
             Text("\(n)")
                 .font(Typography.mono(Typography.Size.h2, bold: true))
                 .foregroundStyle(Tokens.Ink.primary)
-            Text(label)
+            Text(n == 1 ? one : many)
                 .font(.system(size: Typography.Size.meta))
                 .foregroundStyle(Tokens.Ink.soft)
         }
