@@ -41,6 +41,9 @@ public struct NearMatchRungView: View {
                 // rung exists to stop someone reaching by accident.
                 Text(hint).meta()
             }
+            if model.failure != nil {
+                retryButton
+            }
             options
         }
         .scrollDismissesKeyboard(.immediately)
@@ -100,6 +103,26 @@ public struct NearMatchRungView: View {
                 LadderOptionRow(option) { model.choose(option) }
             }
         }
+    }
+
+    /// The same gap as the search rung's, and it is worse here: this rung's
+    /// hint is often the only thing on screen besides the way out, so "try
+    /// again in a sec." with nothing to press reads as the end of the road
+    /// (GLO-179). Covers both branches — the failure can arrive whether or not
+    /// the rung is asking for a name.
+    private var retryButton: some View {
+        Button("try again") {
+            searchTask?.cancel()
+            searchTask = Task { await model.search() }
+        }
+        .buttonStyle(.glossed(.secondary, size: .sm))
+        // This rung clears `failure` only when an answer arrives, on purpose —
+        // a window with no error and no candidates would read as "nothing
+        // matched, safe to create". The cost is that the hint keeps showing the
+        // old failure through the retry, so without this the press has no
+        // visible effect at all. The search rung needs no equivalent: it clears
+        // `failure` on the way in, so its button unmounts as the retry starts.
+        .disabled(model.isSearching)
     }
 
     private func scheduleSearch() {

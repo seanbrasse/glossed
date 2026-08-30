@@ -20,6 +20,9 @@ public struct SearchRungView: View {
         LadderScaffold(ladder: model.ladder, onBack: onBack) {
             GlossedInput("brand, product, shade…", text: $model.query, hint: hint)
                 .plainTyping()
+            if model.failure != nil {
+                retryButton
+            }
             if matchCount > 0 {
                 Text("\(matchCount) MATCHES IN THE CATALOG").eyebrow()
             }
@@ -70,6 +73,24 @@ public struct SearchRungView: View {
             return "nothing yet — we noted that you looked"
         }
         return nil
+    }
+
+    /// The hint says "try again", so something has to be pressable (GLO-179).
+    /// Without this the only way to retry is to edit a query that was already
+    /// correct — real, but undiscoverable — while the two sibling failure
+    /// states both hand you a button. `VariantPickSheet`'s says it is following
+    /// *"the same rule as the search rung"*, which was true of everything
+    /// except the retry.
+    ///
+    /// Deliberately not routed through `scheduleSearch()`: a press is not a
+    /// keystroke, and making it sit out the 250ms typing
+    /// debounce would read as the dead button this exists to stop being.
+    private var retryButton: some View {
+        Button("try again") {
+            searchTask?.cancel()
+            searchTask = Task { await model.search() }
+        }
+        .buttonStyle(.glossed(.secondary, size: .sm))
     }
 
     /// One in-flight search at a time: a new keystroke cancels the last, so
