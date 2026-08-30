@@ -215,13 +215,8 @@ public struct ShelfView: View {
             )
         )
         // A find field, not prose: "rhode" corrected to "Rhodes" is a shelf
-        // that claims you own nothing. Both propagate to the inner TextField.
-        // The capitalization modifier is UIKit-backed and absent on macOS,
-        // where the package tests build — hence the gate.
-        .autocorrectionDisabled()
-        #if os(iOS)
-            .textInputAutocapitalization(.never)
-        #endif
+        // that claims you own nothing. `GlossedInput` defaults to `.plain`
+        // since GLO-57, so this needs no modifier — and cannot be forgotten.
     }
 
     /// Two 38×30 buttons inside one 2px ink pill, so it reads as a single

@@ -19,7 +19,6 @@ public struct SearchRungView: View {
     public var body: some View {
         LadderScaffold(ladder: model.ladder, onBack: onBack) {
             GlossedInput("brand, product, shade…", text: $model.query, hint: hint)
-                .plainTyping()
             if model.failure != nil {
                 retryButton
             }
@@ -102,22 +101,5 @@ public struct SearchRungView: View {
             guard !Task.isCancelled else { return }
             await model.search()
         }
-    }
-}
-
-extension View {
-    /// Product names are not sentences and not dictionary words. Left alone,
-    /// iOS capitalises the first letter and autocorrects brand names into
-    /// English ones — "laneige" becomes "lineage" and the search misses.
-    ///
-    /// Every catalog query field in this package must use it. GLO-57 moves the
-    /// choice into `GlossedInput`, where forgetting it stops being possible.
-    @ViewBuilder
-    func plainTyping() -> some View {
-        #if canImport(UIKit)
-            textInputAutocapitalization(.never).autocorrectionDisabled()
-        #else
-            autocorrectionDisabled()
-        #endif
     }
 }

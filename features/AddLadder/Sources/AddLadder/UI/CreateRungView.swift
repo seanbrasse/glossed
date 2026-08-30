@@ -43,14 +43,15 @@ public struct CreateRungView: View {
 
         VStack(alignment: .leading, spacing: 0) {
             GlossedInput("rare beauty", text: $model.brandQuery, label: "brand", hint: brandHint)
-                .plainTyping()
             brandMatches
         }
 
+        // Brand, product and variant are catalog text, never prose —
+        // `GlossedInput` defaults to `.plain` since GLO-57, so the three
+        // `.plainTyping()` calls that used to sit here are gone rather than
+        // duplicated.
         GlossedInput("soft pinch liquid blush", text: $model.productName, label: "product")
-            .plainTyping()
         GlossedInput("joy · 2.5ml mini", text: $model.variantText, label: "variant")
-            .plainTyping()
         // The select reads the model rather than holding its own copy — a
         // pick made anywhere (including a picker state's pre-fill) shows,
         // and the displayed label can never disagree with the draft.
