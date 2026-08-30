@@ -117,11 +117,50 @@ private func store(
     #expect(!model.isLockedByAgeGate)
 }
 
-@Test func looksHasNoRowYet() {
-    // The column ships so Phase 2 inherits a tested one, but there are no looks
-    // to scope — a row governing nothing is a promise the app cannot keep.
-    #expect(PrivacyRow.allCases.count == 3)
-    #expect(!PrivacyRow.allCases.map(\.surface).contains(.looks))
+@MainActor
+@Test func everySurfaceTheSummaryCountsHasARowTheUserCanReach() async {
+    // This replaces `looksHasNoRowYet`, which asserted the opposite and was
+    // right when it was written: looks was Phase 2, and a row governing
+    // nothing is a promise the app cannot keep. Sean moved the feed into V1
+    // (Aug 30), so there are looks to scope — and the missing row had become
+    // a defect on its own.
+    //
+    // `overallScope` compares FOUR scopes. With three rows on screen, setting
+    // every visible row to public left looks at only_you, so the header read
+    // "mixed" above rows that all agreed, and nothing the user could touch
+    // would resolve it.
+    //
+    // The assertion is the invariant rather than the count: whatever the
+    // summary counts, the screen must let the user reach. Add a fifth scope
+    // to PrivacyScopes without a row and this fails, which is the point.
+    let model = PrivacyModel(store: store())
+    await model.load()
+    for row in PrivacyRow.allCases {
+        await model.setScope(row, to: .publicScope)
+    }
+    #expect(model.summaryLine == "public")
+    #expect(model.scopes.overallScope == .publicScope)
+}
+
+@MainActor
+@Test func theMasterControlMovesEverySurfaceAtOnce() async {
+    // The frame's "one switch for all of it". Asserted through the model
+    // rather than the view: the promise is that no surface is left behind.
+    // A reference box: the store closure is @Sendable, so a captured `var`
+    // cannot be mutated from inside it.
+    final class Written: @unchecked Sendable {
+        var surfaces: [VisibilitySurface] = []
+    }
+    let written = Written()
+    let model = PrivacyModel(store: store(setScope: { surface, _ in
+        written.surfaces.append(surface)
+    }))
+    await model.load()
+    await model.setAll(to: .friends)
+    #expect(model.scopes.overallScope == .friends)
+    #expect(Set(written.surfaces) == Set(PrivacyRow.allCases.map(\.surface)))
+    // Discoverable is a different decision and must not ride along (§1.3).
+    #expect(!model.scopes.discoverable)
 }
 
 @Test func everyRowNamesWhatItExposes() {
