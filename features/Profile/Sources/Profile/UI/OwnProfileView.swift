@@ -7,6 +7,7 @@ import SwiftUI
 /// Built from the design system (Sean, Aug 29: no frames for 1.5).
 public struct OwnProfileView: View {
     @State private var model: OwnProfileModel
+    @State private var tabs: ProfileTabsModel
     @State private var viewing: SuggestedPerson?
     @State private var editingSocials = false
     @State private var previewing = false
@@ -30,8 +31,15 @@ public struct OwnProfileView: View {
         onClaimHandle: @escaping () -> Void,
         onOpenPrivacy: @escaping () -> Void,
         settingsStore: SettingsStore? = nil,
-        onSignedOut: @escaping () -> Void = {}
+        onSignedOut: @escaping () -> Void = {},
+        // Defaulted so the app layer compiles unchanged and wires the seam in
+        // its own PR (GLO-230). Absent, the segmented control and the tabs
+        // below it simply do not render — the frame's lower half is missing
+        // rather than pretending to be empty, which is the only honest thing a
+        // screen with no read can do.
+        routinesStore: ProfileRoutinesStore? = nil
     ) {
+        _tabs = State(wrappedValue: ProfileTabsModel(routines: routinesStore))
         self.suggestionsStore = suggestionsStore
         self.safetyStore = safetyStore
         self.socialsStore = socialsStore
@@ -54,6 +62,12 @@ public struct OwnProfileView: View {
                         claimPrompt
                     } else {
                         counts
+                        // The frame's order: the segmented control and its
+                        // tab sit directly under the stat line, above
+                        // everything the profile grew afterwards.
+                        if !tabs.tabs.isEmpty {
+                            ProfileTabsSection(model: tabs)
+                        }
                         SuggestedPeopleCard(store: suggestionsStore) { viewing = $0 }
                         previewLink
                         socialsLink
@@ -64,6 +78,7 @@ public struct OwnProfileView: View {
         }
         .background(Tokens.Ground.milk)
         .task { await model.load() }
+        .task { await tabs.load() }
         .overlay(alignment: .bottom) {
             if let message = model.errorMessage {
                 Toast(message).padding(.bottom, Tokens.Space.s8)
