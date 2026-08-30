@@ -10,6 +10,7 @@ public struct SettingsView: View {
     @State private var model: SettingsModel
     @State private var confirmingSignOut = false
     @State private var editingName = false
+    @State private var editingBio = false
     private let onOpenPrivacy: () -> Void
     private let onSignedOut: () -> Void
     private let onBack: () -> Void
@@ -65,6 +66,14 @@ public struct SettingsView: View {
                 onBack: { editingName = false }
             )
         }
+        .sheet(isPresented: $editingBio) {
+            if let bioStore = model.store.bio {
+                BioView(store: bioStore, onBack: {
+                    editingBio = false
+                    Task { await model.reload() }
+                })
+            }
+        }
         .confirmationDialog("sign out?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
             Button("sign out", role: .destructive) {
                 Task {
@@ -95,12 +104,17 @@ public struct SettingsView: View {
         }
     }
 
-    /// The name row opens an editor; every other row states a fact set
+    /// The name and bio rows open editors; every other row states a fact set
     /// elsewhere (onboarding, the tune sheet, the shelf). Only the ones that
     /// can be changed here are tappable.
     @ViewBuilder private func factRow(_ row: SettingsRow) -> some View {
         if row.id == "name" {
             Button { editingName = true } label: {
+                factRowBody(row, opensSomething: true)
+            }
+            .buttonStyle(.plain)
+        } else if row.id == "bio" {
+            Button { editingBio = true } label: {
                 factRowBody(row, opensSomething: true)
             }
             .buttonStyle(.plain)
@@ -119,6 +133,9 @@ public struct SettingsView: View {
             Text(row.value ?? "not set yet")
                 .meta(color: row.value == nil ? Tokens.Ink.faint : Tokens.Ink.soft)
                 .multilineTextAlignment(.trailing)
+                // A bio is sentences; the row is a row. Two lines, then an
+                // ellipsis — the editor shows the whole thing.
+                .lineLimit(2)
             if opensSomething {
                 Image(systemName: "chevron.right")
                     .font(Typography.control(11))

@@ -28,7 +28,7 @@ private func profile(
 
 @MainActor
 @Test func everyRowIsFilledFromTheProfileRatherThanTheFrame() throws {
-    let rows = try SettingsModel.rows(profile: profile(), anchor: nil)
+    let rows = try SettingsModel.rows(profile: profile(), anchor: nil, bio: nil)
     let byID = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0.value) })
     #expect(byID["skin"] == "tone 6 · combo")
     #expect(byID["hair"] == "3b")
@@ -42,7 +42,7 @@ private func profile(
     // settings screen describing somebody else.
     let rows = try SettingsModel.rows(
         profile: profile(name: nil, skin: nil, tone: nil, hair: nil, domains: []),
-        anchor: nil
+        anchor: nil, bio: ""
     )
     for row in rows where row.id != "birthday" {
         #expect(row.value == nil, "\(row.id) should be unset, not invented")
@@ -54,7 +54,7 @@ private func profile(
     // The frame shows "rank nudges on". There is no notification system,
     // nothing to toggle, and nothing that would make the row true. A settings
     // row for a feature that does not exist is a promise — GLO-189's mistake.
-    #expect(try !SettingsModel.rows(profile: profile(), anchor: nil).contains { $0.id == "notifications" })
+    #expect(try !SettingsModel.rows(profile: profile(), anchor: nil, bio: nil).contains { $0.id == "notifications" })
 }
 
 @MainActor
@@ -82,7 +82,7 @@ private func profile(
 
 @MainActor
 @Test func theNameRowIsFirstAndCarriesWhatIsSet() throws {
-    let rows = try SettingsModel.rows(profile: profile(), anchor: nil)
+    let rows = try SettingsModel.rows(profile: profile(), anchor: nil, bio: nil)
     #expect(rows.first?.id == "name")
     #expect(rows.first?.value == "maya k.")
 }
@@ -125,4 +125,14 @@ private func profile(
     // nil, never [] — nil omits the key and leaves brands alone; [] is a real
     // answer meaning "cleared" and would wipe them.
     #expect(draft.brandAffinities == nil)
+}
+
+@MainActor
+@Test func theBioRowIsOmittedWhenThereIsNoEditorToOpen() throws {
+    // A store built without a bio editor has no row rather than a row that
+    // opens nothing — the same reason `notifications` is absent.
+    #expect(try !SettingsModel.rows(profile: profile(), anchor: nil, bio: nil)
+        .contains { $0.id == "bio" })
+    let withEditor = try SettingsModel.rows(profile: profile(), anchor: nil, bio: "soft glam, mostly")
+    #expect(withEditor.first { $0.id == "bio" }?.value == "soft glam, mostly")
 }

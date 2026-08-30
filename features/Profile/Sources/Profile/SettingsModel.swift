@@ -12,20 +12,28 @@ public struct SettingsStore: Sendable {
     /// draft erases the user's skin concerns (GLO-215). Every field is carried
     /// across from the current profile deliberately.
     public var saveDisplayName: @Sendable (String) async throws -> Void
+    /// The bio editor's own store, carried here so settings can present it.
+    /// Optional because a store built without one simply omits the row rather
+    /// than showing a row that opens nothing.
+    public var bio: BioStore?
 
     public init(
         profile: @escaping @Sendable () async throws -> Profile?,
         anchor: @escaping @Sendable () async throws -> ShadeAnchorFact?,
         signOut: @escaping @Sendable () async throws -> Void,
-        saveDisplayName: @escaping @Sendable (String) async throws -> Void = { _ in }
+        saveDisplayName: @escaping @Sendable (String) async throws -> Void = { _ in },
+        bio: BioStore? = nil
     ) {
         self.profile = profile
         self.anchor = anchor
         self.signOut = signOut
         self.saveDisplayName = saveDisplayName
+        self.bio = bio
     }
 
-    public static func live(_ repository: ProfileRepository, client: GlossedClient) -> SettingsStore {
+    public static func live(
+        _ repository: ProfileRepository, client: GlossedClient, safety: SafetyRepository
+    ) -> SettingsStore {
         SettingsStore(
             profile: { try await repository.own() },
             anchor: { try await repository.anchor() },
@@ -51,7 +59,8 @@ public struct SettingsStore: Sendable {
                     // contract, and this screen does not ask about brands.
                     brandAffinities: nil
                 ))
-            }
+            },
+            bio: .live(safety: safety)
         )
     }
 }
@@ -82,6 +91,9 @@ public final class SettingsModel {
     public private(set) var rows: [SettingsRow] = []
     /// Kept so the name editor can open prefilled without a second read.
     public private(set) var displayName: String?
+    /// What the bio row shows. Read from `public_texts`, not the profile row —
+    /// a bio is moderated text and lives apart from the quiz answers.
+    public private(set) var bioBody: String?
     public private(set) var isLoading = true
     public private(set) var errorMessage: String?
     /// Internal so the name editor can reach its save without the model
@@ -97,8 +109,16 @@ public final class SettingsModel {
         defer { isLoading = false }
         let profile = try? await store.profile()
         let anchor = try? await store.anchor()
+        var bio: PublicText?
+        if let bioStore = store.bio {
+            bio = try? await bioStore.load()
+        }
         displayName = (profile ?? nil)?.displayName
-        rows = Self.rows(profile: profile ?? nil, anchor: anchor ?? nil)
+        bioBody = bio?.body
+        rows = Self.rows(
+            profile: profile ?? nil, anchor: anchor ?? nil,
+            bio: store.bio == nil ? nil : (bio?.body ?? "")
+        )
     }
 
     /// Sign-out failure is stated rather than swallowed. A tap that appears to
@@ -128,15 +148,20 @@ public final class SettingsModel {
     /// that would make the row true. A settings row for a feature that does
     /// not exist is a promise, and this project has shipped that mistake once
     /// already (GLO-189, copy promising a review nobody performs).
-    static func rows(profile: Profile?, anchor: ShadeAnchorFact?) -> [SettingsRow] {
+    ///
+    /// `bio` is nil when this store has no bio editor at all, and the row is
+    /// omitted rather than rendered dead. An empty string means the editor
+    /// exists and nothing has been written yet, which the row states.
+    static func rows(profile: Profile?, anchor: ShadeAnchorFact?, bio: String?) -> [SettingsRow] {
         [
             SettingsRow(id: "name", label: "your name", value: profile?.displayName),
+            bio.map { SettingsRow(id: "bio", label: "your bio", value: $0.isEmpty ? nil : $0) },
             SettingsRow(id: "skin", label: "skin profile", value: skinLine(profile)),
             SettingsRow(id: "anchor", label: "shade anchor", value: anchorLine(anchor)),
             SettingsRow(id: "hair", label: "hair type", value: profile?.hairPattern),
             SettingsRow(id: "domains", label: "what you buy", value: domainLine(profile)),
             SettingsRow(id: "birthday", label: "birthday", value: birthdayLine(profile))
-        ]
+        ].compactMap(\.self)
     }
 
     static func skinLine(_ profile: Profile?) -> String? {
