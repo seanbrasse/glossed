@@ -1,7 +1,7 @@
 -- Handles, moderated public text, badge opt-ins (0023). GLO-120.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(31);
+select plan(32);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -103,6 +103,23 @@ select is((select body from public_texts where user_id = :'maya' and kind = 'bio
     'edited', 'and the new body is stored, so the reviewer sees what was written');
 select is((select count(*)::int from public_texts where user_id = :'maya' and kind = 'bio'), 1,
     'one bio per user — nulls not distinct makes the unique constraint bite on a null subject_id');
+
+-- The client cannot write this table AT ALL, which is what makes the RPC
+-- mandatory rather than merely tidy (GLO-216). public_texts has a SELECT
+-- policy and no insert policy, so a direct insert is refused — and the app
+-- attempted exactly that for months, which meant no bio, and no moderation
+-- record for any handle, collection or routine, could be written.
+--
+-- Asserted here so that a future "fix" which adds an insert policy fails
+-- loudly: that policy would hand `state` back to the client and undo the
+-- reason set_public_text exists.
+select throws_ok(
+    $$ insert into public_texts (user_id, kind, body, state)
+       values ('00000000-0000-0000-0000-000000000001','bio','written directly','pending') $$,
+    '42501',
+    'new row violates row-level security policy for table "public_texts"',
+    'a direct client insert is REFUSED — the RPC is the only door'
+);
 
 -- The client cannot self-approve. Note the SHAPE of this assertion: with RLS
 -- enabled and NO update policy, the UPDATE filters to zero rows and succeeds

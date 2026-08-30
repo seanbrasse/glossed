@@ -179,18 +179,29 @@ public struct SafetyRepository: Sendable {
         subjectID: UUID? = nil,
         body: String
     ) async throws(GlossedError) {
-        let userID = try await client.requireUserID()
-        var row: [String: String?] = [
-            "user_id": userID.uuidString,
-            "kind": kind.rawValue,
-            "body": body,
-            "state": ModerationState.pending.rawValue
+        _ = try await client.requireUserID()
+        // Through set_public_text(), never a direct write to the table.
+        //
+        // public_texts has a SELECT policy and no insert policy, deliberately:
+        // 0023 keeps `state` out of the client's hands so `approved` can never
+        // be self-declared. A direct upsert is therefore REFUSED by RLS — it
+        // is not a slower path, it is no path. This repository used to attempt
+        // one, which meant no user-authored public text could be written at
+        // all: bios, and the moderation record behind every handle, collection
+        // and routine. Linked socials shipped on top of it and told users to
+        // "try again" at something that could not succeed (GLO-216).
+        //
+        // The RPC is security definer, granted to authenticated, and decides
+        // `state` itself — which is also where bios_auto_approve() applies
+        // (GLO-207), so this is the only path that honours Sean's ruling.
+        let params: [String: String?] = [
+            "p_kind": kind.rawValue,
+            "p_subject": subjectID?.uuidString,
+            "p_body": body
         ]
-        row["subject_id"] = subjectID?.uuidString
         try await run {
             _ = try await client.supabase
-                .from("public_texts")
-                .upsert(row, onConflict: "user_id,kind,subject_id")
+                .rpc("set_public_text", params: params)
                 .execute()
         }
     }
