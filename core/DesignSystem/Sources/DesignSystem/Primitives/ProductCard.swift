@@ -134,7 +134,7 @@ public struct ProductCard<Thumb: View>: View {
                     }
                     if let benefit = meta.benefitLine {
                         Text(benefit)
-                            .font(.system(size: Typography.Size.small))
+                            .font(Typography.control(Typography.Size.small, weight: .regular))
                             .foregroundStyle(Tokens.Ink.soft)
                             .multilineTextAlignment(.leading)
                     }
