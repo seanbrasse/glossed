@@ -109,3 +109,40 @@ private func profile(skin: String? = "combo", anchor: String? = "fenty beauty 22
     #expect(model.needsHandle)
     #expect(model.preview == nil)
 }
+
+@Test func aPublishedBadgeNobodyMatchesIsNotTheSameAsNoBadge() {
+    // GLO-212. Before GLO-205 these were identical: a badge published its
+    // value to everyone who could see the profile, or it was off. Since 0044
+    // it renders only to a signed-in viewer whose own value matches — and a
+    // signed-out stranger matches nothing, always.
+    //
+    // So the preview must not tell someone who just switched hair pattern on
+    // that they have published nothing. That is the exact class of lie this
+    // screen was built to catch, reintroduced by the fix that protected the
+    // data.
+    let published = StrangerPreview(
+        profile: profile(skin: nil, anchor: nil),
+        scopes: PrivacyScopes(),
+        badges: ProfileBadges(showSkinType: false, showAnchor: false, showHairPattern: true)
+    )
+    #expect(published.hairPattern == nil, "a stranger still sees no value — that part is correct")
+    #expect(published.hasUnmatchedBodyBadges, "but something IS published, and the copy must say so")
+
+    let nothingOn = StrangerPreview(
+        profile: profile(skin: nil, anchor: nil),
+        scopes: PrivacyScopes(),
+        badges: ProfileBadges(showSkinType: false, showAnchor: false, showHairPattern: false)
+    )
+    #expect(!nothingOn.hasUnmatchedBodyBadges)
+}
+
+@Test func theAnchorIsNotCountedAsUnmatched() {
+    // A shade you wear is a product fact: it renders unconditionally on its
+    // opt-in, so a stranger DOES see it and there is nothing to explain.
+    let anchorOnly = StrangerPreview(
+        profile: profile(skin: nil, anchor: nil),
+        scopes: PrivacyScopes(),
+        badges: ProfileBadges(showSkinType: false, showAnchor: true, showHairPattern: false)
+    )
+    #expect(!anchorOnly.hasUnmatchedBodyBadges)
+}
