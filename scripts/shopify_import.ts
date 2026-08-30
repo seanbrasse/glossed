@@ -243,6 +243,10 @@ interface ShopifyVariant {
 
 interface ShopifyProduct {
   title?: string;
+  /// The storefront's own URL slug — `https://{host}/products/{handle}` is
+  /// the canonical page (GLO-152). Never declaring this field is how 2,202
+  /// URLs got thrown away.
+  handle?: string;
   product_type?: string;
   tags?: string[] | string;
   variants?: ShopifyVariant[];
@@ -267,6 +271,9 @@ interface Candidate {
   /// material for the category-tree workshop.
   productType: string | null;
   tags: string[];
+  /// The storefront page's slug (GLO-152) — null when absent or unusable,
+  /// and no link is a valid, deliberate state.
+  handle: string | null;
 }
 
 function clean(raw: string, cap: number): string {
@@ -371,6 +378,9 @@ function candidate(brand: string, p: ShopifyProduct, titleIsShade = false): Cand
     .filter((t) => t.length > 1)
     .slice(0, 20);
   const productType = clean((p.product_type ?? "").toLowerCase(), 100);
+  // A handle is a URL path segment or it is nothing — a wrong link is worse
+  // than no link (GLO-152's fit-gate doctrine).
+  const handle = /^[a-z0-9._-]{2,200}$/i.test(p.handle ?? "") ? p.handle! : null;
   return {
     slug,
     brand,
@@ -378,6 +388,7 @@ function candidate(brand: string, p: ShopifyProduct, titleIsShade = false): Cand
     variants,
     productType: productType.length > 0 ? productType : null,
     tags,
+    handle,
   };
 }
 
@@ -385,7 +396,7 @@ function candidate(brand: string, p: ShopifyProduct, titleIsShade = false): Cand
 /// a product OBF already brought in keeps its rows, and this fill only adds
 /// what is missing. Variants insert per-row so one bad barcode cannot sink
 /// its siblings; `on conflict do nothing` covers GTIN collisions.
-function sql(c: Candidate, origin: string | null): string {
+function sql(c: Candidate, origin: string | null, host: string, linksLive: boolean): string {
   const type = c.productType === null ? "null" : quote(c.productType);
   const tags = c.tags.length > 0
     ? `array[${c.tags.map(quote).join(",")}]::text[]`
@@ -418,6 +429,25 @@ where b.id = p.brand_id
   and b.normalized_name = normalize_name(${quote(c.brand)})
   and p.normalized_name = normalize_name(${quote(c.name)})
   and p.source = 'shopify';`];
+  // GLO-152: the storefront URL, one idempotent row per (product, url) —
+  // brand DTC, never affiliate. Gated on the table existing so the restore
+  // recipe keeps working until the product_links migration lands; the
+  // attrs-refresh doctrine applies — a plain re-run IS the backfill.
+  if (linksLive && c.handle !== null) {
+    const url = `https://${host}/products/${c.handle}`;
+    parts.push(`
+insert into product_links (product_id, url, source, is_affiliate)
+select p.id, ${quote(url)}, 'shopify', false
+from products p
+join brands b on b.id = p.brand_id
+where b.normalized_name = normalize_name(${quote(c.brand)})
+  and p.normalized_name = normalize_name(${quote(c.name)})
+  and p.source = 'shopify'
+  and not exists (
+    select 1 from product_links dup
+    where dup.product_id = p.id and dup.url = ${quote(url)}
+  );`);
+  }
   for (const v of c.variants) {
     const gtin = v.gtin === null ? "null" : `'${v.gtin}'`;
     const shade = v.shade === null ? "null" : quote(v.shade);
@@ -529,7 +559,9 @@ function collapseShades(candidates: Candidate[], hyphenIsShade = false): Candida
     });
     // Attrs from the first member: a collapsed group shares one storefront
     // line, so its type is uniform and its tags near-identical — union
-    // would mostly collect per-shade noise.
+    // would mostly collect per-shade noise. The handle likewise: each
+    // member's page shows the whole franchise via the shade picker, so the
+    // first one is as canonical as any (GLO-152).
     out.push({
       slug: group[0].slug,
       brand: group[0].brand,
@@ -537,6 +569,7 @@ function collapseShades(candidates: Candidate[], hyphenIsShade = false): Candida
       variants,
       productType: group[0].productType,
       tags: group[0].tags,
+      handle: group[0].handle,
     });
   }
   return out;
@@ -548,6 +581,22 @@ let fetched = 0;
 let usable = 0;
 const unmappedTypes = new Map<string, number>();
 const chunks: string[] = [];
+
+// GLO-152: write storefront links only where the table exists — the probe is
+// a read, so it is dry-run-safe, and an unreachable DB just means no links
+// this run rather than a crash before the fetch report.
+let linksLive = false;
+try {
+  linksLive = (await runSQL("select to_regclass('public.product_links');")).includes("product_links");
+} catch {
+  linksLive = false;
+}
+if (!linksLive) {
+  console.log(
+    "product_links not present — handles captured but not written " +
+      "(GLO-152: re-run after the migration lands; the re-run IS the backfill)",
+  );
+}
 
 for (const [host, brand] of Object.entries(STORES)) {
   if (onlyStore && host !== onlyStore) continue;
@@ -569,7 +618,7 @@ for (const [host, brand] of Object.entries(STORES)) {
   }
   const collapsed = collapseShades(storeCandidates, HYPHEN_IS_SHADE.has(host));
   for (const c of collapsed) {
-    chunks.push(sql(c, STORE_ORIGIN[host] ?? null));
+    chunks.push(sql(c, STORE_ORIGIN[host] ?? null, host, linksLive));
   }
   usable += collapsed.length;
   console.log(
@@ -600,6 +649,7 @@ const summary = await runSQL(`
 select 'brands' as t, count(*) from brands where source = 'shopify'
 union all select 'products', count(*) from products where source = 'shopify'
 union all select 'variants', count(*) from variants where source = 'shopify'
-union all select 'queued image jobs', count(*) from ingest_jobs where kind = 'image_fetch' and state = 'queued';
+union all select 'queued image jobs', count(*) from ingest_jobs where kind = 'image_fetch' and state = 'queued'
+${linksLive ? "union all select 'product links', count(*) from product_links where source = 'shopify'" : ""};
 `);
 console.log(summary);
