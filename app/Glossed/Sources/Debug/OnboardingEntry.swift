@@ -150,18 +150,24 @@
 
         private struct OnboardingTrip: View {
             private enum Stop {
-                case hook, quiz, payoff
+                case hook, quiz, payoff, account, welcome
             }
 
             @State private var stop = Stop.hook
+            /// One quiz for the whole trip: the account stage batch-writes
+            /// ITS answers, so the two must share state.
+            @State private var quiz = OnboardingModel()
 
             var body: some View {
                 switch stop {
                 case .hook:
-                    OnbHookView(onCreateAccount: { stop = .quiz })
+                    OnbHookView(onCreateAccount: {
+                        quiz = OnboardingModel()
+                        stop = .quiz
+                    })
                 case .quiz:
                     OnbQuizView(
-                        model: OnboardingModel(),
+                        model: quiz,
                         anchorCatalog: OnboardingEntry.fixtureCatalog,
                         onFinished: { stop = .payoff }
                     )
@@ -175,7 +181,22 @@
                                 PayoffEvidence(exactShadeCount: 12, withFitCount: 9, evidenceBacked: true)
                             }
                         ),
-                        onContinue: { stop = .hook }
+                        onContinue: { stop = .account }
+                    )
+                case .account:
+                    // Stubbed finish: the fixture trip writes nothing — the
+                    // live batch write drives with the real wiring.
+                    OnbAccountView(
+                        model: AccountModel(store: AccountStore(finish: { _ in })),
+                        quiz: quiz,
+                        onExit: { stop = .payoff },
+                        onCreated: { stop = .welcome }
+                    )
+                case .welcome:
+                    OnbWelcomeView(
+                        onBuild: { stop = .hook },
+                        onImport: { stop = .hook },
+                        onBrowse: { stop = .hook }
                     )
                 }
             }
