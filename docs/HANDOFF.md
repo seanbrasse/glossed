@@ -60,6 +60,14 @@ either number; re-measure.
 
 ## 0. Read this first
 
+**A merge is not an apply.** On Aug 30 the hosted project sat FOUR migrations
+behind `main` — 0043–0046, two of them Sean's own rulings — and nothing in the
+repo could show it. Every one was merged, green and closed. `list_migrations`
+against the project is the only source of truth; run it after any migration
+merges, and verify the result by querying hosted rather than trusting the
+apply call's success. (0043 remains unapplied: the feed lane's, flagged to
+them.)
+
 **Nothing forces `supabase_migrations.schema_migrations` to agree with the
 schema, and on Aug 29 it did not** — the tracker read **29** while the schema
 was at **40**. It has since been reconciled (40 tracked, latest
@@ -877,6 +885,54 @@ epic's CODE into my docs PR.* Squash-merge means their branch's commits never
 share SHAs with main, so `git merge` re-applies all of it. The fix:
 `git checkout <branch> -- docs/HANDOFF.md` — **take the file, never the
 branch.**
+
+**Session 13 (the privacy/profile lane, Aug 30):**
+
+*A merge is not an apply, and nothing in the repo can tell you.* The hosted
+project sat **four migrations behind main** — 0043–0046, including two of
+Sean's own rulings — and nobody noticed, because every one of them was merged,
+green, and closed. The repo looks identical whether hosted is current or a week
+stale. **After any migration merges, run `list_migrations` against the project;
+that call is the only source of truth.** Applied 0044–0046 and verified the
+result by querying hosted, not by trusting the tool's success.
+
+*Copy derived from what RENDERED is not copy about what IS.* GLO-205 made
+body-fact badges viewer-relative — they show only to a viewer whose own value
+matches. The stranger preview then told users **"no badges — you haven't
+published any"** while one was switched on, because it computed that sentence
+from the empty rendered set. Before the ruling those two were the *same fact*,
+so the derivation had been correct. The sharp part: the screen that lied is the
+one built specifically so a user could **check** the privacy model rather than
+trust the copy, so the fix protecting the data put the lie back on the
+verification surface. **When a render becomes conditional on the viewer, every
+sentence derived from that render must be re-derived from state.** Mine, within
+the hour, caught only by driving (GLO-212, #346).
+
+*I merged a red PR because my watcher checked completion, not conclusions.*
+`gh pr checks` had finished, so the script said go; the db suite was FAILURE
+and three assertions were red on main until I noticed. Then the repaired script
+did it again one layer down: **right after a force-push the old checks are gone
+and the new ones have not registered**, so "nothing incomplete" is briefly TRUE
+and an eager poll reads an empty set as green. Both are the same bug —
+**confirming the absence of failure instead of the presence of success.** The
+watcher now sleeps before its first poll and requires the iOS job to have
+reached a verdict.
+
+*Frame conformance is worth auditing and the gaps were NOT systemic — record
+the clean passes.* Sean said the privacy screen "didn't look the same"; the
+source route in `docs/DESIGN.md` then found three real gaps — privacy's missing
+master control, the cold-start shelf as one sentence where the frame specifies
+a whole stage-0 screen (GLO-211), and settings, which reads as missing because
+**it is a STATE of `G.Profile`, not one of the kit's 21 screens**. Then two
+clean passes: the AddLadder rungs and the product page both match, each
+carrying its one divergence *in the code*. A clean pass recorded as clean is a
+finding — it is what stops the next session budgeting a week-long sweep.
+
+*Five times now the shape has been "the layers exist, the screen never reached
+for them"* — avatar, bio, display name, cold-start picks, the confidence meter.
+`DesignSystem.Avatar` had shipped with the kit port and nothing drew it.
+**Before concluding something needs building, grep for the component and the
+repository method.**
 
 ## 9. Local setup
 
