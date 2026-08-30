@@ -62,7 +62,10 @@ struct AppShell: View {
     /// "add a product" resumes the first trip — stale query, stale rung, and
     /// a reused log idempotency key across two distinct intentions (GLO-96).
     @State var ladderTrip = UUID()
-    /// One line naming the ticket for a drawer option that is not built yet.
+    /// One line the shell owes you once the drawer has closed: a door that is
+    /// not built yet naming its ticket, or a door that ran saying what it did.
+    /// The second case arrived with GLO-254 — a composer that dismisses itself
+    /// on success answers "did it work?" with silence.
     @State var notice: String?
     /// The routine composer, the drawer's fourth door (#341/#342).
     @State var routineOpen = false

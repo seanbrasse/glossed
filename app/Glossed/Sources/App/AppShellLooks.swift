@@ -27,9 +27,11 @@ struct LookComposerHost: View {
     @State private var model: ComposerModel
     @State private var picking = false
     @State private var picked: PhotosPickerItem?
+    private let onSaved: () -> Void
     private let onClose: () -> Void
 
-    init(client: GlossedClient, onClose: @escaping () -> Void) {
+    init(client: GlossedClient, onSaved: @escaping () -> Void, onClose: @escaping () -> Void) {
+        self.onSaved = onSaved
         self.onClose = onClose
         _model = State(initialValue: ComposerModel(store: .live(
             client: client,
@@ -52,7 +54,7 @@ struct LookComposerHost: View {
         ComposerView(
             model: model,
             onPickPhoto: { picking = true },
-            onSaved: { _ in onClose() },
+            onSaved: { _ in onSaved() },
             onClose: onClose
         )
         .photosPicker(isPresented: $picking, selection: $picked, matching: .images)
@@ -82,8 +84,20 @@ extension AppShell {
     /// id, and re-uploads into the previous look's R2 namespace.
     @ViewBuilder var lookComposer: some View {
         if let client = session.client {
-            LookComposerHost(client: client) { lookOpen = false }
-                .id(lookTrip)
+            LookComposerHost(
+                client: client,
+                // A composer that dismisses itself on success answers "did it
+                // work?" with silence, and there is no looks surface to land
+                // on yet. So the shell says it, in the composer's own words —
+                // which are the honest ones: GLO-189 forbids implying a review,
+                // and there is no audience to imply either.
+                onSaved: {
+                    lookOpen = false
+                    notice = "saved to your account. nothing shows it to anyone yet."
+                },
+                onClose: { lookOpen = false }
+            )
+            .id(lookTrip)
         }
     }
 }
