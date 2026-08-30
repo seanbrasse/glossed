@@ -98,9 +98,19 @@ public struct RoutinesRepository: Sendable {
     /// The read half of `saveDraft`, and the one GLO-230 was blocked on:
     /// `BrowseRepository.routines` answers "other people's", excluding on
     /// scope, `discoverable`, an unapproved title and blocks — so it can never
-    /// return yours, and should not. This one is scoped by `routines_own` to
-    /// `auth.uid()` and asks nothing about visibility, because the owner's own
-    /// list is not a public surface.
+    /// return yours, and should not.
+    ///
+    /// **`user_id` is pinned in the query, and RLS is not what makes this
+    /// "mine".** This comment previously said the call was "scoped by
+    /// `routines_own` to `auth.uid()`" — that was false in the same way
+    /// GLO-238's was. `routines` carries TWO select policies, `routines_own`
+    /// and `routines_public`, and Postgres OR's policies for the same command,
+    /// so an unfiltered select returns your own routines *plus* every routine
+    /// `can_view(user_id, 'routines')` admits.
+    ///
+    /// Probed, not reasoned: as user A, `select … from routines where
+    /// deleted_at is null` returned "B public routine + morning glass skin".
+    /// The predicate below is what makes the name on this function true.
     ///
     /// Three reads rather than one RPC, matching `routineDetail`: the step
     /// products come through `user_shelf_items`, which is `security_invoker`
@@ -109,11 +119,12 @@ public struct RoutinesRepository: Sendable {
     /// Soft-deleted routines are excluded — `deleted_at` is the schema's
     /// intent, and `remove` below honours it.
     public func mine() async throws(GlossedError) -> [MyRoutine] {
-        _ = try await client.requireUserID()
+        let userID = try await client.requireUserID()
         let routines: [OwnRoutineRow] = try await run {
             try await client.supabase
                 .from("routines")
                 .select("id,title,slot,started_on,created_at")
+                .eq("user_id", value: userID.uuidString)
                 .is("deleted_at", value: nil)
                 .order("created_at", ascending: false)
                 .execute()
