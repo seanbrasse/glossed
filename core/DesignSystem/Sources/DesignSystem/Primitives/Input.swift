@@ -48,7 +48,7 @@ public struct GlossedInput: View {
                 Text(label).meta()
             }
             TextField(placeholder, text: $text)
-                .font(.system(size: Typography.Size.body, weight: .semibold))
+                .font(Typography.control(Typography.Size.body, weight: .semibold))
                 .glossedKeyboard(keyboard)
                 .focused($focused)
                 .padding(.horizontal, Tokens.Space.s4)

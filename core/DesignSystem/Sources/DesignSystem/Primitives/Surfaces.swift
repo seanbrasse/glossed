@@ -73,7 +73,7 @@ public struct IconButton: View {
     public var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 17, weight: .semibold))
+                .font(Typography.control(17, weight: .semibold))
                 .foregroundStyle(Tokens.Ink.primary)
                 .frame(width: Tokens.hitTarget, height: Tokens.hitTarget)
                 .background(Tokens.Ground.card)
@@ -109,7 +109,7 @@ public struct Toast: View {
                     .rotationEffect(Tokens.Rotate.r3)
             } else {
                 Text(message)
-                    .font(.system(size: Typography.Size.small, weight: .semibold))
+                    .font(Typography.control(Typography.Size.small, weight: .semibold))
                     .foregroundStyle(Tokens.Ink.primary)
             }
         }
