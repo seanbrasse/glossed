@@ -21,6 +21,12 @@ public final class DiscoverModel {
     public private(set) var phase: Phase = .loading
     public private(set) var picks: [DiscoverHit] = []
     public private(set) var crosswalk: [CrosswalkHit] = []
+    /// Category slug → the catalog's own label, for the frame's per-cell
+    /// eyebrow (GLO-226). Empty until the read lands, and empty forever when
+    /// the store supplies no `categories` — either way the eyebrow simply
+    /// does not render, which is the correct degrade for a label we could
+    /// only otherwise invent.
+    private var categoryLabels: [String: String] = [:]
 
     /// One card in the feed's stream. The surface is a single scroll of
     /// mixed, self-labeling kinds (GLO-195: discovery is incorporated into
@@ -139,13 +145,37 @@ public final class DiscoverModel {
             // hiccup must not blank the picks, nor the reverse.
             async let feed = try? store.feed(12)
             async let partners = try? store.crosswalk(6)
-            let (loadedPicks, loadedPartners) = await (feed, partners)
+            // Reference data, and the third read that must not blank the
+            // other two: a categories hiccup costs the eyebrow, nothing else.
+            async let labels = Self.labels(from: store)
+            let (loadedPicks, loadedPartners, loadedLabels) = await (feed, partners, labels)
             guard !Task.isCancelled else { return }
             picks = loadedPicks ?? []
             crosswalk = loadedPartners ?? []
+            categoryLabels = loadedLabels
             phase = picks.isEmpty && crosswalk.isEmpty ? .empty : .loaded
             recordImpressions()
         }
+    }
+
+    /// One categories read, folded to the slug → label map the eyebrow needs.
+    /// A store with no `categories` returns empty, and so does a failure —
+    /// the eyebrow is chrome, and chrome never costs the screen its picks.
+    private nonisolated static func labels(from store: DiscoverStore) async -> [String: String] {
+        guard let read = store.categories, let rows = try? await read() else { return [:] }
+        return Dictionary(rows.map { ($0.slug, $0.label) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// `G.Discover`'s per-cell `<Eyebrow>{c.type}</Eyebrow>` — `CREAM BLUSH`
+    /// over the name. The catalog's own label, never a slug dressed up as
+    /// one; `Text.eyebrow()` does the uppercasing, so the words stay
+    /// lowercase everywhere they are stored and read.
+    ///
+    /// Nil for a slug the read did not cover, which is the same rule the
+    /// trending teaser and the leaderboards door already follow: the element
+    /// is absent rather than wrong.
+    public func categoryEyebrow(for hit: CatalogHit) -> String? {
+        categoryLabels[hit.categorySlug]
     }
 
     /// The basis line under each pick — lowercase, owner's words, and every
