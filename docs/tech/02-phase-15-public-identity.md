@@ -505,6 +505,12 @@ create table public_texts (
 
 **The render rule, which is the whole point: a public surface reads only `state = 'approved'`.** A `pending` edit renders the previously approved body, or nothing — never the pending text. So the invariant "no unmoderated text is ever visible to another user" holds during the window between the write and the model's answer, which is where the naive design leaks.
 
+**The rule governs body text, not the identifier — and the handle is the identifier (GLO-187).** `public_profile` selects `h.handle` straight from `handles`, unfiltered by moderation state, so **a handle is public the moment it is claimed**; its `public_texts` row is a moderation *record*, not a render gate. Verified on the local stack: with `handle | maya_k | pending` in `public_texts`, `public_profile('maya_k')` returns the handle to a different signed-in user.
+
+This is forced rather than chosen. The handle is the profile's *address* — it is the lookup key `public_profile(p_handle)` takes — so a claimed-but-unapproved handle would have to be unreachable, and with moderation parked, unreachable forever. Handles are therefore **claimed-and-live, moderated retrospectively**: removal if abusive, not approval before visibility. GLO-191 is the consequence — an irreversible claim wants a check at claim time, not an async gate afterwards.
+
+*Recorded, not decided: this states what the schema already does and what the two handle screens already say. Reversing it is a schema change, not a copy change.*
+
 ### 3.3 The public profile RPC
 
 `profiles` RLS never relaxes (§2.2). The public profile is a projection:
@@ -986,7 +992,7 @@ Acceptance: a private target and a public one are indistinguishable from outside
 | 31.4 | Swift: blocked-list management, mute control, linked-socials edit | 4 |
 | 31.5 | `docs/runbook.md`: moderation runbook + NCMEC runbook draft | 1 |
 
-Acceptance: a report survives the deletion of its subject's account with personal fields nulled; no unmoderated text is ever visible to another user (the `approved`-only render rule); linked socials render as text and are never fetched; the two runbooks exist before Phase 2 starts.
+Acceptance: a report survives the deletion of its subject's account with personal fields nulled; no unmoderated *body text* is ever visible to another user (the `approved`-only render rule, which does not cover the handle — see §3.2); linked socials render as text and are never fetched; the two runbooks exist before Phase 2 starts.
 
 ---
 
