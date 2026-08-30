@@ -53,6 +53,8 @@
             ProductEntries.thinSample,
             ProductEntries.lookupFailed,
             ProductEntries.notAnAnchor,
+            OnboardingEntry.wholeTrip,
+            OnboardingEntry.quizAnchor,
             ImportEntries.sourcePick,
             ImportEntries.parsed,
             ImportEntries.nothingMatched,
