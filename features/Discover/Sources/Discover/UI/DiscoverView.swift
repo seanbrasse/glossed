@@ -3,9 +3,16 @@ import DesignSystem
 import SwiftUI
 
 /// Tab 1 (GLO-20): picked for you, the crosswalk card, and the labeled
-/// wander. Built from the design system in the kit's voice — G.Discover is
-/// the frame family; per the standing ruling the screen is workshopped in
-/// the PR rather than traced from a frame.
+/// wander.
+///
+/// **`G.Discover` exists and is partly stale** (`docs/design-conformance.md`).
+/// The governing order here is **deltas 15 and 19 → PRD §10 → the frame**,
+/// and the frame only for elements the deltas do not touch — `tech/00` §2 says
+/// deltas supersede, and they postdate the kit. So the frame's section eyebrow
+/// and its two-column grid of product cards stay unbuilt (delta 15: *"no
+/// sections, no headers — a sectioned page of product cards is a store's
+/// shape"*), while its chrome — the leaderboards door, the per-cell category
+/// eyebrow — is built to the frame.
 ///
 /// The rules this screen carries:
 ///   · every claim shows its n via EvidenceLine, and names whose n it is
@@ -155,6 +162,15 @@ public struct DiscoverView: View {
             pop: pick.basis == .exploration
         ) {
             VStack(alignment: .leading, spacing: Tokens.Space.s2) {
+                // `G.Discover`'s per-cell eyebrow (GLO-226). The frame draws
+                // it inside a two-column cell, above the name; the stream's
+                // cell is horizontal, so it leads the card instead — the
+                // crosswalk card's own eyebrow sits in exactly that place.
+                // Absent when the label was not read, never a slug in its
+                // stead.
+                if let category = model.categoryEyebrow(for: pick.hit) {
+                    Text(category).eyebrow()
+                }
                 ProductCard(
                     meta: .init(
                         brand: pick.hit.brandName,
