@@ -36,6 +36,8 @@ packages:
     path: features/Browse
   Leaderboard:
     path: features/Leaderboard
+  Onboarding:
+    path: features/Onboarding
 targets:
   Glossed:
     type: application
@@ -55,6 +57,7 @@ targets:
       - package: Profile
       - package: Browse
       - package: Leaderboard
+      - package: Onboarding
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.glossed.app
