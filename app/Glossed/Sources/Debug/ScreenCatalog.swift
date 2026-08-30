@@ -40,6 +40,7 @@
             LadderEntries.barcodeNoCamera,
             LadderEntries.nearMatches,
             LadderEntries.nearMatchesAfterAMissedScan,
+            LadderFlowEntry.wholeTrip,
             CreateRungEntry.form,
             CreateRungEntry.logFailed,
             CreateRungEntry.confirmed,
