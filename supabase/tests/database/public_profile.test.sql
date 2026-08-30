@@ -2,7 +2,7 @@
 -- docs/tech/02 §9.7.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(26);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -95,13 +95,57 @@ select is((select badge_skin_type from public_profile('maya_k')), null,
 select is((select badge_hair_pattern from public_profile('maya_k')), null,
     'hair pattern likewise');
 
+-- 0044, GLO-205 (Sean, Aug 30): the opt-in no longer publishes the VALUE.
+-- The assertion below used to read 'combo'. That was the specification until
+-- Sean ruled that a badge never names a body fact, so it is re-specified here
+-- rather than deleted to keep a suite green — the behaviour it described is
+-- the behaviour that was overruled.
+--
+-- A badge is now a match between two people, so every case below turns on who
+-- is LOOKING, not on the flag alone.
 select test_as(:'maya');
 update profile_badges set show_skin_type = true where user_id = :'maya';
+
+-- juli's fixture profile carries no skin_type at all.
 select test_as(:'juli');
-select is((select badge_skin_type from public_profile('maya_k')), 'combo',
-    'flipping show_skin_type publishes it — an explicit act, which is what makes publishing Regulated data legitimate');
+select is((select badge_skin_type from public_profile('maya_k')), null,
+    'the flag is ON, but a viewer with no skin type of their own is told nothing — there is no match to report');
+
+select test_as(:'juli');
+update profiles set skin_type = 'combo' where user_id = :'juli';
+select is((select badge_skin_type from public_profile('maya_k')), 'similar skin to yours',
+    'a viewer whose own skin type matches is told THAT it matches, never what it is');
 select is((select badge_hair_pattern from public_profile('maya_k')), null,
-    'and it published ONLY that one — the flags are independent');
+    'and only that one — the flags stay independent');
+
+select test_as(:'juli');
+update profiles set skin_type = 'oily' where user_id = :'juli';
+select is((select badge_skin_type from public_profile('maya_k')), null,
+    'a viewer who does NOT match sees nothing — silence is what stops the badge being a value in disguise');
+
+-- The case that keeps StrangerPreview (GLO-190) honest. It builds "what a
+-- stranger sees" from public_profile called on YOURSELF, so an owner who
+-- trivially matches themselves would put a badge on that screen that no
+-- stranger can see — the exact lie it exists to catch.
+select test_as(:'maya');
+select is((select badge_skin_type from public_profile('maya_k')), null,
+    'the OWNER sees no badge on their own profile — you cannot be similar to yourself, and the stranger preview reads this call');
+
+select test_as(:'maya');
+update profile_badges set show_hair_pattern = true where user_id = :'maya';
+select test_as(:'juli');
+update profiles set hair_pattern = '3b' where user_id = :'juli';
+select is((select badge_hair_pattern from public_profile('maya_k')), 'similar hair to yours',
+    'hair pattern behaves identically — one rule for both body facts, which is what the ruling asked for');
+
+-- Anonymous: no uid, so no profile, so no match, so nothing. This is the
+-- viewer a public profile is most exposed to.
+select set_config('request.jwt.claims', null, true);
+select set_config('role', 'anon', true);
+select is((select badge_hair_pattern from public_profile('maya_k')), null,
+    'a SIGNED-OUT viewer is told no body fact at all');
+select isnt((select handle from public_profile('maya_k')), null,
+    'the profile itself still resolves for them — the badges went quiet, the profile did not');
 
 -- ---------------------------------------------------------------------------
 -- The bio: only approved text ever renders.
