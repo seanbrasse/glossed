@@ -1,0 +1,54 @@
+import DesignSystem
+import SwiftUI
+
+/// The cold-start shelf's glue, split out for the file ceiling (GLO-211).
+///
+/// Internal rather than private because Swift's `private` is file-scoped:
+/// moving these here without widening them stops the extension compiling.
+/// The accessibility split paid the same cost.
+extension ShelfView {
+    /// Opens the search field, which is what both the frame's "scan or
+    /// search" button and an "add" on a pick lead to — the shelf owns no
+    /// catalog screen of its own.
+    func openSearch() {
+        isSearchOpen = true
+    }
+
+    /// Fetched once when the cold-start screen appears. No store — fixtures,
+    /// previews, the screen catalog — leaves the picks empty, and the view
+    /// says it has none rather than spinning forever.
+    func loadStageZero() async {
+        guard let stageZero, stageZeroPicks.isEmpty, !stageZeroLoading else { return }
+        stageZeroLoading = true
+        defer { stageZeroLoading = false }
+        // A failed fetch is the same render as no picks: this screen is not
+        // worth an error banner over, and "no picks yet" is true either way.
+        stageZeroPicks = await (try? stageZero.picks(3)) ?? []
+    }
+
+    /// Why the shelf is blank, when it is.
+    ///
+    /// `.nothingLogged` is not a dead end like the other four — it is the cold
+    /// start, which the frame treats as the product's opening argument
+    /// (GLO-211). The rest keep GLO-166's one sentence naming the way out.
+    @ViewBuilder var emptySection: some View {
+        if let empty = model.emptyState {
+            if empty == .nothingLogged {
+                ShelfStageZeroView(
+                    picks: stageZeroPicks,
+                    isLoading: stageZeroLoading,
+                    onAdd: { _ in openSearch() },
+                    onScanOrSearch: openSearch,
+                    onImport: { onImport?() }
+                )
+                .padding(.top, 6)
+                .task { await loadStageZero() }
+            } else {
+                Text(empty.message)
+                    .meta()
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 6)
+            }
+        }
+    }
+}

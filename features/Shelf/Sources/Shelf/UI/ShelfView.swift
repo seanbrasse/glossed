@@ -13,9 +13,19 @@ public struct ShelfView: View {
     /// render of the screen; what is being searched for lives on the model.
     /// Closing clears the query — a hidden filter would be a shelf that
     /// silently lies about what you own.
-    @State private var isSearchOpen = false
+    @State var isSearchOpen = false
+    /// The cold-start picks (GLO-211). View-local: they are about this render
+    /// of an empty shelf, not shelf state, and a shelf that fills stops
+    /// needing them.
+    @State var stageZeroPicks: [StageZeroPick] = []
+    @State var stageZeroLoading = false
     @Environment(\.dynamicTypeSize) var dynamicTypeSize
     private let onTapItem: (ShelfItem) -> Void
+    /// Absent in fixtures and previews, which is why it is optional: without
+    /// it the cold-start screen still renders, saying it has no picks rather
+    /// than pretending to load forever.
+    let stageZero: ShelfStageZeroStore?
+    let onImport: (() -> Void)?
     /// Handed up to `app/`: a feature cannot import a feature, so the shelf
     /// reports the tap and the app owns the crossing (GLO-151).
     private let onOpenProduct: ((ShelfItem) -> Void)?
@@ -23,13 +33,17 @@ public struct ShelfView: View {
     public init(
         model: ShelfModel,
         startsSearching: Bool = false,
+        stageZero: ShelfStageZeroStore? = nil,
         onTapItem: @escaping (ShelfItem) -> Void = { _ in },
-        onOpenProduct: ((ShelfItem) -> Void)? = nil
+        onOpenProduct: ((ShelfItem) -> Void)? = nil,
+        onImport: (() -> Void)? = nil
     ) {
         _model = State(initialValue: model)
         _isSearchOpen = State(initialValue: startsSearching)
+        self.stageZero = stageZero
         self.onTapItem = onTapItem
         self.onOpenProduct = onOpenProduct
+        self.onImport = onImport
     }
 
     public var body: some View {
@@ -89,13 +103,7 @@ public struct ShelfView: View {
                 if isSearchOpen {
                     searchField
                 }
-                if let empty = model.emptyState {
-                    // A designed dead end for every way in (GLO-166).
-                    Text(empty.message)
-                        .meta()
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 6)
-                }
+                emptySection
                 if presentsAsList {
                     if dynamicTypeSize.isAccessibilitySize, model.viewMode == .shelf {
                         // The toggle still reads "bays" because the preference
