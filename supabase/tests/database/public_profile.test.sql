@@ -150,23 +150,33 @@ select isnt((select handle from public_profile('maya_k')), null,
 -- ---------------------------------------------------------------------------
 -- The bio: only approved text ever renders.
 -- ---------------------------------------------------------------------------
+-- 0045, GLO-207 (Sean, Aug 30): bios are approved on write while the cohort
+-- is the beta. The two assertions below used to prove the opposite — that a
+-- freshly written bio does NOT render, and that editing one takes it back to
+-- pending. Both described the behaviour Sean has now changed, so they are
+-- re-specified rather than dropped.
+--
+-- The rule that did NOT change is the one still asserted here: public_profile
+-- renders `approved` and nothing else. What moved is when a bio becomes
+-- approved, not what the reader trusts.
 select test_as(:'maya');
 select set_public_text('bio', null, 'tone 6 · combo');
 select test_as(:'juli');
-select is((select bio from public_profile('maya_k')), null,
-    'a PENDING bio does not render');
-
-select set_config('role', 'postgres', true);
-update public_texts set state = 'approved' where user_id = :'maya' and kind = 'bio';
-select test_as(:'juli');
 select is((select bio from public_profile('maya_k')), 'tone 6 · combo',
-    'an APPROVED bio renders');
+    'a bio renders as soon as it is written — nothing reviews it, so a pending bio would never render at all');
 
 select test_as(:'maya');
-select set_public_text('bio', null, 'unmoderated replacement');
+select set_public_text('bio', null, 'edited while nobody is reviewing');
+select test_as(:'juli');
+select is((select bio from public_profile('maya_k')), 'edited while nobody is reviewing',
+    'and an edit lands the same way — 0023''s "an edit re-enters review, always" is no longer true while there is no review to re-enter');
+
+-- The gate itself is untouched: only the trigger for passing it moved.
+select set_config('role', 'postgres', true);
+update public_texts set state = 'pending' where user_id = :'maya' and kind = 'bio';
 select test_as(:'juli');
 select is((select bio from public_profile('maya_k')), null,
-    'editing an approved bio drops it back to pending, so the NEW text never renders — the window between write and verdict is closed');
+    'a bio that is pending for any reason still does not render — the reader trusts state, not the writer');
 
 -- ---------------------------------------------------------------------------
 -- Counts: the n behind every claim.
