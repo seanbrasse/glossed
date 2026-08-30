@@ -179,7 +179,7 @@ public struct ShadeAnchorPicker: View {
     ) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 12.5, weight: .bold))
+                .font(Typography.control(12.5))
                 .foregroundStyle(Tokens.Ink.primary)
                 .padding(.vertical, 5)
                 .padding(.horizontal, 13)
@@ -207,7 +207,7 @@ public struct ShadeAnchorPicker: View {
                     .frame(width: 14, height: 14)
                     .overlay(Circle().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.hair))
                 Text(shade.code)
-                    .font(.system(size: 12.5, weight: .bold))
+                    .font(Typography.control(12.5))
                     .foregroundStyle(Tokens.Ink.primary)
                 if let n = shade.n {
                     Text("\(n)").font(Typography.mono(10.5)).foregroundStyle(Tokens.Ink.soft)

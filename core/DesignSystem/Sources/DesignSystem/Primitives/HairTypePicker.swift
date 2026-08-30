@@ -115,7 +115,7 @@ public struct GapCard: View {
                         ForEach(DismissReason.allCases, id: \.self) { reason in
                             Button { onDismiss(reason) } label: {
                                 Text(reason.label)
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(Typography.control(13, weight: .semibold))
                                     .foregroundStyle(Tokens.Ink.primary)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .frame(minHeight: Tokens.hitTarget)

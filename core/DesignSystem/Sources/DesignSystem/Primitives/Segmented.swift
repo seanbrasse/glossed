@@ -103,7 +103,7 @@ public struct Segmented: View {
     private func segment(label: String, on: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 13, weight: .bold))
+                .font(Typography.control(13))
                 .foregroundStyle(on ? Color.white : Tokens.Ink.primary)
                 .padding(.horizontal, Tokens.Space.s3)
                 .frame(minHeight: 34)
