@@ -8,12 +8,13 @@ import SwiftUI
 /// four-domain filter on its own scrolling row bled to the screen edges, the
 /// fragrance note when it applies, and the sort pills.
 public struct ShelfView: View {
-    @State private var model: ShelfModel
+    @State var model: ShelfModel
     /// View-local on purpose: whether the field is showing is about this
     /// render of the screen; what is being searched for lives on the model.
     /// Closing clears the query — a hidden filter would be a shelf that
     /// silently lies about what you own.
     @State private var isSearchOpen = false
+    @Environment(\.dynamicTypeSize) var dynamicTypeSize
     private let onTapItem: (ShelfItem) -> Void
     /// Handed up to `app/`: a feature cannot import a feature, so the shelf
     /// reports the tap and the app owns the crossing (GLO-151).
@@ -63,6 +64,18 @@ public struct ShelfView: View {
             .animation(Tokens.Motion.pop(Tokens.Motion.med), value: model.openItem)
     }
 
+    /// The bay is a physical metaphor — things standing side by side, width
+    /// being the point — so a shelf reflowed to one item per row has stopped
+    /// being a shelf. Above an accessibility size it presents as the list
+    /// instead (Sean, Aug 30, GLO-172).
+    ///
+    /// Derived, never written back: the user's stored toggle is a settings
+    /// choice and this is a presentation decision, so they return to bays when
+    /// they return to a normal text size.
+    private var presentsAsList: Bool {
+        model.viewMode == .list || dynamicTypeSize.isAccessibilitySize
+    }
+
     private var page: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
@@ -83,16 +96,22 @@ public struct ShelfView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 6)
                 }
-                switch model.viewMode {
-                case .shelf:
-                    ShelfBayView(sections: model.shownSections, onTap: tapped)
-                case .list:
+                if presentsAsList {
+                    if dynamicTypeSize.isAccessibilitySize, model.viewMode == .shelf {
+                        // The toggle still reads "bays" because the preference
+                        // is untouched. Saying why beats looking broken.
+                        Text("showing the list — the bays need more width than this text size leaves.")
+                            .meta()
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     ShelfListView(
                         sections: model.shownSections,
                         openSection: model.openSection,
                         onToggleSection: model.toggleSection,
                         onTapItem: tapped
                     )
+                } else {
+                    ShelfBayView(sections: model.shownSections, onTap: tapped)
                 }
             }
             // 110pt of bottom room: the floating nav sits over this screen.
@@ -117,6 +136,10 @@ public struct ShelfView: View {
                 .font(Typography.display(30))
                 .tracking(-0.6)
                 .foregroundStyle(Tokens.Ink.primary)
+                // Wrap rather than widen. display() scales since GLO-186, so
+                // at accessibility sizes this title pushed the count badge off
+                // the trailing edge and clipped the title's own first letters.
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             // Counts what is on screen. A total that ignored the filter would
             // contradict the shelf directly under it.
@@ -149,47 +172,7 @@ public struct ShelfView: View {
         .padding(.horizontal, -16)
     }
 
-    /// Sort on the left, view toggle pinned right — the kit puts them on one
-    /// row because they are the two things you change about the same list.
-    private var controls: some View {
-        HStack(alignment: .center, spacing: 8) {
-            sortPills
-            wishlistToggle
-            searchToggle
-            viewToggle
-        }
-    }
-
-    /// Want-to-try on the shelf (GLO-100, Sean's sketch — workshop at
-    /// review): the bookmark is GLO-87's own icon for the status, off by
-    /// default, and toggling it in ghosts the wishlist onto the bays.
-    private var wishlistToggle: some View {
-        Button {
-            model.showsWishlist.toggle()
-        } label: {
-            Image(systemName: model.showsWishlist ? "bookmark.fill" : "bookmark")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Tokens.Ink.primary)
-                .frame(width: 34, height: 30)
-                .background(model.showsWishlist ? Tokens.Cherry.soft : Tokens.Ground.card)
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule().strokeBorder(
-                        model.showsWishlist ? Tokens.Ink.primary : Tokens.Ground.line,
-                        lineWidth: model.showsWishlist ? Tokens.Border.std : Tokens.Border.hair
-                    )
-                )
-                .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("show your want-to-try list")
-        .accessibilityAddTraits(model.showsWishlist ? [.isSelected] : [])
-    }
-
-    /// Find-what-I-own (GLO-73), folded into the controls row so search reads
-    /// as one more way to narrow the same list — beside sort, not above the
-    /// shelf. No kit frame exists for it; workshop at review.
-    private var searchToggle: some View {
+    var searchToggle: some View {
         Button {
             isSearchOpen.toggle()
             if !isSearchOpen {
@@ -235,7 +218,7 @@ public struct ShelfView: View {
 
     /// Two 38×30 buttons inside one 2px ink pill, so it reads as a single
     /// control with two states rather than as two buttons that happen to touch.
-    private var viewToggle: some View {
+    var viewToggle: some View {
         HStack(spacing: 0) {
             ForEach(ShelfViewMode.allCases, id: \.self) { mode in
                 Button { model.viewMode = mode } label: {
@@ -260,7 +243,7 @@ public struct ShelfView: View {
         .fixedSize()
     }
 
-    private var sortPills: some View {
+    var sortPills: some View {
         HStack(spacing: 6) {
             ForEach(ShelfSort.allCases, id: \.self) { option in
                 Button { model.sort = option } label: {

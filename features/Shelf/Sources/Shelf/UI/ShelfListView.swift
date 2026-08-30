@@ -66,6 +66,11 @@ public struct ShelfListView: View {
                     .font(Typography.display(16))
                     .tracking(-0.16)
                     .foregroundStyle(Tokens.Ink.primary)
+                    // The list is the accessibility-size presentation now
+                    // (GLO-172), so this row has to hold a scaled label. Left
+                    // to compress it broke mid-word — "foundatio / n".
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
                 // The count is on the closed card too, which is the whole
                 // reason to collapse one: you can see how much is in a category
                 // without opening it.
