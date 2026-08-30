@@ -126,6 +126,42 @@ SMALLEST input that should work rather than a realistic one, and prefer fixtures
 whose output depends on their input (`ladder · the whole trip`'s stub filters on
 the query for exactly this reason).
 
+**A fixture that cannot FAIL is the same scar as a fixture that cannot vary,
+and it hides on the states you care most about.** GLO-21's composer shipped to
+its branch with a debug entry whose write seam was `create: { _, _, _ in }` — a
+save that always succeeds. Everything about the screen looked complete: the
+model had a test asserting *a failed save keeps the routine and speaks in
+words*, and the picker had an entry. But **no input reachable from the app
+could make the save fail**, so the error branch, the surviving steps, and the
+button coming back from "saving…" had never been seen by anyone. The empty
+shelf was the same — `shelf:` returned five rows unconditionally, so the "log a
+product or two first" copy was unreachable too.
+
+The tell is not in the code you are reading; it is in the *seam's* type. **Ask
+of every fixture: what input makes this one return the sad answer?** If there
+isn't one, the promise on the other side of it is undriven no matter how many
+entries the picker has. Two sibling entries — one throwing `URLError(.timedOut)`,
+one returning `[]` — cost six lines and turned two of the composer's best
+promises into cells the sweep can take. The Looks composer already had exactly
+this (`composer · the save failed`); the pattern existed and was not copied.
+
+**An inherited "there is no frame" deserves the same suspicion as an inherited
+"known failure".** The routines composer's doc comment says *"No kit frame
+exists for this screen"*, written by a session that then ended. On a night when
+four separate findings were all *the frame existed and nobody opened it*
+(avatar, bio, display name, the cold-start shelf), that claim was worth ten
+minutes on `docs/DESIGN.md`'s GetFile route. It held — 21 `G.*` screens, none a
+composer. **But the trip paid for itself anyway**: the kit's `G.drawerOptions`
+says `sub:'am / pm · ordered steps'`, which settles GLO-210 against the guess
+both lanes had been carrying, and `G.Profile` turned out to frame the *rename*
+path the same ticket owns. Checking a true claim is not wasted when the
+checking route passes through the answer to a different question.
+
+Also from the kit, worth keeping: **`G.drawerOptions` gives `onClick` to the
+two built options and to neither unbuilt one.** The kit marks its own missing
+doors by omitting the handler rather than wiring one to nothing — the
+"an absent affordance beats a dead one" rule, already in the source of truth.
+
 **Another session driving the SAME simulator will swap your binary out from
 under you, silently.** On Aug 30 the foreground app became a live catalog
 product page mid-sweep. No crash log, nothing in my own transcript to explain
@@ -194,7 +230,7 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Next | Why |
 |---|---|
-| [GLO-21](https://linear.app/glossed/issue/GLO-21) — routines, mid-flight | **The composer is BUILT and UNDRIVEN** on `feat/GLO-21-routines` (`591be60`): model + view + 7 tests + a debug-picker entry with a fixture shelf, lint clean, app build green. Steps order by tap order; `RoutineStore.create` is a stubbed seam because the write needs a **DataKit opening Sean has been asked for and has NOT granted** (routines/collections CRUD). Drive it first (`routines · composer` in the picker), open its PR, then either get the opening or ship read-only. Schema is already live: `routines`/`routine_steps`/`collections`, own-row policies verified by psql this session |
+| [GLO-21](https://linear.app/glossed/issue/GLO-21) — routines, **create is DONE**, rename/delete and collections are not | The composer is driven and merged ([#341](https://github.com/seanbrasse/glossed/pull/341)), and the write landed under an opening ([#342](https://github.com/seanbrasse/glossed/pull/342), `RoutinesRepository`). What is left: the **collections composer** (unstarted), **rename/delete**, and the + drawer's two options. Read the GLO-21 comment before starting any of them — in particular, rename is **NOT frameless**: `G.Profile` has the routines/collections cards, `applyRename`, and the copy "tap any card to rename it". The create path genuinely has no frame (21 `G.*` screens, checked, not assumed); the edit path does |
 | [GLO-204](https://linear.app/glossed/issue/GLO-204) — display name + bio editor | The avatar half merged as [#328](https://github.com/seanbrasse/glossed/pull/328) (not this lane's). What remains is the name/bio form — and the **bio moderation trap** (§7): `public_texts` rows land `pending` and nothing approves them, so a naive editor writes bios nobody will ever see. Get Sean's call before building the save path |
 | [#335](https://github.com/seanbrasse/glossed/pull/335) — the kit nav | Open at handoff, iOS running. Icon-only tabs with drawn glyphs (`KitIcons`), your initial as the third tab, plus outside the capsule. Merges itself on green under the standing grant; if the session died first it is one squash-merge — the drive passed, screenshots went to Sean |
 | [GLO-23](https://linear.app/glossed/issue/GLO-23) — real auth | The account steps (#312) run the full UI against a stubbed `AccountStore`; Sign in with Apple + Twilio phone codes need **Sean at the keyboard** (capabilities, secrets). When it lands: the real entry point replaces the debug door, the returning-user path, the tour-seen marker, and an XCUITest over the trip |
@@ -312,14 +348,16 @@ the dismissal cost exactly one CTE, one weight, one union arm.
 | `features/Leaderboard` | NEW (onboarding lane, #293) — built to `G.Leaderboard`: slug→ID resolution, yours/everyone scope, ranks skip unrankable rows, sub-min-n rows say so instead of hiding. Reached from the product page's both doors (#294/#297). 16 tests |
 | `features/Onboarding` | NEW (onboarding lane, #304–#329) — hook → quiz → payoff → account → build → welcome, plus the tour overlay and tune. **Runs end to end behind the debug door only**; `AccountStore` is stubbed until GLO-23. Steps derive live from domain answers; the payoff renders only what the RPC evidence-backs. 44 tests |
 | `features/Looks` / `core/Media` | Feed lane, §-1. Composer has no app entry yet, deliberately |
-| `features/Routines` | **Branch only** — `feat/GLO-21-routines` (`591be60`), built + 7 tests, UNDRIVEN, write seam stubbed pending the opening. Not on main |
+| `features/Routines` | **On main** (#341) — the composer: name, slot, steps in tap order, neighbour-swap reorder. Driven on the canon sim across five states; three debug entries, two of which exist so the failing save and the empty shelf are reachable at all. `RoutineStore.create` is still a closure the app fills — `RoutinesRepository` (#342) is the thing to fill it with, and nothing wires them yet because the screen has no app entry point. 7 tests |
 | `features/Ranking` / `features/Import` | Untouched this stretch. 29 / 12 tests |
 | `app/` | Tracker wiring, fit-at-log seam + FitPromptCard (the prompt lives HERE, not in Shelf), catalogImageBase, `AppShellProductPage`, and the debug screen picker — **now including `ladder · the whole trip`, the only entry hosting `LadderFlowView` rather than a bare rung** (GLO-180). The app target has NO test target (`project.yml` scheme `test.targets: []`); every test lives in a package |
 | `web/landing/` | Static landing page for the affiliate applications. On main, NOT deployed (§7) |
 | `scripts/` | shopify_import, obf_import (+ `--brands`), shopify_images, catalog_images, obf_requalify, brand_merge, merge_feeder, **inci_enrich** (new, GLO-170) |
 | `supabase/functions` | **8 functions, 82 deno tests, all passing, none deployed** (re-run at `63739aa`); nothing serves them by default and the silence is dangerous (§0) |
 
-**Verified totals — 514 Swift tests across 12 packages, counted at `63739aa`**
+**Verified totals — 663 Swift tests across 17 packages, counted against `b452277` (main, after #341/#342).** The line below is the older count, kept because the *drift* is the point. Previous:
+
+**514 Swift tests across 12 packages, counted at `63739aa`**
 (DataKit 85, DesignSystem 42, Tracking 15, Shelf 133, AddLadder 118, Ranking 29,
 ProductPage 20, Import 12, Privacy 11, Profile 32, Discover 10, Browse 7) —
 **plus 82 deno across 8 functions.** This replaces the 469/11 figure; the taste
@@ -479,7 +517,8 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | `glossed.app` domain is TAKEN — tech/02's share-URL plan needs a new domain (glossed.beauty was $1.99 at check) | GLO-89 finding |
 | A browse TAB: trending + routines-browse are "what other people do", discover is "what fits you" — a real seam, and the kit's nav is three tabs + plus | parked with Sean (GLO-20 thread) |
 | ~~`features/Leaderboard` + the product page's dead `onLeaderboard`~~ — **closed**, #293/#294/#297 | [GLO-20](https://linear.app/glossed/issue/GLO-20) / §1 |
-| GLO-21 routines: composer undriven on its branch, write seam stubbed, opening asked-not-granted; collections composer unstarted; the + drawer's `collection`/`routine` options still dead | [GLO-21](https://linear.app/glossed/issue/GLO-21) / §1 |
+| GLO-21 routines: create done (#341/#342). Left: collections composer, rename/delete (framed in `G.Profile` — open it), and wiring the + drawer's two options | [GLO-21](https://linear.app/glossed/issue/GLO-21) / §1 |
+| The four routine slots wear two sets of words — composer `am / pm`, `DataKit.RoutineSlot` `morning / evening`. The kit's drawer says `am / pm`, so DataKit holds the wrong ones, which makes the fix an **opening** question | [GLO-210](https://linear.app/glossed/issue/GLO-210) / [GLO-164](https://linear.app/glossed/issue/GLO-164) |
 | GLO-204's remaining half (name + bio editor) is one moderation decision away from buildable | [GLO-204](https://linear.app/glossed/issue/GLO-204) / §7 |
 | Hair-type privacy: profile badges must never name a body fact — ruling filed off the tune-card work, db half in [#331](https://github.com/seanbrasse/glossed/pull/331) (another lane's, open at handoff) | [GLO-205](https://linear.app/glossed/issue/GLO-205) |
 | The tour has no real-entry trigger — it mounts from the debug door; wiring it to first-launch is part of GLO-23's entry work | [GLO-23](https://linear.app/glossed/issue/GLO-23) |
