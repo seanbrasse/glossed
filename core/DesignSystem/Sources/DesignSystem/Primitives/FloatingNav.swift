@@ -156,24 +156,36 @@ public struct TabBar<TabID: Hashable>: View {
 
 /// The + drawer: add · import · collection · routine.
 public struct ActionDrawer: View {
+    /// The drawer's four marks, hand-ported from `G.ICONS` — the same four the
+    /// kit's own `G.drawerOptions` names, in the same order:
+    /// `search` · `file` · `folder` · `layers`, each drawn at `size={18}`.
+    ///
+    /// They replace `magnifyingglass` / `doc.text` / `folder` / `square.stack`,
+    /// which is GLO-64 exactly: the kit ships these and screens kept reaching
+    /// past them. SF Symbols are a different drawing system with their own
+    /// optical sizing, and mixing them is visible on any screen holding both.
+    public enum Glyph: Sendable {
+        case search, file, folder, layers
+    }
+
     public struct Option: Identifiable {
         public let id = UUID()
         public let label: String
         public let subtitle: String
-        public let systemImage: String
+        public let glyph: Glyph
         public let tint: GlossedCard<EmptyView>.Tint
         public let action: () -> Void
 
         public init(
             label: String,
             subtitle: String,
-            systemImage: String,
+            glyph: Glyph,
             tint: GlossedCard<EmptyView>.Tint,
             action: @escaping () -> Void
         ) {
             self.label = label
             self.subtitle = subtitle
-            self.systemImage = systemImage
+            self.glyph = glyph
             self.tint = tint
             self.action = action
         }
@@ -196,8 +208,7 @@ public struct ActionDrawer: View {
                 ForEach(options) { option in
                     Button(action: option.action) {
                         HStack(spacing: Tokens.Space.s3) {
-                            Image(systemName: option.systemImage)
-                                .font(Typography.control(17, weight: .semibold))
+                            DrawerGlyphView(glyph: option.glyph)
                                 .foregroundStyle(Tokens.Ink.primary)
                                 .frame(width: 42, height: 42)
                                 .background(option.tint.fill)

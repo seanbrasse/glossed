@@ -39,25 +39,25 @@ private struct ShellPreview: View {
                 .init(
                     label: "add a product",
                     subtitle: "search · barcode · near matches · create",
-                    systemImage: "magnifyingglass",
+                    glyph: .search,
                     tint: .mint
                 ) {},
                 .init(
                     label: "import a list",
                     subtitle: "notes · csv · a screenshot",
-                    systemImage: "doc.text",
+                    glyph: .file,
                     tint: .butter
                 ) {},
                 .init(
                     label: "new collection",
                     subtitle: "group products your way",
-                    systemImage: "folder",
+                    glyph: .folder,
                     tint: .lilac
                 ) {},
                 .init(
                     label: "new routine",
                     subtitle: "am / pm · ordered steps",
-                    systemImage: "square.3.layers.3d",
+                    glyph: .layers,
                     tint: .cherry
                 ) {}
             ])
