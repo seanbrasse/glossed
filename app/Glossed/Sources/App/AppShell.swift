@@ -8,11 +8,22 @@ import SwiftUI
 /// The app: three tabs + the plus button (screen map FLOW 2), live on the
 /// session `AppSession` boots.
 ///
-/// Built to `G.navTabs` and the kit's `ActionDrawer` frame. Stated
-/// divergences: the "you" tab's nav icon is an SF Symbol rather than the
-/// kit's Avatar (`FloatingNav.Tab` carries a symbol name; GLO-64 territory),
-/// and the unbuilt tabs say which ticket builds them instead of rendering an
-/// empty screen — a dev shell should say what does not exist yet.
+/// Built to `G.navTabs` and the kit's `ActionDrawer` frame, and checked
+/// against both this session by reading `screens.jsx` rather than from
+/// memory. `G.navTabs` is `sparkles` · `shelf` · `<Avatar name="maya"
+/// size={26}/>`, in that order, and `FloatingNav` draws exactly that.
+///
+/// This comment used to claim a divergence that no longer existed — *"the
+/// 'you' tab's nav icon is an SF Symbol rather than the kit's Avatar
+/// (`FloatingNav.Tab` carries a symbol name)"*. `Tab` carries a `Glyph`, and
+/// `.avatar(name:)` renders `Avatar(name:size: 26)`. The port happened and
+/// the note describing its absence outlived it, which is the same failure the
+/// drawer's "routines land with GLO-21" was: **a true statement about the
+/// past left standing as a claim about the present.**
+///
+/// The one stated divergence that IS current: an unbuilt tab names its ticket
+/// instead of rendering an empty screen — a dev shell should say what does
+/// not exist yet.
 struct AppShell: View {
     enum ShellTab: String, CaseIterable {
         case discover, shelf, you
