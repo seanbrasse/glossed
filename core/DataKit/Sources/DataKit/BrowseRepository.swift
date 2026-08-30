@@ -147,20 +147,6 @@ public struct BrowseRepository: Sendable {
         }
     }
 
-    private struct ShelfNameRow: Decodable {
-        let userItemID: UUID
-        let brandName: String
-        let productName: String
-        let variantLabel: String?
-
-        enum CodingKeys: String, CodingKey {
-            case userItemID = "user_item_id"
-            case brandName = "brand_name"
-            case productName = "product_name"
-            case variantLabel = "variant_label"
-        }
-    }
-
     private func run<T>(_ work: () async throws -> T) async throws(GlossedError) -> T {
         do {
             return try await work()
