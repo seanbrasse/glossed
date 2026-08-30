@@ -23,7 +23,7 @@ struct AppShell: View {
     /// The kit's tab 1 is discover, but discover is GLO-20 — until it exists
     /// the shelf is the honest landing.
     @State private var tab = ShellTab.shelf
-    @State private var drawerOpen = false
+    @State var drawerOpen = false
     @State var privacyOpen = false
     @State var handleOpen = false
     @State private var ladderOpen = false
@@ -180,17 +180,7 @@ struct AppShell: View {
     @ViewBuilder private var activeScreen: some View {
         switch tab {
         case .shelf:
-            if let model = session.shelfModel {
-                // Recreated when the model is (the ladder landed something):
-                // `ShelfView` snapshots the reference at init, so identity is
-                // what tells SwiftUI this is a new shelf.
-                ShelfView(model: model, onOpenProduct: { openProduct = $0 })
-                    .id(ObjectIdentifier(model))
-            } else {
-                Text("the shelf came back empty — pull the stack up and relaunch").meta()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Tokens.Ground.milk)
-            }
+            shelfTab
         case .discover:
             discoverTab
         case .you:
