@@ -120,6 +120,10 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Next | Why |
 |---|---|
+| `features/Leaderboard` — GLO-20's last surface | **Everything under it merged tonight**: 0042's `leaderboard()` (claims nulled below min-n, rows never hidden, lowest board carries thresholded dislike reasons, 'yours' resolved server-side) and the DataKit read (#285, `LeaderboardRow.isRankable`). The kit frame is REAL for this screen — pull `G.Leaderboard` via docs/DESIGN.md's GetFile recipe and build to it: rank numbers fade to "—" below min-n, empty copy is exactly "not enough face-offs yet · n of 5", butter badge, footer rule line. One frame element deferred deliberately: the scoped ConfidenceMeter has no defined live source — do not invent a number for it. Then wire the product page's `onLeaderboard` (a dead closure since GLO-151) |
+| [#287](https://github.com/seanbrasse/glossed/pull/287) — trending-on-discover wiring | Open at handoff, CI running, watcher armed. Merges itself on green under the standing grant; if the session died first, it is one squash-merge — the drive already passed (screenshot with Sean) |
+| Save/wishlist — the registry's +0.5 row | **A mapping decision before code**: tech/07 §2 reserved +0.5 for "save", and the app's existing save-shaped concept is `want_to_try` — but 0035 deliberately EXCLUDES want_to_try from affinity ("unworn is not evidence"). Those reconcile (intent ≠ experience evidence; +0.5 is an intent weight) but that is a ruling to get from Sean, not to slip into a migration comment |
+| [GLO-184](https://linear.app/glossed/issue/GLO-184) — migration comment density | Sean's correction, lands on BOTH lanes: 0030–0034 and 0035–0042 run 40–60% comments against the repo's 7–9%. Future migrations at house density; the ticket carries what should survive in the merged ones |
 | [GLO-110](https://linear.app/glossed/issue/GLO-110) — finish the state sweep | **In progress and the highest-yield thing in the repo right now.** 26 cells driven; its own "what the sweep found" section names six findings — five merged fixes ([#236](https://github.com/seanbrasse/glossed/pull/236), [#237](https://github.com/seanbrasse/glossed/pull/237), [#238](https://github.com/seanbrasse/glossed/pull/238), [#242](https://github.com/seanbrasse/glossed/pull/242), [#260](https://github.com/seanbrasse/glossed/pull/260)) and one open ticket (GLO-172). The grid and what remains live in [docs/ux-state-sweep.md](docs/ux-state-sweep.md). Remaining: the ladder's search and near-match rungs, `product · thin`, `import · pick a source`, and `shelf · remove failed` (unit-tested; needs the local stack down, so pair it with the §0 reset) |
 | [GLO-172](https://linear.app/glossed/issue/GLO-172) — accessibility text sizes | **High, and it needs a design call, not more code.** At accessibility-extra-large the shelf's control row overflows and clips the products. The obvious fix (wrap `controls` in a ScrollView) works completely *and* clips the view toggle at the DEFAULT size — because `sortPills`/`viewToggle` carry `.fixedSize()` and the row had been silently compressing to fit. `ViewThatFits` does not help; it picks by ideal size. Three candidate fixes are written on the ticket; **pick one with Sean** rather than re-deriving them |
 | [GLO-156](https://linear.app/glossed/issue/GLO-156) — chip order | **Needs Sean, not code.** The per-category vocabulary means likes and dislikes now interleave alphabetically in the sheet. Grouping by valence is one line in `ShelfChipsModel`; *which group leads, and whether they should be separated rather than merely ordered*, is a feel question — the same class as the shelf label and the fit gate, both of which he ruled on directly. Render both against real chips and let him pick |
@@ -158,13 +162,27 @@ The 1.5 lane, for context only: migrations 0033–0040 (taste engine, four
 aggregate writers, the discover read path), five DataKit repositories
 (Privacy, Social, Safety, Browse), `inci_enrich`, and `docs/tech/07`.
 
+**The taste/discover lane, Aug 29 evening (a third concurrent session): the
+loop is CLOSED and LIVE.** Discover became a real tab (#266) and then a
+teaching surface: impressions/taps instrumented (#272/#273 — and #281 fixed
+that AppSession never passed the tracker, so they were silently dark until
+then), tap-through to product pages (#274, variant dialog for multi-shade),
+the dismissal signal end to end (GLO-181: 0041's `rec_dismissals` +
+exclusions + the −0.75 affinity term, #278's idempotent write, #281's
+long-press gesture — driven live: the #1 pick dismissed, feed re-ranked,
+row reverted after). Plus the leaderboard's data half (0042 + #285) and
+trending reachable from discover (#287, the cross-lane seam). Migrations
+0041–0042 are applied AND verified on hosted (ACLs + crons checked via MCP,
+the 0030 precedent). tech/07 §2's registry claim held at first contact:
+the dismissal cost exactly one CTE, one weight, one union arm.
+
 ## 2. What exists
 
 | Layer | State |
 |---|---|
-| Schema | **40 migration files, all applied and now all stamped** (the tracker read 29 on Aug 29 and was reconciled the same night — §0). 0033–0040 landed this stretch, all but 0033 by the 1.5 lane. The slot is theirs — route DDL through them, do not open a second migration PR. **Hosted was not checked by this session**; the 1.5 lane applies there and is the authority on it |
+| Schema | **42 migration files, all applied and stamped** (the tracker read 29 on Aug 29 and was reconciled the same night — §0; 0041–0042 stamped at apply time). 0033–0042 landed Aug 29, split across the 1.5 and taste lanes. The slot rotates by announcement — claim it in a message to the other lanes, never infer it from `gh pr list` (§8). **Hosted is at 42 and verified** — the taste lane applied 0035–0042 there via MCP and checked ACLs + cron rows after each, never inferring from local |
 | Catalog data | **3,206 products / 9,019 variants / 7,625 images / 497 brands / 22 categories**, local-only; **2,112 pending merge_candidates**, image queue ZERO. (Counted just now against the local DB.) Every image meets the standard (OBF's 588 sub-800px purged, GLO-104). Search knows what things ARE: product_type/tags/origin live on 1,836+ rows. Restore recipe: §9 — now SEVEN scripts. Maya's shelf carries drive-drift rows — fine for dev; a pgTAP run wants a reset + ping |
-| `core/DataKit` | **Frozen. This lane needed no opening at all.** **83 tests** — up from 44 because the 1.5 lane spent its own openings on five repositories plus the discover models |
+| `core/DataKit` | **Frozen; openings are per-session and all of Aug 29's expired with their sessions.** **85 tests.** The taste lane's opening (Sean's "go for it all", Aug 29 evening) added the discover reads, `LeaderboardRow`, and `TasteRepository` (the registry's write side) on top of the 1.5 lane's five repositories |
 | `core/DesignSystem` | + `YesNoControl` (a question you can leave unanswered — `Segmented` always has one option selected, which is right for a status and wrong for a question), scaling `ProductSticker`. 42 tests |
 | `core/Tracking` | track() real, and **a dropped batch now says so** — `os.Logger` on `com.glossed.tracking` in DEBUG, plus `droppedCount` (GLO-147). 15 tests |
 | `features/Shelf` | + fit gated on tried (GLO-145), live chip + note store (GLO-16), "would you buy it again?" (GLO-87), a bounded scrolling sheet (GLO-160), the label band and scale-down (GLO-149/155), four named empty states (GLO-166). 133 tests |
@@ -172,7 +190,8 @@ aggregate writers, the discover read path), five DataKit repositories
 | `features/AddLadder` | + GLO-93's scan-miss fill (`BarcodeFilling`/`BarcodeFillSuggestion` live HERE, not in DataKit), the 40-shade fixture and its cap guard (GLO-168). 108 tests |
 | `features/Privacy` | Landed by the 1.5 lane in [#259](https://github.com/seanbrasse/glossed/pull/259). Four surfaces, one derived summary. 11 tests |
 | `features/Profile` | Landed by the 1.5 lane in [#265](https://github.com/seanbrasse/glossed/pull/265) — the handle claim screen. 11 tests |
-| `features/Discover` | Landed by the 1.5 lane in [#263](https://github.com/seanbrasse/glossed/pull/263) — picks, crosswalk, the wander. 5 tests |
+| `features/Discover` | Picks, crosswalk, the wander (#263) — then LIVE as tab 1 (#266), instrumented (#273/#281), tap-through (#274), the dismissal gesture (#281), and the trending seam (#287). **10 tests**, including wire-level event assertions (a capturing poster reads what actually flushed) |
+| `features/Browse` | Trending (#282, 1.5 lane, 7 tests) — reachable from discover once #287 lands. Routines browse in flight (#288, theirs) |
 | `features/Ranking` / `features/Import` | Untouched this stretch. 29 / 12 tests |
 | `app/` | Tracker wiring, fit-at-log seam + FitPromptCard (the prompt lives HERE, not in Shelf), catalogImageBase, and `AppShellProductPage` — closing the page re-opens the sheet so it re-reads `item_fits` |
 | `web/landing/` | Static landing page for the affiliate applications. On main, NOT deployed (§7) |
@@ -190,14 +209,17 @@ the 1.5 lane is landing a package roughly every twenty minutes. The count is
 stamped with the commit it was taken at for exactly that reason. **§9's sweep
 loop discovers packages by glob rather than listing them** — copy that loop,
 never a list, because a list cannot notice a package that did not exist when
-it was written. **pgTAP: 546 assertions / 1 known failure (`shelf_view` 14)** — the 1.5
-lane's number, reproduced after the Aug 29 colima restart; this lane ran only
-`discover_rpcs.test.sql` (12, pass) to settle the §0 question.
+it was written. **pgTAP: 567 assertions / 1 known LOCAL failure (`shelf_view` 14; CI is
+zero)** — the taste lane's count after 0042's suite landed. The Swift totals
+above predate that lane's evening (Discover 5→10, DataKit 83→85, + Browse 7);
+re-measure with §9's glob loop rather than trusting any list here.
 `core/Media` is NOT among the packages: it is named in both CLAUDE.md files but
 **has never existed** ([GLO-148](https://linear.app/glossed/issue/GLO-148)).
 
 The sentence that is true about all of it: **the app is live against the local
-stack only.** Hosted has the
+stack only** — and as of Aug 29 evening the discover tab is real end to end
+against that stack: picks ranked by the caller's own signals, dismissals
+teaching the engine back, every claim carrying whose n it is. Hosted has the
 schema and no data, no functions, no storage; the catalog's future sources
 (feeds, Beauty API) are account-gated on Sean, not code-gated.
 
@@ -322,6 +344,11 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | Typeless storefronts (missha, murad, tatcha, supergoop at ~0 despite the tree) — feeds/Beauty-API bucket, not tree-gated | GLO-99 finding |
 | OBF foreign names (category crawl only — brand mode sidesteps); krave maps 0 | [GLO-84](https://linear.app/glossed/issue/GLO-84) / [GLO-79](https://linear.app/glossed/issue/GLO-79) |
 | `glossed.app` domain is TAKEN — tech/02's share-URL plan needs a new domain (glossed.beauty was $1.99 at check) | GLO-89 finding |
+| A browse TAB: trending + routines-browse are "what other people do", discover is "what fits you" — a real seam, and the kit's nav is three tabs + plus | parked with Sean (GLO-20 thread) |
+| `features/Leaderboard` + the product page's dead `onLeaderboard` — data and DataKit halves are merged, UI is not | [GLO-20](https://linear.app/glossed/issue/GLO-20) / §1 |
+| The scoped ConfidenceMeter in G.Leaderboard has no defined live data source — deferred, not decorated | GLO-20 / §1 |
+| Save/wishlist (+0.5) needs the want_to_try-as-intent ruling before code | tech/07 §2 / §1 |
+| Un-dismiss management UI (the row is deletable by construction; no surface offers it yet) | [GLO-181](https://linear.app/glossed/issue/GLO-181) note |
 
 ## 7. Blocked on a human, not on code
 
@@ -332,7 +359,9 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | Landing-page deploy (→ Rakuten/Impact applications) | Vercel MCP token cannot create projects (403, team role). Create an empty project named `glossed` OR raise the integration's role; the deploy payload is one command away | Sean |
 | Rakuten + Impact publisher accounts | Signups (GLO-90/91 carry the exact steps); need the channel URL above | Sean |
 | Beauty API key | Free Sandbox+Barcode signup at thebeautyapi.com → `BEAUTY_API_KEY` secret | Sean |
-| Any DataKit opening | Per-session authorization. This lane needed none and asked for none | Sean |
+| Any DataKit opening | Per-session authorization. Aug 29 saw two (the 1.5 bundle; the taste lane's discover/leaderboard/taste reads-and-write) — **both expired with their sessions** | Sean |
+| The browse-tab IA question | Trending + routines browse both exist now; whether they earn a fourth tab or stay one tap behind discover is a nav decision the kit does not answer | Sean |
+| Save/wishlist mapping | Whether `want_to_try` IS the +0.5 save signal (intent, distinct from 0035's unworn-is-not-evidence rule) | Sean |
 | Any migration slot | Per-migration. Sean authorized `0033` for GLO-150 on Aug 29 after it was flagged as not-purely-additive; that authorization is spent | Sean |
 | GLO-85 queue consumer | Needs `ANTHROPIC_API_KEY` **and** Sean's direct word — a relayed hand-off of this lane was retracted once already | Sean |
 | R2, function secrets, Apple/Twilio, GLO-71's real fix | Unchanged from #163 | Sean / any human |
@@ -507,6 +536,59 @@ specific enough to predict: whenever DataKit gains a type, every dependent
 package with a warm cache will report that type as missing.** After any
 DataKit change, clean the dependents before believing a single one of them is
 broken.
+
+**Session 12 (the taste/discover lane, Aug 29 evening):**
+
+*Fixtures that all satisfy a precondition cannot detect that the precondition
+is load-bearing.* 0036 merged green with 14 assertions and wrote ZERO rows
+against real data: every fixture had created a `profiles` row, and the writer
+inner-joined profiles — a user without one contributed to no aggregate cell
+at all. `LEFT JOIN` was the entire fix ([GLO-173](https://linear.app/glossed/issue/GLO-173), 0037,
+caught within ten minutes because the writer was run against the live DB
+right after merge). **Run every new writer against real data immediately,
+and put one fixture on the wrong side of every precondition.**
+
+*Switching the role GUC to anon does not clear the impersonation's JWT
+claims.* `auth.uid()` reads the claims, so an "anon" pgTAP block after
+`test_as()` is silently still authenticated. Only anon-GRANTED definer
+functions expose it — grant-denied paths mask it with a 42501 that passes
+for the right answer. Clear both GUCs; `leaderboard.test.sql` has the idiom.
+
+*`timeout` does not exist on macOS.* `timeout 5 docker info` exits 127 —
+which reads exactly like "daemon down" — and nearly caused a restart of a
+healthy daemon. Related, same night: the daemon is **colima**, not Docker
+Desktop; two osascript quits against an app that does not exist did nothing
+while looking decisive. `docker context ls` names what is actually
+underneath; `colima restart` is the remedy; volumes ride through. **Name the
+thing you have observed, not the thing you assume is underneath** — two
+sessions cross-confirmed the same split-brain symptom and both inherited the
+same wrong noun.
+
+*`gh pr list --author @me` matches every session* — all lanes share one
+GitHub identity. "My PRs" must be tracked by branch name or you will adopt,
+report on, or merge another lane's work. The taste lane found GLO-171's PR
+under "mine" this way.
+
+*A green branch plus a green main can still sum to a red main.* #266 passed
+CI, merged, and left `AppShell.swift` at 301 lines — one over the lint cap —
+because a sibling PR had grown the file after that CI run; every subsequent
+PR failed lint on inherited state. The durable routine (the 1.5 lane's):
+**test-merge your head onto the CURRENT tip before merging**, and look for
+cross-lane hazards your branch CI could never see (the same routine caught a
+`private`-scoping break on #269 that only existed after a peer's merge).
+
+*Before driving the canon simulator, ask who is driving — including sessions
+no ping round knows about.* A terminate/install/launch recipe killed a fourth
+session's `GLOSSED_SCREENS` sweep mid-drive. And after any drive: restore
+what you touched, disclose what you mis-tapped (an own→repurchased flip was
+reverted and disclosed; drive fixtures deleted) — authorless drift costs
+whoever finds it an hour of diagnosis.
+
+*A stacked branch diffed against a moved main shows phantom deletions.*
+After the base PRs squash-merge, `git diff origin/main` on the still-stacked
+branch reads as if it deletes the siblings' work. Rebase before trusting any
+local diff — the wiring branch briefly read as "removes DataKit code" when
+the delta was pure staleness.
 
 ## 9. Local setup
 
