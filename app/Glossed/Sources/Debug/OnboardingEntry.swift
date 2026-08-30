@@ -137,8 +137,9 @@
                     if !done {
                         TourOverlay(
                             model: TourModel(),
-                            // Fixture anchors — the shell computes real ones.
-                            anchorX: { $0 == "shelf" ? 175 : 90 },
+                            // Fixture anchors, read off the stand-in nav's
+                            // own tab centers — the shell computes real ones.
+                            anchorX: { $0 == "shelf" ? 175 : 112 },
                             onTabChange: { tab = $0 },
                             onDone: { done = true }
                         )

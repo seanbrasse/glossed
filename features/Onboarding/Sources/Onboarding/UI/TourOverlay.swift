@@ -98,17 +98,17 @@ public struct TourOverlay: View {
         .animation(Tokens.Motion.pop(), value: model.stepIndex)
     }
 
-    /// The bouncing arrow and pulsing ring over the slide's tab.
+    /// The bouncing arrow and pulsing ring over the slide's tab — one
+    /// 54pt column so the two share a center exactly (the first cut gave
+    /// the arrow its own magic offset, and the two visibly disagreed).
     private func pointer(at x: CGFloat) -> some View {
-        VStack(spacing: 0) {
+        VStack(spacing: Tokens.Space.s2) {
             Spacer()
             TourArrow()
-                .padding(.bottom, Tokens.Space.s2)
-            Circle()
-                .strokeBorder(Tokens.Cherry.base, lineWidth: 2.5)
-                .frame(width: 54, height: 54)
-                .padding(.bottom, 8)
+            PulsingRing()
+                .padding(.bottom, 14)
         }
+        .frame(width: 54)
         .frame(maxWidth: .infinity, alignment: .leading)
         .offset(x: x - 27)
         .allowsHitTesting(false)
@@ -125,10 +125,29 @@ private struct TourArrow: View {
             .font(Typography.display(30))
             .foregroundStyle(.white)
             .shadow(color: Tokens.Ink.primary, radius: 0, x: 2, y: 2)
-            .offset(x: 17, y: up ? -6 : 0)
+            .offset(y: up ? -6 : 0)
             .onAppear {
                 withAnimation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true)) {
                     up = true
+                }
+            }
+    }
+}
+
+/// The kit's `tourPulse`: the ring breathes outward and fades, forever —
+/// a still circle reads as a mistake where a pulse reads as a pointer.
+private struct PulsingRing: View {
+    @State private var pulsing = false
+
+    var body: some View {
+        Circle()
+            .strokeBorder(Tokens.Cherry.base, lineWidth: 2.5)
+            .frame(width: 54, height: 54)
+            .scaleEffect(pulsing ? 1.25 : 0.92)
+            .opacity(pulsing ? 0.25 : 1)
+            .onAppear {
+                withAnimation(.easeOut(duration: 1.3).repeatForever(autoreverses: false)) {
+                    pulsing = true
                 }
             }
     }
