@@ -98,3 +98,25 @@ struct LikeStateRow: Decodable, Sendable {
         case likeState = "like_state"
     }
 }
+
+/// The four columns needed to NAME a shelf item, off `user_shelf_items`.
+///
+/// Top-level rather than nested in one repository because two read it —
+/// `BrowseRepository.routineDetail` (someone else's routine) and
+/// `RoutinesRepository.mine` (your own). A second copy would be a second place
+/// for the wire words to drift, which is the reason `RoutineSlot` is not
+/// redeclared either. The view is `security_invoker`, so both callers inherit
+/// the shelf policies rather than re-implementing them.
+struct ShelfNameRow: Decodable, Sendable {
+    let userItemID: UUID
+    let brandName: String
+    let productName: String
+    let variantLabel: String?
+
+    enum CodingKeys: String, CodingKey {
+        case userItemID = "user_item_id"
+        case brandName = "brand_name"
+        case productName = "product_name"
+        case variantLabel = "variant_label"
+    }
+}

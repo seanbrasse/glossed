@@ -63,3 +63,112 @@ private func encoded(_ value: some Encodable) throws -> [String: Any] {
 private func keys(of value: some Encodable) throws -> [String] {
     try encoded(value).keys.sorted()
 }
+
+// The owner-side reads (GLO-230). `mine()` itself needs a session and a
+// database, so what is tested here is the part that can be wrong SILENTLY:
+// assembly. The policies (routines_own) are proven by the DB suite, which is
+// the actual security boundary.
+
+@Test func stepsComeBackInPositionOrderNoMatterWhatOrderTheyArriveIn() {
+    // Written to fail first, and it did: without the sort in `assemble` the
+    // steps came back in arrival order — cleanser LAST. A routine rendered out
+    // of order is silently wrong rather than visibly broken, and nothing about
+    // `routine_steps` storage is positional: its primary key is
+    // (routine_id, user_item_id), so the rows have no natural order at all.
+    let routineID = UUID()
+    let cleanser = UUID(), serum = UUID(), spf = UUID()
+    let routine = RoutinesRepository.OwnRoutineRow(
+        id: routineID, title: "am", slot: .am, startedOnRaw: nil, createdAt: Date()
+    )
+    // Deliberately shuffled — this is what a grouped rebuild can hand back.
+    let steps = [
+        RoutinesRepository.OwnStepRow(routineID: routineID, position: 2, userItemID: spf),
+        RoutinesRepository.OwnStepRow(routineID: routineID, position: 0, userItemID: cleanser),
+        RoutinesRepository.OwnStepRow(routineID: routineID, position: 1, userItemID: serum)
+    ]
+    let names = [cleanser, serum, spf].map {
+        ShelfNameRow(userItemID: $0, brandName: "b", productName: "p", variantLabel: nil)
+    }
+
+    let assembled = RoutinesRepository.assemble(routines: [routine], steps: steps, names: names)
+    #expect(assembled.count == 1)
+    #expect(assembled[0].steps.map(\.position) == [0, 1, 2])
+    #expect(assembled[0].steps.map(\.userItemID) == [cleanser, serum, spf])
+}
+
+@Test func aStepWhoseProductCannotBeReadIsDroppedRatherThanRenderedBlank() {
+    // Same choice `routineDetail` makes: a numbered gap invites the question
+    // of what is hidden. The count follows the array, so the card cannot say
+    // "3 steps" while drawing two.
+    let routineID = UUID()
+    let visible = UUID(), unreadable = UUID()
+    let routine = RoutinesRepository.OwnRoutineRow(
+        id: routineID, title: "pm", slot: .pm, startedOnRaw: nil, createdAt: Date()
+    )
+    let steps = [
+        RoutinesRepository.OwnStepRow(routineID: routineID, position: 0, userItemID: visible),
+        RoutinesRepository.OwnStepRow(routineID: routineID, position: 1, userItemID: unreadable)
+    ]
+    let names = [ShelfNameRow(userItemID: visible, brandName: "b", productName: "p", variantLabel: nil)]
+
+    let assembled = RoutinesRepository.assemble(routines: [routine], steps: steps, names: names)
+    #expect(assembled[0].steps.map(\.userItemID) == [visible])
+    #expect(assembled[0].stepN == 1) // the n matches what is drawn
+}
+
+@Test func aRoutineWithNoStepsAssemblesRatherThanDisappearing() {
+    // A stepless routine is a real state — `saveDraft` accepts an empty
+    // `stepItemIDs` — and the profile tab has to be able to draw it.
+    let routine = RoutinesRepository.OwnRoutineRow(
+        id: UUID(), title: "weekly", slot: .weekly, startedOnRaw: nil, createdAt: Date()
+    )
+    let assembled = RoutinesRepository.assemble(routines: [routine], steps: [], names: [])
+    #expect(assembled.count == 1)
+    #expect(assembled[0].stepN == 0)
+}
+
+@Test func stepsAreGroupedByTheirOwnRoutineAndDoNotLeakAcross() {
+    // One read fetches steps for every routine at once; the grouping is the
+    // only thing keeping the morning routine's steps out of the evening one.
+    let morning = UUID(), evening = UUID()
+    let itemA = UUID(), itemB = UUID()
+    let routines = [
+        RoutinesRepository.OwnRoutineRow(
+            id: morning, title: "am", slot: .am, startedOnRaw: nil, createdAt: Date()
+        ),
+        RoutinesRepository.OwnRoutineRow(
+            id: evening, title: "pm", slot: .pm, startedOnRaw: nil, createdAt: Date()
+        )
+    ]
+    let steps = [
+        RoutinesRepository.OwnStepRow(routineID: evening, position: 0, userItemID: itemB),
+        RoutinesRepository.OwnStepRow(routineID: morning, position: 0, userItemID: itemA)
+    ]
+    let names = [itemA, itemB].map {
+        ShelfNameRow(userItemID: $0, brandName: "b", productName: "p", variantLabel: nil)
+    }
+
+    let assembled = RoutinesRepository.assemble(routines: routines, steps: steps, names: names)
+    #expect(assembled[0].steps.map(\.userItemID) == [itemA])
+    #expect(assembled[1].steps.map(\.userItemID) == [itemB])
+}
+
+@Test func theStartedOnDateIsParsedAsACalendarDayNotAnInstant() throws {
+    // Every `date` column in the schema needs this — the platform decoder
+    // wants a time component and throws on a bare calendar day.
+    let routine = RoutinesRepository.OwnRoutineRow(
+        id: UUID(), title: "am", slot: .am, startedOnRaw: "2026-03-14", createdAt: Date()
+    )
+    let assembled = RoutinesRepository.assemble(routines: [routine], steps: [], names: [])
+    let day = try #require(assembled[0].startedOn)
+    let parts = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: day)
+    #expect(parts.year == 2026 && parts.month == 3 && parts.day == 14)
+}
+
+@Test func theRenameUpdateCarriesUpdatedAtBecauseRoutinesHasNoTouchTrigger() throws {
+    // Probed, not assumed: `pg_trigger` is empty for `routines`, so nothing
+    // moves `updated_at` on its own. A rename that shipped only `title` would
+    // leave the row claiming it was last changed at creation.
+    let update = RoutinesRepository.TitleUpdate(title: "glass skin", updatedAt: "2026-08-30T00:00:00Z")
+    #expect(try keys(of: update) == ["title", "updated_at"])
+}
