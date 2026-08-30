@@ -21,6 +21,17 @@ export const ALLOWED_CONTENT_TYPES: Record<string, string> = {
   "image/heic": "heic",
 };
 
+// Looks are re-encoded to JPEG on device (core/Media bakes orientation and
+// strips metadata in the same pass); png/heic stay accepted for a client
+// that skips re-encoding. A SEPARATE map, not a loosening of the shared one:
+// cutouts NEED alpha, and letting a jpeg through the cutout gate would be a
+// quiet way to break the shelf's whole look.
+export const LOOK_CONTENT_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/heic": "heic",
+};
+
 /// Long enough to upload a cutout on a bad connection, short enough that a URL
 /// leaked into a log is worthless by the time anyone reads it.
 export const PRESIGN_TTL_SECONDS = 300;
@@ -90,6 +101,39 @@ export function validateSwatch(input: Partial<SwatchPresignInput>): Rejection | 
   return validateUpload(input.contentType, input.contentLength);
 }
 
+export interface LookPresignInput {
+  lookID: string;
+  position: number;
+  contentType: string;
+  contentLength: number;
+}
+
+export function validateLook(input: Partial<LookPresignInput>): Rejection | null {
+  if (!input.lookID || !UUID.test(input.lookID)) {
+    return "look_id must be a uuid";
+  }
+  if (
+    typeof input.position !== "number" || !Number.isInteger(input.position) ||
+    input.position < 0
+  ) {
+    return "position must be a non-negative integer";
+  }
+  if (!input.contentType || !(input.contentType in LOOK_CONTENT_TYPES)) {
+    return `content_type must be one of ${Object.keys(LOOK_CONTENT_TYPES).join(", ")}`;
+  }
+  if (
+    typeof input.contentLength !== "number" ||
+    !Number.isInteger(input.contentLength) ||
+    input.contentLength <= 0
+  ) {
+    return "content_length must be a positive integer";
+  }
+  if (input.contentLength > MAX_UPLOAD_BYTES) {
+    return `content_length exceeds ${MAX_UPLOAD_BYTES} bytes`;
+  }
+  return null;
+}
+
 /// `users/<uid>/items/<item_id>/<nonce>.<ext>`.
 ///
 /// The user prefix is what a future bucket policy scopes on; the nonce is what
@@ -129,6 +173,25 @@ export function swatchKey(
 ): string {
   const ext = ALLOWED_CONTENT_TYPES[contentType];
   return `users/${userID}/swatches/${variantID}/${nonce}.${ext}`;
+}
+
+/// `users/<uid>/looks/<look_id>/<position>-<nonce>.<ext>`.
+///
+/// Swatch reasoning applies doubled: a look sits in `draft` long before it is
+/// public, and the storage layer knows nothing about `look_state` — the nonce
+/// is what keeps unreviewed photos unreadable to anyone holding the ids. The
+/// position prefixes the nonce so a re-shot photo 2 is visibly photo 2 in the
+/// bucket, while still landing as a NEW object (the row's r2_key moves to it;
+/// the orphan waits for the same sweep cutouts do, GLO-54's family).
+export function lookKey(
+  userID: string,
+  lookID: string,
+  position: number,
+  contentType: string,
+  nonce: string = randomNonce(),
+): string {
+  const ext = LOOK_CONTENT_TYPES[contentType];
+  return `users/${userID}/looks/${lookID}/${position}-${nonce}.${ext}`;
 }
 
 export function randomNonce(): string {

@@ -8,6 +8,7 @@ import {
 import {
   ALLOWED_CONTENT_TYPES,
   cutoutKey,
+  lookKey,
   MAX_UPLOAD_BYTES,
   presignPut,
   r2Config,
@@ -15,6 +16,7 @@ import {
   resolvePublishableKey,
   swatchKey,
   validate,
+  validateLook,
   validateSwatch,
 } from "./presign.ts";
 
@@ -219,4 +221,41 @@ Deno.test("a valid swatch request passes", () => {
     validateSwatch({ variantID: VARIANT, contentType: "image/heic", contentLength: 150_000 }),
     null,
   );
+});
+
+// --- the look namespace (GLO-198) ---
+
+const lookInput = {
+  lookID: "8b5aa841-3210-4bb1-9a70-3d5c0e1e2f11",
+  position: 0,
+  contentType: "image/jpeg",
+  contentLength: 1024,
+};
+
+Deno.test("a well-formed look request passes", () => {
+  assertEquals(validateLook(lookInput), null);
+});
+
+Deno.test("a look id must be a uuid and a position a non-negative integer", () => {
+  assertEquals(validateLook({ ...lookInput, lookID: "nope" }), "look_id must be a uuid");
+  assertEquals(
+    validateLook({ ...lookInput, position: -1 }),
+    "position must be a non-negative integer",
+  );
+  assertEquals(
+    validateLook({ ...lookInput, position: 1.5 }),
+    "position must be a non-negative integer",
+  );
+});
+
+Deno.test("look keys are user-scoped, position-visible, and unguessable", () => {
+  const key = lookKey("u1", lookInput.lookID, 2, "image/jpeg");
+  assert(key.startsWith(`users/u1/looks/${lookInput.lookID}/2-`));
+  assert(key.endsWith(".jpg"));
+});
+
+Deno.test("a re-shot look photo is a new object, never an overwrite", () => {
+  const a = lookKey("u1", lookInput.lookID, 0, "image/jpeg");
+  const b = lookKey("u1", lookInput.lookID, 0, "image/jpeg");
+  assert(a !== b, "the nonce must differ — the row's r2_key moves, the orphan waits for the sweep");
 });
