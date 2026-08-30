@@ -126,9 +126,9 @@
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     FloatingNav(
                         tabs: [
-                            .init(id: "discover", label: "discover", systemImage: "sparkles"),
-                            .init(id: "shelf", label: "shelf", systemImage: "square.split.1x2"),
-                            .init(id: "you", label: "you", systemImage: "person.crop.circle")
+                            .init(id: "discover", label: "discover", glyph: .discover),
+                            .init(id: "shelf", label: "shelf", glyph: .shelf),
+                            .init(id: "you", label: "you", glyph: .avatar(name: "maya"))
                         ],
                         active: $tab,
                         onPlus: {}

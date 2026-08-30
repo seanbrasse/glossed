@@ -26,9 +26,9 @@ private struct ShellPreview: View {
             Text("THREE TABS + THE PLUS").eyebrow()
             FloatingNav(
                 tabs: [
-                    .init(id: PreviewTab.discover, label: "discover", systemImage: "sparkles"),
-                    .init(id: PreviewTab.shelf, label: "shelf", systemImage: "square.stack.3d.up"),
-                    .init(id: PreviewTab.you, label: "you", systemImage: "person.crop.circle")
+                    .init(id: PreviewTab.discover, label: "discover", glyph: .discover),
+                    .init(id: PreviewTab.shelf, label: "shelf", glyph: .shelf),
+                    .init(id: PreviewTab.you, label: "you", glyph: .avatar(name: "maya"))
                 ],
                 active: $tab,
                 onPlus: { drawerOpen.toggle() }

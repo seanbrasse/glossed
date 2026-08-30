@@ -13,18 +13,23 @@ public struct Avatar: View {
         self.size = size
     }
 
-    private var initial: String {
-        String(name.trimmingCharacters(in: .whitespaces).prefix(1)).lowercased()
+    /// The kit's rule: first character, lowercased — and "?" for a name
+    /// that has none, because an empty circle reads as a broken image.
+    public nonisolated static func initialLetter(for name: String) -> String {
+        guard let first = name.trimmingCharacters(in: .whitespaces).first else { return "?" }
+        return String(first).lowercased()
     }
 
     public var body: some View {
-        Text(initial)
+        Text(Avatar.initialLetter(for: name))
             .font(Typography.display(size * 0.42))
             .foregroundStyle(Tokens.Ink.primary)
             .frame(width: size, height: size)
-            .background(Tokens.Support.butterSoft)
+            // Kit chrome: lilac ground, full ink ring (the shipped butter +
+            // hairline was drift — GLO-64's nav slice trues it up).
+            .background(Tokens.Support.lilacSoft)
             .clipShape(Circle())
-            .overlay(Circle().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.thin))
+            .overlay(Circle().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.std))
             .overlay(
                 Circle()
                     .strokeBorder(toneColor, lineWidth: toneHex == nil ? 0 : 2.5)
