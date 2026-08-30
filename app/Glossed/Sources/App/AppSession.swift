@@ -43,6 +43,19 @@ final class AppSession {
     /// in batches; `flush()` fires on scene transitions from the shell.
     private(set) var tracker: Tracker?
 
+    /// Clears everything a signed-in session held (GLO-213).
+    ///
+    /// Deliberately does NOT call `boot()`. The debug build signs in as
+    /// maya automatically, so re-booting would put the user straight back
+    /// where they were and make sign out look broken — a tap that appears to
+    /// do nothing is worse than no button.
+    func signedOut() {
+        client = nil
+        tracker = nil
+        shelfModel = nil
+        imageBase = nil
+    }
+
     func boot() async {
         #if DEBUG
             do {

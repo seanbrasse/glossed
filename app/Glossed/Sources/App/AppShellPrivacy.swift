@@ -35,7 +35,11 @@ extension AppShell {
                     safety: SafetyRepository(client: client)
                 ),
                 onClaimHandle: { handleOpen = true },
-                onOpenPrivacy: { privacyOpen = true }
+                onOpenPrivacy: { privacyOpen = true },
+                // Settings is a state of this screen, not a tab — the frame's
+                // gear opens it (GLO-213).
+                settingsStore: .live(ProfileRepository(client: client), client: client),
+                onSignedOut: { session.signedOut() }
             )
         } else {
             unbuiltTab("you", ticket: "GLO-21", line: "profile · collections · settings")
