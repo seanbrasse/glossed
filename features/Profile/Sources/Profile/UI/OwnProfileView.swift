@@ -13,6 +13,7 @@ public struct OwnProfileView: View {
     @State private var previewing = false
     @State private var showingSettings = false
     private let onClaimHandle: () -> Void
+    private let onCreateLook: (() -> Void)?
     private let onOpenPrivacy: () -> Void
     private let settingsStore: SettingsStore?
     private let onSignedOut: () -> Void
@@ -38,7 +39,12 @@ public struct OwnProfileView: View {
         // rather than pretending to be empty, which is the only honest thing a
         // screen with no read can do.
         routinesStore: ProfileRoutinesStore? = nil,
-        collectionsStore: ProfileCollectionsStore? = nil
+        collectionsStore: ProfileCollectionsStore? = nil,
+        // GLO-254. `features/Profile` may not import `features/Looks`, so the
+        // composer arrives as a callback the app layer fills. Nil means this
+        // build has no looks composer and the button is absent — not present
+        // and inert.
+        onCreateLook: (() -> Void)? = nil
     ) {
         _tabs = State(
             wrappedValue: ProfileTabsModel(routines: routinesStore, collections: collectionsStore)
@@ -49,6 +55,7 @@ public struct OwnProfileView: View {
         self.previewStore = previewStore
         _model = State(wrappedValue: OwnProfileModel(store: store))
         self.onClaimHandle = onClaimHandle
+        self.onCreateLook = onCreateLook
         self.onOpenPrivacy = onOpenPrivacy
         self.settingsStore = settingsStore
         self.onSignedOut = onSignedOut
@@ -72,6 +79,7 @@ public struct OwnProfileView: View {
                             ProfileTabsSection(model: tabs)
                         }
                         SuggestedPeopleCard(store: suggestionsStore) { viewing = $0 }
+                        createLookLink
                         previewLink
                         socialsLink
                     }
@@ -174,6 +182,24 @@ public struct OwnProfileView: View {
             if model.profileUnreachable {
                 Badge("profile not loading", tone: .lilac)
             }
+        }
+    }
+
+    /// The profile's half of GLO-254 — Sean, asked where looks are created:
+    /// *"Should be here and in the profile tab?"*, ruled yes, both. The `+`
+    /// drawer is the other half and belongs to the shell.
+    ///
+    /// Secondary, not primary: `what a stranger sees` below it is this
+    /// screen's one pop moment, and two shouting buttons read as none.
+    ///
+    /// The copy says `add a look` and stops. It does not say who will see it —
+    /// `looks.state` is not the client's to set (GLO-238) and V1 shows nothing
+    /// of yours to anyone, so a button promising an audience would be GLO-189
+    /// with a photo attached.
+    @ViewBuilder private var createLookLink: some View {
+        if let onCreateLook {
+            Button("add a look", action: onCreateLook)
+                .buttonStyle(.glossed(.secondary, block: true))
         }
     }
 
