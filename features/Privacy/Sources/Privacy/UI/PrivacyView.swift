@@ -5,8 +5,8 @@ import SwiftUI
 /// The privacy screen. GLO-119, `docs/tech/02` §1.
 ///
 /// Structured to the kit's `G.Privacy` frame (Sean, Aug 30: "make sure the
-/// switches match what we have in our designs") — master card, four rows, a
-/// scope dot each, built from design-system primitives.
+/// switches match what we have in our designs") — the everything card, four
+/// rows, a scope dot each, built from design-system primitives.
 ///
 /// Three deliberate departures from the frame: the `discoverable` card, which
 /// the frame lacks and §1.2 supersedes it on; `only you` rather than the

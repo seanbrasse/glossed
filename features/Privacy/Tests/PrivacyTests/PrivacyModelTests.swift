@@ -143,8 +143,9 @@ private func store(
 }
 
 @MainActor
-@Test func theMasterControlMovesEverySurfaceAtOnce() async {
-    // The frame's "one switch for all of it". Asserted through the model
+@Test func theEverythingControlMovesEverySurfaceAtOnce() async {
+    // The frame's "one switch for all of it" — the `everything` card.
+    // Asserted through the model
     // rather than the view: the promise is that no surface is left behind.
     // A reference box: the store closure is @Sendable, so a captured `var`
     // cannot be mutated from inside it.

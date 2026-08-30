@@ -118,7 +118,7 @@ public final class PrivacyModel {
         }
     }
 
-    /// The frame's master control. The repository sets one surface at a
+    /// The frame's `everything` control. The repository sets one surface at a
     /// time, so this is four writes, and a failure partway leaves the database
     /// holding some of them. Reverting to `previous` would then show a state
     /// the database does not have — so on failure this re-reads rather than
