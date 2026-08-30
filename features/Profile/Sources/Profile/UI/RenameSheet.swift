@@ -4,43 +4,34 @@ import SwiftUI
 /// `G.Profile`'s rename sheet: grab handle, an eyebrow naming what is being
 /// renamed, a pill input, then `save` + `cancel`.
 ///
-/// `GlossedSheet` already carries the frame's geometry — the 44×4 handle and
-/// the `22 22 0 0` radius are its own — so this is the sheet's contents and
-/// nothing else. The scrim and the rise are the platform's: the frame animates
-/// `sheetUp 300ms cubic-bezier(.2,.9,.3,1.3)` because a web page has to, and
-/// `Tokens.Motion.pop` is that same curve. A presented sheet already does it.
-/// Scrim + sheet, as `AppShellDrawer` builds the `+` drawer and as the frame
-/// draws this one — an `inset:0` scrim under an absolutely-positioned panel.
+/// `GlossedSheet` already carries the frame's geometry — the 44×4 handle, the
+/// `22 22 0 0` radius, the 2px ink border — so this view is the sheet's
+/// contents and nothing else.
 ///
-/// **The `if` is inside the `ZStack` on purpose**, and that is inherited
-/// knowledge rather than taste: wrapping both in one container and moving the
-/// container makes the scrim travel with the sheet, a hard-edged rectangle
-/// wiping up the screen. `AppShellDrawer` has the measurement written down.
-/// So the scrim **fades** on a curve that does not overshoot, and the sheet
-/// **moves** and keeps `pop` — whose 1.3 control point is the kit's own
-/// `sheetUp 300ms cubic-bezier(.2,.9,.3,1.3)`.
-struct RenameOverlay: View {
-    @Bindable var model: ProfileTabsModel
-
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            if model.renaming != nil {
-                scrim
-                RenameSheet(model: model)
-                    .transition(.move(edge: .bottom).animation(Tokens.Motion.pop(Tokens.Motion.med)))
-            }
+/// **It is a real presented sheet, not an in-view overlay, and driving it is
+/// what settled that.** The first version built scrim + panel in a `ZStack`
+/// the way `AppShellDrawer` does, which is what the frame draws
+/// (`position:absolute; inset:0` under a `zIndex:51` panel). On device the
+/// floating nav sat **on top of it and covered `save`** — the drawer gets away
+/// with that shape only because it lives in `AppShell`, above the nav, and a
+/// feature cannot reach there. A presented sheet covers the window, which is
+/// the behaviour the kit's `zIndex:51` is expressing.
+///
+/// What that costs: the rise is the platform's rather than the kit's
+/// `sheetUp 300ms cubic-bezier(.2,.9,.3,1.3)`, and the dimming is the
+/// platform's rather than the frame's `rgba(27,25,23,.45)`. Both are close, and
+/// a reachable `save` is not a trade.
+extension View {
+    func renameSheet(model: ProfileTabsModel) -> some View {
+        sheet(item: Binding(get: { model.renaming }, set: { model.renaming = $0 })) { _ in
+            RenameSheet(model: model)
+                .presentationDetents([.height(240)])
+                // The system sheet's own surface is hidden so `GlossedSheet`'s
+                // is the one you see — its border and corner radius are the
+                // frame's, and two stacked sheet backgrounds read as a seam.
+                .presentationBackground(.clear)
+                .presentationDragIndicator(.hidden)
         }
-        .ignoresSafeArea()
-    }
-
-    /// The frame's `rgba(27,25,23,.45)` — `--ink` at 45%.
-    private var scrim: some View {
-        Button { model.renaming = nil } label: {
-            Rectangle().fill(Tokens.Ink.primary.opacity(0.45))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("close")
-        .transition(.opacity.animation(.easeOut(duration: Tokens.Motion.med)))
     }
 }
 
