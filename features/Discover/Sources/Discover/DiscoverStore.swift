@@ -26,6 +26,11 @@ public struct DiscoverStore: Sendable {
     /// would be inventing catalog copy for those three, so the label is read
     /// or it is not shown.
     public var categories: (@Sendable () async throws -> [DataKit.Category])?
+    /// The caller's own taste vector (0035), for the receipt card (GLO-229).
+    /// Set beside `categories` and for the same reason. Nil renders no card —
+    /// and so does a vector with nothing above its confidence floor, which is
+    /// the ordinary state early on rather than a failure.
+    public var affinity: (@Sendable () async throws -> [AffinityRow])?
 
     public init(
         feed: @escaping @Sendable (Int) async throws -> [DiscoverHit],
@@ -54,10 +59,13 @@ public struct DiscoverStore: Sendable {
             crosswalk: { try await aggregates.crosswalk(limit: $0) },
             dismiss: { try await taste.dismissRecommendation(productID: $0, reason: $1) }
         )
-        // One call for every domain, not one per domain: a stream mixes
-        // makeup with skincare, and `categories(domain:)` already takes nil
-        // to mean all of them (the add-ladder's create rung does the same).
+        // Already on the repository the caller handed us, so the receipt
+        // needs no new argument and no app-side change at all.
+        store.affinity = { try await aggregates.affinity() }
         if let catalog {
+            // One call for every domain, not one per domain: a stream mixes
+            // makeup with skincare, and `categories(domain:)` already takes
+            // nil to mean all of them (the create rung does the same).
             store.categories = { try await catalog.categories(domain: nil) }
         }
         return store
