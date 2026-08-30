@@ -51,8 +51,8 @@ public struct BadgeRow: Sendable, Identifiable {
             badge: .skinType,
             title: "show your skin type",
             detail: """
-            anyone who can see your profile sees it, and you can be suggested \
-            to people with the same skin type.
+            people whose skin type matches yours can see that it matches — \
+            never what it is — and you can be suggested to them.
             """
         ),
         BadgeRow(
@@ -63,7 +63,7 @@ public struct BadgeRow: Sendable, Identifiable {
         BadgeRow(
             badge: .hairPattern,
             title: "show your hair pattern",
-            detail: "anyone who can see your profile sees it."
+            detail: "people whose hair pattern matches yours can see that it matches, never what it is."
         )
     ]
 }
