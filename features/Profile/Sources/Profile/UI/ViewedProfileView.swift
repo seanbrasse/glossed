@@ -113,19 +113,21 @@ public struct ViewedProfileView: View {
     private func counts(_ profile: PublicProfile) -> some View {
         GlossedCard {
             HStack(spacing: Tokens.Space.s6) {
-                countCell(profile.followers, "followers")
-                countCell(profile.following, "following")
-                countCell(profile.rankedListsN, "ranked lists")
+                countCell(profile.followers, "follower", "followers")
+                countCell(profile.following, "following", "following")
+                countCell(profile.rankedListsN, "ranked list", "ranked lists")
             }
         }
     }
 
-    private func countCell(_ n: Int, _ label: String) -> some View {
+    /// Singular and plural are both passed rather than derived: "following"
+    /// does not inflect, so appending an s would invent "1 followings".
+    private func countCell(_ n: Int, _ one: String, _ many: String) -> some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s1) {
             Text("\(n)")
                 .font(Typography.mono(Typography.Size.h2, bold: true))
                 .foregroundStyle(Tokens.Ink.primary)
-            Text(label)
+            Text(n == 1 ? one : many)
                 .font(.system(size: Typography.Size.meta))
                 .foregroundStyle(Tokens.Ink.soft)
         }
