@@ -53,6 +53,12 @@ struct AppShell: View {
     @State var ladderTrip = UUID()
     /// One line naming the ticket for a drawer option that is not built yet.
     @State var notice: String?
+    /// The routine composer, the drawer's fourth door (#341/#342).
+    @State var routineOpen = false
+    /// `ladderTrip`'s reasoning at the second cover: a new trip is a new
+    /// composer, so a second "new routine" starts empty rather than resuming
+    /// the first one's title, steps and minted routine id.
+    @State var routineTrip = UUID()
     /// The row the ladder just wrote, held until the cover dismisses — asking
     /// "did it fit?" under a closing full-screen cover is a question nobody
     /// sees.
@@ -161,6 +167,9 @@ struct AppShell: View {
         .handleClaimSheet(isPresented: $handleOpen, client: session.client)
         .fullScreenCover(isPresented: $ladderOpen, onDismiss: askFitIfAnchor) {
             ladderFlow
+        }
+        .fullScreenCover(isPresented: $routineOpen) {
+            routineComposer
         }
         .fullScreenCover(item: $openProduct) { item in
             if let client = session.client {
