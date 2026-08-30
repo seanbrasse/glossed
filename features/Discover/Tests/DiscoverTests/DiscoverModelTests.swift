@@ -236,3 +236,47 @@ private func crosswalkHit(_ name: String, n: Int) throws -> CrosswalkHit {
     #expect(!model.stream.map(\.id).contains("crosswalk"))
     #expect(model.stream.map(\.id).contains("trending"))
 }
+
+// MARK: - GLO-200: injected slots stay deterministic
+
+@MainActor
+@Test func injectedCardsLandAtTheirPositionsInOrder() async throws {
+    let picks = try (1 ... 4).map { try hit("p\($0)", basis: "taste", n: $0) }
+    let store = DiscoverStore(feed: { _ in picks }, crosswalk: { _ in [] })
+    let model = DiscoverModel(store: store)
+    model.load()
+    await model.loadTask?.value
+
+    // out of order on purpose: composition sorts by (position, id)
+    model.injectedCards = [
+        .init(id: "tune", position: 0),
+        .init(id: "look-b", position: 3),
+        .init(id: "look-a", position: 3)
+    ]
+    let ids = model.stream.map(\.id)
+    #expect(ids.first == "injected-tune", "position 0 leads the stream")
+    #expect(ids[3] == "injected-look-a", "ties break by id, deterministically")
+    #expect(ids[4] == "injected-look-b")
+}
+
+@MainActor
+@Test func anInjectedPositionPastTheEndAppendsLikeEverythingElse() async throws {
+    let picks = try [hit("only", basis: "popular", n: 2)]
+    let store = DiscoverStore(feed: { _ in picks }, crosswalk: { _ in [] })
+    let model = DiscoverModel(store: store)
+    model.load()
+    await model.loadTask?.value
+    model.injectedCards = [.init(id: "tune", position: 99)]
+    #expect(model.stream.map(\.id).last == "injected-tune")
+}
+
+@MainActor
+@Test func noInjectionsMeansTheStreamIsExactlyGLO195s() async throws {
+    let picks = try (1 ... 6).map { try hit("p\($0)", basis: "taste", n: $0) }
+    let partners = try [crosswalkHit("c1", n: 4)]
+    let store = DiscoverStore(feed: { _ in picks }, crosswalk: { _ in partners })
+    let model = DiscoverModel(store: store)
+    model.load()
+    await model.loadTask?.value
+    #expect(model.stream.count == 8, "the slot mechanism costs nothing when unused")
+}
