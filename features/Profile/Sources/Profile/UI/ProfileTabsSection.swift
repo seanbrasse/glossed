@@ -35,7 +35,42 @@ struct ProfileTabsSection: View {
     @ViewBuilder private var content: some View {
         switch model.tab {
         case .routines: routines
-        case .collections: EmptyView()
+        case .collections: collections
+        }
+    }
+
+    /// The frame's `gridTemplateColumns:'1fr 1fr'` at `gap:12`.
+    @ViewBuilder private var collections: some View {
+        if model.isLoading {
+            ProgressView().frame(maxWidth: .infinity)
+        } else if model.collections.isEmpty {
+            emptyCollections
+        } else {
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: Tokens.Space.s3),
+                    GridItem(.flexible(), spacing: Tokens.Space.s3)
+                ],
+                spacing: Tokens.Space.s3
+            ) {
+                ForEach(model.collections) { CollectionCard(collection: $0) }
+            }
+        }
+    }
+
+    private var emptyCollections: some View {
+        GlossedCard {
+            VStack(alignment: .leading, spacing: Tokens.Space.s2) {
+                Text("no collections yet")
+                    .font(Typography.display(Typography.Size.h3))
+                    .foregroundStyle(Tokens.Ink.primary)
+                // Says what a collection is and where they are made. It does
+                // not say who can see one, because in V1 nobody can and a
+                // sentence about that would be copy for a scope no screen
+                // controls (GLO-208).
+                Text("a collection is a group of things you own. make one from the + button.")
+                    .meta()
+            }
         }
     }
 
@@ -108,5 +143,61 @@ struct RoutineCard: View {
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
+    }
+}
+
+/// One collection, as the frame draws it: a tinted card, content pushed to the
+/// bottom, title over `mono(N products)`.
+///
+/// `minHeight:96` and the bottom alignment are the frame's own — they are what
+/// makes a two-word title and a six-word one the same object on the page.
+struct CollectionCard: View {
+    let collection: ProfileCollection
+
+    var body: some View {
+        GlossedCard(tint: Self.tint(collection.tint), padding: Tokens.Space.s3) {
+            CollectionCardBody(collection: collection)
+        }
+    }
+
+    /// `collections.cover_tint` is nullable `text` with no check constraint, so
+    /// an unrecognised word is a real possibility. It draws untinted rather
+    /// than throwing: a cover is decoration, and a cosmetic column should never
+    /// be able to take the grid down.
+    ///
+    /// The four words are the kit's four soft fills and `GlossedCard` already
+    /// owns them — nothing here names a colour.
+    ///
+    /// The return type is spelled through `CollectionCardBody` because
+    /// `GlossedCard.Tint` is nested inside a generic, so each specialisation
+    /// has its own. That is also why the card's content is a named view rather
+    /// than an inline closure.
+    static func tint(_ word: String?) -> GlossedCard<CollectionCardBody>.Tint {
+        switch word {
+        case "butter": .butter
+        case "cherry": .cherry
+        case "mint": .mint
+        case "lilac": .lilac
+        default: .plain
+        }
+    }
+}
+
+/// Bottom-aligned, per the frame's `justifyContent:'flex-end'`.
+struct CollectionCardBody: View {
+    let collection: ProfileCollection
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Tokens.Space.s1) {
+            Spacer(minLength: 0)
+            Text(collection.title)
+                .font(Typography.display(Typography.Size.body))
+                .foregroundStyle(Tokens.Ink.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            // A count of your own collection, not a claim about people — no
+            // cohort, and no evidence chrome.
+            Text(ProfileTabsModel.productsLine(collection.itemN)).meta()
+        }
+        .frame(maxWidth: .infinity, minHeight: 96, alignment: .bottomLeading)
     }
 }
