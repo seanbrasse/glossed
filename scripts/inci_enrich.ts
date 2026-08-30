@@ -39,7 +39,11 @@
 // Usage:
 //   deno run --allow-run --allow-env scripts/inci_enrich.ts [--dry-run] [--force]
 
-const CONTAINER = Deno.env.get("GLOSSED_DB_CONTAINER") ?? "supabase_db_glossed";
+import { psqlArgs, targetLabel } from "./db.ts";
+
+// Say the destination before writing to it.
+console.log(`→ writing to ${targetLabel()}`);
+
 const DRY = Deno.args.includes("--dry-run");
 const FORCE = Deno.args.includes("--force");
 
@@ -92,7 +96,7 @@ const q = (s: string) => `'${s.replaceAll("'", "''")}'`;
 
 async function runSQL(statements: string): Promise<string> {
   const psql = new Deno.Command("docker", {
-    args: ["exec", "-i", CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-q", "-v", "ON_ERROR_STOP=1"],
+    args: psqlArgs(["-q", "-v", "ON_ERROR_STOP=1"]),
     stdin: "piped", stdout: "piped", stderr: "piped",
   }).spawn();
   const writer = psql.stdin.getWriter();

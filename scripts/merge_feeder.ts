@@ -24,12 +24,16 @@
 // --dry-run counts and samples the band without writing; --pending prints the
 // current queue (the adjudication surface until GLO-14's function owns it).
 
-const CONTAINER = Deno.env.get("GLOSSED_DB_CONTAINER") ?? "supabase_db_glossed";
 
 // The band floor, from the live distribution (Aug 28 2026): ≥0.5 yields ~364
 // reviewable pairs; 0.4–0.5 adds ~273 mostly-noise rows, below that it
 // explodes. Queue depth is the canary (tech/01 §4) — raise the floor if the
 // queue grows faster than review, don't add an auto-merge band.
+import { psqlArgs, targetLabel } from "./db.ts";
+
+// Say the destination before writing to it.
+console.log(`→ writing to ${targetLabel()}`);
+
 const BAND_FLOOR = 0.5;
 
 // Both sides must be live canonical rows: personal-scope products are the
@@ -76,7 +80,7 @@ order by mc.similarity desc;`;
 
 async function runSQL(statements: string): Promise<string> {
   const psql = new Deno.Command("docker", {
-    args: ["exec", "-i", CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-q"],
+    args: psqlArgs(["-q"]),
     stdin: "piped",
     stdout: "piped",
     stderr: "piped",

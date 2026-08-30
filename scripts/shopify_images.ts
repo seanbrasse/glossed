@@ -21,8 +21,12 @@
 // Usage:
 //   deno run --allow-net --allow-run --allow-env scripts/shopify_images.ts [--dry-run]
 
+import { psqlArgs, targetLabel } from "./db.ts";
+
+// Say the destination before writing to it.
+console.log(`→ writing to ${targetLabel()}`);
+
 const USER_AGENT = "Glossed-Dev/0.1 (seanbrasse@gmail.com)";
-const CONTAINER = Deno.env.get("GLOSSED_DB_CONTAINER") ?? "supabase_db_glossed";
 const dryRun = Deno.args.includes("--dry-run");
 
 /// Storefront → the brand's normalized_name in our catalog.
@@ -61,7 +65,7 @@ function normalized(raw: string): string {
 
 async function psql(statements: string): Promise<string> {
   const child = new Deno.Command("docker", {
-    args: ["exec", "-i", CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-q", "-t", "-A", "-F", "\t"],
+    args: psqlArgs(["-q", "-t", "-A", "-F", "\t"]),
     stdin: "piped",
     stdout: "piped",
     stderr: "piped",

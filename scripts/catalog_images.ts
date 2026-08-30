@@ -22,10 +22,14 @@
 //   SUPABASE_SERVICE_ROLE_KEY=... deno run --allow-net --allow-run --allow-env \
 //     --allow-read --allow-write scripts/catalog_images.ts [--limit N] [--batch N]
 
+import { psqlArgs, targetLabel } from "./db.ts";
+
+// Say the destination before writing to it.
+console.log(`→ writing to ${targetLabel()}`);
+
 const USER_AGENT = "Glossed-Dev/0.1 (seanbrasse@gmail.com)";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "http://127.0.0.1:54321";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const CONTAINER = Deno.env.get("GLOSSED_DB_CONTAINER") ?? "supabase_db_glossed";
 const BUCKET = "catalog";
 const MAX_DIMENSION = 512;
 /// GLO-104 (Sean's ruling, Aug 29): OBF images only when they meet the
@@ -49,7 +53,7 @@ const batchSize = batchArg >= 0 ? Number(Deno.args[batchArg + 1]) : 25;
 
 async function psql(statements: string): Promise<string> {
   const child = new Deno.Command("docker", {
-    args: ["exec", "-i", CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-q", "-t", "-A", "-F", "\t"],
+    args: psqlArgs(["-q", "-t", "-A", "-F", "\t"]),
     stdin: "piped",
     stdout: "piped",
     stderr: "piped",
