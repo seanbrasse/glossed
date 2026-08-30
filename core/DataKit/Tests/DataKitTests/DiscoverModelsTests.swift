@@ -63,3 +63,34 @@ import Testing
     #expect(abs(row.confidence - 3.0 / 13.0) < 0.0001)
     #expect(row.id == row.attributeChipID)
 }
+
+@Test func aLeaderboardRowArrivesWithItsClaimAlreadyGated() throws {
+    // The RPC nulls mean_percentile below min-n; nil here is "not enough
+    // face-offs yet", never "zero score" — and isRankable is the render
+    // rule's discriminator.
+    let raw = Data(#"""
+    {"id":"00000000-0000-0000-0000-0000000000d3","name":"beachplease",
+     "brand_name":"tower 28","category_id":"10000000-0000-0000-0000-000000000001",
+     "category_slug":"blush","domain":"makeup","scope":"canonical",
+     "n_face_offs":4,"variant_label":null,"catalog_image_key":null,
+     "catalog_image_width":null,"catalog_image_height":null,
+     "mean_percentile":null,"n_users":3,"needed":5,"dislike_reasons":null}
+    """#.utf8)
+    let row = try PostgrestClient.Configuration.jsonDecoder.decode(LeaderboardRow.self, from: raw)
+    #expect(!row.isRankable)
+    #expect(row.hit.faceOffCount == 4)
+    #expect(row.needed == 5)
+
+    let lowest = Data(#"""
+    {"id":"00000000-0000-0000-0000-0000000000d4","name":"cloud paint",
+     "brand_name":"glossier","category_id":"10000000-0000-0000-0000-000000000001",
+     "category_slug":"blush","domain":"makeup","scope":"canonical",
+     "n_face_offs":9,"variant_label":null,"catalog_image_key":null,
+     "catalog_image_width":null,"catalog_image_height":null,
+     "mean_percentile":0.12,"n_users":6,"needed":5,
+     "dislike_reasons":["patchy over foundation"]}
+    """#.utf8)
+    let why = try PostgrestClient.Configuration.jsonDecoder.decode(LeaderboardRow.self, from: lowest)
+    #expect(why.isRankable)
+    #expect(why.dislikeReasons == ["patchy over foundation"])
+}
