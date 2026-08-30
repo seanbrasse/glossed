@@ -1,4 +1,4 @@
-# Session handoff — Aug 29–30 2026 (session 12: the sweep finished, the discover loop closed, and a harness that could not reach its own bug class)
+# Session handoff — Aug 29–30 2026 (session 14: the profile became authorable, a write path that never worked was found, and two fixes were reverted for being partial)
 
 Where Phase 1 stands, what to do next, and what this session learned. Read
 `docs/README.md` first for the design; this file is only about state.
@@ -14,6 +14,57 @@ before editing this file, check whether someone else already updated the same
 row, because on Aug 30 two lanes refreshed it within the hour (and this
 version was written on top of the feed lane's PR before it merged, for the
 same reason).
+
+## Session 14 at a glance (Aug 30, two lanes)
+
+**The profile lane** made the profile authorable and found a write path that
+had never worked:
+
+| PR | What |
+|---|---|
+| [#356](https://github.com/seanbrasse/glossed/pull/356) | **GLO-216** — public text goes through the RPC. Direct writes to `public_texts` were refused by RLS, so linked socials had shipped **dead**. Under a Sean-granted DataKit opening (spent) |
+| [#352](https://github.com/seanbrasse/glossed/pull/352) · [#360](https://github.com/seanbrasse/glossed/pull/360) · [#363](https://github.com/seanbrasse/glossed/pull/363) | **GLO-204** — display name, bio, own-profile avatar initial. The bio's status line **reads the row's `state` back** instead of assuming it |
+| [#361](https://github.com/seanbrasse/glossed/pull/361) | **GLO-187** — tech/02 §3.2: the approved-only render rule does not cover the handle. The handle is the profile's *address* |
+| [#365](https://github.com/seanbrasse/glossed/pull/365) | **GLO-191 part one** — a handle is an identifier, not moderated text. Migration slot taken and returned |
+| [#358](https://github.com/seanbrasse/glossed/pull/358) | **GLO-57** tail in `features/Profile` |
+
+Closed: **GLO-187, GLO-206** (verified item by item against the frame),
+**GLO-216**. Filed **GLO-221**, re-pointed it at GLO-223 after its own proposed
+fix was built, tested and found insufficient — and the other lane's
+[#366](https://github.com/seanbrasse/glossed/pull/366) then closed it with
+`make db-test-clean`.
+
+`db-test` itself deliberately does **not** reset: two lanes share this
+database, and a test command that silently wipes a peer's drive is the wrong
+default. The reset is an explicit door, which is why the standing rule to ping
+before resetting still holds.
+
+**The AddLadder / Shelf / Import lane** closed GLO-21's create path, GLO-61,
+GLO-57 and GLO-208 — [#341](https://github.com/seanbrasse/glossed/pull/341)
+(routines composer, driven), [#342](https://github.com/seanbrasse/glossed/pull/342)
+(`RoutinesRepository`, opening spent),
+[#353](https://github.com/seanbrasse/glossed/pull/353),
+[#354](https://github.com/seanbrasse/glossed/pull/354) +
+[#359](https://github.com/seanbrasse/glossed/pull/359) (`GlossedInput` defaults
+to `.plain`; `plainTyping()` deleted),
+[#355](https://github.com/seanbrasse/glossed/pull/355) (import editor),
+[#357](https://github.com/seanbrasse/glossed/pull/357) (tech/00 deltas 16–20),
+[#362](https://github.com/seanbrasse/glossed/pull/362), and
+[#366](https://github.com/seanbrasse/glossed/pull/366) (**GLO-223**, the
+catalog snapshot). **Nothing of that lane is open at handoff.**
+
+**`make db-reset` now snapshots the catalog and puts it back**, so the safe
+path is the default and the ~50-minute restore is no longer the price of a
+reset. `make catalog-snapshot` / `catalog-restore` are the halves;
+`make db-test-clean` is reset-then-suite. The snapshot on this machine holds
+**22,668 rows**.
+
+**One gap, stated because it is the kind that gets assumed closed:** the
+restore was proven by a truncate-and-restore inside a rolled-back transaction,
+**not against a real `supabase db reset`**. The first person to run
+`make db-reset` is exercising it for the first time — check
+`select count(*) from products` (expect **3,206**) immediately afterwards, and
+if it comes back small, §9's seven scripts are still the rebuild.
 
 **The journal lane finished GLO-110.** The grid is at 34 cells; every named cell
 from the previous round is driven. It filed five issues and closed four in the
@@ -87,6 +138,46 @@ migration files*, and running `discover_rpcs.test.sql` (12 assertions, pass)
 against the very migration the tracker claimed was missing. Stamping came
 after, and only made the bookkeeping agree with what was already known.
 **Bookkeeping is not proof; the probe was.**
+
+**`supabase db reset` costs an hour, and the warning that says so did not stop
+me.** Sean's ruling, Aug 30: *"I'm okay with losing user data at this stage but
+catalog data should be persisted."* The asymmetry is the whole rule — user rows
+are expendable, the catalog is not. A reset re-runs migrations plus `seed.sql`,
+and **`seed.sql` is fixtures, not the catalog**:
+
+| | live | in `seed.sql` |
+|---|---|---|
+| products | 3,206 | 4 |
+| variants | 9,019 | 3 |
+| brands | 497 | 1 |
+
+The catalog came from the import scripts, so a reset is §9's seven-script,
+~50-minute restore, with shelf, search, near-matches and discover down
+meanwhile. **§9 already said this and I still walked up to the reset**, because
+the warning lived in a document read hours earlier about a situation I did not
+yet know I was in. A parallel session stopped me with the number. Until
+GLO-223's snapshot lands, treat a reset as a borrow to announce, not a
+refresh — and get the count first: `select count(*) from products`, never
+`pg_stat_user_tables.n_live_tup`, which reports **0** here because the estimate
+is stale after a bulk load.
+
+**Applying by hand still does not stamp, and it had drifted again.** On Aug 30
+the tracker read **43** against a schema that actually held **46** — 0044, 0045
+and 0046 all applied, none tracked. Verified each against the schema before
+stamping (0044 by the `me.uid <> h.user_id` clause in `public_profile`, 0045 by
+`bios_auto_approve` existing, 0046 by 22 categories / 171 experience chips),
+then stamped 44–47. Same habit as Aug 29, two sessions apart: **the probe first,
+the bookkeeping after.**
+
+**Two instruments lied this session; both fail in the reassuring direction.**
+(1) `pg_stat_user_tables.n_live_tup` reports **0 products** against a
+`count(*)` of **3,206** — an autovacuum estimate, stale after a bulk load. The
+obvious "which tables have data" query therefore says the catalog is already
+empty. (2) **You cannot verify Dynamic Type by changing `content_size` on a
+running app.** `Font(uiFont)` bakes the size at construction, so the running
+app does not re-render — it fails as a **false negative**, and the routines
+lane nearly reverted a working fix because of it. Relaunch after changing the
+size. Both found by the AddLadder/Shelf lane.
 
 **I got this backwards first, and the error shipped in this file's §0** —
 worth keeping because it is cheap to repeat. I read 29-against-40, probed
@@ -244,10 +335,38 @@ Re-ask for anything you need; rulings on tickets stand.
 Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 **GLO**, project **GLOSSED — Phase 1: The Journal**.
 
+**Read these three warnings before picking anything up. Each is a ticket whose
+stated work is wrong, verified by probing rather than by reading it.**
+
+- **Accessibility is not a launch requirement.** Sean, Aug 30: *"Do we need
+  this to launch? I am not seeing this big font feature in half of my favorite
+  iOS apps. I feel like you're wasting my time."* GLO-202 and GLO-109 are Low.
+  Do a11y work **only** when something is broken at the DEFAULT text size, or
+  you are already in the file. [#364](https://github.com/seanbrasse/glossed/pull/364)
+  was green, driven, and **closed unmerged on Sean's call** — he chose closing
+  it over banking work he had deprioritised. Six sites stay unfixed on purpose.
+- **[GLO-53](https://linear.app/glossed/issue/GLO-53)'s proposed fix solves a
+  problem that cannot occur.** A *deleted* item mid-session is already
+  protected twice (FK **and** RLS: `new row violates row-level security
+  policy`). The real hole is the opposite direction — an item **added**
+  mid-session: the RPC's DELETE is scoped by `(category_id, scope_key)` rather
+  than by the item list, so anything the stale snapshot never saw is wiped.
+  Probed: **2 ranked before, 1 after**, silently. Build against that, not
+  against the ticket.
+- **[GLO-61](https://linear.app/glossed/issue/GLO-61)'s stated harm does not
+  exist.** `isMiss` is already guarded on `!isSearching`, and nothing
+  client-side turns `isMiss` into a `failed_searches` write — that happens
+  inside `typeahead` *after* a successful empty search. The real defect was the
+  retry button vanishing, which is what
+  [#353](https://github.com/seanbrasse/glossed/pull/353) fixed.
+
+**Most buildable right now:** [GLO-220](https://linear.app/glossed/issue/GLO-220)
+(carousels) — no migration, no opening, just three answers from Sean.
+
 | Next | Why |
 |---|---|
 | [GLO-21](https://linear.app/glossed/issue/GLO-21) — routines, **create is DONE**, rename/delete and collections are not | The composer is driven and merged ([#341](https://github.com/seanbrasse/glossed/pull/341)), and the write landed under an opening ([#342](https://github.com/seanbrasse/glossed/pull/342), `RoutinesRepository`). What is left: the **collections composer** (unstarted), **rename/delete**, and the + drawer's two options. Read the GLO-21 comment before starting any of them — in particular, rename is **NOT frameless**: `G.Profile` has the routines/collections cards, `applyRename`, and the copy "tap any card to rename it". The create path genuinely has no frame (21 `G.*` screens, checked, not assumed); the edit path does |
-| [GLO-204](https://linear.app/glossed/issue/GLO-204) — display name + bio editor | The avatar half merged as [#328](https://github.com/seanbrasse/glossed/pull/328) (not this lane's). What remains is the name/bio form — and the **bio moderation trap** (§7): `public_texts` rows land `pending` and nothing approves them, so a naive editor writes bios nobody will ever see. Get Sean's call before building the save path |
+| [GLO-204](https://linear.app/glossed/issue/GLO-204) — **display name and bio are DONE; only `avatar_seed` is left, and it is a question not a task** | Display name [#352](https://github.com/seanbrasse/glossed/pull/352), bio [#360](https://github.com/seanbrasse/glossed/pull/360), own-profile avatar initial [#363](https://github.com/seanbrasse/glossed/pull/363). The bio's moderation trap was answered by Sean (auto-approve for beta) and the editor **reads the row's `state` back** rather than assuming it, so the copy stays true when the flag flips. What remains: `avatar_seed` is returned by `public_profile`, carried into Swift, and **read by nothing** — `DesignSystem.Avatar` derives its initial from a *name*, with no seed anywhere in the design. Do not build a picker for it; ask Sean whether the column is dead or the design is missing |
 | [#335](https://github.com/seanbrasse/glossed/pull/335) — the kit nav | Open at handoff, iOS running. Icon-only tabs with drawn glyphs (`KitIcons`), your initial as the third tab, plus outside the capsule. Merges itself on green under the standing grant; if the session died first it is one squash-merge — the drive passed, screenshots went to Sean |
 | [GLO-23](https://linear.app/glossed/issue/GLO-23) — real auth | The account steps (#312) run the full UI against a stubbed `AccountStore`; Sign in with Apple + Twilio phone codes need **Sean at the keyboard** (capabilities, secrets). When it lands: the real entry point replaces the debug door, the returning-user path, the tour-seen marker, and an XCUITest over the trip |
 | ~~`features/Leaderboard` — GLO-20's last surface~~ | **DONE by the onboarding lane** — built to `G.Leaderboard` ([#293](https://github.com/seanbrasse/glossed/pull/293)), both doors into the board wired ([#294](https://github.com/seanbrasse/glossed/pull/294), [#297](https://github.com/seanbrasse/glossed/pull/297)). The scoped ConfidenceMeter stayed deferred-not-decorated, as instructed |: 0042's `leaderboard()` (claims nulled below min-n, rows never hidden, lowest board carries thresholded dislike reasons, 'yours' resolved server-side) and the DataKit read (#285, `LeaderboardRow.isRankable`). The kit frame is REAL for this screen — pull `G.Leaderboard` via docs/DESIGN.md's GetFile recipe and build to it: rank numbers fade to "—" below min-n, empty copy is exactly "not enough face-offs yet · n of 5", butter badge, footer rule line. One frame element deferred deliberately: the scoped ConfidenceMeter has no defined live source — do not invent a number for it. Then wire the product page's `onLeaderboard` (a dead closure since GLO-151) |
@@ -553,7 +672,17 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | Rakuten + Impact publisher accounts | Signups (GLO-90/91 carry the exact steps); need the channel URL above | Sean |
 | Beauty API key | Free Sandbox+Barcode signup at thebeautyapi.com → `BEAUTY_API_KEY` secret | Sean |
 | Any DataKit opening | Per-session authorization. Aug 29 saw two, Aug 30 three more (onboarding lane's #301 + #326, feed lane's #333) — **all spent and expired**. A routines/collections-write opening was ASKED and not answered; re-ask, don't assume | Sean |
-| GLO-204's bio save path | `public_texts` rows land `pending` and no moderation approves them (GLO-26 parked) — auto-approve for beta, an "in review" state, or hold the editor? One sentence decides whether the feature is buildable | Sean |
+| ~~GLO-204's bio save path~~ | **ANSWERED** — Sean, Aug 30: *"Auto-approve bios for the beta cohort."* Shipped as `bios_auto_approve()` (0045) with the switch left in place to turn it back off | — |
+| GLO-204's `avatar_seed` | Dead column or unbuilt feature? It is returned, carried into Swift, and read by nothing; the kit's avatar is an initial and a ring with no seed in it. Building a setter would be inventing a feature | Sean |
+| The hosted catalog | Still needs a DB password, a service-role key, or a CLI login. Everything else on it is ready and has been for two sessions | Sean |
+| [GLO-219](https://linear.app/glossed/issue/GLO-219) captions | Whether the bio ruling extends to routine captions. It probably does, but extending it is **widening a narrow decision** — and `bios_auto_approve()` would then be misnamed | Sean |
+| [GLO-191](https://linear.app/glossed/issue/GLO-191) part two | Not blocked on a ruling, but on **ordering**: the Edge Function and client path must land before `execute` is revoked from `authenticated`, or handle claiming breaks outright in between | any agent |
+| [GLO-53](https://linear.app/glossed/issue/GLO-53) | A migration slot **and** a policy call: refuse a stale apply, or narrow the DELETE and renumber. The diagnosis is already verified — see §1 | Sean |
+| [GLO-218](https://linear.app/glossed/issue/GLO-218) | Two rulings: does a look link to **one** routine or many, and may it credit **someone else's**? If yes, the link needs its own `can_view` check **or a public routine leaks through a look** | Sean |
+| [GLO-217](https://linear.app/glossed/issue/GLO-217) / [GLO-219](https://linear.app/glossed/issue/GLO-219) | Migration slot; GLO-219 also needs the caption ruling above | Sean |
+| [GLO-220](https://linear.app/glossed/issue/GLO-220) carousels | Three questions on the ticket: one slot or several, whose n, and whether a carousel can be purely editorial and still cite people. **No migration needed** — this is the most buildable feed ticket once answered | Sean |
+| [GLO-210](https://linear.app/glossed/issue/GLO-210) | A DataKit opening. Note the shape: the kit's drawer says `am / pm`, so **the frozen side holds the wrong labels** and the fix cannot be made in the feature | Sean |
+| [GLO-164](https://linear.app/glossed/issue/GLO-164), [GLO-55](https://linear.app/glossed/issue/GLO-55) | DataKit openings | Sean |
 | GLO-23 Apple + phone auth | Sign in with Apple capability + Twilio account/secrets are keyboard-minutes; every account screen already exists against the stub | Sean |
 | The browse-tab IA question | Trending + routines browse both exist now; whether they earn a fourth tab or stay one tap behind discover is a nav decision the kit does not answer | Sean |
 | Save/wishlist mapping | Whether `want_to_try` IS the +0.5 save signal (intent, distinct from 0035's unworn-is-not-evidence rule) | Sean |
@@ -933,6 +1062,102 @@ for them"* — avatar, bio, display name, cold-start picks, the confidence meter
 `DesignSystem.Avatar` had shipped with the kit port and nothing drew it.
 **Before concluding something needs building, grep for the component and the
 repository method.**
+
+### Session 14 (the profile lane)
+
+*A feature can be merged, green, driven — and dead.* `submitPublicText` wrote
+**directly to `public_texts`**, which has a SELECT policy and no insert policy,
+so RLS refused every write. Linked socials had shipped that way and told users
+*"that didn't save. try again"* about something that could never save. I had
+also written a migration fixing `set_public_text()` — **a function the app
+never called** — and told Sean "a bio renders the moment it's written", which
+was false. What found it was executing the app's exact INSERT in psql and
+watching it get refused. **A table with only a SELECT policy refuses all client
+writes; check the policy set before believing a write path exists** (GLO-216,
+[#356](https://github.com/seanbrasse/glossed/pull/356)). A pgTAP `throws_ok`
+now asserts the refusal, so nobody "fixes" it by adding an insert policy.
+
+*I closed a ticket on a partial and only caught it by checking the half I had
+not built.* GLO-204 covers three fields; I shipped two and marked it Done.
+Checking the avatar half found a bug **I had created**: `OwnProfileView` drew
+the avatar initial from the handle while the other two profile screens use
+`displayName ?? handle`, so once a display name became settable you were the
+only person seeing a different initial than everyone else. **Before closing a
+ticket, re-read its scope and check every part you did not personally build.**
+
+*Two fixes were reverted this session for being partial, and both would have
+read as complete.* (1) GLO-221: I proposed idempotent pgTAP fixtures in the
+ticket, built all 28 across 16 files, ran it — 334 → 389 assertions, **7 files
+still aborting**, because `public_profile.test.sql` calls the real
+`claim_handle` against a user who already claimed through the app, and an
+`on conflict` there would be flatly wrong. The fixtures were never the bug: the
+suite is written to own its users from a clean slate and the clean slate is
+what is missing. Re-pointed at "reset around the suite", which
+GLO-223's snapshot made affordable within the hour and which shipped as
+`make db-test-clean`. (2) The bio editor's capitalisation: a
+typed `soft glam` stores as `Soft glam`, and I nearly overrode it before
+reading that `GlossedTextArea` **documents having no `typing` option on
+purpose** — prose keeps the system default. **A partial repair that reads as a
+complete one is worse than none**, and the second case is the better lesson:
+the primitive had already decided, in a comment, and my instinct was to
+re-decide it locally.
+
+*Grep found nothing means the query was wrong until proven otherwise.* Three
+misses in one night across two lanes, one root: searching for a **spelling**
+instead of a **behaviour** — literal `U+FE0E` where the source writes
+`\u{FE0E}`; comment lines counted as occurrences; `autocapitalization` where
+the code says `.plainTyping()`. All fail **silently and in the safe-looking
+direction**: you get zero, which reads as "clean". The corollary is the sharp
+one — **the better a codebase is, the more it wraps raw APIs, so grepping for
+the raw API under-reports precisely where people were careful.** Its sibling:
+check a ticket's *status* before reporting on it. A peer reported GLO-172's
+accepted, shipped trade-off as a live finding; that costs Sean's attention
+rather than an agent's, which is the expensive kind.
+
+*State the evidence grade, every time.* Three claims this session rest on
+different footing: the bio was **driven end to end** on the canon device *and*
+verified in psql from both ends; GLO-206's frame items were **read against the
+file** plus its tests and said so on the ticket; the avatar fix was **unit-
+tested by reverting the fix and watching the test fail** before trusting it.
+Saying which is which is what lets the next person know what to re-check.
+
+*Two devices means two OSes, and a wrong path can be blocked by an accident.*
+The canon is **iPhone 16 Pro / iOS 18.0** — a UI finding on another OS may not
+reproduce, and 18.0 → 26.5 is eight majors of text metrics. I reached for an
+iPhone 17 and it refused to attach for an unrelated **permissions** reason. Had
+device access been granted, nothing would have objected and I would have had a
+screenshot that looked like evidence. **The next lane will hit that prompt,
+grant it, and sail straight through.**
+
+### Session 14 (the AddLadder / Shelf / Import lane)
+
+*Three tickets this session described harm that did not exist* — GLO-61's
+`failed_searches` write, GLO-53's deleted-item race, and GLO-172's "open"
+clipping question (the ticket was **Done**, and the clipping is the accepted
+residue of a fix chosen after the obvious one was tried and reverted). All
+three were settled by probing. **A ticket is a hypothesis written by someone
+with less information than you now have — including when you wrote it.**
+Reporting a closed, deliberate trade-off as a live finding is the expensive
+version: it costs *Sean's* attention re-deciding something, with his own
+earlier reasoning invisible.
+
+*"Unblocked" is not the same as "worth doing".* GLO-202 was picked up because
+it was code-only and needed no ruling while every Medium and High item wanted a
+slot or an answer — availability standing in for priority. It cost a night and
+ended in a PR Sean closed unmerged.
+
+*The `plainTyping()` miss is the general case of the grep lesson.* A search for
+`autocapitalization` returned nothing on a file carrying three `.plainTyping()`
+calls, and absence-of-match was read as absence-of-care. **The code had done
+something better than the string being searched for.**
+
+*And a design-system tension worth watching:* `GlossedTextArea` justifies
+having no `typing` option on the grounds that all its uses are prose — and
+[#355](https://github.com/seanbrasse/glossed/pull/355) then found a text area
+that wanted `.plain`. That assumption is one counterexample down; it survives
+only because the import box is a bare `TextEditor`, not a `GlossedTextArea`.
+**If a second one appears, the option belongs on the type, not a third
+feature-local helper.**
 
 ## 9. Local setup
 
