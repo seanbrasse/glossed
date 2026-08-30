@@ -36,9 +36,16 @@ extension AppShell {
             DiscoverView(
                 model: model,
                 onOpenProduct: { openFromCatalog($0) },
-                onOpenTrending: { showTrending = true }
+                onOpenTrending: { showTrending = true },
+                // The tune card (GLO-18): rendered only for the id the gate
+                // armed; anything else stays nil and renders nothing.
+                injectedCard: { id in
+                    guard id == "tune", let client = session.client else { return nil }
+                    return AnyView(TuneCardHost(client: client))
+                }
             )
             .id(ObjectIdentifier(model))
+            .task { await armTuneCard(model) }
             .sheet(isPresented: $showTrending) {
                 if let client = session.client {
                     TrendingView(store: .live(BrowseRepository(client: client)))
