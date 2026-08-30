@@ -31,7 +31,6 @@ public struct RoutineComposerView: View {
                         .font(Typography.mono(12))
                         .foregroundStyle(Tokens.Semantic.accentText)
                         .underline()
-                    Text("PRIVATE · ONLY YOU SEE YOUR ROUTINES").eyebrow()
                     Text("new\nroutine")
                         .font(Typography.display(32))
                         .tracking(-0.64)

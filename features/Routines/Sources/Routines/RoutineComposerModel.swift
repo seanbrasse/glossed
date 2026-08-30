@@ -7,10 +7,14 @@ import Observation
 /// things you own, never of catalog abstractions, which is why steps are
 /// `user_item_id`s in the schema and shelf rows here.
 ///
-/// Private in V1 by construction: the write seam creates rows whose
-/// visibility the schema defaults to `only_you`, and this screen offers no
-/// control to change that — no fake toggle for a visibility that has no
-/// audience yet.
+/// **This screen says nothing about who can see a routine** (GLO-208). It
+/// cannot: `routines` has no visibility column, and read access is decided at
+/// SELECT time by `can_view(user_id, 'routines')` against the owner's
+/// `privacy_scopes` row — which the privacy screen's `everything` control can
+/// flip in one tap, from somewhere else, at any time. A claim here would be
+/// true only until that tap, and a live read would go stale the same way while
+/// looking verified. The privacy screen owns that question and answers it with
+/// a live control; this one composes.
 @MainActor
 @Observable
 public final class RoutineComposerModel {
