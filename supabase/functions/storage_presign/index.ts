@@ -18,12 +18,14 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   cutoutKey,
+  lookKey,
   PRESIGN_TTL_SECONDS,
   presignPut,
   r2Config,
   resolvePublishableKey,
   swatchKey,
   validate,
+  validateLook,
   validateSwatch,
 } from "./presign.ts";
 
@@ -56,21 +58,28 @@ Deno.serve(async (req: Request) => {
     return json({ error: "body must be json" }, 400);
   }
 
-  // Exactly one id decides the namespace. Accepting both would leave the key
-  // shape depending on evaluation order rather than on the request.
+  // Exactly one id decides the namespace. Accepting more than one would leave
+  // the key shape depending on evaluation order rather than on the request.
   const wantsSwatch = body.variant_id !== undefined;
   const wantsCutout = body.user_item_id !== undefined;
-  if (wantsSwatch === wantsCutout) {
-    return json({ error: "exactly one of user_item_id or variant_id is required" }, 400);
+  const wantsLook = body.look_id !== undefined;
+  if ([wantsSwatch, wantsCutout, wantsLook].filter(Boolean).length !== 1) {
+    return json({ error: "exactly one of user_item_id, variant_id or look_id is required" }, 400);
   }
 
   const input = {
     userItemID: body.user_item_id as string,
     variantID: body.variant_id as string,
+    lookID: body.look_id as string,
+    position: body.position as number,
     contentType: body.content_type as string,
     contentLength: body.content_length as number,
   };
-  const rejection = wantsSwatch ? validateSwatch(input) : validate(input);
+  const rejection = wantsSwatch
+    ? validateSwatch(input)
+    : wantsLook
+    ? validateLook(input)
+    : validate(input);
   if (rejection) return json({ error: rejection }, 400);
 
   try {
@@ -108,6 +117,23 @@ Deno.serve(async (req: Request) => {
       if (!allowed) return json({ error: "not allowed for this variant" }, 403);
 
       key = swatchKey(user.id, input.variantID, input.contentType);
+    } else if (wantsLook) {
+      // Same doctrine as swatches: the SAME predicates the insert policies
+      // use, not a reimplementation. can_post_look() (0043) is the minor
+      // gate; the owner check is RLS answering a select on the caller's own
+      // draft. One refusal for both — a minor and a stranger to this look
+      // get byte-identical responses, so this endpoint is not an oracle for
+      // "is that account a minor?".
+      const { data: allowed, error } = await supabase.rpc("can_post_look");
+      if (error) throw error;
+      const { data: look } = await supabase
+        .from("looks")
+        .select("id")
+        .eq("id", input.lookID)
+        .maybeSingle();
+      if (!allowed || !look) return json({ error: "not allowed for this look" }, 403);
+
+      key = lookKey(user.id, input.lookID, input.position, input.contentType);
     } else {
       // Under the caller's JWT, so RLS answers this — a row belonging to someone
       // else comes back as no row, not as a denied read we would have to notice.
