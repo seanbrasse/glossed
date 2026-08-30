@@ -34,10 +34,12 @@ from (values (:'follower_only'::uuid), (:'followed_only'::uuid), (:'stranger'::u
 -- Everyone needs a profile: is_minor_user() is coalesce(..., true), so a user
 -- without one reads as a minor and can_view short-circuits on the minor lock —
 -- every cell below would pass for entirely the wrong reason.
+-- Upsert: maya and juli are seeded with profiles rows now (GLO-182).
 insert into profiles (user_id, birth_year_month, domains)
 values (:'maya', '1998-04', '{makeup}'), (:'juli', '1996-09', '{makeup}'),
        (:'follower_only', '1995-01', '{makeup}'), (:'followed_only', '1994-02', '{makeup}'),
-       (:'stranger', '1993-03', '{makeup}');
+       (:'stranger', '1993-03', '{makeup}')
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month, domains = excluded.domains;
 
 -- The graph: juli is mutual; follower_only follows maya one way; maya follows
 -- followed_only one way; stranger has no edges.

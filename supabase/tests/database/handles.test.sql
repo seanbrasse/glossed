@@ -14,11 +14,15 @@ end $$;
 
 -- maya is an adult; juli is a minor. Both need profiles or is_minor_user()
 -- reads them BOTH as minors and half these assertions pass for the wrong reason.
+-- Upserts, because the seed now writes both rows as adults (GLO-182) and this
+-- suite's juli must be fifteen — the override is the point, so it is stated.
 select test_as(:'maya');
-insert into profiles (user_id, birth_year_month, domains) values (:'maya', '1998-04', '{makeup}');
+insert into profiles (user_id, birth_year_month, domains) values (:'maya', '1998-04', '{makeup}')
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month, domains = excluded.domains;
 select test_as(:'juli');
 insert into profiles (user_id, birth_year_month, domains)
-values (:'juli', to_char(current_date - interval '15 years', 'YYYY-MM'), '{makeup}');
+values (:'juli', to_char(current_date - interval '15 years', 'YYYY-MM'), '{makeup}')
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month, domains = excluded.domains;
 
 -- ---------------------------------------------------------------------------
 -- Claiming

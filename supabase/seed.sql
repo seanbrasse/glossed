@@ -28,6 +28,31 @@ select gen_random_uuid(), u.id,
        'email', u.id::text, now(), now(), now()
 from auth.users u;
 
+-- AN AUTH ROW IS NOT A USER. `is_minor_user` coalesces a missing profiles row
+-- to TRUE (0020's default-deny, correct and deliberate), so a seeded user
+-- without one is a MINOR and every Phase-1.5 surface refuses them:
+-- claim_handle says "handles are a public identity", can_post_swatch and
+-- can_follow are false, lock_minor_scopes rejects privacy writes, and
+-- suggested_people and public_profile come back empty. Each refusal is also
+-- the documented-correct behaviour of a working gate, which is why this cost
+-- a session to find by driving (GLO-182). `seed_age_gate.test.sql` is what
+-- makes the difference legible; deleting these two rows fails it.
+--
+-- Onboarding writes this row in production; seed users never run onboarding,
+-- so these rows are shaped as the END OF ONBOARDING leaves one (PRD §06),
+-- not as a filled-in form. Birthday and domains are asked before signup
+-- ("What you buy. Multi-select across domains"; "Birthday, not age range"),
+-- and haircare pulls the curl-pattern question with it — maya's seeded curl
+-- cream reads "no crunch, 3b-3c", so 3b is her answer. skin_type, concerns
+-- and tone_band stay NULL on purpose: PRD §06 step 9, "Everything
+-- non-blocking moves after signup. Skin type, concerns, looks, brands", and
+-- maya answers the foundation question rather than the palette fallback, so
+-- she has no self-reported band at all. A seed that filled every column would
+-- stop the local stack lying in one direction and start it lying in another.
+insert into profiles (user_id, birth_year_month, domains, hair_pattern) values
+    ('00000000-0000-0000-0000-000000000001', '1998-04', '{makeup,skincare,haircare,fragrance}', '3b'),
+    ('00000000-0000-0000-0000-000000000002', '1996-09', '{makeup,skincare}', null);
+
 -- Category tree slice: one per domain + wear-in variety (tech/01 §1.1)
 -- Reference data (the category tree, the attribute chips and the whole
 -- experience-chip vocabulary) moved to migration 0046 — GLO-51. It is

@@ -31,10 +31,17 @@ values (:'pid', '20000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000
         'makeup', 'trending fixture', 'trending fixture', 'canonical');
 insert into variants (id, product_id, kind, shade_code) values (:'vid', :'pid', 'shade', 'f1');
 
+-- Upserts: the seed writes both profiles rows now (GLO-182). juli's skin_type
+-- is set to NULL explicitly rather than omitted — "deliberately no skin_type"
+-- has to survive a pre-existing row, or the cohort split stops being a split.
 insert into profiles (user_id, birth_year_month, domains, skin_type)
-values (:'maya', '1998-04', '{makeup}', 'combo');
-insert into profiles (user_id, birth_year_month, domains)
-values (:'juli', '1996-09', '{makeup}');   -- deliberately no skin_type
+values (:'maya', '1998-04', '{makeup}', 'combo')
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month,
+    domains = excluded.domains, skin_type = excluded.skin_type;
+insert into profiles (user_id, birth_year_month, domains, skin_type)
+values (:'juli', '1996-09', '{makeup}', null)   -- deliberately no skin_type
+on conflict (user_id) do update set birth_year_month = excluded.birth_year_month,
+    domains = excluded.domains, skin_type = excluded.skin_type;
 
 -- ---------------------------------------------------------------------------
 -- Shape and reach. agg_trending was created after 0024/0027 swept the tables
