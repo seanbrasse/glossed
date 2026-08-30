@@ -3,9 +3,13 @@ import Foundation
 import Testing
 @testable import Profile
 
-private func profile(shelfN: Int = 0, followers: Int = 0, following: Int = 0, ranked: Int = 0) -> PublicProfile {
+private func profile(
+    shelfN: Int = 0, followers: Int = 0, following: Int = 0, ranked: Int = 0,
+    displayName: String? = nil
+) -> PublicProfile {
+    let name = displayName.map { "\"\($0)\"" } ?? "null"
     let json = Data("""
-    {"handle":"maya_k","display_name":null,"avatar_seed":null,"bio":null,
+    {"handle":"maya_k","display_name":\(name),"avatar_seed":null,"bio":null,
      "badge_skin_type":null,"badge_anchor":null,"badge_hair_pattern":null,
      "followers":\(followers),"following":\(following),"shelf_n":\(shelfN),
      "ranked_lists_n":\(ranked),"shelf_visible":true,"rankings_visible":true,
@@ -66,4 +70,27 @@ private func store(
     let model = OwnProfileModel(store: store(profileFor: { _ in profile(shelfN: 1) }))
     await model.load()
     #expect(model.shelfLine == "1 thing on your shelf")
+}
+
+@MainActor
+@Test func yourOwnAvatarUsesTheSameNameEveryoneElseSees() async {
+    // ViewedProfileView and StrangerPreviewView both draw the initial from
+    // `displayName ?? handle`. This screen drew it from the handle alone,
+    // which was invisible until #352 made a display name settable — and then
+    // "rae" on @maya_k gave everyone else "r" and you "m". You would be the
+    // only person seeing a different avatar than the one you have.
+    let named = OwnProfileModel(store: store(profileFor: { _ in profile(displayName: "rae") }))
+    await named.load()
+    #expect(named.avatarName == "rae")
+
+    // No display name set: the handle, exactly as the other two screens fall back.
+    let unnamed = OwnProfileModel(store: store())
+    await unnamed.load()
+    #expect(unnamed.avatarName == "maya_k")
+
+    // No handle either — the pre-claim state is not an error, and Avatar's own
+    // rule turns "?" into the "?" glyph rather than an empty circle.
+    let blank = OwnProfileModel(store: store(handle: { nil }, profileFor: { _ in nil }))
+    await blank.load()
+    #expect(blank.avatarName == "?")
 }

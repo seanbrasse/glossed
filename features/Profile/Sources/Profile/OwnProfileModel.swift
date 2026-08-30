@@ -119,6 +119,23 @@ public final class OwnProfileModel {
         profile?.rankedListsN ?? 0
     }
 
+    /// What the avatar draws its initial from — the same source every other
+    /// screen uses.
+    ///
+    /// `ViewedProfileView` and `StrangerPreviewView` both pass
+    /// `displayName ?? handle`; this screen passed `handle` alone. That was
+    /// harmless until #352 made a display name settable, and then it wasn't:
+    /// set the name "rae" on the handle `@maya_k` and everyone else sees "r"
+    /// while your own profile shows "m". You would be the only person looking
+    /// at a different avatar than the one you have.
+    ///
+    /// It lives on the model rather than in the view so the rule is one
+    /// expression a test can hold, instead of three call sites that have
+    /// already drifted once.
+    public var avatarName: String {
+        profile?.displayName ?? handle ?? "?"
+    }
+
     /// True when the handle exists but the PROFILE is not reachable — which is
     /// not a moderation state. The handle itself is public the moment it is
     /// claimed (GLO-187); this covers the profile read failing for another

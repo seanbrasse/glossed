@@ -107,7 +107,7 @@ public struct OwnProfileView: View {
                 // Hidden from VoiceOver: it is the same initial the handle
                 // beside it already says, and announcing "m" then "@maya_k"
                 // reads as two facts when it is one.
-                Avatar(name: model.handle ?? "?", size: 52)
+                Avatar(name: model.avatarName, size: 52)
                     .accessibilityHidden(true)
                 Text(model.handle.map { "@\($0)" } ?? "no handle yet")
                     .font(Typography.display(Typography.Size.h1))
