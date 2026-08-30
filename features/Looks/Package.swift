@@ -9,14 +9,16 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../../core/DataKit"),
-        .package(path: "../../core/DesignSystem")
+        .package(path: "../../core/DesignSystem"),
+        .package(path: "../../core/Media")
     ],
     targets: [
         .target(
             name: "Looks",
             dependencies: [
                 .product(name: "DataKit", package: "DataKit"),
-                .product(name: "DesignSystem", package: "DesignSystem")
+                .product(name: "DesignSystem", package: "DesignSystem"),
+                .product(name: "Media", package: "Media")
             ]
         ),
         .testTarget(name: "LooksTests", dependencies: ["Looks"])
