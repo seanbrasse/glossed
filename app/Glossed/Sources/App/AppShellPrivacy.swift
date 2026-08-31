@@ -28,12 +28,20 @@ extension AppShell {
                 ),
                 suggestionsStore: .live(SocialRepository(client: client)),
                 safetyStore: .live(SafetyRepository(client: client)),
-                socialsStore: .live(SafetyRepository(client: client)),
-                previewStore: .live(
-                    social: SocialRepository(client: client),
-                    privacy: PrivacyRepository(client: client),
-                    safety: SafetyRepository(client: client)
-                ),
+                // `socialsStore` and `previewStore` are gone from the screen,
+                // so they are gone from here rather than being defaulted away.
+                // Linked socials is a setting now (GLO-261, #403) and
+                // `SettingsView` builds its own; `what a stranger sees` is
+                // deleted, because the scope lives on each tab. A defaulted
+                // parameter nothing passes is exactly the residue this
+                // redesign exists to remove.
+                //
+                // The four grid seams, the scopes the marks read and the `+`
+                // are still unwired here — the profile renders its identity
+                // block and nothing under it until they are. That is GLO-261's
+                // last PR, and it is deliberately not this one: this file is
+                // touched only for the call site the screen's own change
+                // breaks.
                 onClaimHandle: { handleOpen = true },
                 onOpenPrivacy: { privacyOpen = true },
                 // Settings is a state of this screen, not a tab — the frame's

@@ -60,23 +60,28 @@ private func store(
 
 @MainActor
 @Test func anEmptyShelfStillStatesItsN() async {
-    // Zero is shown, not hidden. A claim that disappears when it is
-    // unflattering is not evidence.
+    // Zero is shown, not hidden. A count that disappears when it is
+    // unflattering is not a count.
     let model = OwnProfileModel(store: store(profileFor: { _ in profile(shelfN: 0) }))
     await model.load()
-    #expect(model.statLine.hasPrefix("0 shelved"))
+    #expect(model.statLine == "0 followers · 0 following · 0 on your shelf")
 }
 
 @MainActor
-@Test func theStatLineIsTheFramesOneMonoRow() async {
-    // `G.Profile` writes `34 shelved · 7 ranked lists · 1 product you
-    // created`. The third clause has no column behind it; follows do, and
-    // arrived after the frame was drawn.
+@Test func theStatLineIsSeansThreeMetrics() async {
+    // **Rewritten for GLO-261, not repaired.** This asserted the frame's
+    // `34 shelved · 7 ranked lists · …`. Sean named the metrics himself:
+    // "your followers, your following, maybe profile views, amount of things
+    // on your shelf". Three of the four; profile views has no table, no
+    // counter and no write path, and GLO-262 carries that cost.
     let model = OwnProfileModel(store: store(profileFor: { _ in
         profile(shelfN: 34, followers: 12, following: 9, ranked: 7)
     }))
     await model.load()
-    #expect(model.statLine == "34 shelved · 7 ranked lists · 12 followers · 9 following")
+    #expect(model.statLine == "12 followers · 9 following · 34 on your shelf")
+    // The ranked-list count is still read and still true — it is just not one
+    // of the three Sean asked to see.
+    #expect(model.rankedListsN == 7)
 }
 
 @MainActor
@@ -85,12 +90,40 @@ private func store(
         profile(shelfN: 1, followers: 1, following: 1, ranked: 1)
     }))
     await model.load()
-    #expect(model.statLine == "1 shelved · 1 ranked list · 1 follower · 1 following")
+    #expect(model.statLine == "1 follower · 1 following · 1 on your shelf")
+}
+
+@MainActor
+@Test func theNameLeadsAndTheHandleSitsUnderIt() async {
+    // Sean's sketch: `[avatar] display name / @handle`. This inverts #363,
+    // which made the handle the h1 — the handle is still the profile's address
+    // (GLO-187) and still on the identity line, one line down.
+    let named = OwnProfileModel(store: store(profileFor: { _ in profile(displayName: "rae") }))
+    await named.load()
+    #expect(named.leadName == "rae")
+    #expect(named.handleLine == "@maya_k")
+}
+
+@MainActor
+@Test func withNoDisplayNameTheHandleTakesTheTopLineRatherThanLeavingItBlank() async {
+    let unnamed = OwnProfileModel(store: store(profileFor: { _ in profile(displayName: nil) }))
+    await unnamed.load()
+    #expect(unnamed.leadName == "@maya_k")
+    // And is not printed twice.
+    #expect(unnamed.handleLine == nil)
+}
+
+@MainActor
+@Test func beforeAHandleIsClaimedTheBlockSaysSo() async {
+    let model = OwnProfileModel(store: store(handle: { nil }))
+    await model.load()
+    #expect(model.leadName == "no handle yet")
+    #expect(model.handleLine == nil)
 }
 
 @MainActor
 @Test func yourOwnAvatarUsesTheSameNameEveryoneElseSees() async {
-    // ViewedProfileView and StrangerPreviewView both draw the initial from
+    // ViewedProfileView draws the initial from
     // `displayName ?? handle`. This screen drew it from the handle alone,
     // which was invisible until #352 made a display name settable — and then
     // "rae" on @maya_k gave everyone else "r" and you "m". You would be the
