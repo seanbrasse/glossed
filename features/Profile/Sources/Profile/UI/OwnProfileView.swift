@@ -23,6 +23,9 @@ public struct OwnProfileView: View {
     @State private var viewing: SuggestedPerson?
     @State private var showingSettings = false
     @State private var claimingHandle = false
+    /// The pfp upload's failure line, rendered under the header row (a line
+    /// inside the avatar's column would shove the identity sideways).
+    @State private var photoFailure: String?
     /// The identity field `edit profile` is editing, if any (GLO-271).
     @State private var editingIdentity: ProfileIdentityField?
     private let onClaimHandle: () -> Void
@@ -31,6 +34,7 @@ public struct OwnProfileView: View {
     private let onOpenLook: ((UUID) -> Void)?
     private let onOpenCollection: ((UUID) -> Void)?
     private let onOpenRoutine: ((UUID) -> Void)?
+    private let photoStore: ProfilePhotoStore?
     private let settingsStore: SettingsStore?
     private let handleStore: HandleStore?
     private let onSignedOut: () -> Void
@@ -64,6 +68,9 @@ public struct OwnProfileView: View {
         // (GLO-272 — the click-in).
         onOpenCollection: ((UUID) -> Void)? = nil,
         onOpenRoutine: ((UUID) -> Void)? = nil,
+        // Absent, the avatar is the seeded initial and carries no edit badge
+        // (GLO-272's pfp door).
+        photoStore: ProfilePhotoStore? = nil,
         // Absent, `onClaimHandle` is handed up as before — and GLO-239 stays
         // open. See `claimSheet`.
         handleStore: HandleStore? = nil
@@ -83,6 +90,7 @@ public struct OwnProfileView: View {
         self.onOpenLook = onOpenLook
         self.onOpenCollection = onOpenCollection
         self.onOpenRoutine = onOpenRoutine
+        self.photoStore = photoStore
         self.settingsStore = settingsStore
         self.handleStore = handleStore
         self.onSignedOut = onSignedOut
@@ -202,16 +210,20 @@ public struct OwnProfileView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s2) {
             HStack(spacing: Tokens.Space.s3) {
-                // Hidden from VoiceOver: it is the same initial the name
-                // beside it already says, and announcing "m" then "maya" reads
-                // as two facts when it is one.
-                Avatar(name: model.avatarName, size: 52)
-                    .accessibilityHidden(true)
+                // The avatar hides from VoiceOver inside the control (the
+                // same initial the name beside it already says); the edit
+                // badge stays audible — it is a different fact.
+                ProfileAvatarControl(
+                    name: model.avatarName, store: photoStore, failure: $photoFailure
+                )
                 identity
                 Spacer(minLength: Tokens.Space.s2)
                 // The frame's entry to settings, and the only one — settings
                 // is a state of this screen, not a tab.
                 IconButton("gearshape", label: "settings") { showingSettings = true }
+            }
+            if let photoFailure {
+                Text(photoFailure).meta()
             }
             ProfileBadgeRow(
                 skinType: model.profile?.badgeSkinType,
