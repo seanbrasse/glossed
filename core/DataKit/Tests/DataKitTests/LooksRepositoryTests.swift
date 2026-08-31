@@ -6,12 +6,17 @@ import Testing
 // by pgTAP (looks.test.sql), which is the actual security boundary.
 
 @Test func aDraftMintsItsOwnPrimaryKeyAndKeepsACallerSuppliedOne() {
-    let one = LookDraft(caption: nil, photos: [], tags: [])
-    let two = LookDraft(caption: nil, photos: [], tags: [])
+    let one = LookDraft(caption: nil, photos: [], spots: [])
+    let two = LookDraft(caption: nil, photos: [], spots: [])
     #expect(one.lookID != two.lookID)
-    // …and a retry of the SAME draft is the same row, not a duplicate.
+    // …and a retry of the SAME draft is the same row, not a duplicate. The
+    // same rule now covers photos and spots, because 0049 made both of them
+    // referenced-by-id: the draft mints every key it will ever write.
     let fixed = UUID()
-    #expect(LookDraft(caption: nil, photos: [], tags: [], lookID: fixed).lookID == fixed)
+    #expect(LookDraft(caption: nil, photos: [], spots: [], lookID: fixed).lookID == fixed)
+    let photo = LookDraft.Photo(r2Key: "k", position: 0)
+    let spot = LookDraft.Spot(photoID: photo.id, x: 0.5, y: 0.5, products: [])
+    #expect(photo.id != spot.id)
 }
 
 @Test func rowEncodingsMatchTheMigrationsColumns() throws {
@@ -21,11 +26,15 @@ import Testing
     let lookKeys = try keys(of: look)
     #expect(lookKeys == ["caption", "id", "user_id"])
 
-    let photo = LooksRepository.PhotoRow(lookID: UUID(), r2Key: "k", position: 0)
-    #expect(try keys(of: photo) == ["look_id", "position", "r2_key"])
+    let photo = LooksRepository.PhotoRow(id: UUID(), lookID: UUID(), r2Key: "k", position: 0)
+    #expect(try keys(of: photo) == ["id", "look_id", "position", "r2_key"])
 
-    let tag = LooksRepository.TagRow(lookID: UUID(), variantID: UUID(), x: 0.5, y: 0.5)
-    #expect(try keys(of: tag) == ["look_id", "variant_id", "x", "y"])
+    // 0049's shape: the spot carries the photo, the products ride separately.
+    let spot = LooksRepository.TagSpotRow(id: UUID(), lookPhotoID: UUID(), x: 0.5, y: 0.5)
+    #expect(try keys(of: spot) == ["id", "look_photo_id", "x", "y"])
+
+    let variant = LooksRepository.TagVariantRow(lookTagID: UUID(), variantID: UUID(), position: 0)
+    #expect(try keys(of: variant) == ["look_tag_id", "position", "variant_id"])
 }
 
 // The owner-side reads and the publish transition (GLO-230, GLO-238). `mine()`
@@ -53,7 +62,7 @@ import Testing
         LooksRepository.OwnPhotoRow(id: second, lookID: lookID, r2Key: "b", position: 1)
     ]
 
-    let assembled = LooksRepository.assemble(looks: [look], photos: photos, tags: [])
+    let assembled = LooksRepository.assemble(looks: [look], photos: photos, tags: [], variants: [])
     #expect(assembled.count == 1)
     #expect(assembled[0].photos.map(\.r2Key) == ["a", "b", "c"])
     #expect(assembled[0].photoN == 3) // the n matches what is drawn
@@ -69,20 +78,29 @@ import Testing
             id: $0, caption: nil, state: .draft, postedAt: nil, createdAt: Date()
         )
     }
+    let mondayPhoto = UUID(), tuesdayPhoto = UUID()
     let photos = [
-        LooksRepository.OwnPhotoRow(id: UUID(), lookID: tuesday, r2Key: "tue", position: 0),
-        LooksRepository.OwnPhotoRow(id: UUID(), lookID: monday, r2Key: "mon", position: 0)
+        LooksRepository.OwnPhotoRow(id: tuesdayPhoto, lookID: tuesday, r2Key: "tue", position: 0),
+        LooksRepository.OwnPhotoRow(id: mondayPhoto, lookID: monday, r2Key: "mon", position: 0)
     ]
+    // Spots reach a look THROUGH its photo since 0049 — this grouping is what
+    // keeps yesterday's spot off today's look, and the variants follow the
+    // spot the same way.
+    let mondayTag = UUID(), tuesdayTag = UUID()
     let tags = [
-        LooksRepository.OwnTagRow(lookID: monday, variantID: mondayVariant, x: 0.1, y: 0.2),
-        LooksRepository.OwnTagRow(lookID: tuesday, variantID: tuesdayVariant, x: 0.3, y: 0.4)
+        LooksRepository.OwnTagRow(id: mondayTag, lookPhotoID: mondayPhoto, x: 0.1, y: 0.2),
+        LooksRepository.OwnTagRow(id: tuesdayTag, lookPhotoID: tuesdayPhoto, x: 0.3, y: 0.4)
+    ]
+    let variants = [
+        LooksRepository.OwnTagVariantRow(lookTagID: mondayTag, variantID: mondayVariant, position: 0),
+        LooksRepository.OwnTagVariantRow(lookTagID: tuesdayTag, variantID: tuesdayVariant, position: 0)
     ]
 
-    let assembled = LooksRepository.assemble(looks: looks, photos: photos, tags: tags)
+    let assembled = LooksRepository.assemble(looks: looks, photos: photos, tags: tags, variants: variants)
     #expect(assembled[0].photos.map(\.r2Key) == ["mon"])
-    #expect(assembled[0].tags.map(\.variantID) == [mondayVariant])
+    #expect(assembled[0].spots.flatMap(\.products).map(\.variantID) == [mondayVariant])
     #expect(assembled[1].photos.map(\.r2Key) == ["tue"])
-    #expect(assembled[1].tags.map(\.variantID) == [tuesdayVariant])
+    #expect(assembled[1].spots.flatMap(\.products).map(\.variantID) == [tuesdayVariant])
 }
 
 @Test func aLookWithNoPhotosAssemblesRatherThanDisappearing() {
@@ -91,7 +109,7 @@ import Testing
     let look = LooksRepository.OwnLookRow(
         id: UUID(), caption: nil, state: .draft, postedAt: nil, createdAt: Date()
     )
-    let assembled = LooksRepository.assemble(looks: [look], photos: [], tags: [])
+    let assembled = LooksRepository.assemble(looks: [look], photos: [], tags: [], variants: [])
     #expect(assembled.count == 1)
     #expect(assembled[0].photoN == 0)
     #expect(assembled[0].isPublished == false)
@@ -139,7 +157,7 @@ import Testing
     let draft = LooksRepository.OwnLookRow(
         id: UUID(), caption: nil, state: .draft, postedAt: nil, createdAt: Date()
     )
-    let assembled = LooksRepository.assemble(looks: [published, draft], photos: [], tags: [])
+    let assembled = LooksRepository.assemble(looks: [published, draft], photos: [], tags: [], variants: [])
     #expect(assembled[0].isPublished)
     #expect(assembled[0].postedAt == stamped)
     #expect(assembled[1].isPublished == false)
@@ -153,4 +171,28 @@ private func encoded(_ value: some Encodable) throws -> [String: Any] {
 
 private func keys(of value: some Encodable) throws -> [String] {
     try encoded(value).keys.sorted()
+}
+
+@Test func productsInsideASpotComeBackInOverlayOrder() {
+    // 0049: `position` orders the overlay, is deliberately NOT unique, and
+    // ties break by variant_id. The sort lives in `assemble`, so it is
+    // testable without a database — same reasoning as the photo sort above.
+    let lookID = UUID(), photoID = UUID(), tagID = UUID()
+    let look = LooksRepository.OwnLookRow(
+        id: lookID, caption: nil, state: .draft, postedAt: nil, createdAt: Date()
+    )
+    let photo = LooksRepository.OwnPhotoRow(id: photoID, lookID: lookID, r2Key: "a", position: 0)
+    let tag = LooksRepository.OwnTagRow(id: tagID, lookPhotoID: photoID, x: 0.5, y: 0.5)
+    let tied = [UUID(), UUID()].sorted { $0.uuidString < $1.uuidString }
+    let variants = [
+        LooksRepository.OwnTagVariantRow(lookTagID: tagID, variantID: tied[1], position: 1),
+        LooksRepository.OwnTagVariantRow(lookTagID: tagID, variantID: UUID(), position: 0),
+        LooksRepository.OwnTagVariantRow(lookTagID: tagID, variantID: tied[0], position: 1)
+    ]
+
+    let assembled = LooksRepository.assemble(looks: [look], photos: [photo], tags: [tag], variants: variants)
+    let products = assembled[0].spots[0].products
+    #expect(products.map(\.position) == [0, 1, 1])
+    #expect(products[1].variantID == tied[0], "the tie breaks by variant_id")
+    #expect(assembled[0].spots[0].photoID == photoID)
 }

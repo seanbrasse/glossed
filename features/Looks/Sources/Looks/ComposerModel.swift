@@ -18,37 +18,20 @@ public struct ComposerPhoto: Identifiable, Sendable, Equatable {
     }
 }
 
-/// A pin on a photo: which variant, and where. Normalized coordinates so the
-/// tag survives any render size — the DB checks the same 0...1 range (0043).
-public struct ComposerTag: Identifiable, Sendable, Equatable {
-    public let variantID: UUID
-    public let label: String
-    public var x: Double
-    public var y: Double
-
-    public var id: UUID {
-        variantID
-    }
-
-    public init(variantID: UUID, label: String, x: Double, y: Double) {
-        self.variantID = variantID
-        self.label = label
-        self.x = min(max(x, 0), 1)
-        self.y = min(max(y, 0), 1)
-    }
-}
-
 /// What the composer asks of the world, as closures (the TrendingStore
 /// shape). `save` persists a draft and returns its id; `searchShelf` is the
 /// pin-tag picker's source — you tag what you OWN (tech/03 §1), so this
 /// searches the shelf, never the catalog.
 public struct LooksStore: Sendable {
-    public var save: @Sendable (_ caption: String, _ photos: [ComposerPhoto], _ tags: [ComposerTag]) async throws
+    /// Takes the board's SPOTS since 0049 landed — the projection down to
+    /// look-scoped single-product rows lived in `ComposerModelLegacyTags`
+    /// and was deleted with it, exactly as its banner promised.
+    public var save: @Sendable (_ caption: String, _ photos: [ComposerPhoto], _ spots: [LookTagSpot]) async throws
         -> UUID
     public var searchShelf: @Sendable (_ query: String) async throws -> [ShelfTagCandidate]
 
     public init(
-        save: @escaping @Sendable (String, [ComposerPhoto], [ComposerTag]) async throws -> UUID,
+        save: @escaping @Sendable (String, [ComposerPhoto], [LookTagSpot]) async throws -> UUID,
         searchShelf: @escaping @Sendable (String) async throws -> [ShelfTagCandidate]
     ) {
         self.save = save
@@ -243,7 +226,7 @@ public final class ComposerModel {
         saveFailure = nil
         saveTask = Task {
             do {
-                let id = try await store.save(caption, photos, tags)
+                let id = try await store.save(caption, photos, tagBoard.spots)
                 phase = .saved(id)
             } catch {
                 // Composing, not lost: everything typed and tagged is still

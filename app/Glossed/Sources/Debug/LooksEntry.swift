@@ -123,14 +123,10 @@
                 model.addPhoto(tileData(tints[index % tints.count]))
             }
             model.caption = "golden hour, favorites on"
-            model.tag(
-                ShelfTagCandidate(variantID: UUID(), label: "fenty pro filt'r · 330"),
-                x: 0.3, y: 0.4
-            )
-            model.tag(
-                ShelfTagCandidate(variantID: UUID(), label: "rare beauty soft pinch · joy"),
-                x: 0.7, y: 0.6
-            )
+            // No pre-seeded tags. The one-shot `tag()` retired with 0049, and
+            // `tagBoard` is internal(set) on purpose — a fixture that reaches
+            // past that is testing an API the app does not have. Place tags
+            // through the canvas: that interaction IS the feature (#418).
             return ComposerView(model: model, onPickPhoto: {})
                 .task {
                     if thenPost {

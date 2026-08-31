@@ -6,39 +6,68 @@ import Supabase
 /// that leaves a photo-less look row behind on a mid-flight failure.
 public struct LookDraft: Sendable {
     public struct Photo: Sendable {
+        /// Client-minted, and it is not optional bookkeeping: `look_tags`
+        /// keys on `look_photo_id` (0049), so a spot cannot be written unless
+        /// the draft knew its photo's id BEFORE the save. Minting here also
+        /// keeps the retry idempotent — the same draft re-lands the same row.
+        public let id: UUID
         public let r2Key: String
         public let position: Int
 
-        public init(r2Key: String, position: Int) {
+        public init(id: UUID = UUID(), r2Key: String, position: Int) {
+            self.id = id
             self.r2Key = r2Key
             self.position = position
         }
     }
 
-    public struct Tag: Sendable {
+    /// One product inside a spot. `position` orders the overlay; readers
+    /// break ties by `variant_id` (0049's own comment).
+    public struct SpotProduct: Sendable {
         public let variantID: UUID
+        public let position: Int
+
+        public init(variantID: UUID, position: Int) {
+            self.variantID = variantID
+            self.position = position
+        }
+    }
+
+    /// A tag, in Sean's model (GLO-266): a SPOT on one photo, holding several
+    /// products. This replaced `Tag(variantID:x:y:)`, which was the 0043 shape
+    /// — look-scoped, one product per row — and could express neither half.
+    public struct Spot: Sendable {
+        /// Client-minted for the same reason `Photo.id` is: `look_tag_variants`
+        /// keys on it, and a retry must re-land rather than duplicate.
+        public let id: UUID
+        /// Must be the `id` of a `Photo` in this same draft — the repository
+        /// writes photos first for exactly this dependency.
+        public let photoID: UUID
         public let x: Double
         public let y: Double
+        public let products: [SpotProduct]
 
-        public init(variantID: UUID, x: Double, y: Double) {
-            self.variantID = variantID
+        public init(id: UUID = UUID(), photoID: UUID, x: Double, y: Double, products: [SpotProduct]) {
+            self.id = id
+            self.photoID = photoID
             self.x = x
             self.y = y
+            self.products = products
         }
     }
 
     public let caption: String?
     public let photos: [Photo]
-    public let tags: [Tag]
+    public let spots: [Spot]
     /// Idempotency, the LogDraft pattern with 0043's shape: the caller mints
     /// the look's PRIMARY KEY, so a retry after a failed save upserts the same
     /// row rather than minting a duplicate — no client_id column needed.
     public let lookID: UUID
 
-    public init(caption: String?, photos: [Photo], tags: [Tag], lookID: UUID = UUID()) {
+    public init(caption: String?, photos: [Photo], spots: [Spot], lookID: UUID = UUID()) {
         self.caption = caption
         self.photos = photos
-        self.tags = tags
+        self.spots = spots
         self.lookID = lookID
     }
 }
@@ -81,43 +110,6 @@ public struct LooksRepository: Sendable {
         self.client = client
     }
 
-    struct LookRow: Encodable {
-        let id: UUID
-        let userID: UUID
-        let caption: String?
-
-        enum CodingKeys: String, CodingKey {
-            case id
-            case userID = "user_id"
-            case caption
-        }
-    }
-
-    struct PhotoRow: Encodable {
-        let lookID: UUID
-        let r2Key: String
-        let position: Int
-
-        enum CodingKeys: String, CodingKey {
-            case lookID = "look_id"
-            case r2Key = "r2_key"
-            case position
-        }
-    }
-
-    struct TagRow: Encodable {
-        let lookID: UUID
-        let variantID: UUID
-        let x: Double
-        let y: Double
-
-        enum CodingKeys: String, CodingKey {
-            case lookID = "look_id"
-            case variantID = "variant_id"
-            case x, y
-        }
-    }
-
     private struct InsertedID: Decodable {
         let id: UUID
     }
@@ -142,23 +134,45 @@ public struct LooksRepository: Sendable {
             return inserted.id
         }
         try await run {
+            // Photos first: spots reference them by id (0049), so the order
+            // below is a dependency, not a style choice.
+            //
+            // `ignoreDuplicates` on every child write, and it is load-bearing:
+            // NONE of the three child tables carries an UPDATE policy —
+            // "moving a pin is a delete and an insert" (0049's comment, and
+            // look_photos was always insert/delete/select). An upsert that
+            // resolves to DO UPDATE therefore dies as 42501 on the retry path,
+            // which is precisely the path upsert exists for. DO NOTHING is the
+            // retry that can succeed: rows that landed are skipped, rows that
+            // did not are inserted.
             if !draft.photos.isEmpty {
                 let rows = draft.photos.map {
-                    PhotoRow(lookID: lookID, r2Key: $0.r2Key, position: $0.position)
+                    PhotoRow(id: $0.id, lookID: lookID, r2Key: $0.r2Key, position: $0.position)
                 }
                 try await client.supabase
                     .from("look_photos")
-                    .upsert(rows, onConflict: "look_id,position")
+                    .upsert(rows, onConflict: "id", ignoreDuplicates: true)
                     .execute()
             }
-            if !draft.tags.isEmpty {
-                let rows = draft.tags.map {
-                    TagRow(lookID: lookID, variantID: $0.variantID, x: $0.x, y: $0.y)
+            if !draft.spots.isEmpty {
+                let spotRows = draft.spots.map {
+                    TagSpotRow(id: $0.id, lookPhotoID: $0.photoID, x: $0.x, y: $0.y)
                 }
                 try await client.supabase
                     .from("look_tags")
-                    .upsert(rows, onConflict: "look_id,variant_id")
+                    .upsert(spotRows, onConflict: "id", ignoreDuplicates: true)
                     .execute()
+                let variantRows = draft.spots.flatMap { spot in
+                    spot.products.map {
+                        TagVariantRow(lookTagID: spot.id, variantID: $0.variantID, position: $0.position)
+                    }
+                }
+                if !variantRows.isEmpty {
+                    try await client.supabase
+                        .from("look_tag_variants")
+                        .upsert(variantRows, onConflict: "look_tag_id,variant_id", ignoreDuplicates: true)
+                        .execute()
+                }
             }
         }
         return lookID
@@ -204,15 +218,30 @@ public struct LooksRepository: Sendable {
                 .execute()
                 .value
         }
-        let tags: [OwnTagRow] = try await run {
+        // Tags hang off PHOTOS since 0049, so the id list that scopes them is
+        // the photos', not the looks' — and the variant rows hang off the
+        // tags in turn. Both reads are filtered to ids this call already
+        // owns, which is what keeps GLO-258's rule: the pinned `user_id`
+        // above is the scope, and these child fetches inherit it by key.
+        let photoIDs = photos.map(\.id.uuidString)
+        let tags: [OwnTagRow] = photoIDs.isEmpty ? [] : try await run {
             try await client.supabase
                 .from("look_tags")
-                .select("look_id,variant_id,x,y")
-                .in("look_id", values: lookIDs)
+                .select("id,look_photo_id,x,y")
+                .in("look_photo_id", values: photoIDs)
                 .execute()
                 .value
         }
-        return LooksRepository.assemble(looks: looks, photos: photos, tags: tags)
+        let tagIDs = tags.map(\.id.uuidString)
+        let variants: [OwnTagVariantRow] = tagIDs.isEmpty ? [] : try await run {
+            try await client.supabase
+                .from("look_tag_variants")
+                .select("look_tag_id,variant_id,position")
+                .in("look_tag_id", values: tagIDs)
+                .execute()
+                .value
+        }
+        return LooksRepository.assemble(looks: looks, photos: photos, tags: tags, variants: variants)
     }
 
     /// Publishes a look. One column, and deliberately nothing else.
