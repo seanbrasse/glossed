@@ -70,14 +70,46 @@ Deno.serve(async (req: Request) => {
   const wantsLook = body.look_id !== undefined;
   const wantsRead = body.look_photo_ids !== undefined;
   const wantsProfile = body.profile_photo === true;
-  if ([wantsSwatch, wantsCutout, wantsLook, wantsRead, wantsProfile].filter(Boolean).length !== 1) {
+  const wantsProfileRead = body.profile_photo_read === true;
+  if (
+    [wantsSwatch, wantsCutout, wantsLook, wantsRead, wantsProfile, wantsProfileRead]
+      .filter(Boolean).length !== 1
+  ) {
     return json(
       {
-        error:
-          "exactly one of user_item_id, variant_id, look_id, look_photo_ids or profile_photo is required",
+        error: "exactly one of user_item_id, variant_id, look_id, look_photo_ids, " +
+          "profile_photo or profile_photo_read is required",
       },
       400,
     );
+  }
+
+  // Reading YOUR OWN pfp (GLO-272: the avatar has to show the photo you just
+  // set). Own-only, deliberately: rendering anyone else's face owes the
+  // minors ruling first (the write branch says the same), so the select pins
+  // user_id to the session rather than accepting an id at all.
+  if (wantsProfileRead) {
+    try {
+      const supabase = createClient(env("SUPABASE_URL") ?? "", resolvePublishableKey(env), {
+        global: { headers: { Authorization: authorization } },
+      });
+      const { data: { user } } = await supabase.auth.getUser(
+        authorization.replace("Bearer ", ""),
+      );
+      if (!user) return json({ error: "unauthenticated" }, 401);
+      const { data: row, error } = await supabase
+        .from("profiles")
+        .select("photo_r2_key")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (error) throw error;
+      if (!row?.photo_r2_key) return json({ url: null, expires_in: READ_TTL_SECONDS }, 200);
+      const url = await presignGet(r2Config(env), row.photo_r2_key);
+      return json({ url, expires_in: READ_TTL_SECONDS }, 200);
+    } catch (error) {
+      console.error("storage_presign profile read failed", error);
+      return json({ error: "presign failed" }, 500);
+    }
   }
 
   // THE READ PATH (GLO-272: tiles preview their first photo, posts render
