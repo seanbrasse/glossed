@@ -20,6 +20,11 @@ values
      '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '', '', '', '', ''),
     ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
      'juli@local.test', extensions.crypt('password', extensions.gen_salt('bf')), now(),
+     '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '', '', '', '', ''),
+    -- nadia is the PUBLIC stranger (GLO-267). See the fixture block at the end
+    -- of this file for why she is a third user rather than juli made public.
+    ('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+     'nadia@local.test', extensions.crypt('password', extensions.gen_salt('bf')), now(),
      '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '', '', '', '', '');
 
 insert into auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
@@ -51,7 +56,10 @@ from auth.users u;
 -- stop the local stack lying in one direction and start it lying in another.
 insert into profiles (user_id, birth_year_month, domains, hair_pattern) values
     ('00000000-0000-0000-0000-000000000001', '1998-04', '{makeup,skincare,haircare,fragrance}', '3b'),
-    ('00000000-0000-0000-0000-000000000002', '1996-09', '{makeup,skincare}', null);
+    ('00000000-0000-0000-0000-000000000002', '1996-09', '{makeup,skincare}', null),
+    -- nadia must be an adult or `is_minor_user` shuts every surface she has
+    -- and the whole fixture below silently proves nothing.
+    ('00000000-0000-0000-0000-000000000003', '1994-02', '{makeup,skincare}', null);
 
 -- Category tree slice: one per domain + wear-in variety (tech/01 §1.1)
 -- Reference data (the category tree, the attribute chips and the whole
@@ -156,3 +164,57 @@ insert into user_items (user_id, variant_id, status, started_on, client_id) valu
 insert into rank_positions (user_id, category_id, user_item_id, position)
 select '00000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', id, 1
 from user_items where client_id = '11111111-aaaa-4aaa-8aaa-000000000001';
+
+-- ---------------------------------------------------------------------------
+-- nadia: the public stranger (GLO-267).
+--
+-- **Every isolation assertion in this repo used to run against an empty set.**
+-- juli owned nothing, `privacy_scopes` held no rows for anyone, and her one
+-- collection was `only_you` — so "juli's rows don't appear on maya's profile"
+-- was true of nothing at all. RLS alone would have hidden anything she had.
+-- That is the "ceremony" failure docs/HANDOFF.md §8 names, and it is how the
+-- GLO-258 shelf leak (#422) survived review: there was nothing public to leak.
+--
+-- **Why a third user instead of publishing juli.** juli is the suites' "other
+-- account that must see nothing", and three of them depend on her having no
+-- `privacy_scopes` row: `privacy_minors` expects the minor-lock trigger to
+-- refuse her INSERTs (a seeded row makes them fail on the primary key instead,
+-- for a completely different reason), and `privacy_core` / `seed_age_gate`
+-- assert that maya and juli can CREATE their first scopes row. Publishing juli
+-- would have broken all three and changed what a dozen assertions mean.
+-- Checked, not assumed: `00000000-…-0003` appears in no suite and no other
+-- seed line.
+--
+-- **Deliberately no `handles` row for anyone.** `handles.test.sql` calls
+-- `claim_handle('Maya_K')`, so a seeded handle would hit `handles_pkey` — which
+-- is exactly what a drive-created one was already doing locally. A handle is
+-- claimed through the app; the seed does not pre-empt it.
+-- ---------------------------------------------------------------------------
+
+-- Public on every surface. This is the row that makes `can_view` say yes.
+-- Since 0053 the routines and looks scopes live on the rows themselves
+-- (`visibility`), so the scopes row carries only the two surfaces left.
+insert into privacy_scopes (user_id, shelf, rankings) values
+    ('00000000-0000-0000-0000-000000000003', 'public', 'public');
+
+-- One shelf item. Variant 05 is maya's too, and that is the point: "maya's
+-- shelf shows five, not six" is a count that moves the moment a `mine()`-shaped
+-- read stops pinning `user_id` (GLO-258).
+insert into user_items (id, user_id, variant_id, status, client_id) values
+    ('33333333-cccc-4ccc-8ccc-000000000001', '00000000-0000-0000-0000-000000000003',
+     '40000000-0000-0000-0000-000000000005', 'own', '33333333-cccc-4ccc-8ccc-000000000001');
+
+-- A public collection holding it, so 0021's BOUNDED disclosure — publishing a
+-- collection discloses the products in THAT collection — is exercised by the
+-- seed rather than only by a hand-built fixture (GLO-258, #430).
+insert into collections (id, user_id, title, cover_tint, visibility) values
+    ('33333333-cccc-4ccc-8ccc-000000000002', '00000000-0000-0000-0000-000000000003',
+     'nadia''s public kit', 'mint', 'public');
+insert into collection_items (collection_id, user_item_id, position) values
+    ('33333333-cccc-4ccc-8ccc-000000000002', '33333333-cccc-4ccc-8ccc-000000000001', 0);
+
+-- A published look: `state = 'public'` plus the row's own `visibility`
+-- (0053) is all `looks_public_read` needs.
+insert into looks (id, user_id, caption, state, posted_at, visibility) values
+    ('33333333-cccc-4ccc-8ccc-000000000003', '00000000-0000-0000-0000-000000000003',
+     'nadia''s published look', 'public', now(), 'public');
