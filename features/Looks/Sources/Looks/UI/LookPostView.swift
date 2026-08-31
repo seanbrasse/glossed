@@ -24,11 +24,21 @@ public struct LookPostView: View {
     /// A product row tapped in the OVERLAY — the door to the product page,
     /// when the host wires one. Nil renders the overlay rows as labels.
     private let onOpenProduct: ((UUID) -> Void)?
+    /// What this look links (0050) — already filtered by the both-halves
+    /// policy at read time, so everything here is renderable.
+    let linkedRoutines: [LinkablePick]
+    let linkedCollections: [LinkablePick]
+    /// Non-nil for the owner's own look: the chips become editable and the
+    /// "+ link" door opens (`LookLinksSection`). Nil renders read-only.
+    private let linkEditor: LookLinkEditor?
 
     public init(
         caption: String?,
         media: [LookMedia],
         board: LookTagBoard,
+        linkedRoutines: [LinkablePick] = [],
+        linkedCollections: [LinkablePick] = [],
+        linkEditor: LookLinkEditor? = nil,
         onClose: @escaping () -> Void,
         onOpenProduct: ((UUID) -> Void)? = nil
     ) {
@@ -37,6 +47,9 @@ public struct LookPostView: View {
         self.media = ordered
         self.onClose = onClose
         self.onOpenProduct = onOpenProduct
+        self.linkedRoutines = linkedRoutines
+        self.linkedCollections = linkedCollections
+        self.linkEditor = linkEditor
         _state = State(initialValue: LookTagViewerState(
             board: board, photoOrder: ordered.map(\.id)
         ))
@@ -56,6 +69,9 @@ public struct LookPostView: View {
                         .font(Typography.display(Typography.Size.body))
                         .foregroundStyle(Tokens.Ink.primary)
                 }
+                LookLinksSection(
+                    routines: linkedRoutines, collections: linkedCollections, editor: linkEditor
+                )
                 listing
             }
             .padding(Tokens.Space.s5)

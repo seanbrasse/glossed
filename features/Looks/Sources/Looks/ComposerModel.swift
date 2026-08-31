@@ -22,6 +22,35 @@ public struct ComposerPhoto: Identifiable, Sendable, Equatable {
 /// shape). `save` persists a draft and returns its id; `searchShelf` is the
 /// pin-tag picker's source — you tag what you OWN (tech/03 §1), so this
 /// searches the shelf, never the catalog.
+/// Something a look can link (0050): one of YOUR routines or collections,
+/// as a pickable row. Titles only — the composer draws chips, not cards.
+public struct LinkablePick: Identifiable, Sendable, Equatable {
+    public let id: UUID
+    public let title: String
+
+    public init(id: UUID, title: String) {
+        self.id = id
+        self.title = title
+    }
+}
+
+/// What the link section offers: the caller's own routines and collections.
+/// Own-only, matching the write policies — a look may not annex somebody
+/// else's routine, so the picker must not offer one.
+public struct LookLinkables: Sendable, Equatable {
+    public let routines: [LinkablePick]
+    public let collections: [LinkablePick]
+
+    public var isEmpty: Bool {
+        routines.isEmpty && collections.isEmpty
+    }
+
+    public init(routines: [LinkablePick], collections: [LinkablePick]) {
+        self.routines = routines
+        self.collections = collections
+    }
+}
+
 public struct LooksStore: Sendable {
     /// Takes the board's SPOTS since 0049 landed — the projection down to
     /// look-scoped single-product rows lived in `ComposerModelLegacyTags`
@@ -29,13 +58,25 @@ public struct LooksStore: Sendable {
     public var save: @Sendable (_ caption: String, _ photos: [ComposerPhoto], _ spots: [LookTagSpot]) async throws
         -> UUID
     public var searchShelf: @Sendable (_ query: String) async throws -> [ShelfTagCandidate]
+    /// The link section's offer (0050). Defaulted empty so a host that has
+    /// not wired links renders no section — the no-dead-doors rule.
+    public var linkables: @Sendable () async throws -> LookLinkables
+    /// Writes the picked links after the draft lands. Defaulted to a no-op
+    /// for the same reason.
+    public var link: @Sendable (_ lookID: UUID, _ routineIDs: [UUID], _ collectionIDs: [UUID]) async throws -> Void
 
     public init(
         save: @escaping @Sendable (String, [ComposerPhoto], [LookTagSpot]) async throws -> UUID,
-        searchShelf: @escaping @Sendable (String) async throws -> [ShelfTagCandidate]
+        searchShelf: @escaping @Sendable (String) async throws -> [ShelfTagCandidate],
+        linkables: @escaping @Sendable () async throws -> LookLinkables = {
+            LookLinkables(routines: [], collections: [])
+        },
+        link: @escaping @Sendable (UUID, [UUID], [UUID]) async throws -> Void = { _, _, _ in }
     ) {
         self.save = save
         self.searchShelf = searchShelf
+        self.linkables = linkables
+        self.link = link
     }
 }
 
@@ -83,6 +124,14 @@ public final class ComposerModel {
     /// model keeps the invariants that matter (a removed photo takes its
     /// spots) in the methods that own them.
     public internal(set) var tagBoard = LookTagBoard()
+    /// What the link section offers, loaded once. Empty renders no section.
+    /// `internal(set)`: the links extension in this package mutates these —
+    /// `tagBoard`'s reasoning, one file over.
+    public internal(set) var linkables = LookLinkables(routines: [], collections: [])
+    /// The picks, by id — sets because a link is on or off, and the write
+    /// orders by the offer's own order at save time.
+    public internal(set) var linkedRoutineIDs: Set<UUID> = []
+    public internal(set) var linkedCollectionIDs: Set<UUID> = []
     /// The failed save's message, held until a retry answers (the sweep's
     /// triad: a failure names itself and keeps the way onward).
     public private(set) var saveFailure: String?
@@ -102,7 +151,7 @@ public final class ComposerModel {
     public static let photoCap = 5
     public static let captionCap = 2200
 
-    private let store: LooksStore?
+    let store: LooksStore?
     public private(set) var saveTask: Task<Void, Never>?
 
     public init(store: LooksStore?) {
@@ -227,6 +276,18 @@ public final class ComposerModel {
         saveTask = Task {
             do {
                 let id = try await store.save(caption, photos, tagBoard.spots)
+                // Links land after the draft, in the offer's own order. A
+                // link that fails does NOT fail the post — the look is saved
+                // and real; the miss is named so a retry exists.
+                let routineIDs = linkables.routines.map(\.id).filter { linkedRoutineIDs.contains($0) }
+                let collectionIDs = linkables.collections.map(\.id).filter { linkedCollectionIDs.contains($0) }
+                if !routineIDs.isEmpty || !collectionIDs.isEmpty {
+                    do {
+                        try await store.link(id, routineIDs, collectionIDs)
+                    } catch {
+                        saveFailure = "your look saved, but linking didn't — you can link it again from the look."
+                    }
+                }
                 phase = .saved(id)
             } catch {
                 // Composing, not lost: everything typed and tagged is still

@@ -108,6 +108,10 @@ public struct RoutineStep: Codable, Sendable, Equatable, Identifiable {
     public let brandName: String
     public let productName: String
     public let variantLabel: String?
+    /// The owner's words on what they do with this product in this step
+    /// (0052). Rides the routine's own reach — whoever may read the step may
+    /// read its note, and pgTAP asserts exactly that.
+    public let note: String?
 
     public var id: UUID {
         userItemID
@@ -115,13 +119,14 @@ public struct RoutineStep: Codable, Sendable, Equatable, Identifiable {
 
     public init(
         position: Int, userItemID: UUID, brandName: String,
-        productName: String, variantLabel: String?
+        productName: String, variantLabel: String?, note: String? = nil
     ) {
         self.position = position
         self.userItemID = userItemID
         self.brandName = brandName
         self.productName = productName
         self.variantLabel = variantLabel
+        self.note = note
     }
 }
 

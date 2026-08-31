@@ -171,6 +171,8 @@ struct LookPostHost: View {
         let caption: String?
         let media: [LookMedia]
         let board: LookTagBoard
+        let linkedRoutines: [LinkablePick]
+        let linkedCollections: [LinkablePick]
     }
 
     @State private var post: LoadedPost?
@@ -181,6 +183,12 @@ struct LookPostHost: View {
             if let post {
                 LookPostView(
                     caption: post.caption, media: post.media, board: post.board,
+                    linkedRoutines: post.linkedRoutines,
+                    linkedCollections: post.linkedCollections,
+                    // `mine()` is what loaded this post, so the viewer IS the
+                    // owner — the editor is unconditional here, and becomes
+                    // conditional the day a stranger's look renders.
+                    linkEditor: linkEditor,
                     onClose: onClose
                 )
             } else if failed {
@@ -202,6 +210,28 @@ struct LookPostHost: View {
             }
         }
         .task { await load() }
+    }
+
+    private var linkEditor: LookLinkEditor {
+        let links = LinksRepository(client: client)
+        let routines = RoutinesRepository(client: client)
+        let collections = CollectionsRepository(client: client)
+        let lookID = lookID
+        return LookLinkEditor(
+            linkables: {
+                async let mine = routines.mine()
+                async let theirs = collections.mine()
+                return try await LookLinkables(
+                    routines: mine.map { LinkablePick(id: $0.routineID, title: $0.title) },
+                    collections: theirs.map { LinkablePick(id: $0.collectionID, title: $0.title) }
+                )
+            },
+            link: { routineIDs, collectionIDs in
+                try await links.link(lookID: lookID, routineIDs: routineIDs, collectionIDs: collectionIDs)
+            },
+            unlinkRoutine: { try await links.unlink(lookID: lookID, routineID: $0) },
+            unlinkCollection: { try await links.unlink(lookID: lookID, collectionID: $0) }
+        )
     }
 
     private func load() async {
@@ -243,7 +273,16 @@ struct LookPostHost: View {
                     }
                 )
             }
-            post = LoadedPost(caption: look.caption, media: media, board: LookTagBoard(spots))
+            // What the look GOES WITH (0050) — read through the both-halves
+            // policy, so nothing arrives that should not render. A failed
+            // links read degrades to none rather than failing the post.
+            let links = await (try? LinksRepository(client: client).links(lookID: lookID))
+                ?? LookLinks(routines: [], collections: [])
+            post = LoadedPost(
+                caption: look.caption, media: media, board: LookTagBoard(spots),
+                linkedRoutines: links.routines.map { LinkablePick(id: $0.id, title: $0.title) },
+                linkedCollections: links.collections.map { LinkablePick(id: $0.id, title: $0.title) }
+            )
         } catch {
             failed = true
         }

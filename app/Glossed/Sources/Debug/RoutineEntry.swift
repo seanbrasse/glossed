@@ -30,7 +30,7 @@
 
         private static func composer(
             shelf: @escaping @Sendable () async throws -> [RoutineComposerModel.Step],
-            create: @escaping @Sendable (String, String, [UUID]) async throws -> Void
+            create: @escaping @Sendable (String, String, [StepDraft], [UUID]) async throws -> Void
         ) -> some View {
             RoutineComposerView(
                 model: RoutineComposerModel(store: RoutineStore(shelf: shelf, create: create)),
@@ -47,7 +47,7 @@
                 + "deliberately NOT in routine order, so a list that matches your taps cannot be "
                 + "shelf order wearing a disguise. no kit frame; built from the system, workshop here"
         ) {
-            composer(shelf: { shelf }, create: { _, _, _ in })
+            composer(shelf: { shelf }, create: { _, _, _, _ in })
         }
 
         static let saveFailed = ScreenEntry(
@@ -59,7 +59,7 @@
                 + "to saying 'save routine' — a composer that eats your work on a timeout is the "
                 + "defect this entry exists to catch"
         ) {
-            composer(shelf: { shelf }, create: { _, _, _ in throw URLError(.timedOut) })
+            composer(shelf: { shelf }, create: { _, _, _, _ in throw URLError(.timedOut) })
         }
 
         static let emptyShelf = ScreenEntry(
@@ -69,7 +69,7 @@
                 + "state and not an error. it must SAY which of the two it is — GLO-166's rule, "
                 + "that a blank explains itself — and must not offer a save it cannot honour"
         ) {
-            composer(shelf: { [] }, create: { _, _, _ in })
+            composer(shelf: { [] }, create: { _, _, _, _ in })
         }
     }
 

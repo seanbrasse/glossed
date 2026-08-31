@@ -13,12 +13,26 @@ import Foundation
 /// writes parent and steps itself, so a caller cannot invent an ordering that
 /// leaves a stepless routine behind on a mid-flight failure.
 public struct RoutineDraft: Sendable {
+    /// One step: the shelf row it runs, and the owner's words on what they do
+    /// with it (0052 — "three drops, pressed in", not a second title). The
+    /// note is optional and trimmed by the repository; 500 is the schema's
+    /// bound and the composer's cap should match it.
+    public struct Step: Sendable {
+        public let userItemID: UUID
+        public let note: String?
+
+        public init(userItemID: UUID, note: String? = nil) {
+            self.userItemID = userItemID
+            self.note = note
+        }
+    }
+
     public let title: String
     public let slot: RoutineSlot
-    /// `user_items.id`s, in the order they should run. A routine is a sequence
-    /// of things you OWN — the schema says so, with `routine_steps.user_item_id`
+    /// In the order they should run. A routine is a sequence of things you
+    /// OWN — the schema says so, with `routine_steps.user_item_id`
     /// referencing `user_items`, never `products` or `variants`.
-    public let stepItemIDs: [UUID]
+    public let steps: [Step]
     /// Idempotency, the LookDraft pattern: the caller mints the routine's
     /// PRIMARY KEY, so a retry after a failed save upserts the same row rather
     /// than minting a second routine with the same name.
@@ -27,12 +41,12 @@ public struct RoutineDraft: Sendable {
     public init(
         title: String,
         slot: RoutineSlot,
-        stepItemIDs: [UUID],
+        steps: [Step],
         routineID: UUID = UUID()
     ) {
         self.title = title
         self.slot = slot
-        self.stepItemIDs = stepItemIDs
+        self.steps = steps
         self.routineID = routineID
     }
 }

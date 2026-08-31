@@ -49,7 +49,10 @@ extension AppShell {
                 onSignedOut: { session.signedOut() },
                 looksStore: .live(LooksRepository(client: client)),
                 collectionsStore: .live(CollectionsRepository(client: client)),
-                routinesStore: .live(RoutinesRepository(client: client)),
+                routinesStore: .live(
+                    RoutinesRepository(client: client),
+                    links: LinksRepository(client: client)
+                ),
                 // `shelf()` pins `user_id` as of GLO-258. It did not when this
                 // tab was designed: `user_items` carries OR'd own+public
                 // policies and `user_shelf_items` is `security_invoker`, so

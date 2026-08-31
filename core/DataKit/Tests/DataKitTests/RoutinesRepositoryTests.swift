@@ -7,13 +7,13 @@ import Testing
 // which is the actual security boundary.
 
 @Test func aRoutineDraftMintsItsOwnPrimaryKeyAndKeepsACallerSuppliedOne() {
-    let one = RoutineDraft(title: "am", slot: .am, stepItemIDs: [])
-    let two = RoutineDraft(title: "am", slot: .am, stepItemIDs: [])
+    let one = RoutineDraft(title: "am", slot: .am, steps: [])
+    let two = RoutineDraft(title: "am", slot: .am, steps: [])
     #expect(one.routineID != two.routineID) // two saves are two routines…
     let fixed = UUID()
     // …and a retry of the SAME draft is the same row, not a second routine
     // wearing the same name.
-    #expect(RoutineDraft(title: "am", slot: .am, stepItemIDs: [], routineID: fixed).routineID == fixed)
+    #expect(RoutineDraft(title: "am", slot: .am, steps: [], routineID: fixed).routineID == fixed)
 }
 
 @Test func routineRowEncodingMatchesTheMigrationsColumns() throws {
@@ -25,8 +25,11 @@ import Testing
     )
     #expect(try keys(of: routine) == ["id", "slot", "title", "user_id"])
 
-    let step = RoutinesRepository.StepRow(routineID: UUID(), userItemID: UUID(), position: 0)
-    #expect(try keys(of: step) == ["position", "routine_id", "user_item_id"])
+    let step = RoutinesRepository.StepRow(
+        routineID: UUID(), userItemID: UUID(), position: 0,
+        note: "three drops, pressed in"
+    )
+    #expect(try keys(of: step) == ["note", "position", "routine_id", "user_item_id"])
 }
 
 @Test func theSlotCrossesTheWireAsThePostgresEnumsOwnSpelling() throws {
@@ -45,14 +48,22 @@ import Testing
     // The draft carries no positions: order IS the array. This is what makes
     // "the order you tapped" survive the trip to Postgres.
     let cleanser = UUID(), serum = UUID(), spf = UUID()
-    let draft = RoutineDraft(title: "pm", slot: .pm, stepItemIDs: [spf, cleanser, serum])
-    let rows = draft.stepItemIDs.enumerated().map { index, itemID in
+    let draft = RoutineDraft(title: "pm", slot: .pm, steps: [
+        .init(userItemID: spf, note: "last, always"),
+        .init(userItemID: cleanser),
+        .init(userItemID: serum)
+    ])
+    let rows = draft.steps.enumerated().map { index, step in
         RoutinesRepository.StepRow(
-            routineID: draft.routineID, userItemID: itemID, position: index
+            routineID: draft.routineID, userItemID: step.userItemID, position: index, note: step.note
         )
     }
     #expect(rows.map(\.position) == [0, 1, 2])
     #expect(rows.map(\.userItemID) == [spf, cleanser, serum])
+    #expect(
+        rows.map(\.note) == ["last, always", nil, nil],
+        "each step keeps ITS words through the reorder-proof pairing"
+    )
 }
 
 private func encoded(_ value: some Encodable) throws -> [String: Any] {
@@ -82,9 +93,9 @@ private func keys(of value: some Encodable) throws -> [String] {
     )
     // Deliberately shuffled — this is what a grouped rebuild can hand back.
     let steps = [
-        RoutinesRepository.OwnStepRow(routineID: routineID, position: 2, userItemID: spf),
-        RoutinesRepository.OwnStepRow(routineID: routineID, position: 0, userItemID: cleanser),
-        RoutinesRepository.OwnStepRow(routineID: routineID, position: 1, userItemID: serum)
+        RoutinesRepository.OwnStepRow(routineID: routineID, position: 2, userItemID: spf, note: nil),
+        RoutinesRepository.OwnStepRow(routineID: routineID, position: 0, userItemID: cleanser, note: nil),
+        RoutinesRepository.OwnStepRow(routineID: routineID, position: 1, userItemID: serum, note: nil)
     ]
     let names = [cleanser, serum, spf].map {
         ShelfNameRow(userItemID: $0, brandName: "b", productName: "p", variantLabel: nil)
@@ -106,8 +117,8 @@ private func keys(of value: some Encodable) throws -> [String] {
         id: routineID, title: "pm", slot: .pm, startedOnRaw: nil, createdAt: Date()
     )
     let steps = [
-        RoutinesRepository.OwnStepRow(routineID: routineID, position: 0, userItemID: visible),
-        RoutinesRepository.OwnStepRow(routineID: routineID, position: 1, userItemID: unreadable)
+        RoutinesRepository.OwnStepRow(routineID: routineID, position: 0, userItemID: visible, note: nil),
+        RoutinesRepository.OwnStepRow(routineID: routineID, position: 1, userItemID: unreadable, note: nil)
     ]
     let names = [ShelfNameRow(userItemID: visible, brandName: "b", productName: "p", variantLabel: nil)]
 
@@ -141,8 +152,8 @@ private func keys(of value: some Encodable) throws -> [String] {
         )
     ]
     let steps = [
-        RoutinesRepository.OwnStepRow(routineID: evening, position: 0, userItemID: itemB),
-        RoutinesRepository.OwnStepRow(routineID: morning, position: 0, userItemID: itemA)
+        RoutinesRepository.OwnStepRow(routineID: evening, position: 0, userItemID: itemB, note: nil),
+        RoutinesRepository.OwnStepRow(routineID: morning, position: 0, userItemID: itemA, note: nil)
     ]
     let names = [itemA, itemB].map {
         ShelfNameRow(userItemID: $0, brandName: "b", productName: "p", variantLabel: nil)
