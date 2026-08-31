@@ -25,6 +25,12 @@ private func routine(
 /// 1 March 2026, 00:00 UTC — a Postgres `date` as the decoder hands it over.
 private let marchFirst = Date(timeIntervalSince1970: 1_772_323_200)
 
+private func collection(
+    title: String = "wash day kit", tint: String? = "mint", itemN: Int = 6
+) -> ProfileCollection {
+    ProfileCollection(id: UUID(), title: title, tint: tint, itemN: itemN)
+}
+
 @MainActor
 @Test func aTabWithNoSeamBehindItNeverAppears() {
     // The frame declares both segments because its data is a fixture. A
@@ -32,6 +38,64 @@ private let marchFirst = Date(timeIntervalSince1970: 1_772_323_200)
     // "collections land with GLO-21" mistake in different words.
     let model = ProfileTabsModel(routines: ProfileRoutinesStore(mine: { [] }))
     #expect(model.tabs == [.routines])
+}
+
+@MainActor
+@Test func bothSeamsWiredGivesTheFramesTwoSegmentsInItsOrder() {
+    let model = ProfileTabsModel(
+        routines: ProfileRoutinesStore(mine: { [] }),
+        collections: ProfileCollectionsStore(mine: { [] })
+    )
+    #expect(model.tabs == [.routines, .collections])
+    // The frame opens on routines.
+    #expect(model.tab == .routines)
+}
+
+@MainActor
+@Test func withOnlyCollectionsWiredTheScreenOpensOnTheTabThatExists() async {
+    // Rather than on `routines`, which would be a blank pane behind a control
+    // that does not offer the alternative.
+    let model = ProfileTabsModel(
+        routines: nil, collections: ProfileCollectionsStore(mine: { [collection()] })
+    )
+    await model.load()
+    #expect(model.tab == .collections)
+    #expect(model.collections.count == 1)
+}
+
+@MainActor
+@Test func oneTabFailingDoesNotBlankTheOther() async {
+    // A user with routines and a collections read that timed out should still
+    // see their routines.
+    let model = ProfileTabsModel(
+        routines: ProfileRoutinesStore(mine: { [routine()] }),
+        collections: ProfileCollectionsStore(mine: {
+            throw GlossedError(.offline, userMessage: "you're offline.")
+        })
+    )
+    await model.load()
+    #expect(model.routines.count == 1)
+    #expect(model.collections.isEmpty)
+    #expect(model.errorMessage == "you're offline.")
+}
+
+@Test func theProductsLineIsSingularForOne() {
+    #expect(ProfileTabsModel.productsLine(0) == "0 products")
+    #expect(ProfileTabsModel.productsLine(1) == "1 product")
+    #expect(ProfileTabsModel.productsLine(12) == "12 products")
+}
+
+@MainActor
+@Test func anUnknownCoverTintDrawsUntintedRatherThanFailing() {
+    // `collections.cover_tint` is nullable text with no check constraint, so
+    // the column will accept anything. A cosmetic value must never be able to
+    // take the grid down.
+    #expect(CollectionCard.tint("butter") == .butter)
+    #expect(CollectionCard.tint("cherry") == .cherry)
+    #expect(CollectionCard.tint("mint") == .mint)
+    #expect(CollectionCard.tint("lilac") == .lilac)
+    #expect(CollectionCard.tint(nil) == .plain)
+    #expect(CollectionCard.tint("chartreuse") == .plain)
 }
 
 @MainActor

@@ -37,9 +37,12 @@ public struct OwnProfileView: View {
         // below it simply do not render — the frame's lower half is missing
         // rather than pretending to be empty, which is the only honest thing a
         // screen with no read can do.
-        routinesStore: ProfileRoutinesStore? = nil
+        routinesStore: ProfileRoutinesStore? = nil,
+        collectionsStore: ProfileCollectionsStore? = nil
     ) {
-        _tabs = State(wrappedValue: ProfileTabsModel(routines: routinesStore))
+        _tabs = State(
+            wrappedValue: ProfileTabsModel(routines: routinesStore, collections: collectionsStore)
+        )
         self.suggestionsStore = suggestionsStore
         self.safetyStore = safetyStore
         self.socialsStore = socialsStore
