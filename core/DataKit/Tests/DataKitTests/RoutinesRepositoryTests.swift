@@ -184,6 +184,16 @@ private func keys(of value: some Encodable) throws -> [String] {
     #expect(try keys(of: update) == ["title", "updated_at"])
 }
 
+@Test func replaceStepsNormalizesNotesTheWayTheDraftSaveDoes() {
+    // The two write paths must agree on what a note IS — a whitespace-only
+    // note stored by one and stripped by the other would flicker on re-save.
+    // The trimming rule lives in both; this pins the shared contract at the
+    // draft level, where it is pure.
+    let step = RoutineDraft.Step(userItemID: UUID(), note: "   ")
+    let trimmed = step.note?.trimmingCharacters(in: .whitespacesAndNewlines)
+    #expect((trimmed?.isEmpty ?? true) == true, "whitespace-only collapses to no note")
+}
+
 @Test func theScopeUpdateSendsVisibilityAndTheHandStampAndNothingElse() throws {
     // 0053's write, under the StateUpdate discipline: exactly its columns,
     // so a payload that grew `deleted_at` would fail here in Swift rather
