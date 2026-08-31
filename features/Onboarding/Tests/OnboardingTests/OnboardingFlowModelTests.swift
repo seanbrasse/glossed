@@ -20,6 +20,8 @@ import Testing
     flow.payoffContinued()
     #expect(flow.stop == .account)
     flow.accountFinished()
+    #expect(flow.stop == .handle, "nobody reaches the app without a handle (GLO-245)")
+    flow.handleClaimed()
     #expect(flow.stop == .shelfStarter)
     flow.shelfStarterFinished()
     // The edge the app was missing: OnbBuild → tour, never build → welcome.
@@ -54,6 +56,8 @@ import Testing
     flow.quizFinished()
     flow.payoffContinued()
     flow.accountFinished()
+    #expect(flow.stop == .handle, "nobody reaches the app without a handle (GLO-245)")
+    flow.handleClaimed()
     #expect(flow.stop == .shelfStarter) // still asked for
     flow.shelfStarterFinished()
     #expect(flow.stop == .welcome)

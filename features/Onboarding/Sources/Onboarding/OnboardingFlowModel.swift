@@ -33,7 +33,12 @@ public final class OnboardingFlowModel {
     /// is where the conditional branches belong), and 5a–5d are the account
     /// screen's stages.
     public enum Stop: String, Equatable, Sendable {
-        case hook, quiz, payoff, account, shelfStarter, tour, welcome
+        /// `handle` sits between the account write and the shelf starter, and
+        /// the position is forced rather than chosen: `claim_handle` refuses a
+        /// minor, and `is_minor_user` reads the `profiles` row that
+        /// `createAccount` writes — so a handle claimed any earlier is refused
+        /// for a user who is not a minor at all.
+        case hook, quiz, payoff, account, handle, shelfStarter, tour, welcome
     }
 
     /// Which of the two paths off the start screen the user took. Login is
@@ -135,11 +140,21 @@ public final class OnboardingFlowModel {
     public func accountFinished() {
         switch path {
         case .login:
-            // "no tour, no shelf starter, nothing re-asked."
+            // "no tour, no shelf starter, nothing re-asked." A returning user
+            // already has a handle; asking again would be the flow re-asking
+            // the one thing this path exists not to.
             exit = .discover
         case .signup:
-            stop = .shelfStarter
+            stop = .handle
         }
+    }
+
+    /// **Nobody reaches the app without a handle** (Sean, Aug 31). There is no
+    /// skip: a handle is the profile's address (GLO-187), the thing the
+    /// stranger-facing half of every screen is keyed on, and a profile without
+    /// one renders "no handle yet" over its own identity block.
+    public func handleClaimed() {
+        stop = .shelfStarter
     }
 
     /// Back out of the account screen's first stage. The map: "back goes to

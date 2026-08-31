@@ -17,7 +17,15 @@ import Observation
 @Observable
 public final class AccountModel {
     public enum Stage: String, Equatable {
-        case method, phone, code, birthday
+        /// `name` sits AFTER `birthday` and before the write, for two reasons
+        /// that are both about ordering rather than taste. The name rides the
+        /// same `ProfileDraft` as the quiz's prior, so it has to be known
+        /// before `createAccount`; and the handle step that follows this whole
+        /// stage cannot run until that draft has landed, because
+        /// `claim_handle` refuses a minor and `is_minor_user` reads the
+        /// `profiles` row this write creates (Sean, Aug 31: users should not
+        /// get through onboarding without a handle).
+        case method, phone, code, birthday, name
     }
 
     public enum Method: Equatable {
@@ -35,6 +43,9 @@ public final class AccountModel {
     public var phoneNumber = ""
     public private(set) var codeDigits = ""
     public var birthday: Date?
+    /// What the app calls you. Held here and handed to the quiz's draft, so
+    /// the whole prior is one write.
+    public var displayName = ""
     /// The typed under-13 rejection, set only by an attempted create —
     /// the screen renders its `userMessage`, never a raw string.
     public private(set) var ageError: GlossedError?
@@ -111,6 +122,8 @@ public final class AccountModel {
             stage = .phone
         case .birthday:
             stage = method == .phone ? .code : .method
+        case .name:
+            stage = .birthday
         }
         return true
     }
@@ -179,17 +192,44 @@ public final class AccountModel {
     /// The batch write: the quiz's prior plus the birthday, one call. The
     /// under-13 rejection happens HERE, typed, before any seam is touched —
     /// a hard block, not a validation hint (PRD §17).
-    public func createAccount(quiz: OnboardingModel, onCreated: @escaping () -> Void) {
-        guard let wire = birthYearMonth() else { return }
+    /// The birthday is answered; ask for a name before writing anything.
+    ///
+    /// The age gate runs HERE rather than on the write, so an under-13 is
+    /// refused at the question that decides it instead of two screens later
+    /// after they have typed a name.
+    public func birthdayContinued() {
+        guard birthday != nil else { return }
         if let age, age < 13 {
-            ageError = GlossedError(
-                .underAgeMinimum,
-                userMessage: "glossed is for ages 13 and up — see you in a few years.",
-                debugDetail: "onboarding birthday gate: age \(age)"
-            )
+            ageError = Self.underAge(age)
             return
         }
         ageError = nil
+        stage = .name
+    }
+
+    /// A name is required. It is the profile's h1 (#410) and the thing the
+    /// handle suggestion is derived from — a blank here means a profile that
+    /// leads with nothing and a handle with nothing to suggest.
+    public var canCreate: Bool {
+        !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    static func underAge(_ age: Int) -> GlossedError {
+        GlossedError(
+            .underAgeMinimum,
+            userMessage: "glossed is for ages 13 and up — see you in a few years.",
+            debugDetail: "onboarding birthday gate: age \(age)"
+        )
+    }
+
+    public func createAccount(quiz: OnboardingModel, onCreated: @escaping () -> Void) {
+        guard let wire = birthYearMonth(), canCreate else { return }
+        if let age, age < 13 {
+            ageError = Self.underAge(age)
+            return
+        }
+        ageError = nil
+        quiz.displayName = displayName
         let draft = quiz.draft(birthYearMonth: wire)
         guard let store else {
             onCreated()

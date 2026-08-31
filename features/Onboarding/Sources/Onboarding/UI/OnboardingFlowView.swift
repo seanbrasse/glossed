@@ -18,6 +18,9 @@ public struct OnboardingFlowView<Tour: View>: View {
     private let anchorCatalog: [ShadeAnchorPicker.BrandEntry]
     private let payoff: (@Sendable (UUID) async throws -> PayoffEvidence)?
     private let shelfStarterCount: Int
+    /// Absent, the handle step accepts anything and claims nothing — the same
+    /// nil-means-unwired rule every other seam here follows. The app fills it.
+    private let handleStore: OnbHandleStore?
     private let onScan: (() -> Void)?
     private let onImport: (() -> Void)?
     private let onSearch: (() -> Void)?
@@ -30,6 +33,7 @@ public struct OnboardingFlowView<Tour: View>: View {
         anchorCatalog: [ShadeAnchorPicker.BrandEntry],
         payoff: (@Sendable (UUID) async throws -> PayoffEvidence)? = nil,
         shelfStarterCount: Int = 0,
+        handleStore: OnbHandleStore? = nil,
         onScan: (() -> Void)? = nil,
         onImport: (() -> Void)? = nil,
         onSearch: (() -> Void)? = nil,
@@ -40,6 +44,7 @@ public struct OnboardingFlowView<Tour: View>: View {
         self.anchorCatalog = anchorCatalog
         self.payoff = payoff
         self.shelfStarterCount = shelfStarterCount
+        self.handleStore = handleStore
         self.onScan = onScan
         self.onImport = onImport
         self.onSearch = onSearch
@@ -92,6 +97,11 @@ public struct OnboardingFlowView<Tour: View>: View {
                 // `OnbAccountView` seeds its own `@State` from the model once.
                 .id(ObjectIdentifier(account))
             }
+        case .handle:
+            OnbHandleView(
+                model: OnbHandleModel(store: handleStore, suggestedFrom: flow.quiz.displayName),
+                onClaimed: { flow.handleClaimed() }
+            )
         case .shelfStarter:
             OnbBuildView(
                 addedCount: shelfStarterCount,

@@ -39,6 +39,14 @@ extension AppShell {
                 // has nothing yet, which is true.
                 payoff: { try await AggregatesRepository(client: client).payoff(variantID: $0) },
                 shelfStarterCount: session.shelfItemCount,
+                // Sean, Aug 31: "Users shouldn't make it through onboarding
+                // without a username/handle." Same two calls `HandleClaimView`
+                // uses from the profile — one seam, one server rule, two
+                // entrances.
+                handleStore: OnbHandleStore(
+                    isAvailable: { try await SocialRepository(client: client).handleAvailable($0) },
+                    claim: { try await SocialRepository(client: client).claimHandle($0) }
+                ),
                 // The three doors `OnbBuildView` offers, wired to what the app
                 // actually has. `import` is the notice the drawer gives, for
                 // the same reason: `ImportParsing` has no live conformance.
