@@ -2,34 +2,20 @@ import DataKit
 import DesignSystem
 import SwiftUI
 
-/// `G.Profile`'s lower half: the segmented control and the tab it selects
-/// (GLO-230). Built to the frame at `screens.jsx` 52995–62773, pulled as
-/// source this session.
-///
-/// The frame draws the control `alignSelf:'flex-start'` — it hugs its two
-/// words rather than spanning the column, which `fixedSize` reproduces on a
-/// `Segmented` whose segments otherwise split the width evenly.
+/// `G.Profile`'s lower half: the tab strip and the tab it selects (GLO-230),
+/// where every tab now carries its own scope (GLO-261).
 struct ProfileTabsSection: View {
     @Bindable var model: ProfileTabsModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s3) {
             if model.tabs.count > 1 {
-                HStack {
-                    Segmented(options: model.tabs.map(\.label), selection: selection)
-                        .fixedSize(horizontal: true, vertical: false)
-                    Spacer(minLength: 0)
-                }
+                ProfileTabBar(
+                    tabs: model.tabs, mark: model.mark(for:), selection: $model.tab
+                )
             }
             content
         }
-    }
-
-    private var selection: Binding<String> {
-        Binding(
-            get: { model.tab.label },
-            set: { model.tab = ProfileTab(rawValue: $0) ?? .routines }
-        )
     }
 
     @ViewBuilder private var content: some View {

@@ -1,23 +1,7 @@
 import DataKit
 import Foundation
 
-/// The profile's lower half — `G.Profile`'s `Segmented ['routines','collections']`
-/// and whichever tab it selects (GLO-230).
-///
-/// The frame declares both options unconditionally because its data is a
-/// fixture. Here the set is derived from the seams the app actually filled, so
-/// a segment never appears in front of a surface that cannot answer: a tab
-/// whose content is "coming soon" is the drawer's `collections land with
-/// GLO-21` mistake wearing different words (GLO-189).
-public enum ProfileTab: String, CaseIterable, Sendable {
-    case routines, collections
-
-    /// Lowercase, like every label in the app. The kit's segment words are
-    /// the enum's own.
-    public var label: String {
-        rawValue
-    }
-}
+// The tab set and the scope vocabulary live next door in `ProfileScope.swift`.
 
 /// How the profile's tabs reach persistence. Closures, not repositories, for
 /// the reason `LooksStore` and `CollectionsStore` are: features never import
@@ -34,15 +18,15 @@ public struct ProfileRoutinesStore: Sendable {
     }
 }
 
-/// One card of the collections grid — the whole of what the frame draws, and
-/// nothing more.
+/// One card of the collections grid.
 ///
-/// **A local shape rather than DataKit's `MyCollection`, deliberately.** The
-/// two carry the same facts, but `MyCollection` also carries `visibility`, and
-/// a field on a struct this screen renders is an invitation to write copy
-/// about it. V1 creates every collection `only_you` and no surface here can
-/// change, honour or truthfully report that — copy about a scope no screen
-/// controls is the GLO-208 shape. What is not carried cannot be claimed.
+/// **`visibility` is carried, reversing #393's choice, and the reason is new.**
+/// That PR left it off on the ground that a field a screen renders is an
+/// invitation to write copy about a scope no surface controls (GLO-208). The
+/// tab mark changes the calculus: collections have no account-level scope, so
+/// the only way the collections tab can state its ceiling truthfully is from
+/// the rows themselves. The fact is carried because it is now claimed — and it
+/// is claimed in exactly one place, the mark.
 ///
 /// `tint` is the wire word from `collections.cover_tint`, not a colour: the
 /// column is nullable `text` with no check constraint, so an unrecognised
@@ -54,12 +38,17 @@ public struct ProfileCollection: Identifiable, Equatable, Sendable {
     /// The frame's `mono(c.count + ' products')`. A count of YOUR OWN
     /// collection — no cohort, no evidence chrome.
     public let itemN: Int
+    public let visibility: PrivacyScope
 
-    public init(id: UUID, title: String, tint: String?, itemN: Int) {
+    public init(
+        id: UUID, title: String, tint: String?, itemN: Int,
+        visibility: PrivacyScope = .onlyYou
+    ) {
         self.id = id
         self.title = title
         self.tint = tint
         self.itemN = itemN
+        self.visibility = visibility
     }
 }
 
@@ -79,15 +68,53 @@ public final class ProfileTabsModel {
     public var tab: ProfileTab = .routines
     public private(set) var routines: [MyRoutine] = []
     public private(set) var collections: [ProfileCollection] = []
+    public private(set) var scopes: PrivacyScopes?
     public private(set) var isLoading = true
     public private(set) var errorMessage: String?
 
     private let routinesStore: ProfileRoutinesStore?
     private let collectionsStore: ProfileCollectionsStore?
+    private let scopesStore: ProfileScopesStore?
 
-    public init(routines: ProfileRoutinesStore?, collections: ProfileCollectionsStore? = nil) {
+    public init(
+        routines: ProfileRoutinesStore?,
+        collections: ProfileCollectionsStore? = nil,
+        scopes: ProfileScopesStore? = nil
+    ) {
         routinesStore = routines
         collectionsStore = collections
+        scopesStore = scopes
+    }
+
+    /// What the tab's mark says: the most any other person could reach in it.
+    ///
+    /// `nil` while the scopes are still loading, and the strip draws no mark
+    /// rather than a placeholder one — a privacy signal that guesses is worse
+    /// than a privacy signal that waits. `nil` also when no scopes seam is
+    /// wired at all, for the same reason.
+    ///
+    /// The account surfaces read `privacy_scopes` directly. Collections have
+    /// no such surface, so their mark is the ceiling of the rows on the
+    /// screen — see `ProfileTab.surface`.
+    public func mark(for tab: ProfileTab) -> ProfileScopeMark? {
+        guard let scopes else { return nil }
+        if let surface = tab.surface {
+            return ProfileScopeMark(scopes.scope(for: surface))
+        }
+        return ProfileScopeMark.ceiling(of: collections.map(\.visibility))
+    }
+
+    /// A failed scopes read leaves every mark absent rather than defaulting to
+    /// `only you`. The default is right for a user with no row — the repository
+    /// already applies it — but wrong for a read that failed, where "only you"
+    /// would be an assurance nobody checked.
+    private func loadScopes() async {
+        guard let scopesStore else { return }
+        do {
+            scopes = try await scopesStore.scopes()
+        } catch {
+            note(error, fallback: "couldn't check who can see your things.")
+        }
     }
 
     /// Only the tabs that have a seam behind them, in the frame's order.
@@ -112,6 +139,7 @@ public final class ProfileTabsModel {
     public func load() async {
         isLoading = true
         defer { isLoading = false }
+        await loadScopes()
         if let routinesStore {
             do {
                 routines = try await routinesStore.mine()
