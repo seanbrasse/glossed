@@ -1,9 +1,22 @@
 import Foundation
 import Supabase
 
-/// The user's own shelf: items, chips, fits. Every call is scoped to the signed-in
-/// user by RLS; `requireUserID()` fails fast rather than issuing a query that
-/// would silently return nothing.
+/// The user's own shelf: items, chips, fits.
+///
+/// **RLS is not what makes a read here "mine", and the comment that used to
+/// stand in this place said it was.** `user_items` carries TWO select policies
+/// — `user_items_own` and `user_items_public` — and Postgres OR's policies for
+/// the same command, so an unfiltered select returns your own rows *plus* every
+/// row `item_is_published()` admits. `user_shelf_items` is `security_invoker`
+/// and inherits exactly that.
+///
+/// Probed, not reasoned: with juli's `privacy_scopes.shelf` set to `public`, as
+/// maya `select … from user_shelf_items` returned six rows — maya's five and
+/// juli's one. With `user_id = auth.uid()` pinned it returned five. Every
+/// collection read below therefore pins `user_id` itself, and
+/// `requireUserID()`'s return value is USED rather than discarded — discarding
+/// it is the tell this defect leaves behind (GLO-258, and #387 for the same
+/// defect in `RoutinesRepository.mine`).
 public struct ShelfRepository: Sendable {
     private let client: GlossedClient
 
@@ -12,9 +25,13 @@ public struct ShelfRepository: Sendable {
     }
 
     public func items(status: ItemStatus? = nil) async throws(GlossedError) -> [UserItem] {
-        _ = try await client.requireUserID()
+        let userID = try await client.requireUserID()
         return try await run {
-            let base = client.supabase.from("user_items").select().is("deleted_at", value: nil)
+            let base = client.supabase
+                .from("user_items")
+                .select()
+                .eq("user_id", value: userID.uuidString)
+                .is("deleted_at", value: nil)
             let filtered = status.map { base.eq("status", value: $0.rawValue) } ?? base
             return try await filtered.order("created_at", ascending: false).execute().value
         }
@@ -24,10 +41,18 @@ public struct ShelfRepository: Sendable {
     /// `user_items → variants → products → brands → categories` and carries the
     /// rank. `items(status:)` above returns the raw table rows — a variant id
     /// and a status — which is enough to count what you own and nothing else.
+    ///
+    /// `user_id` is pinned for the reason the type comment gives. The view is
+    /// `security_invoker`, so it is `user_items`' OR'd policies answering here,
+    /// and a shelf that quietly grew somebody else's foundation is what this
+    /// predicate stops — on this screen and on the profile's shelf tab.
     public func shelf(status: ItemStatus? = nil) async throws(GlossedError) -> [ShelfRow] {
-        _ = try await client.requireUserID()
+        let userID = try await client.requireUserID()
         return try await run {
-            let base = client.supabase.from("user_shelf_items").select()
+            let base = client.supabase
+                .from("user_shelf_items")
+                .select()
+                .eq("user_id", value: userID.uuidString)
             let filtered = status.map { base.eq("status", value: $0.rawValue) } ?? base
             return try await filtered.order("logged_at", ascending: false).execute().value
         }
