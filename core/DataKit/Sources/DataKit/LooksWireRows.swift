@@ -67,11 +67,12 @@ extension LooksRepository {
         let id: UUID
         let caption: String?
         let state: LookState
+        let visibility: PrivacyScope
         let postedAt: Date?
         let createdAt: Date
 
         enum CodingKeys: String, CodingKey {
-            case id, caption, state
+            case id, caption, state, visibility
             case postedAt = "posted_at"
             case createdAt = "created_at"
         }
@@ -175,6 +176,7 @@ extension LooksRepository {
                 lookID: look.id,
                 caption: look.caption,
                 state: look.state,
+                visibility: look.visibility,
                 postedAt: look.postedAt,
                 createdAt: look.createdAt,
                 photos: ordered,

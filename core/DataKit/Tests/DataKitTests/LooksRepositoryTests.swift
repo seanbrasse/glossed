@@ -52,7 +52,7 @@ import Testing
     let lookID = UUID()
     let first = UUID(), second = UUID(), third = UUID()
     let look = LooksRepository.OwnLookRow(
-        id: lookID, caption: "glass skin", state: .draft,
+        id: lookID, caption: "glass skin", state: .draft, visibility: .onlyYou,
         postedAt: nil, createdAt: Date()
     )
     // Deliberately shuffled — this is what a grouped rebuild can hand back.
@@ -75,7 +75,8 @@ import Testing
     let mondayVariant = UUID(), tuesdayVariant = UUID()
     let looks = [monday, tuesday].map {
         LooksRepository.OwnLookRow(
-            id: $0, caption: nil, state: .draft, postedAt: nil, createdAt: Date()
+            id: $0, caption: nil, state: .draft, visibility: .onlyYou,
+            postedAt: nil, createdAt: Date()
         )
     }
     let mondayPhoto = UUID(), tuesdayPhoto = UUID()
@@ -107,7 +108,8 @@ import Testing
     // `saveDraft` accepts an empty `photos`, so a photo-less draft is a real
     // state and the owner's list has to be able to draw it.
     let look = LooksRepository.OwnLookRow(
-        id: UUID(), caption: nil, state: .draft, postedAt: nil, createdAt: Date()
+        id: UUID(), caption: nil, state: .draft, visibility: .onlyYou,
+        postedAt: nil, createdAt: Date()
     )
     let assembled = LooksRepository.assemble(looks: [look], photos: [], tags: [], variants: [])
     #expect(assembled.count == 1)
@@ -151,17 +153,48 @@ import Testing
     // this repository because the client may not write it.
     let stamped = Date()
     let published = LooksRepository.OwnLookRow(
-        id: UUID(), caption: nil, state: .publicState,
+        id: UUID(), caption: nil, state: .publicState, visibility: .publicScope,
         postedAt: stamped, createdAt: Date()
     )
     let draft = LooksRepository.OwnLookRow(
-        id: UUID(), caption: nil, state: .draft, postedAt: nil, createdAt: Date()
+        id: UUID(), caption: nil, state: .draft, visibility: .onlyYou,
+        postedAt: nil, createdAt: Date()
     )
     let assembled = LooksRepository.assemble(looks: [published, draft], photos: [], tags: [], variants: [])
     #expect(assembled[0].isPublished)
     #expect(assembled[0].postedAt == stamped)
     #expect(assembled[1].isPublished == false)
     #expect(assembled[1].postedAt == nil)
+}
+
+@Test func theEditWritesSendExactlyTheirOneColumn() throws {
+    // The StateUpdate discipline, applied to 0053's writes: `visibility`
+    // rides its own column grant, and a payload that grew `state` alongside
+    // it would turn "archive" into a silent unpost.
+    #expect(try keys(of: LooksRepository.VisibilityUpdate(visibility: .friends)) == ["visibility"])
+    let scope = try encoded(LooksRepository.VisibilityUpdate(visibility: .onlyYou))
+    #expect(scope["visibility"] as? String == "only_you") // the enum's wire spelling
+
+    // A cleared caption must SEND null — an omitted key leaves the column
+    // untouched, and "remove the caption" would silently do nothing.
+    #expect(try keys(of: LooksRepository.CaptionUpdate(caption: "hi")) == ["caption"])
+    let cleared = try encoded(LooksRepository.CaptionUpdate(caption: nil))
+    #expect(cleared.keys.sorted() == ["caption"])
+    #expect(cleared["caption"] is NSNull)
+}
+
+@Test func archiveAndStateAreOrthogonalOnTheModel() {
+    // Sean's ruling: archiving hides, unposting retracts, and neither implies
+    // the other. `isPublished` answers POSTED, not READABLE — the readable
+    // question needs `visibility` too, and pgTAP proves the composition
+    // (per_item_visibility.test.sql).
+    let archived = LooksRepository.OwnLookRow(
+        id: UUID(), caption: nil, state: .publicState, visibility: .onlyYou,
+        postedAt: Date(), createdAt: Date()
+    )
+    let assembled = LooksRepository.assemble(looks: [archived], photos: [], tags: [], variants: [])
+    #expect(assembled[0].isPublished) // still posted…
+    #expect(assembled[0].visibility == .onlyYou) // …just hidden
 }
 
 private func encoded(_ value: some Encodable) throws -> [String: Any] {
@@ -179,7 +212,8 @@ private func keys(of value: some Encodable) throws -> [String] {
     // testable without a database — same reasoning as the photo sort above.
     let lookID = UUID(), photoID = UUID(), tagID = UUID()
     let look = LooksRepository.OwnLookRow(
-        id: lookID, caption: nil, state: .draft, postedAt: nil, createdAt: Date()
+        id: lookID, caption: nil, state: .draft, visibility: .onlyYou,
+        postedAt: nil, createdAt: Date()
     )
     let photo = LooksRepository.OwnPhotoRow(id: photoID, lookID: lookID, r2Key: "a", position: 0)
     let tag = LooksRepository.OwnTagRow(id: tagID, lookPhotoID: photoID, x: 0.5, y: 0.5)

@@ -110,6 +110,11 @@ public struct MyLook: Sendable, Equatable, Identifiable {
     public let lookID: UUID
     public let caption: String?
     public let state: LookState
+    /// Who may read this look (0053, GLO-272) — per ITEM, not per surface.
+    /// Composes with `state`: a draft is invisible at any scope, and a look
+    /// at `.onlyYou` is invisible however public its state. "Archive" in the
+    /// UI is this field, not `state` — an archived look stays posted.
+    public let visibility: PrivacyScope
     /// Stamped by the `looks_stamp_posted_at` trigger when `state` becomes
     /// `public`, and set back to nil if it ever leaves. Never written by this
     /// client: `posted_at` is not in the `authenticated` update grant, and
@@ -133,19 +138,20 @@ public struct MyLook: Sendable, Equatable, Identifiable {
         photos.count
     }
 
-    /// Whether strangers can already read this one. Reads as an assertion, per
-    /// the naming rule.
+    /// Whether the look is POSTED — not whether strangers can read it, which
+    /// since 0053 also asks `visibility`. Reads as an assertion, per the rule.
     public var isPublished: Bool {
         state == .publicState
     }
 
     public init(
-        lookID: UUID, caption: String?, state: LookState,
+        lookID: UUID, caption: String?, state: LookState, visibility: PrivacyScope,
         postedAt: Date?, createdAt: Date, photos: [LookPhoto], spots: [LookSpot]
     ) {
         self.lookID = lookID
         self.caption = caption
         self.state = state
+        self.visibility = visibility
         self.postedAt = postedAt
         self.createdAt = createdAt
         self.photos = photos
