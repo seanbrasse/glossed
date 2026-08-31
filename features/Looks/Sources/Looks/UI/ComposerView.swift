@@ -9,21 +9,29 @@ import SwiftUI
 /// photo is the content, and the chrome should not compete with it.
 public struct ComposerView: View {
     @State private var model: ComposerModel
-    @State private var pickingTagFor: UUID?
+    /// Which photo the tagging canvas is showing. Nil follows the first photo.
+    @State private var taggingPhotoID: UUID?
     /// Which tile the current drag is over — the strip's only drag state.
     @State private var dropTargetID: UUID?
     private let onPickPhoto: (() -> Void)?
+    /// What the tag picker searches. **Optional, and the tagging half is
+    /// absent without it** — the composer's own rule, the same one the add
+    /// tile follows: an affordance that cannot act is not offered. The scope
+    /// is the app's to choose (GLO-266), so the app supplies this.
+    private let search: LookTagSearch?
     private let onSaved: (UUID) -> Void
     private let onClose: () -> Void
 
     public init(
         model: ComposerModel,
         onPickPhoto: (() -> Void)? = nil,
+        search: LookTagSearch? = nil,
         onSaved: @escaping (UUID) -> Void = { _ in },
         onClose: @escaping () -> Void = {}
     ) {
         _model = State(initialValue: model)
         self.onPickPhoto = onPickPhoto
+        self.search = search
         self.onSaved = onSaved
         self.onClose = onClose
     }
@@ -33,8 +41,10 @@ public struct ComposerView: View {
             VStack(alignment: .leading, spacing: Tokens.Space.s4) {
                 header
                 photoStrip
-                if !model.photos.isEmpty {
-                    tagSection
+                if !model.photos.isEmpty, let search {
+                    ComposerTagSection(
+                        model: model, search: search, photoID: $taggingPhotoID
+                    )
                 }
                 GlossedTextArea(text: $model.caption, label: "caption · optional")
                 honestyLine
@@ -92,6 +102,7 @@ public struct ComposerView: View {
             HStack(spacing: Tokens.Space.s3) {
                 ForEach(Array(model.photos.enumerated()), id: \.element.id) { index, photo in
                     photoTile(photo, at: index)
+                        .onTapGesture { taggingPhotoID = photo.id }
                 }
                 if model.canAddPhoto, let onPickPhoto {
                     Button(action: onPickPhoto) {
@@ -209,31 +220,6 @@ public struct ComposerView: View {
             .padding(4)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
             .allowsHitTesting(false)
-    }
-
-    /// Tags list as rows, not pins-on-photo yet: pin placement needs the
-    /// full-size photo canvas, which is the next slice of this ticket. The
-    /// data model already carries (x, y), so the canvas changes no store.
-    private var tagSection: some View {
-        VStack(alignment: .leading, spacing: Tokens.Space.s2) {
-            Text("TAGGED FROM YOUR SHELF").eyebrow()
-            ForEach(model.tags) { tag in
-                HStack {
-                    Text(tag.label)
-                        .font(Typography.display(14, weight: 700))
-                        .foregroundStyle(Tokens.Ink.primary)
-                    Spacer(minLength: 0)
-                    Button("untag") { model.removeTag(tag.variantID) }
-                        .buttonStyle(.plain)
-                        .font(Typography.mono(11))
-                        .foregroundStyle(Tokens.Cherry.deep)
-                }
-            }
-            if model.tags.isEmpty {
-                Text("tap tag to name what you're wearing — shade and all.")
-                    .meta()
-            }
-        }
     }
 
     /// True today, and it must change the day moderation lands: drafts are

@@ -42,6 +42,26 @@ private let png = Data([0x89, 0x50, 0x4E, 0x47])
     #expect(model.photos.map(\.position) == Array(0 ..< ComposerModel.photoCap))
 }
 
+@MainActor
+@Test func removingAPhotoRenumbersAndTakesThatPhotosTagsWithIt() {
+    // **This assertion is inverted from what it used to say, deliberately.**
+    // It read "tags pin to the look, not a photo" and asserted the tag
+    // SURVIVED — which is exactly the gap GLO-266 names: a tag with
+    // coordinates and no photo. A tag pins to a PHOTO now, so it goes when
+    // the photo does.
+    let model = ComposerModel(store: store())
+    model.addPhoto(png)
+    model.addPhoto(png)
+    model.tag(ShelfTagCandidate(variantID: UUID(), label: "fenty 330"), x: 0.4, y: 0.6)
+    let first = model.photos[0].id
+    #expect(model.tags.count == 1, "the one-shot path lands on the first photo")
+
+    model.removePhoto(first)
+
+    #expect(model.photos.map(\.position) == [0])
+    #expect(model.tags.isEmpty, "coordinates into a photo that is gone are not a tag")
+}
+
 // MARK: - reorder (GLO-232)
 
 @MainActor
@@ -156,6 +176,9 @@ private let png = Data([0x89, 0x50, 0x4E, 0x47])
 @MainActor
 @Test func reTaggingAVariantMovesThePinRatherThanStacking() {
     let model = ComposerModel(store: store())
+    // A photo first: a tag is a spot ON A PHOTO now (GLO-266), so tagging
+    // with nothing to tag is a no-op rather than a look-scoped pin.
+    model.addPhoto(png)
     let variant = UUID()
     model.tag(ShelfTagCandidate(variantID: variant, label: "soft pinch"), x: 0.1, y: 0.1)
     model.tag(ShelfTagCandidate(variantID: variant, label: "soft pinch"), x: 0.9, y: 0.9)

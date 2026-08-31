@@ -76,13 +76,17 @@ private let png = Data([0x89, 0x50, 0x4E, 0x47])
 }
 
 @MainActor
-@Test func removingAPhotoRenumbersAndKeepsTheTags() {
+@Test func removingAPhotoRenumbers() {
+    // This test asserted "tags pin to the look, not a photo" and expected the
+    // tag to survive the removal. GLO-266 inverted that on purpose — a tag
+    // pins to a PHOTO now — and the surviving-tag assertion lives in
+    // `ComposerModelTests.removingAPhotoRenumbersAndTakesThatPhotosTagsWithIt`,
+    // stated from the new side. What is left here is the half that did not
+    // change: positions stay dense from zero.
     let model = ComposerModel(store: store())
     model.addPhoto(png)
     model.addPhoto(png)
-    model.tag(ShelfTagCandidate(variantID: UUID(), label: "fenty 330"), x: 0.4, y: 0.6)
     let first = model.photos[0].id
     model.removePhoto(first)
     #expect(model.photos.map(\.position) == [0])
-    #expect(model.tags.count == 1, "tags pin to the look, not a photo")
 }
