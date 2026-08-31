@@ -2,11 +2,6 @@ import DataKit
 import Foundation
 
 /// One collection as this feature reads it — the grid card's whole content.
-///
-/// `visibility` is deliberately NOT carried. `collections` has the column, but
-/// V1 ships own-collections only and no surface here can honour, change, or
-/// truthfully report it. A field on this struct is an invitation to write copy
-/// about it, and copy about a scope no screen controls is the GLO-208 shape.
 public struct CollectionSummary: Identifiable, Equatable, Sendable {
     public let id: UUID
     public let title: String
@@ -15,12 +10,21 @@ public struct CollectionSummary: Identifiable, Equatable, Sendable {
     /// people. It carries no cohort because there is no cohort: nothing here
     /// is evidence, so nothing here wears evidence chrome.
     public let itemN: Int
+    /// Carried since the edit screen (GLO-272) — a scope a screen now
+    /// CONTROLS. This struct deliberately omitted it before that, and the
+    /// old reason still binds the copy: report it only where a control can
+    /// honour it (the GLO-208 rule).
+    public let visibility: PrivacyScope
 
-    public init(id: UUID, title: String, tint: CollectionTint?, itemN: Int) {
+    public init(
+        id: UUID, title: String, tint: CollectionTint?, itemN: Int,
+        visibility: PrivacyScope = .onlyYou
+    ) {
         self.id = id
         self.title = title
         self.tint = tint
         self.itemN = itemN
+        self.visibility = visibility
     }
 }
 
@@ -66,6 +70,12 @@ public struct CollectionsStore: Sendable {
     public var rename: @Sendable (_ collectionID: UUID, _ title: String) async throws -> Void
     public var addItem: @Sendable (_ collectionID: UUID, _ itemID: UUID, _ position: Int) async throws -> Void
     public var removeItem: @Sendable (_ collectionID: UUID, _ itemID: UUID) async throws -> Void
+    /// The edit screen's writes (GLO-272). `setVisibility` widening past
+    /// only-you owes a `public_texts` submission the repository documents;
+    /// `remove` is the soft delete — the grouping retracts, the items stay
+    /// on the shelf.
+    public var setVisibility: @Sendable (_ collectionID: UUID, _ scope: PrivacyScope) async throws -> Void
+    public var remove: @Sendable (_ collectionID: UUID) async throws -> Void
 
     public init(
         mine: @escaping @Sendable () async throws -> [CollectionSummary],
@@ -74,7 +84,9 @@ public struct CollectionsStore: Sendable {
         create: @escaping @Sendable (UUID, String, CollectionTint?) async throws -> Void,
         rename: @escaping @Sendable (UUID, String) async throws -> Void,
         addItem: @escaping @Sendable (UUID, UUID, Int) async throws -> Void,
-        removeItem: @escaping @Sendable (UUID, UUID) async throws -> Void
+        removeItem: @escaping @Sendable (UUID, UUID) async throws -> Void,
+        setVisibility: @escaping @Sendable (UUID, PrivacyScope) async throws -> Void = { _, _ in },
+        remove: @escaping @Sendable (UUID) async throws -> Void = { _ in }
     ) {
         self.mine = mine
         self.shelf = shelf
@@ -83,6 +95,8 @@ public struct CollectionsStore: Sendable {
         self.rename = rename
         self.addItem = addItem
         self.removeItem = removeItem
+        self.setVisibility = setVisibility
+        self.remove = remove
     }
 
     /// The live seam. It lives here rather than in `app/` because a feature
@@ -107,7 +121,8 @@ public struct CollectionsStore: Sendable {
                         id: $0.collectionID,
                         title: $0.title,
                         tint: CollectionTint.parse($0.coverTint?.rawValue),
-                        itemN: $0.itemN
+                        itemN: $0.itemN,
+                        visibility: $0.visibility
                     )
                 }
             },
@@ -138,7 +153,9 @@ public struct CollectionsStore: Sendable {
             },
             rename: { try await collections.rename(collectionID: $0, to: $1) },
             addItem: { try await collections.addItem(collectionID: $0, itemID: $1, position: $2) },
-            removeItem: { try await collections.removeItem(collectionID: $0, itemID: $1) }
+            removeItem: { try await collections.removeItem(collectionID: $0, itemID: $1) },
+            setVisibility: { try await collections.setVisibility(collectionID: $0, to: $1) },
+            remove: { try await collections.remove(collectionID: $0) }
         )
     }
 }
