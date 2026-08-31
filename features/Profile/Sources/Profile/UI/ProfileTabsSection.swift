@@ -62,13 +62,13 @@ struct ProfileTabsSection: View {
 
     // MARK: - The grids
 
-    @ViewBuilder private var looks: some View {
+    private var looks: some View {
         // Two columns rather than Instagram's three: with no photograph to
         // draw, a third column leaves a caption about eleven characters wide.
         grid(model.looks, empty: "no looks yet", says: emptyLine(.look)) { LookTile(look: $0) }
     }
 
-    @ViewBuilder private var collections: some View {
+    private var collections: some View {
         grid(model.collections, empty: "no collections yet", says: emptyLine(.collection)) { collection in
             CollectionCard(collection: collection)
                 .renameTarget(editing: model.isEditing, label: collection.title) {
@@ -79,7 +79,7 @@ struct ProfileTabsSection: View {
         }
     }
 
-    @ViewBuilder private var shelf: some View {
+    private var shelf: some View {
         grid(model.shelf, empty: "nothing on your shelf yet", says: "log something you own and it lands here.") {
             ShelfTile(entry: $0)
         }
@@ -106,8 +106,8 @@ struct ProfileTabsSection: View {
 
     /// The frame's `gridTemplateColumns:'1fr 1fr'` at `gap:12`.
     @ViewBuilder
-    private func grid<T: Identifiable, Card: View>(
-        _ items: [T], empty: String, says: String, @ViewBuilder card: @escaping (T) -> Card
+    private func grid<T: Identifiable>(
+        _ items: [T], empty: String, says: String, @ViewBuilder card: @escaping (T) -> some View
     ) -> some View {
         if items.isEmpty {
             emptyPane(empty, says)

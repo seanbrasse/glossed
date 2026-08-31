@@ -179,7 +179,7 @@ public struct OwnProfileView: View {
         }
     }
 
-    @ViewBuilder private var identity: some View {
+    private var identity: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(model.leadName)
                 .font(Typography.display(Typography.Size.h2))
@@ -202,7 +202,11 @@ public struct OwnProfileView: View {
                     .font(.system(size: Typography.Size.body))
                     .foregroundStyle(Tokens.Ink.primary)
                 Button("claim a handle") {
-                    if handleStore == nil { onClaimHandle() } else { claimingHandle = true }
+                    if handleStore == nil {
+                        onClaimHandle()
+                    } else {
+                        claimingHandle = true
+                    }
                 }
                 .buttonStyle(.glossed(.primary, block: true))
             }

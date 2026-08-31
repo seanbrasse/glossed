@@ -2,8 +2,8 @@ import DataKit
 import DesignSystem
 import SwiftUI
 
-/// The four kinds of card the profile's grid draws, and the edit affordance
-/// they share (GLO-261).
+// The four kinds of card the profile's grid draws, and the edit affordance
+// they share (GLO-261).
 
 /// One look. **A caption tile, not a photograph**, and the reason is in
 /// `ProfileLook`: nothing in this app resolves a `look_photos.r2_key` back to

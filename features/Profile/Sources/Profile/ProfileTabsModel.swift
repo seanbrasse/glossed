@@ -121,7 +121,7 @@ public final class ProfileTabsModel {
     ) async {
         guard let mine else { return }
         do {
-            into(try await mine())
+            try await into(mine())
         } catch {
             note(error, fallback: "couldn't load your \(what). pull to try again.")
         }
