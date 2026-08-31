@@ -79,7 +79,7 @@ private func editableModel(
     )
     await model.load()
     #expect(model.tab == .looks)
-    #expect(!model.canEdit)
+    #expect(!model.canRename)
 }
 
 @Test func theEyebrowNamesWhatIsBeingRenamed() {
@@ -105,4 +105,61 @@ private func editableModel(
     await model.saveRename()
     #expect(routineWrites == 1)
     #expect(collectionWrites == 0)
+}
+
+private func aCollection(title: String = "wash day kit") -> ProfileCollection {
+    ProfileCollection(id: UUID(), title: title, tint: "mint", itemN: 6, visibility: .onlyYou)
+}
+
+// MARK: - Edit mode gating (GLO-271, sweep finding 05)
+
+@MainActor
+@Test func anEmptyCollectionsTabOffersNothingToRename() async {
+    // The defect this replaces: `canEdit` switched on the tab KIND and never
+    // on its contents, so `edit profile` drew over `no collections yet` and
+    // edit mode then said `tap any card to rename it` with no cards on
+    // screen. The old doc comment claimed it prevented exactly that.
+    // A writer IS wired — emptiness alone is what withholds the control, so
+    // this cannot pass for the wrong reason.
+    let model = ProfileTabsModel(
+        collections: ProfileCollectionsStore(mine: { [] }, rename: { _, _ in })
+    )
+    await model.load()
+    #expect(model.canRename == false)
+    model.isEditing = true
+    #expect(model.editHint == nil)
+}
+
+@MainActor
+@Test func acollectionsTabWithRowsCanRenameAndSaysSo() async {
+    let model = ProfileTabsModel(
+        collections: ProfileCollectionsStore(mine: { [aCollection()] }, rename: { _, _ in })
+    )
+    await model.load()
+    #expect(model.canRename)
+    model.isEditing = true
+    #expect(model.editHint == "tap any card to rename it")
+}
+
+@MainActor
+@Test func renameIsRefusedWhenNothingCanWriteThatKind() async {
+    // The guard follows the target's writer, not the tab showing. With no
+    // collections store wired at all there is nothing to write through, so
+    // the sheet must not open.
+    let model = ProfileTabsModel(routines: ProfileRoutinesStore(mine: { [] }, rename: { _, _ in }))
+    await model.load()
+    model.isEditing = true
+    model.beginRename(RenameTarget(kind: .collection, id: UUID(), value: "holy grails only"))
+    #expect(model.renaming == nil)
+}
+
+// MARK: - The identity fields edit profile offers
+
+@Test func identityOffersNameAndBioAndNotAPhoto() {
+    // The photo is absent on purpose: there is no photo column in the schema
+    // (`profiles` carries `avatar_seed` and no URL), so it waits on a
+    // migration. A case here would be a door onto a room with no floor.
+    #expect(ProfileIdentityField.allCases == [.name, .bio])
+    #expect(ProfileIdentityField.name.label == "your name")
+    #expect(ProfileIdentityField.bio.label == "your bio")
 }

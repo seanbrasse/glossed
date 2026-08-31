@@ -23,6 +23,8 @@ public struct OwnProfileView: View {
     @State private var viewing: SuggestedPerson?
     @State private var showingSettings = false
     @State private var claimingHandle = false
+    /// The identity field `edit profile` is editing, if any (GLO-271).
+    @State private var editingIdentity: ProfileIdentityField?
     private let onClaimHandle: () -> Void
     private let onOpenPrivacy: () -> Void
     private let onCompose: ((ProfileComposable) -> Void)?
@@ -86,7 +88,15 @@ public struct OwnProfileView: View {
                     } else {
                         counts
                         if !tabs.tabs.isEmpty {
-                            ProfileTabsSection(model: tabs, onCompose: onCompose)
+                            ProfileTabsSection(
+                                model: tabs,
+                                onCompose: onCompose,
+                                // No settings store, no rows: both editors
+                                // live behind it, and a control that opens
+                                // nothing is the GLO-189 mistake.
+                                onEditIdentity: settingsStore == nil
+                                    ? nil : { editingIdentity = $0 }
+                            )
                         }
                         SuggestedPeopleCard(store: suggestionsStore) { viewing = $0 }
                     }
@@ -114,6 +124,32 @@ public struct OwnProfileView: View {
                     onSignedOut: { showingSettings = false; onSignedOut() },
                     onBack: { showingSettings = false }
                 )
+            }
+        }
+        // `edit profile` opens the same two editors settings does — GLO-213
+        // built them, and Sean's Aug 31 ruling asked for them here too. Two
+        // doors onto one screen, not two screens.
+        .sheet(item: $editingIdentity) { field in
+            if let settingsStore {
+                switch field {
+                case .name:
+                    DisplayNameView(
+                        current: model.displayName,
+                        save: { try await settingsStore.saveDisplayName($0) },
+                        onSaved: {
+                            editingIdentity = nil
+                            Task { await model.load() }
+                        },
+                        onBack: { editingIdentity = nil }
+                    )
+                case .bio:
+                    if let bioStore = settingsStore.bio {
+                        BioView(store: bioStore, onBack: {
+                            editingIdentity = nil
+                            Task { await model.load() }
+                        })
+                    }
+                }
             }
         }
         .claimSheet(isPresented: $claimingHandle, store: handleStore) {

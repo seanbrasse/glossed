@@ -152,20 +152,44 @@ public final class ProfileTabsModel {
 
     // MARK: - Edit mode (the frame's `edit profile` / `done editing`)
 
-    /// Whether the tab now showing has anything to rename. The button is not
-    /// drawn otherwise: an `edit profile` that turns nothing into a target is
-    /// a control that does nothing, and this project has shipped that already.
-    public var canEdit: Bool {
-        renameWrite(for: tab) != nil
+    /// Whether the tab now showing has anything to rename.
+    ///
+    /// **This used to be the whole gate on `edit profile`, and its own comment
+    /// described a promise it did not keep.** It read *"whether the tab now
+    /// showing has anything to rename — an `edit profile` that turns nothing
+    /// into a target is a control that does nothing, and this project has
+    /// shipped that already."* But `renameWrite(for:)` switches on the tab
+    /// **kind**, never on its contents, so the button drew over `no
+    /// collections yet` and edit mode then offered `tap any card to rename it`
+    /// with no cards on screen. Found by driving it (GLO-271's sweep,
+    /// finding 05).
+    ///
+    /// It now means what it says: a rename target needs a writer **and** a row
+    /// to point at.
+    public var canRename: Bool {
+        renameWrite(for: tab) != nil && !currentTabIsEmpty
+    }
+
+    /// Whether the tab now showing has any rows at all.
+    private var currentTabIsEmpty: Bool {
+        switch tab {
+        case .looks: looks.isEmpty
+        case .collections: collections.isEmpty
+        case .routines: routines.isEmpty
+        case .shelf: shelf.isEmpty
+        }
     }
 
     public var editButtonLabel: String {
         isEditing ? "done editing" : "edit profile"
     }
 
-    /// The frame's mono hint, shown only while editing.
+    /// The frame's mono hint — and it may only promise what the tab can do.
+    ///
+    /// Silent otherwise: a hint naming an interaction that is not available on
+    /// this tab is the same false claim `canRename` above was fixed for.
     public var editHint: String? {
-        isEditing ? "tap any card to rename it" : nil
+        isEditing && canRename ? "tap any card to rename it" : nil
     }
 
     public func toggleEditing() {
@@ -175,8 +199,13 @@ public final class ProfileTabsModel {
         }
     }
 
+    /// Guarded on the TARGET's writer, not on the tab now showing — the same
+    /// rule `saveRename` follows, and for the same reason: a tab switched
+    /// under an open sheet must not decide what a rename means. `canRename`
+    /// is the *button's* gate, and emptiness is not a reason to refuse a
+    /// target that was handed over.
     public func beginRename(_ target: RenameTarget) {
-        guard isEditing, renameWrite(for: tab) != nil else { return }
+        guard isEditing, renameWrite(for: target.tabForKind) != nil else { return }
         errorMessage = nil
         renaming = target
     }
