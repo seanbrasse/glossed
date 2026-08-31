@@ -104,7 +104,10 @@ public struct LookDraft: Sendable {
 ///   `authenticated`. Sending any of them raises `42501`.
 /// - `can_post_look()` still gates INSERT, so under-18s cannot create a look.
 public struct LooksRepository: Sendable {
-    private let client: GlossedClient
+    /// `internal`, not `private`: `LooksEditing.swift` is the same type split
+    /// across files for the 300-line ceiling, and Swift's `private` is
+    /// file-scoped.
+    let client: GlossedClient
 
     public init(client: GlossedClient) {
         self.client = client
@@ -200,7 +203,7 @@ public struct LooksRepository: Sendable {
         let looks: [OwnLookRow] = try await run {
             try await client.supabase
                 .from("looks")
-                .select("id,caption,state,posted_at,created_at")
+                .select("id,caption,state,visibility,posted_at,created_at")
                 .eq("user_id", value: userID.uuidString)
                 .order("created_at", ascending: false)
                 .execute()
@@ -277,7 +280,7 @@ public struct LooksRepository: Sendable {
         }
     }
 
-    private func run<T>(_ work: () async throws -> T) async throws(GlossedError) -> T {
+    func run<T>(_ work: () async throws -> T) async throws(GlossedError) -> T {
         do {
             return try await work()
         } catch {
