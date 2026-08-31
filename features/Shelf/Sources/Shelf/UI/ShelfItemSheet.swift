@@ -14,7 +14,15 @@ public struct ShelfItemSheet: View {
     /// are second of five while showing you three things.
     let rankedInCategory: Int
     private let onClose: () -> Void
-    private let onRank: () -> Void
+    /// Nil means this build cannot rank, and then the button is not drawn.
+    ///
+    /// **It used to default to `{}`**, and `ShelfView` never passed one, so
+    /// the sheet's primary action — the kit's one pop moment on this
+    /// surface — was a no-op on every item in the app (GLO-240). A control
+    /// that does nothing is worse than one that is not offered; this file
+    /// already applies that rule to `onRemove`, `onStatusChange` and
+    /// `onRepurchase`, and `rank it` was the exception.
+    private let onRank: (() -> Void)?
     /// Nil hides "full page" entirely (GLO-151). The button shipped wired to
     /// an empty default and `ShelfView` never passed anything, so it sat on
     /// the sheet doing nothing — an affordance that lies about what the app
@@ -55,7 +63,7 @@ public struct ShelfItemSheet: View {
         fit: Binding<Set<FitAnswer>> = .constant([]),
         exactShadeCount: Int? = nil,
         onClose: @escaping () -> Void,
-        onRank: @escaping () -> Void = {},
+        onRank: (() -> Void)? = nil,
         onOpenProduct: (() -> Void)? = nil,
         onRemove: (() -> Void)? = nil,
         isRemoving: Bool = false,
@@ -247,13 +255,20 @@ public struct ShelfItemSheet: View {
     /// whole argument: a shelf is only worth having if it is ordered.
     private var actions: some View {
         HStack(spacing: 10) {
-            Button("rank it", action: onRank)
-                .buttonStyle(.glossed(block: true))
-                .frame(maxWidth: .infinity)
+            if let onRank {
+                Button("rank it", action: onRank)
+                    .buttonStyle(.glossed(block: true))
+                    .frame(maxWidth: .infinity)
+            }
             if showsFullPage, let onOpenProduct {
                 Button("full page", action: onOpenProduct)
-                    .buttonStyle(.glossed(.secondary))
-                    .fixedSize()
+                    // Alone in the row it takes the whole width rather than
+                    // sitting half-width beside a gap — the same rule
+                    // `ProductPageView.actions` follows when `rank it` is
+                    // absent there.
+                    .buttonStyle(.glossed(onRank == nil ? .primary : .secondary, block: onRank == nil))
+                    .frame(maxWidth: onRank == nil ? .infinity : nil)
+                    .fixedSize(horizontal: onRank != nil, vertical: false)
             }
         }
         .padding(.top, 16)

@@ -29,6 +29,14 @@ public struct ShelfView: View {
     /// Handed up to `app/`: a feature cannot import a feature, so the shelf
     /// reports the tap and the app owns the crossing (GLO-151).
     private let onOpenProduct: ((ShelfItem) -> Void)?
+    /// Handed up for the same reason `onOpenProduct` is: the face-off lives in
+    /// `features/Ranking` and a feature cannot import a feature.
+    ///
+    /// **Nil means the build cannot rank, and the sheet then offers no way to
+    /// try.** It was previously not passed at all, so `ShelfItemSheet` fell
+    /// back to its defaulted `{}` and the sheet's primary action — the kit's
+    /// one pop moment on that surface — did nothing when tapped (GLO-240).
+    private let onRank: ((ShelfItem) -> Void)?
 
     public init(
         model: ShelfModel,
@@ -36,6 +44,7 @@ public struct ShelfView: View {
         stageZero: ShelfStageZeroStore? = nil,
         onTapItem: @escaping (ShelfItem) -> Void = { _ in },
         onOpenProduct: ((ShelfItem) -> Void)? = nil,
+        onRank: ((ShelfItem) -> Void)? = nil,
         onImport: (() -> Void)? = nil
     ) {
         _model = State(initialValue: model)
@@ -43,6 +52,7 @@ public struct ShelfView: View {
         self.stageZero = stageZero
         self.onTapItem = onTapItem
         self.onOpenProduct = onOpenProduct
+        self.onRank = onRank
         self.onImport = onImport
     }
 
@@ -60,6 +70,7 @@ public struct ShelfView: View {
                             set: { model.fitChanged(to: $0) }
                         ),
                         onClose: model.closeSheet,
+                        onRank: onRank.map { rank in { rank(item) } },
                         // No variant, no page to build (GLO-151).
                         onOpenProduct: onOpenProduct.flatMap { open in
                             item.variantID == nil ? nil : { open(item) }

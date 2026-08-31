@@ -87,6 +87,14 @@ struct AppShell: View {
     /// than in `Shelf` because a feature cannot import another feature: the
     /// shelf hands the tap up, and the app owns the crossing.
     @State var openProduct: ShelfItem?
+    /// The shelf item the face-off is ranking (GLO-240).
+    ///
+    /// **`rank it` was wired to `dismiss` at all three call sites**, so the
+    /// only entrance to a screen built in GLO-17 closed the page instead of
+    /// opening it. `features/Ranking` is linked into this target and was
+    /// imported by nothing. Same crossing as `openProduct`: the page hands the
+    /// tap up and the app owns what it opens.
+    @State var rankingItem: ShelfItem?
     /// A discover row opening as a page (GLO-20). Distinct from
     /// `openProduct` because there is no ShelfItem — the fit control stays
     /// read-only via the nil `userItemID`, exactly the case ProductPageItem
@@ -226,6 +234,9 @@ struct AppShell: View {
         }
         .fullScreenCover(isPresented: $lookOpen) {
             lookComposer
+        }
+        .fullScreenCover(item: $rankingItem) { item in
+            faceOff(item)
         }
         .fullScreenCover(item: $openProduct) { item in
             if let client = session.client {
