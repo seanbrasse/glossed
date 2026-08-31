@@ -37,6 +37,7 @@ private let png = Data([0x89, 0x50, 0x4E, 0x47])
     }
     #expect(model.photos.count == ComposerModel.photoCap)
     #expect(!model.canAddPhoto)
+    #expect(model.remainingPhotoSlots == 0)
     // positions stay dense and ordered
     #expect(model.photos.map(\.position) == Array(0 ..< ComposerModel.photoCap))
 }

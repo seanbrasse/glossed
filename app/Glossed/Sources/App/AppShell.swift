@@ -73,6 +73,12 @@ struct AppShell: View {
     /// composer, so a second "new routine" starts empty rather than resuming
     /// the first one's title, steps and minted routine id.
     @State var routineTrip = UUID()
+    /// The collection composer, the drawer's third door (GLO-21).
+    @State var collectionOpen = false
+    /// `routineTrip`'s reasoning again: a new trip is a new composer, so a
+    /// second "new collection" starts empty rather than resuming the first
+    /// one's name, tint and picked products.
+    @State var collectionTrip = UUID()
     /// The look composer, the drawer's fifth door (GLO-254, Sean's ruling).
     @State var lookOpen = false
     /// The same reasoning again, and it bites harder here: `LooksStore.live`
@@ -87,6 +93,14 @@ struct AppShell: View {
     /// than in `Shelf` because a feature cannot import another feature: the
     /// shelf hands the tap up, and the app owns the crossing.
     @State var openProduct: ShelfItem?
+    /// The shelf item the face-off is ranking (GLO-240).
+    ///
+    /// **`rank it` was wired to `dismiss` at all three call sites**, so the
+    /// only entrance to a screen built in GLO-17 closed the page instead of
+    /// opening it. `features/Ranking` is linked into this target and was
+    /// imported by nothing. Same crossing as `openProduct`: the page hands the
+    /// tap up and the app owns what it opens.
+    @State var rankingItem: ShelfItem?
     /// A discover row opening as a page (GLO-20). Distinct from
     /// `openProduct` because there is no ShelfItem — the fit control stays
     /// read-only via the nil `userItemID`, exactly the case ProductPageItem
@@ -226,6 +240,12 @@ struct AppShell: View {
         }
         .fullScreenCover(isPresented: $lookOpen) {
             lookComposer
+        }
+        .fullScreenCover(isPresented: $collectionOpen) {
+            collectionComposer
+        }
+        .fullScreenCover(item: $rankingItem) { item in
+            faceOff(item)
         }
         .fullScreenCover(item: $openProduct) { item in
             if let client = session.client {

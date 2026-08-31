@@ -1,5 +1,6 @@
 import DataKit
 import ProductPage
+import Ranking
 import Shelf
 import SwiftUI
 
@@ -72,7 +73,9 @@ extension AppShell {
                     fitStore: .repository(ShelfRepository(client: client))
                 ),
                 onBack: dismiss,
-                onRank: dismiss,
+                // Was `dismiss`, which closed the page and opened nothing —
+                // the face-off's only entrance, wired to its own exit.
+                onRank: { rankingItem = item },
                 // GLO-20's last surface: the board opens scoped to this
                 // item's category — the shelf row carries the slug + domain.
                 onLeaderboard: {
@@ -82,6 +85,47 @@ extension AppShell {
             .sheet(item: $openBoard) { board in
                 leaderboardSheet(board)
             }
+        }
+    }
+
+    /// The face-off, hosted for BOTH of its entrances (GLO-240).
+    ///
+    /// **Every `rank it` in the app led nowhere.** `ProductPageView`'s was
+    /// wired to `dismiss` at all three call sites — the screen's only entrance
+    /// pointed at its own exit — and `ShelfItemSheet`'s took `ShelfView`'s
+    /// defaulted `{}`, because the passthrough was never added. `Ranking` was
+    /// linked into this target and imported by nothing at all. #375 built the
+    /// seam and #381 the host screen, both entirely inside the package; the
+    /// handoff recorded the face-off as "reachable for the first time since
+    /// GLO-17" and it was not reachable at all.
+    ///
+    /// Presented from the shell rather than from either caller, so the two
+    /// entrances feed one presentation instead of racing — the trap the
+    /// `openBoard` / `discoverBoard` split already documents.
+    ///
+    /// A cover, not a sheet: `G.FaceOff` is a whole screen with its own exit,
+    /// and a half-height sheet puts the two contenders under the fold at
+    /// 402pt.
+    @ViewBuilder func faceOff(_ item: ShelfItem) -> some View {
+        if let client = session.client {
+            RankItView(
+                model: RankSessionModel(
+                    userItemID: item.id,
+                    store: .repository(
+                        shelf: ShelfRepository(client: client),
+                        catalog: CatalogRepository(client: client),
+                        ranking: RankingRepository(client: client)
+                    )
+                ),
+                imageBase: session.imageBase,
+                // The face-off writes `rank_positions` and the shelf row
+                // carries `rank_position`, so the shelf is stale the moment
+                // this closes unless it is told.
+                onDone: {
+                    rankingItem = nil
+                    session.refreshShelf()
+                }
+            )
         }
     }
 }

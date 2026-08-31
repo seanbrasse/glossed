@@ -80,6 +80,14 @@ public struct ComposerView: View {
     private var photoStrip: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s2) {
             strip
+            if !model.photos.isEmpty, model.canAddPhoto {
+                // The room left, said before the user hits the wall. Mono
+                // because it is a count — of THIS post's own photos, which is
+                // capacity, not evidence (GLO-196).
+                Text("room for \(model.remainingPhotoSlots) more")
+                    .font(Typography.mono(11))
+                    .foregroundStyle(Tokens.Ink.soft)
+            }
             if model.photos.count > 1 {
                 // Discoverability, not decoration: a long-press drag nobody
                 // is told about is an affordance nobody finds.
@@ -101,7 +109,10 @@ public struct ComposerView: View {
                         VStack(spacing: Tokens.Space.s2) {
                             Image(systemName: "photo.badge.plus")
                                 .font(.system(size: 22, weight: .medium))
-                            Text(model.photos.isEmpty ? "add a photo" : "another")
+                            // Plural on purpose: the picker takes a selection,
+                            // so "add photos" describes what the tap does
+                            // (GLO-266) rather than promising one at a time.
+                            Text(model.photos.isEmpty ? "add photos" : "add more")
                                 .font(Typography.mono(11))
                         }
                         .foregroundStyle(Tokens.Ink.primary)
@@ -115,7 +126,7 @@ public struct ComposerView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("add a photo")
+                    .accessibilityLabel(model.photos.isEmpty ? "add photos" : "add more photos")
                 }
             }
         }
@@ -124,8 +135,8 @@ public struct ComposerView: View {
     /// A tile is both a drag source and a drop target: dragging one onto
     /// another gives the dragged photo that tile's place. Tile-level targets
     /// rather than one strip-wide target because the strip scrolls at the cap
-    /// (six tiles overflow any phone) and a drop zone you cannot reach is not
-    /// a drop zone — one hop at a time always works.
+    /// (five tiles still overflow any phone) and a drop zone you cannot reach
+    /// is not a drop zone — one hop at a time always works.
     private func photoTile(_ photo: ComposerPhoto, at index: Int) -> some View {
         ZStack(alignment: .topTrailing) {
             photoImage(photo)

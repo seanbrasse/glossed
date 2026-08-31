@@ -18,6 +18,11 @@ extension AppShell {
                 // feature, and the shell already owns the client.
                 stageZero: session.client.map { .repository(AggregatesRepository(client: $0)) },
                 onOpenProduct: { openProduct = $0 },
+                // The sheet's ONE pop moment, and it was a no-op: `ShelfView`
+                // never passed `onRank`, so `ShelfItemSheet` took its
+                // defaulted `{}` and the primary action on every item did
+                // nothing at all (GLO-240).
+                onRank: { rankingItem = $0 },
                 onImport: { drawerOpen = true }
             )
             .id(ObjectIdentifier(model))
