@@ -31,12 +31,12 @@ insert into profiles (user_id, birth_year_month, domains) values
 
 -- The owner's looks scope is public from the start; the ROUTINE and COLLECTION
 -- scopes are the variables under test, and they begin closed.
-insert into privacy_scopes (user_id, looks, routines) values
-    ('aa000000-0000-0000-0000-000000000001', 'public', 'only_you');
+-- Per-item since 0053: the LOOK's row opens, the routine's row stays shut —
+-- which is this test's whole scenario, now spelled on the items themselves.
 
-insert into looks (id, user_id, caption, state, posted_at) values
+insert into looks (id, user_id, caption, state, posted_at, visibility) values
     ('1a000000-0000-0000-0000-000000000001', 'aa000000-0000-0000-0000-000000000001',
-     'a public look', 'public', now());
+     'a public look', 'public', now(), 'public');
 insert into routines (id, user_id, title, slot) values
     ('2a000000-0000-0000-0000-000000000001', 'aa000000-0000-0000-0000-000000000001',
      'my private routine', 'am');
@@ -77,7 +77,7 @@ select is((select count(*)::int from routines), 0,
 -- 9-10 · opening the scope is what reveals it, so the guard is the scope and
 -- not an accident of the fixture
 set local role postgres;
-update privacy_scopes set routines = 'public'
+update routines set visibility = 'public'
  where user_id = 'aa000000-0000-0000-0000-000000000001';
 update collections set visibility = 'public'
  where id = '3a000000-0000-0000-0000-000000000001';

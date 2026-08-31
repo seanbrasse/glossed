@@ -102,8 +102,9 @@ select is((select count(*)::int from looks where state = 'public'),
     0, 'public state with no looks scope grants nothing — can_view default-deny holds');
 
 set local role postgres;
-insert into privacy_scopes (user_id, looks) values
-    ('a8000000-0000-0000-0000-000000000001', 'public');
+-- looks scope is PER ITEM since 0053; the fixture opens the look's own row below.
+update looks set visibility = 'public'
+ where user_id = 'a8000000-0000-0000-0000-000000000001';
 
 select test_as('a8000000-0000-0000-0000-000000000002');
 select is((select count(*)::int from looks where state = 'public'),

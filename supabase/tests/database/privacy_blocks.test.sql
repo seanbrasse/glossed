@@ -100,11 +100,11 @@ select ok(not can_view(:'juli', 'shelf'), 'blocks in BOTH directions · the othe
 
 -- every surface, not just shelf
 select test_as(:'maya');
-update privacy_scopes set rankings = 'public', routines = 'public', looks = 'public' where user_id = :'maya';
+update privacy_scopes set rankings = 'public' where user_id = :'maya';
 select test_as(:'juli');
 select ok(not can_view(:'maya', 'rankings'), 'a block covers rankings');
-select ok(not can_view(:'maya', 'routines'), 'a block covers routines');
-select ok(not can_view(:'maya', 'looks'),    'a block covers looks');
+select ok(not can_view_item(:'maya', 'public'), 'a block covers per-item visibility — a public item renders nothing to the blocked (0053)');
+select ok(not can_view_item(:'maya', 'friends'), 'friends items too');
 
 -- the owner still sees their own everything, block or not
 select test_as(:'maya');

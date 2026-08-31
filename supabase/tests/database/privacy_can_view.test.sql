@@ -101,8 +101,7 @@ select ok(can_view(null, :'maya', 'shelf'),             'public · ANON → visi
 -- another), and `looks` behaves like the rest even though nothing reads it in
 -- 1.5 — so Phase 2 inherits a tested column rather than a new one.
 -- ---------------------------------------------------------------------------
-update privacy_scopes set shelf = 'only_you', rankings = 'only_you',
-                          routines = 'only_you', looks = 'only_you' where user_id = :'maya';
+update privacy_scopes set shelf = 'only_you', rankings = 'only_you' where user_id = :'maya';
 
 update privacy_scopes set shelf = 'friends' where user_id = :'maya';
 select ok(can_view(:'juli', :'maya', 'shelf'),          'friends · shelf · mutual → visible');
@@ -114,25 +113,32 @@ update privacy_scopes set rankings = 'friends' where user_id = :'maya';
 select ok(can_view(:'juli', :'maya', 'rankings'),       'friends · rankings · mutual → visible');
 select ok(not can_view(:'stranger', :'maya', 'rankings'), 'friends · rankings · stranger → invisible');
 
-update privacy_scopes set routines = 'friends' where user_id = :'maya';
-select ok(can_view(:'juli', :'maya', 'routines'),       'friends · routines · mutual → visible');
-select ok(not can_view(:'stranger', :'maya', 'routines'), 'friends · routines · stranger → invisible');
+-- routines and looks are PER ITEM since 0053. The surface arms fail closed
+-- for every viewer — an old caller can never open something — and the same
+-- friends/stranger behavior now lives in can_view_item, seat-based.
+select ok(not can_view(:'juli', :'maya', 'routines'),
+    'the routines surface arm fails CLOSED — even for a mutual (0053)');
+select ok(not can_view(:'juli', :'maya', 'looks'),
+    'the looks surface arm fails CLOSED — even for a mutual (0053)');
+select test_as(:'juli');
+select ok(can_view_item(:'maya', 'friends'),  'can_view_item · friends · mutual → visible');
+select test_as(:'stranger');
+select ok(not can_view_item(:'maya', 'friends'), 'can_view_item · friends · stranger → invisible');
+reset role;
 
-update privacy_scopes set looks = 'friends' where user_id = :'maya';
-select ok(can_view(:'juli', :'maya', 'looks'),          'friends · looks · mutual → visible');
-select ok(not can_view(:'stranger', :'maya', 'looks'),
-    'friends · looks · stranger → invisible. Nothing reads looks in 1.5; Phase 2 inherits a tested column.');
-
-update privacy_scopes set shelf = 'public', rankings = 'public',
-                          routines = 'public', looks = 'public' where user_id = :'maya';
+update privacy_scopes set shelf = 'public', rankings = 'public' where user_id = :'maya';
 select ok(can_view(:'stranger', :'maya', 'shelf'),      'public · shelf · stranger → visible');
 select ok(can_view(:'stranger', :'maya', 'rankings'),   'public · rankings · stranger → visible');
-select ok(can_view(:'stranger', :'maya', 'routines'),   'public · routines · stranger → visible');
-select ok(can_view(:'stranger', :'maya', 'looks'),      'public · looks · stranger → visible');
+select test_as(:'stranger');
+select ok(can_view_item(:'maya', 'public'),   'can_view_item · public · stranger → visible');
+select ok(not can_view_item(:'maya', 'only_you'), 'can_view_item · only_you · stranger → invisible');
+reset role;
 select ok(can_view(:'juli', :'maya', 'shelf'),          'public · shelf · mutual → visible');
 select ok(can_view(:'juli', :'maya', 'rankings'),       'public · rankings · mutual → visible');
-select ok(can_view(:'juli', :'maya', 'routines'),       'public · routines · mutual → visible');
-select ok(can_view(:'juli', :'maya', 'looks'),          'public · looks · mutual → visible');
+select test_as(:'juli');
+select ok(can_view_item(:'maya', 'public'),   'can_view_item · public · mutual → visible');
+select ok(can_view_item(:'maya', 'only_you') = false, 'can_view_item · only_you · mutual → invisible — friends is not a skeleton key');
+reset role;
 
 select * from finish();
 rollback;

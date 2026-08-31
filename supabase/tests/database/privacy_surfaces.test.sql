@@ -102,9 +102,9 @@ delete from blocks where user_id = :'juli' and blocked_id = :'maya';
 -- in a published routine, list, or collection — and ONLY that item.
 -- ---------------------------------------------------------------------------
 select test_as(:'maya');
-update privacy_scopes set shelf = 'only_you', routines = 'public' where user_id = :'maya';
-insert into routines (id, user_id, title, slot) values
-    ('60000000-0000-0000-0000-0000000000f1'::uuid, :'maya', 'am routine', 'am');
+update privacy_scopes set shelf = 'only_you' where user_id = :'maya';
+insert into routines (id, user_id, title, slot, visibility) values
+    ('60000000-0000-0000-0000-0000000000f1'::uuid, :'maya', 'am routine', 'am', 'public');
 insert into routine_steps (routine_id, user_item_id, position) values
     ('60000000-0000-0000-0000-0000000000f1'::uuid, '50000000-0000-0000-0000-0000000000e1', 1);
 select test_as(:'juli');
@@ -138,7 +138,8 @@ select is((select count(*)::int from collection_items where collection_id = '700
 -- The tables that get NO public policy, in any scope, ever.
 -- ---------------------------------------------------------------------------
 select test_as(:'maya');
-update privacy_scopes set shelf = 'public', rankings = 'public', routines = 'public' where user_id = :'maya';
+update privacy_scopes set shelf = 'public', rankings = 'public' where user_id = :'maya';
+update routines set visibility = 'public' where user_id = :'maya';
 insert into item_fits (user_id, user_item_id, fit) values (:'maya', '50000000-0000-0000-0000-0000000000e1', 'just_right');
 select test_as(:'juli');
 select is((select count(*)::int from item_fits where user_item_id = '50000000-0000-0000-0000-0000000000e1'), 0,

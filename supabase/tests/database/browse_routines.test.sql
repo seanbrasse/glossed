@@ -47,7 +47,7 @@ select is((select count(*)::int from browse_routines('am')), 0,
     'EXCLUSION 1 — an only_you routine does not appear');
 
 select test_as(:'maya');
-update privacy_scopes set routines = 'public' where user_id = :'maya';
+update routines set visibility = 'public' where user_id = :'maya';
 select test_as(:'juli');
 select is((select count(*)::int from browse_routines('am')), 0,
     'EXCLUSION 2 — scope is public but the owner is not discoverable, so it still does not appear. Browse is a SURFACING surface, and surfacing is opt-in.');

@@ -8,7 +8,7 @@
 -- quietly grants a helper to clients, this file goes red. That is its whole job.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(26);
 
 -- ---------------------------------------------------------------------------
 -- 1. Every public read policy routes through can_view (or its per-collection
@@ -75,9 +75,9 @@ select ok(has_function_privilege('anon','item_is_published(uuid,uuid)','execute'
 -- ---------------------------------------------------------------------------
 select is(
     (select array_agg(column_default::text order by column_name) from information_schema.columns
-      where table_name = 'privacy_scopes' and column_name in ('shelf','rankings','routines','looks')),
-    array_fill('''only_you''::scope_enum'::text, array[4]),
-    'all four scope columns default only_you');
+      where table_name = 'privacy_scopes' and column_name in ('shelf','rankings')),
+    array_fill('''only_you''::scope_enum'::text, array[2]),
+    'both surviving scope columns default only_you — routines and looks are per-item since 0053');
 select is((select column_default::text from information_schema.columns
             where table_name='privacy_scopes' and column_name='discoverable'), 'false',
     'discoverable defaults false');
@@ -90,10 +90,15 @@ select is((select column_default::text from information_schema.columns
 --    permitted near-fork in the phase, and it earns its keep only by staying in
 --    lockstep — owner, then block, then minor, then scope.
 -- ---------------------------------------------------------------------------
+-- 0053 healed the near-fork: the order lives in can_view_item once, and
+-- collection_is_visible DELEGATES rather than restating it.
 select ok(
-    (select prosrc from pg_proc where proname = 'collection_is_visible') ~
+    (select prosrc from pg_proc where proname = 'collection_is_visible') ~ 'can_view_item',
+    'collection_is_visible delegates to can_view_item — the fork is healed, not merely in lockstep');
+select ok(
+    (select prosrc from pg_proc where proname = 'can_view_item') ~
     '(?s)auth\.uid\(\).*is_blocked.*is_minor_user.*public.*friends',
-    'collection_is_visible checks owner → block → minor → scope, in that order, exactly as can_view does');
+    'can_view_item checks owner → block → minor → scope, in that order, exactly as can_view does');
 
 -- ---------------------------------------------------------------------------
 -- 6. Privilege and policy must AGREE. A 1.5 table with no anon policy must not
