@@ -1,3 +1,4 @@
+import DataKit
 import Foundation
 
 /// One collection as this feature reads it — the grid card's whole content.
@@ -82,5 +83,62 @@ public struct CollectionsStore: Sendable {
         self.rename = rename
         self.addItem = addItem
         self.removeItem = removeItem
+    }
+
+    /// The live seam. It lives here rather than in `app/` because a feature
+    /// may import `core` — and it did not exist at all until now, which is why
+    /// this package shipped with a store, a tint, a summary type and **nothing
+    /// joining any of it to `CollectionsRepository`**.
+    ///
+    /// `CollectionTint` is declared twice on purpose and bridged by raw value:
+    /// DataKit owns the column's vocabulary and this feature owns the colour,
+    /// and neither may import the other's. The bridge is total in both
+    /// directions — the four cases are the same four — so an unmapped value
+    /// means the two enums have drifted, and `parse` already answers `nil`
+    /// for a word this build does not draw.
+    public static func repository(
+        collections: CollectionsRepository,
+        shelf: ShelfRepository
+    ) -> CollectionsStore {
+        CollectionsStore(
+            mine: {
+                try await collections.mine().map {
+                    CollectionSummary(
+                        id: $0.collectionID,
+                        title: $0.title,
+                        tint: CollectionTint.parse($0.coverTint?.rawValue),
+                        itemN: $0.itemN
+                    )
+                }
+            },
+            // A collection groups things you OWN, so the picker is your shelf
+            // and never the catalog: `collection_items.user_item_id`
+            // references `user_items`, and a variant id is refused by the
+            // foreign key rather than silently stored.
+            shelf: {
+                try await shelf.shelf().map {
+                    CollectionItem(
+                        id: $0.userItemID, name: $0.productName, brand: $0.brandName
+                    )
+                }
+            },
+            items: { collectionID in
+                try await collections.items(collectionID: collectionID).map {
+                    CollectionItem(
+                        id: $0.userItemID, name: $0.productName, brand: $0.brandName
+                    )
+                }
+            },
+            create: { collectionID, title, tint in
+                _ = try await collections.create(
+                    title: title,
+                    tint: tint.flatMap { DataKit.CollectionTint(rawValue: $0.rawValue) },
+                    collectionID: collectionID
+                )
+            },
+            rename: { try await collections.rename(collectionID: $0, to: $1) },
+            addItem: { try await collections.addItem(collectionID: $0, itemID: $1, position: $2) },
+            removeItem: { try await collections.removeItem(collectionID: $0, itemID: $1) }
+        )
     }
 }

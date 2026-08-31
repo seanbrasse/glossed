@@ -100,14 +100,12 @@ extension AppShell {
             routineTrip = UUID()
             routineOpen = true
         case .collection:
-            // **The repository exists; the composer does not.** GLO-230 landed
-            // `CollectionsRepository` in #387 and this profile reads it — the
-            // collections tab draws real cards. What is missing is the screen
-            // that makes one, which is GLO-21's remaining half. The notice
-            // names the ticket that is actually open rather than the one that
-            // closed, because copy that tells you a built thing is unbuilt is
-            // exactly as false as the reverse (GLO-189).
-            notice = "a collections composer is still GLO-21 — the tab reads them, nothing writes one yet"
+            // GLO-21's remaining half, now built. This said `a collections
+            // composer is still GLO-21` for exactly one PR, and before that
+            // the drawer said `collections are being built — GLO-230` for two
+            // PRs after that repository merged.
+            collectionTrip = UUID()
+            collectionOpen = true
         }
     }
 }
