@@ -39,27 +39,36 @@ struct ComposerTagSection: View {
     /// because a normalized tag has to mean the same thing at every size, and
     /// a container whose aspect ratio changes with the image would move every
     /// dot on it.
+    /// **The square is proposed by the CONTAINER, never by the image.** The
+    /// first version put `aspectRatio(1, contentMode: .fill)` on a
+    /// `scaledToFill` image, and `.fill` expands PAST the proposal to keep
+    /// its ratio — so the view reported the photo's own width, the section
+    /// inflated to it, and the whole composer bled off both screen edges
+    /// (Sean's screenshot, Aug 31; GLO-252's mechanism exactly, and its
+    /// remedy too: an `.overlay` is sized by its base, and an oversized
+    /// overlay never grows it).
     private func image(_ photo: ComposerPhoto) -> some View {
-        Group {
-            #if canImport(UIKit)
-                if let uiImage = UIImage(data: photo.localData) {
-                    Image(uiImage: uiImage).resizable().scaledToFill()
-                } else {
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                #if canImport(UIKit)
+                    if let uiImage = UIImage(data: photo.localData) {
+                        Image(uiImage: uiImage).resizable().scaledToFill()
+                    } else {
+                        Rectangle().fill(Tokens.Support.lilacSoft)
+                    }
+                #else
+                    // macOS test builds never render this; the ground stands
+                    // in so the package still compiles there.
                     Rectangle().fill(Tokens.Support.lilacSoft)
-                }
-            #else
-                // macOS test builds never render this; the ground stands in so
-                // the package still compiles there.
-                Rectangle().fill(Tokens.Support.lilacSoft)
-            #endif
-        }
-        .aspectRatio(1, contentMode: .fill)
-        .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.lg))
-        .overlay(
-            RoundedRectangle(cornerRadius: Tokens.Radius.lg)
-                .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.std)
-        )
+                #endif
+            }
+            .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.lg))
+            .overlay(
+                RoundedRectangle(cornerRadius: Tokens.Radius.lg)
+                    .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.std)
+                    .allowsHitTesting(false)
+            )
     }
 
     @ViewBuilder private var listing: some View {
