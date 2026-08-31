@@ -73,7 +73,7 @@ struct AppShell: View {
     /// The row the ladder just wrote, held until the cover dismisses — asking
     /// "did it fit?" under a closing full-screen cover is a question nobody
     /// sees.
-    @State private var pendingLog: LoggedShelfItem?
+    @State var pendingLog: LoggedShelfItem?
     /// The shelf item whose product page is open (GLO-151). Held here rather
     /// than in `Shelf` because a feature cannot import another feature: the
     /// shelf hands the tap up, and the app owns the crossing.
@@ -226,31 +226,6 @@ struct AppShell: View {
             discoverTab
         case .you:
             youTab
-        }
-    }
-
-    // MARK: - The ladder
-
-    @ViewBuilder private var ladderFlow: some View {
-        if let client = session.client {
-            LadderFlowView(
-                catalog: CatalogRepository(client: client),
-                shelf: ShelfRepository(client: client),
-                tracker: session.tracker,
-                // GLO-93: a scanned miss asks the catalog-fill function
-                // before the ladder falls through. The function itself
-                // fails closed (no key, exhausted budget, unreachable all
-                // answer "nothing to add"), so wiring it is unconditional.
-                fill: BarcodeFillService(client: client),
-                onClose: { ladderOpen = false },
-                onShelfChanged: { session.refreshShelf() },
-                onLogged: { pendingLog = $0 }
-            )
-            // Search rows and the variant sheet compose real cutout URLs
-            // from this — the same base the shelf reads with (GLO-83).
-            .environment(\.catalogImageBase, session.imageBase)
-            // One trip per presentation — see `ladderTrip`.
-            .id(ladderTrip)
         }
     }
 }
