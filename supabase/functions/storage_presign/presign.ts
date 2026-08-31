@@ -36,6 +36,29 @@ export const LOOK_CONTENT_TYPES: Record<string, string> = {
 /// leaked into a log is worthless by the time anyone reads it.
 export const PRESIGN_TTL_SECONDS = 300;
 
+/// Reads live longer than writes: a grid of look tiles holds its URLs while
+/// the user scrolls, and re-signing every five minutes is churn with no
+/// security story — the URL still expires the same day it leaks, and the
+/// authorization behind it was RLS's answer at signing time.
+export const READ_TTL_SECONDS = 3600;
+
+/// One grid's worth. A cap because the ids run through an `in` filter and
+/// each hit costs a signature; a caller with more photos pages.
+export const READ_BATCH_MAX = 60;
+
+export function validateRead(ids: unknown): Rejection | null {
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return "look_photo_ids must be a non-empty array";
+  }
+  if (ids.length > READ_BATCH_MAX) {
+    return `look_photo_ids must hold at most ${READ_BATCH_MAX} ids`;
+  }
+  if (!ids.every((id) => typeof id === "string" && UUID.test(id))) {
+    return "look_photo_ids must be uuids";
+  }
+  return null;
+}
+
 export interface PresignInput {
   readonly userID: string;
   readonly userItemID: string;
@@ -229,6 +252,35 @@ export async function presignPut(
     region: "auto",
     signQuery: true,
     allHeaders: true,
+  });
+
+  const signed = await signer.sign();
+  return signed.url.toString();
+}
+
+/// A GET URL for one object the database already said the caller may read.
+///
+/// No headers signed — a read commits to nothing but the key and the clock.
+/// The AUTHORIZATION happened before this runs: the handler selects the row
+/// under the caller's own JWT, so RLS (per-item visibility since 0053) is
+/// what decides, and this function never sees a key the caller may not have.
+export async function presignGet(
+  config: R2Config,
+  key: string,
+  ttlSeconds: number = READ_TTL_SECONDS,
+): Promise<string> {
+  const endpoint = `https://${config.accountID}.r2.cloudflarestorage.com`;
+  const url = new URL(`${endpoint}/${config.bucket}/${key}`);
+  url.searchParams.set("X-Amz-Expires", String(ttlSeconds));
+
+  const signer = new AwsV4Signer({
+    method: "GET",
+    url: url.toString(),
+    accessKeyId: config.accessKeyID,
+    secretAccessKey: config.secretAccessKey,
+    service: "s3",
+    region: "auto",
+    signQuery: true,
   });
 
   const signed = await signer.sign();
