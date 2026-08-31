@@ -91,8 +91,11 @@ public struct CollectionDetailView: View {
                 Text(summary.title)
                     .font(Typography.display(Typography.Size.h2))
                     .foregroundStyle(Tokens.Ink.primary)
-                Text("\(items.count) products · \(summary.visibility.label)")
-                    .meta()
+                Text(
+                    "\(items.count) \(items.count == 1 ? "product" : "products")"
+                        + " · \(summary.visibility.label)"
+                )
+                .meta()
             }
             if items.isEmpty {
                 Text("nothing in here yet — edit to add from your shelf.").meta()

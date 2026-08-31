@@ -83,6 +83,8 @@ struct AppShell: View {
     @State var lookOpen = false
     /// The look the profile opened as a post (GLO-266).
     @State var openLook: OpenLook?
+    /// The collection or routine the profile opened (GLO-272's click-in).
+    @State var openOwnItem: OpenOwnItem?
     /// The same reasoning again, and it bites harder here: `LooksStore.live`
     /// mints the look's id once per store, so a reused composer would re-upload
     /// a second look's photos into the first look's R2 namespace.
@@ -231,6 +233,9 @@ struct AppShell: View {
         }
         .fullScreenCover(item: $openLook) { open in
             lookPost(open)
+        }
+        .fullScreenCover(item: $openOwnItem) { item in
+            ownItemDetail(item)
         }
         .fullScreenCover(isPresented: $collectionOpen) {
             collectionComposer
