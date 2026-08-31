@@ -171,6 +171,8 @@ struct LookPostHost: View {
         let caption: String?
         let media: [LookMedia]
         let board: LookTagBoard
+        let linkedRoutines: [LinkablePick]
+        let linkedCollections: [LinkablePick]
     }
 
     @State private var post: LoadedPost?
@@ -181,6 +183,8 @@ struct LookPostHost: View {
             if let post {
                 LookPostView(
                     caption: post.caption, media: post.media, board: post.board,
+                    linkedRoutines: post.linkedRoutines,
+                    linkedCollections: post.linkedCollections,
                     onClose: onClose
                 )
             } else if failed {
@@ -243,7 +247,16 @@ struct LookPostHost: View {
                     }
                 )
             }
-            post = LoadedPost(caption: look.caption, media: media, board: LookTagBoard(spots))
+            // What the look GOES WITH (0050) — read through the both-halves
+            // policy, so nothing arrives that should not render. A failed
+            // links read degrades to none rather than failing the post.
+            let links = await (try? LinksRepository(client: client).links(lookID: lookID))
+                ?? LookLinks(routines: [], collections: [])
+            post = LoadedPost(
+                caption: look.caption, media: media, board: LookTagBoard(spots),
+                linkedRoutines: links.routines.map { LinkablePick(id: $0.id, title: $0.title) },
+                linkedCollections: links.collections.map { LinkablePick(id: $0.id, title: $0.title) }
+            )
         } catch {
             failed = true
         }

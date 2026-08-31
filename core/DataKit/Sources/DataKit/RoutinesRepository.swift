@@ -34,11 +34,14 @@ public struct RoutinesRepository: Sendable {
         let routineID: UUID
         let userItemID: UUID
         let position: Int
+        /// 0052. Trimmed to nil so a whitespace note never lands as a row of
+        /// spaces the card would then reserve a line for.
+        let note: String?
 
         enum CodingKeys: String, CodingKey {
             case routineID = "routine_id"
             case userItemID = "user_item_id"
-            case position
+            case position, note
         }
     }
 
@@ -81,9 +84,13 @@ public struct RoutinesRepository: Sendable {
             return inserted.id
         }
         try await run {
-            guard !draft.stepItemIDs.isEmpty else { return }
-            let rows = draft.stepItemIDs.enumerated().map { index, itemID in
-                StepRow(routineID: routineID, userItemID: itemID, position: index)
+            guard !draft.steps.isEmpty else { return }
+            let rows = draft.steps.enumerated().map { index, step in
+                let trimmed = step.note?.trimmingCharacters(in: .whitespacesAndNewlines)
+                return StepRow(
+                    routineID: routineID, userItemID: step.userItemID, position: index,
+                    note: (trimmed?.isEmpty ?? true) ? nil : trimmed
+                )
             }
             try await client.supabase
                 .from("routine_steps")
@@ -135,7 +142,7 @@ public struct RoutinesRepository: Sendable {
         let steps: [OwnStepRow] = try await run {
             try await client.supabase
                 .from("routine_steps")
-                .select("routine_id,position,user_item_id")
+                .select("routine_id,position,user_item_id,note")
                 .in("routine_id", values: routines.map(\.id.uuidString))
                 .order("position")
                 .execute()
@@ -235,7 +242,7 @@ public struct RoutinesRepository: Sendable {
                     return RoutineStep(
                         position: step.position, userItemID: step.userItemID,
                         brandName: item.brandName, productName: item.productName,
-                        variantLabel: item.variantLabel
+                        variantLabel: item.variantLabel, note: step.note
                     )
                 }
             return MyRoutine(
@@ -243,32 +250,6 @@ public struct RoutinesRepository: Sendable {
                 startedOn: PostgresDay.parse(routine.startedOnRaw),
                 createdAt: routine.createdAt, steps: named
             )
-        }
-    }
-
-    struct OwnRoutineRow: Decodable {
-        let id: UUID
-        let title: String
-        let slot: RoutineSlot
-        let startedOnRaw: String?
-        let createdAt: Date
-
-        enum CodingKeys: String, CodingKey {
-            case id, title, slot
-            case startedOnRaw = "started_on"
-            case createdAt = "created_at"
-        }
-    }
-
-    struct OwnStepRow: Decodable {
-        let routineID: UUID
-        let position: Int
-        let userItemID: UUID
-
-        enum CodingKeys: String, CodingKey {
-            case routineID = "routine_id"
-            case position
-            case userItemID = "user_item_id"
         }
     }
 

@@ -89,10 +89,20 @@ struct RoutineCard: View {
                 .font(Typography.display(Typography.Size.small))
                 .foregroundStyle(Tokens.Cherry.base)
                 .frame(width: 18, alignment: .leading)
-            Text(ProfileCardCopy.stepLine(step))
-                .font(.system(size: Typography.Size.small))
-                .foregroundStyle(Tokens.Ink.primary)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(ProfileCardCopy.stepLine(step))
+                    .font(.system(size: Typography.Size.small))
+                    .foregroundStyle(Tokens.Ink.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                // The step's own words (0052), under the product they apply
+                // to. Mono and soft — an aside in the owner's voice, not a
+                // second product line. Absent entirely when untyped: a
+                // reserved empty line would nag every step to have one.
+                if let note = step.note, !note.isEmpty {
+                    Text(note).meta()
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             Spacer(minLength: 0)
         }
     }

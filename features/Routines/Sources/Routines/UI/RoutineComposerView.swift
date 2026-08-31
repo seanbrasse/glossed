@@ -63,6 +63,7 @@ public struct RoutineComposerView: View {
                     Text("FROM YOUR SHELF").eyebrow()
                         .padding(.top, Tokens.Space.s1)
                     shelfPicker
+                    linkSection
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -77,6 +78,45 @@ public struct RoutineComposerView: View {
     /// the whole reorder story — a routine is short, and neighbor swaps
     /// beat drag handles for six rows.
     private func stepRow(_ step: RoutineComposerModel.Step, position: Int) -> some View {
+        VStack(alignment: .leading, spacing: Tokens.Space.s2) {
+            stepHeader(step, position: position)
+            // The step's own words (0052): what you DO with it — "three
+            // drops, pressed in" — under the product it applies to, so a
+            // reorder carries the words with the step.
+            TextField(
+                "",
+                text: noteBinding(for: step.id),
+                prompt: Text("how you use it · optional").font(Typography.mono(11)),
+                axis: .vertical
+            )
+            .font(Typography.mono(12))
+            .foregroundStyle(Tokens.Ink.soft)
+            .lineLimit(1 ... 3)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, Tokens.Space.s3)
+        .background(Tokens.Ground.card)
+        .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: Tokens.Radius.md)
+                .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.hair)
+        )
+    }
+
+    /// The note, edited in place on the model's own array — found by id
+    /// rather than index, so the binding survives a reorder mid-edit. The cap
+    /// is the schema's 500, cut at the keyboard rather than as a 23514.
+    private func noteBinding(for stepID: UUID) -> Binding<String> {
+        Binding(
+            get: { model.steps.first { $0.id == stepID }?.note ?? "" },
+            set: { value in
+                guard let index = model.steps.firstIndex(where: { $0.id == stepID }) else { return }
+                model.steps[index].note = String(value.prefix(RoutineComposerModel.noteCap))
+            }
+        )
+    }
+
+    private func stepHeader(_ step: RoutineComposerModel.Step, position: Int) -> some View {
         HStack(spacing: Tokens.Space.s3) {
             Text("\(position)")
                 .font(Typography.mono(11, bold: true))
@@ -114,14 +154,6 @@ public struct RoutineComposerView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("move \(step.name) later")
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, Tokens.Space.s3)
-        .background(Tokens.Ground.card)
-        .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Tokens.Radius.md)
-                .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.thin)
-        )
     }
 
     @ViewBuilder private var shelfPicker: some View {
@@ -193,5 +225,47 @@ public struct RoutineComposerView: View {
                 .frame(maxWidth: .infinity)
         }
         .padding(.top, Tokens.Space.s3)
+    }
+
+    /// Collections this routine goes with (0052) — chips, on/off, your own
+    /// only, absent when there is nothing to offer.
+    @ViewBuilder private var linkSection: some View {
+        if !model.linkableCollections.isEmpty {
+            VStack(alignment: .leading, spacing: Tokens.Space.s2) {
+                Text("LINK A COLLECTION").eyebrow()
+                    .padding(.top, Tokens.Space.s1)
+                ForEach(model.linkableCollections) { pick in
+                    Button {
+                        model.toggleCollection(pick.id)
+                    } label: {
+                        HStack(spacing: Tokens.Space.s2) {
+                            Text(pick.title)
+                                .font(Typography.mono(12))
+                                .foregroundStyle(Tokens.Ink.primary)
+                            Spacer(minLength: 0)
+                            if model.linkedCollectionIDs.contains(pick.id) {
+                                Text("linked")
+                                    .font(Typography.mono(11))
+                                    .foregroundStyle(Tokens.Cherry.deep)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, Tokens.Space.s3)
+                        .background(
+                            RoundedRectangle(cornerRadius: Tokens.Radius.md)
+                                .fill(model.linkedCollectionIDs.contains(pick.id)
+                                    ? Tokens.Cherry.soft : Tokens.Ground.card)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Tokens.Radius.md)
+                                .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.hair)
+                        )
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(model.linkedCollectionIDs.contains(pick.id) ? .isSelected : [])
+                }
+            }
+        }
     }
 }

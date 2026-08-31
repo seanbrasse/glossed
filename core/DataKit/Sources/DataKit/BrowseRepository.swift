@@ -86,7 +86,7 @@ public struct BrowseRepository: Sendable {
         let steps: [StepRow] = try await run {
             try await client.supabase
                 .from("routine_steps")
-                .select("position,user_item_id")
+                .select("position,user_item_id,note")
                 .eq("routine_id", value: routineID.uuidString)
                 .order("position")
                 .execute()
@@ -116,7 +116,7 @@ public struct BrowseRepository: Sendable {
             return RoutineStep(
                 position: step.position, userItemID: step.userItemID,
                 brandName: item.brandName, productName: item.productName,
-                variantLabel: item.variantLabel
+                variantLabel: item.variantLabel, note: step.note
             )
         }
         return RoutineDetail(
@@ -140,9 +140,10 @@ public struct BrowseRepository: Sendable {
     private struct StepRow: Decodable {
         let position: Int
         let userItemID: UUID
+        let note: String?
 
         enum CodingKeys: String, CodingKey {
-            case position
+            case position, note
             case userItemID = "user_item_id"
         }
     }

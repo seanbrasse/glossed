@@ -58,12 +58,12 @@ private func step(_ name: String) -> RoutineComposerModel.Step {
     struct Row {
         let title: String
         let slot: String
-        let ids: [UUID]
+        let steps: [StepDraft]
     }
     actor Written {
         var row: Row?
-        func set(_ title: String, _ slot: String, _ ids: [UUID]) {
-            row = Row(title: title, slot: slot, ids: ids)
+        func set(_ title: String, _ slot: String, _ steps: [StepDraft]) {
+            row = Row(title: title, slot: slot, steps: steps)
         }
     }
     let written = Written()
@@ -77,13 +77,20 @@ private func step(_ name: String) -> RoutineComposerModel.Step {
     model.slot = .washDay
     model.toggle(cleanser)
     model.toggle(mask)
+    // The step's own words ride the save with it (0052).
+    model.steps[0].note = "  double cleanse, one minute each  "
     var landed = false
     model.save { landed = true }
     await model.task?.value
     let row = await written.row
     #expect(row?.title == "wash day reset") // trimmed
     #expect(row?.slot == "wash_day") // the enum's wire word, not the label
-    #expect(row?.ids == [cleanser.id, mask.id]) // in order
+    #expect(row?.steps.map(\.userItemID) == [cleanser.id, mask.id]) // in order
+    #expect(
+        row?.steps[0].note == "  double cleanse, one minute each  ",
+        "the note travels raw — the repository owns the trim, once"
+    )
+    #expect(row?.steps[1].note == "", "an untyped note is empty, not invented")
     #expect(landed)
 }
 

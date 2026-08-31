@@ -34,21 +34,35 @@ public final class RoutineComposerModel {
         public let id: UUID
         public let name: String
         public let brand: String
+        /// The owner's words on what they do in this step (0052) — "three
+        /// drops, pressed in", not a second product name. Editable in place;
+        /// the schema bounds it at 500 and `noteCap` matches, the
+        /// captionCap pattern.
+        public var note: String = ""
 
-        public init(id: UUID, name: String, brand: String) {
+        public init(id: UUID, name: String, brand: String, note: String = "") {
             self.id = id
             self.name = name
             self.brand = brand
+            self.note = note
         }
     }
 
+    /// The schema's own bound (`routine_steps_note_length`), worn client-side
+    /// so the refusal happens at the keyboard rather than as a 23514.
+    public static let noteCap = 500
+
     public var title = ""
     public var slot = Slot.am
-    public private(set) var steps: [Step] = []
+    public var steps: [Step] = []
     /// The shelf to pick from, loaded once — empty is a state the screen
     /// explains (a routine needs things to sequence).
     public private(set) var shelf: [Step] = []
     public private(set) var isLoadingShelf = true
+    /// Collections this routine will link (0052) — offered from your own,
+    /// because the write policy refuses anyone else's.
+    public private(set) var linkableCollections: [LinkablePick] = []
+    public private(set) var linkedCollectionIDs: Set<UUID> = []
     public private(set) var isSaving = false
     public private(set) var saveError: GlossedError?
 
@@ -70,6 +84,15 @@ public final class RoutineComposerModel {
             guard !Task.isCancelled else { return }
             shelf = rows
             isLoadingShelf = false
+            linkableCollections = await (try? store.collections()) ?? []
+        }
+    }
+
+    public func toggleCollection(_ id: UUID) {
+        if linkedCollectionIDs.contains(id) {
+            linkedCollectionIDs.remove(id)
+        } else {
+            linkedCollectionIDs.insert(id)
         }
     }
 
@@ -121,7 +144,8 @@ public final class RoutineComposerModel {
                 try await store.create(
                     title.trimmingCharacters(in: .whitespacesAndNewlines),
                     slot.rawValue,
-                    steps.map(\.id)
+                    steps.map { StepDraft(userItemID: $0.id, note: $0.note) },
+                    linkableCollections.map(\.id).filter { linkedCollectionIDs.contains($0) }
                 )
                 onSaved()
             } catch {
@@ -132,18 +156,49 @@ public final class RoutineComposerModel {
     }
 }
 
+/// One step as the save hands it over: the shelf row, and the note the owner
+/// typed for it. A pair rather than parallel arrays, so a reorder can never
+/// hand step three its neighbor''s words.
+public struct StepDraft: Sendable, Equatable {
+    public let userItemID: UUID
+    public let note: String
+
+    public init(userItemID: UUID, note: String) {
+        self.userItemID = userItemID
+        self.note = note
+    }
+}
+
 /// The seams the app fills — the shelf read exists today
-/// (`ShelfRepository.shelf()`); the create is the third DataKit opening's
-/// write and stays a closure until it is granted and landed.
+/// (`ShelfRepository.shelf()`); the create maps to `RoutineDraft` at the app
+/// layer.
+/// A collection the routine could link, as a pickable chip (0052).
+public struct LinkablePick: Identifiable, Sendable, Equatable {
+    public let id: UUID
+    public let title: String
+
+    public init(id: UUID, title: String) {
+        self.id = id
+        self.title = title
+    }
+}
+
 public struct RoutineStore: Sendable {
     public var shelf: @Sendable () async throws -> [RoutineComposerModel.Step]
-    public var create: @Sendable (_ title: String, _ slot: String, _ stepItemIDs: [UUID]) async throws -> Void
+    public var create: @Sendable (
+        _ title: String, _ slot: String, _ steps: [StepDraft], _ linkedCollectionIDs: [UUID]
+    ) async throws -> Void
+    /// The link section's offer — your own collections. Defaulted empty so a
+    /// host that has not wired links renders no section.
+    public var collections: @Sendable () async throws -> [LinkablePick]
 
     public init(
         shelf: @escaping @Sendable () async throws -> [RoutineComposerModel.Step],
-        create: @escaping @Sendable (String, String, [UUID]) async throws -> Void
+        create: @escaping @Sendable (String, String, [StepDraft], [UUID]) async throws -> Void,
+        collections: @escaping @Sendable () async throws -> [LinkablePick] = { [] }
     ) {
         self.shelf = shelf
         self.create = create
+        self.collections = collections
     }
 }

@@ -8,7 +8,7 @@ import SwiftUI
 /// The one pop moment is the post button. Everything else stays quiet: the
 /// photo is the content, and the chrome should not compete with it.
 public struct ComposerView: View {
-    @State private var model: ComposerModel
+    @State var model: ComposerModel
     /// Which photo the tagging canvas is showing. Nil follows the first photo.
     @State private var taggingPhotoID: UUID?
     /// Which tile the current drag is over — the strip's only drag state.
@@ -47,6 +47,7 @@ public struct ComposerView: View {
                     )
                 }
                 GlossedTextArea(text: $model.caption, label: "caption · optional")
+                linkSection
                 honestyLine
                 if let failure = model.saveFailure {
                     failureRow(failure)
@@ -56,6 +57,7 @@ public struct ComposerView: View {
             .padding(Tokens.Space.s5)
         }
         .background(Tokens.Ground.milk)
+        .task { await model.loadLinkables() }
         .onChange(of: model.phase) { _, phase in
             if case let .saved(id) = phase {
                 onSaved(id)

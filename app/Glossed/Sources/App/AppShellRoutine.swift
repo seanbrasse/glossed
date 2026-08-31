@@ -41,6 +41,8 @@ extension AppShell {
     private func routineStore(client: GlossedClient) -> RoutineStore {
         let shelf = ShelfRepository(client: client)
         let routines = RoutinesRepository(client: client)
+        let links = LinksRepository(client: client)
+        let collections = CollectionsRepository(client: client)
         return RoutineStore(
             shelf: {
                 // A routine is a sequence of things you OWN — `routine_steps`
@@ -53,7 +55,7 @@ extension AppShell {
                     )
                 }
             },
-            create: { title, slot, stepItemIDs in
+            create: { title, slot, steps, linkedCollectionIDs in
                 // `RoutineComposerModel.Slot` and DataKit's `RoutineSlot` share
                 // their raw values (`am` / `pm`) but not their type: the
                 // composer is a feature and may not import the wider slot set
@@ -67,9 +69,19 @@ extension AppShell {
                         debugDetail: "composer slot '\(slot)' is not a RoutineSlot"
                     )
                 }
-                _ = try await routines.saveDraft(
-                    RoutineDraft(title: title, slot: routineSlot, stepItemIDs: stepItemIDs)
+                let routineID = try await routines.saveDraft(
+                    RoutineDraft(
+                        title: title, slot: routineSlot,
+                        steps: steps.map { RoutineDraft.Step(userItemID: $0.userItemID, note: $0.note) }
+                    )
                 )
+                // Links after the draft (0052) — the row needs the routine to
+                // exist, and a failed link must not unsave the routine, so it
+                // throws on its own and the composer names it.
+                try await links.link(routineID: routineID, collectionIDs: linkedCollectionIDs)
+            },
+            collections: {
+                try await collections.mine().map { LinkablePick(id: $0.collectionID, title: $0.title) }
             }
         )
     }
