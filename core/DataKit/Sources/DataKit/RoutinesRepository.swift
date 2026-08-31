@@ -11,7 +11,9 @@ import Supabase
 /// narrow that — see GLO-208, filed because the composer's copy claims
 /// otherwise.
 public struct RoutinesRepository: Sendable {
-    private let client: GlossedClient
+    /// `internal`, not `private`: `RoutinesEditing.swift` is the same type
+    /// split across files for the 300-line ceiling (the LooksEditing split).
+    let client: GlossedClient
 
     public init(client: GlossedClient) {
         self.client = client
@@ -130,7 +132,7 @@ public struct RoutinesRepository: Sendable {
         let routines: [OwnRoutineRow] = try await run {
             try await client.supabase
                 .from("routines")
-                .select("id,title,slot,started_on,created_at")
+                .select("id,title,slot,visibility,started_on,created_at")
                 .eq("user_id", value: userID.uuidString)
                 .is("deleted_at", value: nil)
                 .order("created_at", ascending: false)
@@ -247,6 +249,7 @@ public struct RoutinesRepository: Sendable {
                 }
             return MyRoutine(
                 routineID: routine.id, title: routine.title, slot: routine.slot,
+                visibility: routine.visibility,
                 startedOn: PostgresDay.parse(routine.startedOnRaw),
                 createdAt: routine.createdAt, steps: named
             )
@@ -267,7 +270,7 @@ public struct RoutinesRepository: Sendable {
         }
     }
 
-    private func run<T>(_ work: () async throws -> T) async throws(GlossedError) -> T {
+    func run<T>(_ work: () async throws -> T) async throws(GlossedError) -> T {
         do {
             return try await work()
         } catch {

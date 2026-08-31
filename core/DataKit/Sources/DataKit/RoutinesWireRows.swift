@@ -9,11 +9,12 @@ extension RoutinesRepository {
         let id: UUID
         let title: String
         let slot: RoutineSlot
+        let visibility: PrivacyScope
         let startedOnRaw: String?
         let createdAt: Date
 
         enum CodingKeys: String, CodingKey {
-            case id, title, slot
+            case id, title, slot, visibility
             case startedOnRaw = "started_on"
             case createdAt = "created_at"
         }

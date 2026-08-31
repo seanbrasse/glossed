@@ -63,6 +63,16 @@ extension CollectionsRepository {
     /// `collections` carries no touch trigger (probed — `pg_trigger` is empty
     /// for it), so a rename that did not set `updated_at` would leave the row
     /// claiming it was last changed at creation.
+    struct CollectionScopeUpdate: Encodable, Sendable {
+        let visibility: PrivacyScope
+        let updatedAt: String
+
+        enum CodingKeys: String, CodingKey {
+            case visibility
+            case updatedAt = "updated_at"
+        }
+    }
+
     struct CollectionTitleUpdate: Encodable, Sendable {
         let title: String
         let updatedAt: String
