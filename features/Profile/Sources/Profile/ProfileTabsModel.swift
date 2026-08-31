@@ -129,6 +129,19 @@ public final class ProfileTabsModel {
         }
     }
 
+    // MARK: - Emptiness, and the +
+
+    /// True when every wired tab is empty — the state Sean's `+` belongs to.
+    ///
+    /// Across all tabs rather than the showing one: *"In an empty state,
+    /// you'll have a plus button that directs you to make a look, collection,
+    /// routine, etc."* A `+` that appeared whenever the open tab happened to be
+    /// empty would be a second create affordance sitting under the shell's own
+    /// one, on a profile that is not empty at all.
+    public var isEmpty: Bool {
+        looks.isEmpty && collections.isEmpty && routines.isEmpty && shelf.isEmpty
+    }
+
     private func note(_ error: Error, fallback: String) {
         guard errorMessage == nil else { return }
         errorMessage = (error as? GlossedError)?.userMessage ?? fallback

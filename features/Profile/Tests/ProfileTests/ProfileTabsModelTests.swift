@@ -220,3 +220,33 @@ private func scopesStore(
     #expect(ProfileCardCopy.lookLine(photoN: 3, isPublished: false) == "3 photos · draft")
     #expect(ProfileCardCopy.lookLine(photoN: 1, isPublished: true) == "1 photo")
 }
+
+// MARK: - The empty state and its +
+
+@MainActor
+@Test func theEmptyStateIsTheWholeProfileNotOneTab() async {
+    // Sean's `+` belongs to an empty profile. A `+` that appeared whenever the
+    // open tab happened to be empty would sit under the shell's own one on a
+    // profile that is not empty at all.
+    let model = ProfileTabsModel(
+        looks: ProfileLooksStore(mine: { [] }),
+        routines: ProfileRoutinesStore(mine: { [routine()] })
+    )
+    await model.load()
+    #expect(!model.isEmpty)
+}
+
+@MainActor
+@Test func aProfileWithNothingOnAnyTabIsEmpty() async {
+    let model = ProfileTabsModel(
+        looks: ProfileLooksStore(mine: { [] }),
+        collections: ProfileCollectionsStore(mine: { [] })
+    )
+    await model.load()
+    #expect(model.isEmpty)
+}
+
+@Test func theComposerCopyNamesTheThingAndStops() {
+    // GLO-189: no copy may imply a look is reviewed or promise an audience.
+    #expect(ProfileComposable.allCases.map(\.label) == ["a look", "a collection", "a routine"])
+}
