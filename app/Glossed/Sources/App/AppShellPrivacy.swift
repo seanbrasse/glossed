@@ -47,7 +47,12 @@ extension AppShell {
                     safety: SafetyRepository(client: client)
                 ),
                 onSignedOut: { session.signedOut() },
-                looksStore: .live(LooksRepository(client: client)),
+                looksStore: .live(
+                    LooksRepository(client: client),
+                    // The read path's seam (GLO-272): the grid's first
+                    // photos, one batched presign — the tile previews.
+                    resolvePhotoURLs: { await LookPhotoURLResolver(client: client).resolve($0) }
+                ),
                 collectionsStore: .live(CollectionsRepository(client: client)),
                 routinesStore: .live(
                     RoutinesRepository(client: client),

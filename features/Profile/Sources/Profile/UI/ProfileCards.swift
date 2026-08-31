@@ -18,18 +18,65 @@ struct LookTile: View {
 
     var body: some View {
         GlossedCard(padding: Tokens.Space.s3) {
-            VStack(alignment: .leading, spacing: Tokens.Space.s1) {
-                Spacer(minLength: 0)
-                Text(look.caption ?? "no caption")
-                    .font(Typography.display(Typography.Size.small))
-                    .foregroundStyle(look.caption == nil ? Tokens.Ink.faint : Tokens.Ink.primary)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(ProfileCardCopy.lookLine(photoN: look.photoN, isPublished: look.isPublished))
-                    .meta()
+            VStack(alignment: .leading, spacing: Tokens.Space.s2) {
+                if let url = look.previewURL {
+                    preview(url)
+                }
+                VStack(alignment: .leading, spacing: Tokens.Space.s1) {
+                    Spacer(minLength: 0)
+                    Text(look.caption ?? "no caption")
+                        .font(Typography.display(Typography.Size.small))
+                        .foregroundStyle(look.caption == nil ? Tokens.Ink.faint : Tokens.Ink.primary)
+                        .lineLimit(look.previewURL == nil ? 3 : 1)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(ProfileCardCopy.lookLine(photoN: look.photoN, isPublished: look.isPublished))
+                        .meta()
+                }
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: look.previewURL == nil ? 96 : 0,
+                    alignment: .bottomLeading
+                )
             }
-            .frame(maxWidth: .infinity, minHeight: 96, alignment: .bottomLeading)
         }
+    }
+
+    /// The first photo, square, with the count dots riding its corner. Sized
+    /// by the clear base and overlaid (GLO-252's remedy) so a portrait shot
+    /// crops instead of growing the tile.
+    private func preview(_ url: URL) -> some View {
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                AsyncImage(url: url) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    Rectangle().fill(Tokens.Ground.milk)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.md))
+            .overlay(alignment: .bottomTrailing) {
+                if look.photoN > 1 {
+                    photoDots
+                }
+            }
+    }
+
+    /// One dot per photo, capping out at three (Sean's ruling) — a count
+    /// mark, not a pager: the tile does not page, so the dots do not select.
+    private static let dotDiameter: CGFloat = 5
+
+    private var photoDots: some View {
+        HStack(spacing: Tokens.Space.s1) {
+            ForEach(0 ..< min(look.photoN, 3), id: \.self) { _ in
+                Circle()
+                    .fill(Tokens.Ground.milk)
+                    .frame(width: Self.dotDiameter, height: Self.dotDiameter)
+            }
+        }
+        .padding(Tokens.Space.s2)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

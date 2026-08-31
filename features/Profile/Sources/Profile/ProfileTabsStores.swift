@@ -165,12 +165,18 @@ public struct ProfileLook: Identifiable, Equatable, Sendable {
     /// `looks.state == 'public'`. `mine()` returns drafts too — that is the
     /// point of an owner-side read — so the tile has to say which is which.
     public let isPublished: Bool
+    /// A signed URL for the FIRST photo (Sean, Aug 31: "a preview of the
+    /// first image in the carousel or only image"). Nil renders the caption
+    /// tile the grid always had — a preview is chrome, and a look whose
+    /// photo did not sign is still a look.
+    public let previewURL: URL?
 
-    public init(id: UUID, caption: String?, photoN: Int, isPublished: Bool) {
+    public init(id: UUID, caption: String?, photoN: Int, isPublished: Bool, previewURL: URL? = nil) {
         self.id = id
         self.caption = caption
         self.photoN = photoN
         self.isPublished = isPublished
+        self.previewURL = previewURL
     }
 }
 
@@ -186,12 +192,28 @@ public struct ProfileLooksStore: Sendable {
     /// every state, and this is your own profile — a draft you cannot see is a
     /// draft you cannot finish. The tile says `draft` on it, and the tab's
     /// scope mark says what happens to the published ones.
-    public static func live(_ looks: LooksRepository) -> ProfileLooksStore {
+    /// `resolvePhotoURLs` is the app's seam onto the read path (GLO-272):
+    /// this feature knows which photo comes first, the app knows how to sign
+    /// it, and neither learns the other's half. One call for the whole grid.
+    /// The default resolves nothing, so previews degrade to the caption tile
+    /// rather than making the seam a requirement.
+    public static func live(
+        _ looks: LooksRepository,
+        resolvePhotoURLs: @escaping @Sendable ([UUID]) async -> [UUID: URL] = { _ in [:] }
+    ) -> ProfileLooksStore {
         ProfileLooksStore(mine: {
-            try await looks.mine().map {
+            let mine = try await looks.mine()
+            let firstPhotos = Dictionary(
+                uniqueKeysWithValues: mine.compactMap { look in
+                    look.photos.first.map { (look.lookID, $0.photoID) }
+                }
+            )
+            let urls = await resolvePhotoURLs(Array(firstPhotos.values))
+            return mine.map {
                 ProfileLook(
                     id: $0.lookID, caption: $0.caption,
-                    photoN: $0.photoN, isPublished: $0.isPublished
+                    photoN: $0.photoN, isPublished: $0.isPublished,
+                    previewURL: firstPhotos[$0.lookID].flatMap { urls[$0] }
                 )
             }
         })
