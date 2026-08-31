@@ -1,7 +1,25 @@
-# Session handoff — Aug 30–31 2026 (session 15: the profile was rebuilt twice, an RLS leak shipped and was caught, and merging green PRs turned `main` red)
+# Session handoff — Aug 31 2026 (session 16: five merged features turned out to be unreachable, and a build flag was making the whole app look broken)
 
-Where Phase 1 stands, what to do next, and what this session learned. Read
-`docs/README.md` first for the design; this file is only about state.
+Where Phase 1 stands, what to do next, and what the last two sessions learned.
+Read `docs/README.md` first for the design; this file is only about state.
+
+**Session 16 was one lane, and it spent the night on crossings rather than
+features.** Nothing below was built from scratch except the collections
+composer; the rest was already merged, already tested, and reachable from
+nowhere. That is the session's one finding, and §0 now leads with it.
+
+## Session 16 at a glance (Aug 31)
+
+| What | Where |
+|---|---|
+| **An unsigned build was making three built tabs claim to be unbuilt.** `CODE_SIGNING_ALLOWED=NO` → no Keychain → the session cannot be read back → every read `notAuthenticated`. Sean saw it and asked whether the dev sign-in was worth keeping | §0, #427 |
+| **A second RLS leak, live on `main`.** `ShelfRepository.shelf()` and `.items()` returned other people's rows; the shipped shelf tab was leaking. Reproduced against a genuinely public owner, fixed, and given the pgTAP suite that can see it | #422, GLO-258 |
+| **The GLO-261 profile is finished and reachable** — identity block, three metrics, four tabs, a scope mark per tab, the `+`, and the handle claim that closes GLO-239 | #409–#411, #424 |
+| **The face-off renders in the app for the first time since GLO-17.** Every `rank it` in the build was wired to `dismiss` or to `{}` | #423, GLO-240 |
+| The **discover category eyebrow** stopped being invisible — one argument | #425, GLO-260 |
+| The **collections composer**, and both doors that open it | #426, GLO-21 |
+| `make run`, so the launch that costs an evening is one command | #427 |
+| **This file carried three false claims**, each corrected in place rather than argued with: the face-off "became reachable", juli "holds a public routine and a public collection", `core/Media` "has never existed" | §0, §2, §6 |
 
 **Session 15 ran as a coordinator plus up to seven concurrent worktree lanes.**
 That shape is why several entries below are about *coordination* failures rather
@@ -20,7 +38,7 @@ not estimated. Highlights, in rough order of how much they matter:
 | **Every seeded user could finally pass the age gate** — `profiles` was empty, so all of Phase 1.5 was silently locked | #373 (GLO-182) |
 | The **+ drawer** got its cards, its kit glyphs, a fifth door, and its scrim stopped wiping the screen | #377 #384 #386 #396 #400 |
 | **FLOW 1 became an actual flow** — the tour was orphaned, the returning path could not terminate, and the payoff cited a shade the user never picked | #382 #383 |
-| **The face-off became reachable** for the first time since GLO-17 | #375 #381 |
+| ~~The face-off became reachable~~ — **this line was FALSE; corrected Aug 31.** #375 and #381 landed entirely inside `features/Ranking`, `app/` never imported it, and `rank it` was wired to `dismiss`. Reachable as of #423 | #375 #381 → #423 |
 | **DataKit opened once, and is spent**: routines, collections, looks reads + `publish()` | #376 #387 #391 |
 | Migration **0048** — publishing a look is the owner's decision, deliberate and unmoderated pending GLO-26 | #378 |
 | The **profile redesign** (GLO-261) — Sean's Instagram/Pinterest direction, mid-merge at handoff | #403 #406 #407 merged; **#408–#411 open** |
@@ -78,6 +96,47 @@ Its `size-override` reason silently stopped describing its diff. Nothing warns y
 **After squash-merging any PR in a stack, re-check the sizes of everything below
 it** before trusting a label or a review.
 
+### A build flag that is correct for CI produces an app that cannot sign in
+
+`.github/workflows/ci.yml` builds with `CODE_SIGNING_ALLOWED=NO`. That is right
+there — CI never launches anything. Copy that line into a build you intend to
+**run** and you get an **unsigned** app, which has no Keychain access.
+supabase-swift persists the session to the Keychain, so `signIn` succeeds and
+the very next `auth.session` throws.
+
+What that looks like on the phone: every live read returns `notAuthenticated`,
+`AppSession.reloadShelf()` swallows it on its `try?`, `shelfModel` and
+`discoverModel` stay nil — and discover, shelf and profile, **all three built
+and merged**, render `not built yet · GLO-20` / `· GLO-21`. Sean read the app
+as broken and asked whether the dev sign-in was worth having. It was; the
+placeholder was lying.
+
+Diagnosed with `codesign -d --entitlements -`, which printed nothing at all for
+the installed binary. **Use `make run`** — it exists now for exactly this, and
+it also supplies the two env vars. *Shape: a flag that is correct in one context
+is not therefore correct in another, and "it built" is not "it runs".*
+
+### A package can be linked into the app target and imported by nothing
+
+`grep -rn "import <Package>" app/` is the two-second check §2 already
+recommends, and it found **five** surfaces merged and dark in one session:
+
+| surface | what was missing |
+|---|---|
+| the profile's four tabs, scope marks and `+` | seven `OwnProfileView` parameters, all defaulted `nil` |
+| the discover category eyebrow (#388) | one argument — `catalog:` on `DiscoverStore.repository` |
+| the face-off (GLO-17, #375, #381) | `app/` never imported `Ranking`; `rank it` was wired to `dismiss` |
+| the shelf sheet's `rank it` | `ShelfView` never passed `onRank`, so the sheet took its defaulted `{}` |
+| the collections composer | `features/Collections` imported by nothing; no live adapter at all |
+
+**The face-off one matters most, because this file said the opposite.** The
+previous handoff's at-a-glance table recorded *"The face-off became reachable
+for the first time since GLO-17 — #375 #381"*. It was not reachable at all:
+both PRs landed entirely inside `features/Ranking` and neither touched `app/`.
+Tapped on device before changing anything — nothing happened. *Shape: a
+handoff's claims are claims. The one instrument that settles "is this
+reachable" is the app, not the ticket and not this file.*
+
 ### The `lint · format · size · secrets` job fails for at least three different
 reasons, and they all look identical
 
@@ -104,8 +163,9 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Thing | State |
 |---|---|
-| **The GLO-261 profile stack, #408–#411** | Open, all four `MERGEABLE`, lint+scope green, **iOS builds pending**. A background merge chain was rebasing and merging them one at a time; **verify whether it finished** — `gh pr list` is the answer, not this file. Each needs a rebase onto `main` after the one before it merges (see §0 on squash-inflation) |
-| **Schema lane — GLO-266, GLO-263, GLO-265** | Holds the **migration slot**. Three sequential migrations: the look-tag reshape, look→routine/collection links, routine cadence. Unknown completion at handoff |
+| **The GLO-261 profile stack** | **DONE.** #408–#411 all merged Aug 31. #410 had to be rebased first: it still descended from the pre-squash commits, which had inflated it from 4 files to 12 — the squash-inflation shape in §0, caught by `git diff --stat` and not by any label |
+| **The app-layer chain** | **DONE.** #423 #424 #425 #426 #427 all merged Aug 31, in that order, each driven on device first. `main` builds, lints clean, and launches signed-in — checked on `main` itself after the last merge, which is the one thing no PR's CI does |
+| **Schema lane — GLO-266, GLO-263, GLO-265** | Holds the **migration slot**. #412, #414–#421 open at this handoff. **Their migrations 0049–0051 are APPLIED to the local database while their files are not on `main`** — so the local DB is three ahead of the repo. A pgTAP suite that touches `routines.cadence` (NOT NULL, no default) passes locally and fails in CI. Probed, not assumed |
 | **Look-tagging UI lane — GLO-266** | Building the tag model + compose interaction against seams. Unknown completion at handoff |
 | **#402** — `make test` runs nothing | Open. `project.yml` declares `schemes: Glossed: test: targets: []`, so `xcodebuild test -scheme Glossed` errors outright. **CI never used `make test`** — it runs `xcodebuild build` plus `swift test` per package |
 
@@ -128,10 +188,11 @@ the right to delete the preview. This deliberately reverses **GLO-190**.
 
 | Next | Why |
 |---|---|
-| **The app-layer seam for the profile** | `looksStore`, `collectionsStore`, `routinesStore`, `shelfStore`, `scopesStore`, `onCompose`, `handleStore` are **unwired**. Until one small PR lands, the redesigned profile renders its identity block and **nothing below it**. This is GLO-261's last PR |
-| **GLO-260** — the discover eyebrow is merged but dark | `AppSession.swift:96` needs one argument: `catalog: CatalogRepository(client: client)`. `main` carries a correct, tested, **invisible** feature |
-| **GLO-258** — seven unaudited tables | The RLS OR leak. Needs pgTAP, therefore the migration slot |
-| **GLO-239** — the profile does not refresh after a handle claim | Diagnosed, not fixed: the *shell* presents the claim sheet, so dismissing it never re-runs `OwnProfileView`'s `.task`. **The fix may have landed for free** in the redesign — verify rather than assume |
+| ~~The app-layer seam for the profile~~ | **Done — #424.** All seven filled; four tabs, their scope marks and the `+` render, driven as maya against a genuinely-public juli |
+| ~~**GLO-260** — the discover eyebrow~~ | **Done — #425.** One argument. The eyebrow (`FRAGRANCE`) renders; the same screenshot on `main` an hour earlier had none |
+| **GLO-258** — five unaudited tables left | The RLS OR leak. **The shelf's two are closed (#422)** — `ShelfRepository.shelf()` and `.items()` both leaked, reproduced against a public owner, and the shipped shelf tab was leaking too. `supabase/tests/database/owner_scoped_reads.test.sql` is the instrument and needs no migration slot; extend it rather than writing a second file |
+| ~~**GLO-239** — the profile does not refresh after a handle claim~~ | **Done — #424.** The profile presents the claim sheet itself now, so dismissal is a signal it has. **Not drivable on maya** (she has a handle); reasoned from the code, and whoever gets a handle-less account should confirm it |
+| **GLO-245** — onboarding mounts only from the debug picker | Mounting FLOW 1 in the real shell is easy; **finishing it is blocked on GLO-23.** `AccountStore.sendCode`/`verifyCode` are no-ops pending Twilio and `finish` writes a profile that needs a session, so a new-account path dead-ends at the account step. Do not mount it before then — that is the door-onto-no-floor this session spent the night removing |
 | **GLO-224** — does Discover own a search field? | Needs Sean. Three costed answers on the ticket. An honest placeholder (`brand, product, shade…`) already shipped; the IA question did not |
 | **GLO-227** — discover chips | Blocked on a DataKit opening. Option B (`topChips(productIDs:)`) recommended — no migration, serves every product-card surface |
 
@@ -139,17 +200,35 @@ the right to delete the preview. This deliberately reverses **GLO-190**.
 
 ## 2. What exists
 
-Test counts below were **run at handoff**, not recalled:
+**Every package, `swift test`, run at handoff — 816 passing, no failures.** Not
+recalled, and not partial: the previous table listed seven of eighteen.
 
 | Package | Tests | State |
 |---|---|---|
-| `core/DataKit` | **125** | The frozen core. One opening this session, **spent** (routines, collections, looks) |
-| `core/DesignSystem` | **54** | `KitIcons` now carries the drawer's four glyphs + a pencil. GLO-64 is still open elsewhere |
-| `features/Profile` | **84** | Mid-rebuild — see §1 |
-| `features/Discover` | **35** | The stream. Category eyebrow merged but **dark** (GLO-260) |
-| `features/Looks` | **24** | Composer, reorder, media deck. **No app entry point until the drawer's fifth door merged** |
-| `features/Collections` | **3** | Package + `CollectionsStore` seam only. **Nothing joins it to `CollectionsRepository`** — see GLO-21 |
-| `features/Onboarding` | — | FLOW 1 is now a real flow (#383); **unreachable until the app layer mounts it** (GLO-245) |
+| `core/DataKit` | **125** | The frozen core. Two openings spent: routines/collections/looks (Aug 30), and the shelf's scoping fix (Aug 31, #422) |
+| `core/DesignSystem` | **54** | `KitIcons` carries the drawer's five glyphs + a pencil |
+| `core/Media` | **8** | **It exists** — `PhotoPreparer`, `PresignedUploader`. GLO-148 says it never has; that is stale |
+| `core/Tracking` | **15** | The event queue |
+| `features/AddLadder` | **120** | The biggest suite in the repo |
+| `features/Browse` | **14** | |
+| `features/Collections` | **10** | Composer + store. **Wired to the drawer and the profile `+` as of #426** |
+| `features/Discover` | **35** | The stream. Category eyebrow live as of #425 |
+| `features/Import` | **12** | Screen + model; **no live `ImportParsing` conformance exists** — GLO-19 |
+| `features/Leaderboard` | **16** | |
+| `features/Looks` | **24** | Composer, reorder, media deck; reachable from the drawer's fifth door |
+| `features/Onboarding` | **60** | FLOW 1 is a real flow (#383) and **still mounts only from the debug picker** — GLO-245, blocked on GLO-23 |
+| `features/Privacy` | **18** | |
+| `features/ProductPage` | **22** | |
+| `features/Profile` | **97** | The redesign, complete and wired (#403–#411, #424) |
+| `features/Ranking` | **41** | The face-off. **Reachable as of #423** — it was not before, whatever the last handoff said |
+| `features/Routines` | **7** | Composer only; the profile's routines tab reads through `ProfileRoutinesStore` |
+| `features/Shelf` | **138** | |
+
+**A red package here is a stale cache until proven otherwise.** `features/Shelf`
+reported `error: fatalError — cannot find type 'LogDraft' in scope` during this
+sweep. `LogDraft` had moved to `ShelfModels.swift` in #422 and Shelf's `.build`
+still held the pre-split DataKit module. `rm -rf .build` and it is 138 green.
+§8 already carried this shape; it cost ten minutes anyway.
 
 **The sentence that is true about all of it:** *a merged feature is not a
 reachable one.* This session merged a category eyebrow that renders nothing, an
@@ -173,11 +252,21 @@ SIMCTL_CHILD_SUPABASE_PUBLISHABLE_KEY="$(supabase status -o json | jq -r .PUBLIS
 xcrun simctl launch <UDID> com.glossed.app
 ```
 
-**Live fixtures worth keeping:** maya owns `morning glass skin` (am, 2 steps) and
-four collections; **juli holds a public routine and a public collection**. That
-second one exists so an isolation assertion means something — a profile that
-renders correctly against a database where nobody else owns anything proves
-nothing, which is exactly how GLO-258's leak survived review.
+**Live fixtures — and the correction that matters.** maya owns `morning glass
+skin v2` (am, 2 steps), four collections, five shelf items and the handle
+`maya_k`. The previous handoff said **juli holds a public routine and a public
+collection**; she does not, and `seed.sql` never gave her one. Probed Aug 31:
+`privacy_scopes` holds **zero rows for anyone**, juli's collection is
+`only_you` (it is named `JULI PRIVATE KIT`), and she owns **no** shelf items
+and no looks.
+
+So every cross-user isolation assertion in this repo currently runs against an
+empty set — the "ceremony" failure §8 names, as the default state. Verifying
+GLO-261's tabs meant making juli genuinely public by hand first, asserting,
+then reverting. **[GLO-267](https://linear.app/glossed/issue/GLO-267) puts the
+fixture in `seed.sql`** so it survives a reset and runs in CI. Until it lands:
+build the public fixture, confirm the thing you are excluding is genuinely
+reachable, assert, revert.
 
 ## 3. How this session worked
 
@@ -235,10 +324,24 @@ Standing: `supabase test db` runs against the **live local DB** — there is no
 shadow database, only `postgres`. So a red can still be drive-drift from
 seeded rows someone's drive mutated. Check row timestamps and `is_seeded`
 before resetting; **ping the other session before you reset**, and budget the
-restore (§9, seven scripts, ~50 min). Current baseline: **567 assertions / 1
-known LOCAL failure (`shelf_view` 14; CI is zero)** — the taste lane's count
-after 0042's suite landed, and the number §2 carries. The journal lane did not
-re-run it.
+restore (§9, seven scripts, ~50 min).
+
+**The local baseline is no longer "567 / 1". Re-run Aug 31: `Files=40,
+Tests=533, Result: FAIL`, with SIX files red.** CI is still zero, so this is
+local rot, and it is worth knowing before you spend an hour on it:
+
+| file | why |
+|---|---|
+| `handles`, `public_profile`, `suggested_people`, `browse_routines` | all four die on `duplicate key … handles_pkey`. **maya has a handle in the local DB and the suites assume she does not.** It is drive-created (`handles.created_at` = Aug 30 21:11 EDT), not seeded — `seed.sql` writes no `handles` row |
+| `looks` (3, 13) | not investigated |
+| `shelf_view` (14) | the previously known one |
+
+So four of the six are one cause, and that cause is **drive-drift, diagnosable
+in one query**: `select * from handles`. A `make db-reset` clears it and now
+snapshots the catalog first, so the ~50 min restore is no longer the price it
+was. *The general point: check the timestamp before you believe the red.* The
+number this file used to carry was a different lane's, taken before that drive
+happened, and it went stale silently.
 
 New: **the events partitions.** Migration 0033 fixed a real leak — `anon`
 could SELECT every partition, demonstrated with `set role anon`, not inferred.
@@ -303,7 +406,7 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | GLO-85 queue consumer, sized for FEED-arrival (the inverted canary: 5 cross-source pairs total — OBF-drugstore and Shopify-DTC barely intersect) | [GLO-85](https://linear.app/glossed/issue/GLO-85) → GLO-14 |
 | Workshop accumulation: FitPromptCard, sheet 6-row/5.5, GLO-87 icons, bay-upright overlap, GLO-100's two questions, concealer-anchor, new wear-ins, essence→toner | §1 |
 | Fit-at-log's matched-barcode door: no prompt, no event (no category on a bare variant lookup), and not drivable without a camera | [GLO-16](https://linear.app/glossed/issue/GLO-16) |
-| `core/Media` is documented in both CLAUDE.md files but has never existed | [GLO-148](https://linear.app/glossed/issue/GLO-148) |
+| ~~`core/Media` has never existed~~ — **stale, corrected Aug 31.** It exists, with `PhotoPreparer.swift`, `PresignedUploader.swift` and 8 passing tests. Re-scope or close | [GLO-148](https://linear.app/glossed/issue/GLO-148) |
 | Hosted Supabase has the schema and zero reference rows — no category tree, no chip vocabulary | [GLO-158](https://linear.app/glossed/issue/GLO-158) |
 | Typeless storefronts (missha, murad, tatcha, supergoop at ~0 despite the tree) — feeds/Beauty-API bucket, not tree-gated | GLO-99 finding |
 | OBF foreign names (category crawl only — brand mode sidesteps); krave maps 0 | [GLO-84](https://linear.app/glossed/issue/GLO-84) / [GLO-79](https://linear.app/glossed/issue/GLO-79) |
@@ -345,7 +448,9 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | [GLO-227](https://linear.app/glossed/issue/GLO-227) discover chips | A DataKit opening. Option B recommended (`topChips(productIDs:)`) — no migration, serves every product-card surface | Sean |
 | [GLO-237](https://linear.app/glossed/issue/GLO-237) CI | `.github/workflows/` is frozen to agents. Two-line fix: `curl --fail --retry` **and** pin SwiftFormat on **both** sides — the Brewfile pins nothing either, so both float independently | Sean |
 | [GLO-218](https://linear.app/glossed/issue/GLO-218) | Two rulings: one routine per look or many, and may it credit **someone else's**? If yes the link needs its own `can_view` check **or a private routine leaks through a public look** — [GLO-263](https://linear.app/glossed/issue/GLO-263) carries the trap | Sean |
-| Any further DataKit opening | Per-session. The Aug 30–31 opening is **spent** | Sean |
+| [GLO-267](https://linear.app/glossed/issue/GLO-267) seed fixture | **Ready to build, needs a go-ahead only because it moves shared state.** `seed.sql` has no cross-user public fixture, so every isolation assertion in the repo runs against an empty set. Changing seed data reaches every lane's drive at once, and nine PRs were open when it was filed | Sean |
+| [GLO-245](https://linear.app/glossed/issue/GLO-245) onboarding | Not blocked on a decision — blocked on **GLO-23**. `AccountStore.sendCode`/`verifyCode` are no-ops pending Twilio and `finish` needs a session, so mounting FLOW 1 gives a flow that dead-ends at the account step. Sign in with Apple + Twilio secrets are the unblock | Sean |
+| Any further DataKit opening | Per-session. Aug 30–31's is spent; Aug 31's second opening (the shelf's scoping fix, #422) is **also spent** | Sean |
 | Any migration slot | Per-migration. Held by the schema lane at handoff for GLO-266/263/265 | Sean |
 | [GLO-172](https://linear.app/glossed/issue/GLO-172), [GLO-156](https://linear.app/glossed/issue/GLO-156), [GLO-178](https://linear.app/glossed/issue/GLO-178) | Design calls, unchanged. Render both options and let him pick rather than re-deriving them | Sean |
 | GLO-23 Apple + phone auth | Sign in with Apple capability + Twilio secrets are keyboard-minutes; every account screen already runs against the stub | Sean |
@@ -356,6 +461,75 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | Save/wishlist mapping | Whether `want_to_try` IS tech/07's +0.5 save signal | Sean |
 
 ## 8. What went wrong, so you don't repeat it
+
+### Session 16 (Aug 31) — the crossings, and three false claims in this file
+
+**A green PR that GitHub calls `CLEAN` can still produce a `main` that does not
+compile, and nothing in CI is looking.** #425 was green — lint, scope, iOS
+build — and GitHub reported `MERGEABLE` / `CLEAN`. Merging it would have landed
+an `AppShellPrivacy.swift` with **`func compose` defined twice**.
+
+The cause is the stacked-squash double-apply already in this file's scar list.
+#425's branch still descended from #424's **pre-squash** commit, so it carried
+its own copy of #424's changes; `main` carried the squashed copy; the three-way
+merge applied both. **CI never tested that result** — it tested the branch. The
+size gate reads the same stale merge base, so it reports the inflated file count
+as though that were the change.
+
+Caught only because `git diff origin/main origin/<branch>` looked alarming — it
+appeared to delete #423 and #427 wholesale, which is a two-way diff against a
+branch that predates them and a false alarm in itself — and that was worrying
+enough to justify a local `git merge --no-commit --no-ff` and a look. The
+duplicate was in the result.
+
+*Shape: after ANY squash-merge in a stack, rebase everything below it before
+merging. Not because a label says to —* `git merge --no-commit --no-ff` *into a
+scratch branch is the only thing that shows you what you are about to ship.
+Fifteen seconds, and it is the only gate that would have caught this.*
+
+**Five merged features were reachable from nowhere, and the cause was always
+the same.** A repository in `core` and a screen in `features` belong to two
+lanes; the file in `app/` that joins them belongs to neither. Session 15 already
+named this ("seams fall between lanes and nobody owns them") and it kept
+happening, because naming a shape does not assign an owner. The five: the
+profile's seven `nil` stores; the discover eyebrow's one missing argument;
+`RankItView`, built in #381 and constructed by no one; `ShelfItemSheet`'s
+`rank it`, taking a defaulted `{}`; and `features/Collections`, which had a
+store, a tint, a summary type and no adapter to `CollectionsRepository`.
+
+*Shape: `grep -rn "import <Package>" app/` costs two seconds and settles it.
+Run it on anything you are told is done.* The collections PR (#426) ships the
+seam and the crossing together, with a `size-override` whose written reason is
+exactly this — splitting them would have made a sixth.
+
+**A control wired to `dismiss` looks deliberate in a way `{}` does not.**
+`ProductPageView`'s `rank it` was `onRank: dismiss` at all three call sites. It
+reads as a decision. It is a dead end, and it survived review at three separate
+sites because each one looked intentional. *Shape: when a callback's argument is
+another callback the screen already has, ask what it was supposed to do.*
+
+**This handoff carried three claims that were false, and each cost time.**
+"The face-off became reachable" (it was not — #375/#381 never touched `app/`);
+"juli holds a public routine and a public collection" (she holds neither, and
+`seed.sql` never gave her one, so every isolation assertion in the repo runs
+against an empty set — GLO-267); "`core/Media` has never existed" (it exists,
+with 8 passing tests). Session 15's own §8 says *"a frame's status is a claim
+like any other. Quote the line."* **That applies to this file.** *Shape: when
+this document tells you something is done, the app is the instrument, not the
+sentence.*
+
+**A build flag correct in one context is wrong in another.** See §0. The tell
+was that `codesign -d --entitlements -` printed nothing at all; the symptom was
+three tabs claiming to be unbuilt. Thirty minutes went into reading auth code
+before anyone looked at the binary. *Shape: when every read fails and the writes
+never happened, suspect the process, not the queries.*
+
+**The stale-`.build` shape recurred, and the sweep is where it bites.**
+`features/Shelf` reported `error: fatalError — cannot find type 'LogDraft'`
+during the full-package sweep, ten minutes after #422 moved `LogDraft` to a new
+file. `main` was green; the package's `.build` held the pre-split DataKit
+module. §8 already carried this. *Shape: in a package sweep, a red that names a
+type you just moved is a cache. `rm -rf .build` before you debug it.*
 
 ### Session 15 (Aug 30–31) — coordination failures, mostly
 
@@ -922,7 +1096,7 @@ for p in $(ls -d core/*/ features/*/ | sed 's:/$::'); do
   echo "== $p"; (cd $p && swift test)   # 514 total at 63739aa — RE-MEASURE
 done
 make functions-test       # 82 deno tests
-supabase test db          # 567 assertions / 1 known LOCAL failure (shelf_view 14)
+supabase test db          # local: 533 tests, 6 files red — see §4, mostly drive-drift. CI is zero
 # schema_migrations agreed at 42/42 when last checked (§0) — but nothing
 # enforces it. To ask whether a migration landed, grep its object name out of
 # the file and look for THAT, never a name you remembered:
