@@ -22,6 +22,11 @@ struct ProfileTabsSection: View {
     /// Opens one look as a post (GLO-266). Nil until the app wires it — the
     /// tile then renders untappable, per the no-dead-doors rule.
     let onOpenLook: ((UUID) -> Void)?
+    /// Opens one collection / routine as a detail screen (GLO-272 — "edited
+    /// by clicking into them"). Same nil rule. Outside edit mode only: in
+    /// edit mode the card is the rename target, one gesture per mode.
+    let onOpenCollection: ((UUID) -> Void)?
+    let onOpenRoutine: ((UUID) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s3) {
@@ -116,6 +121,10 @@ struct ProfileTabsSection: View {
                         RenameTarget(kind: .collection, id: collection.id, value: collection.title)
                     )
                 }
+                .openTarget(
+                    enabled: !model.isEditing, label: collection.title,
+                    open: onOpenCollection.map { open in { open(collection.id) } }
+                )
         }
     }
 
@@ -152,6 +161,10 @@ struct ProfileTabsSection: View {
                             RenameTarget(kind: .routine, id: routine.routineID, value: routine.title)
                         )
                     }
+                    .openTarget(
+                        enabled: !model.isEditing, label: routine.title,
+                        open: onOpenRoutine.map { open in { open(routine.routineID) } }
+                    )
                 }
             }
         }

@@ -29,6 +29,8 @@ public struct OwnProfileView: View {
     private let onOpenPrivacy: () -> Void
     private let onCompose: ((ProfileComposable) -> Void)?
     private let onOpenLook: ((UUID) -> Void)?
+    private let onOpenCollection: ((UUID) -> Void)?
+    private let onOpenRoutine: ((UUID) -> Void)?
     private let settingsStore: SettingsStore?
     private let handleStore: HandleStore?
     private let onSignedOut: () -> Void
@@ -58,6 +60,10 @@ public struct OwnProfileView: View {
         onCompose: ((ProfileComposable) -> Void)? = nil,
         // Absent, a look tile is a card rather than a door (GLO-266).
         onOpenLook: ((UUID) -> Void)? = nil,
+        // Absent, a collection/routine card is a card rather than a door
+        // (GLO-272 — the click-in).
+        onOpenCollection: ((UUID) -> Void)? = nil,
+        onOpenRoutine: ((UUID) -> Void)? = nil,
         // Absent, `onClaimHandle` is handed up as before — and GLO-239 stays
         // open. See `claimSheet`.
         handleStore: HandleStore? = nil
@@ -75,6 +81,8 @@ public struct OwnProfileView: View {
         self.onOpenPrivacy = onOpenPrivacy
         self.onCompose = onCompose
         self.onOpenLook = onOpenLook
+        self.onOpenCollection = onOpenCollection
+        self.onOpenRoutine = onOpenRoutine
         self.settingsStore = settingsStore
         self.handleStore = handleStore
         self.onSignedOut = onSignedOut
@@ -100,7 +108,9 @@ public struct OwnProfileView: View {
                                 // nothing is the GLO-189 mistake.
                                 onEditIdentity: settingsStore == nil
                                     ? nil : { editingIdentity = $0 },
-                                onOpenLook: onOpenLook
+                                onOpenLook: onOpenLook,
+                                onOpenCollection: onOpenCollection,
+                                onOpenRoutine: onOpenRoutine
                             )
                         }
                         SuggestedPeopleCard(store: suggestionsStore) { viewing = $0 }

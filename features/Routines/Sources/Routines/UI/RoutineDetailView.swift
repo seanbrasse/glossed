@@ -4,8 +4,10 @@ import SwiftUI
 
 /// What the detail screen shows, loaded by the host — the routine's own
 /// fields plus what it goes with, in one shape so a partial load cannot
-/// render half a screen.
-public struct RoutineDetail: Sendable, Equatable {
+/// render half a screen. `Own` because DataKit's `RoutineDetail` is the
+/// BROWSE shape (a stranger's routine through the approved-text read) — the
+/// `MyRoutine`/`BrowseRoutine` distinction, kept at the type name.
+public struct OwnRoutineDetail: Sendable, Equatable {
     public let title: String
     public let slotLabel: String
     public let visibility: PrivacyScope
@@ -29,17 +31,17 @@ public struct RoutineDetail: Sendable, Equatable {
 /// **No kit frame**: built from the design system under the standing
 /// no-frames ruling, for Sean to workshop in the PR.
 public struct RoutineDetailView: View {
-    private let load: () async throws -> RoutineDetail
+    private let load: () async throws -> OwnRoutineDetail
     private let editStore: RoutineEditStore
     private let onClose: () -> Void
     private let onDeleted: () -> Void
 
-    @State private var detail: RoutineDetail?
+    @State private var detail: OwnRoutineDetail?
     @State private var editing = false
     @State private var failed = false
 
     public init(
-        load: @escaping () async throws -> RoutineDetail,
+        load: @escaping () async throws -> OwnRoutineDetail,
         editStore: RoutineEditStore,
         onClose: @escaping () -> Void,
         onDeleted: @escaping () -> Void
@@ -104,15 +106,18 @@ public struct RoutineDetailView: View {
         })
     }
 
-    private func loaded(_ detail: RoutineDetail) -> some View {
+    private func loaded(_ detail: OwnRoutineDetail) -> some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s4) {
             VStack(alignment: .leading, spacing: Tokens.Space.s1) {
                 Text(detail.slotLabel).eyebrow()
                 Text(detail.title)
                     .font(Typography.display(Typography.Size.h2))
                     .foregroundStyle(Tokens.Ink.primary)
-                Text("\(detail.steps.count) steps · \(detail.visibility.label)")
-                    .meta()
+                Text(
+                    "\(detail.steps.count) \(detail.steps.count == 1 ? "step" : "steps")"
+                        + " · \(detail.visibility.label)"
+                )
+                .meta()
             }
             VStack(alignment: .leading, spacing: Tokens.Space.s2) {
                 ForEach(Array(detail.steps.enumerated()), id: \.element.id) { index, step in

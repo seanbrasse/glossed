@@ -72,6 +72,9 @@ extension AppShell {
                 // The tile becomes a door (GLO-266): the app owns the
                 // crossing, the same as `openProduct` and `rankingItem`.
                 onOpenLook: { openLook = OpenLook(id: $0) },
+                // The cards become doors too (GLO-272): click in, edit there.
+                onOpenCollection: { openOwnItem = .collection($0) },
+                onOpenRoutine: { openOwnItem = .routine($0) },
                 // GLO-239 closes here, not in the screen: presented from the
                 // profile, the claim sheet's dismissal is a signal the profile
                 // has, so it reloads instead of going on saying "no handle
