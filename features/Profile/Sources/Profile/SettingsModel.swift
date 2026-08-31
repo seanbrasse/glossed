@@ -16,19 +16,26 @@ public struct SettingsStore: Sendable {
     /// Optional because a store built without one simply omits the row rather
     /// than showing a row that opens nothing.
     public var bio: BioStore?
+    /// Linked socials, moved here from the profile (GLO-261). **It is a
+    /// setting and always was** — it belongs beside your name and your bio in
+    /// `your profile`, the rows that change what a stranger reads. Optional
+    /// like `bio`, and omitted rather than rendered dead.
+    public var socials: LinkedSocialsStore?
 
     public init(
         profile: @escaping @Sendable () async throws -> Profile?,
         anchor: @escaping @Sendable () async throws -> ShadeAnchorFact?,
         signOut: @escaping @Sendable () async throws -> Void,
         saveDisplayName: @escaping @Sendable (String) async throws -> Void = { _ in },
-        bio: BioStore? = nil
+        bio: BioStore? = nil,
+        socials: LinkedSocialsStore? = nil
     ) {
         self.profile = profile
         self.anchor = anchor
         self.signOut = signOut
         self.saveDisplayName = saveDisplayName
         self.bio = bio
+        self.socials = socials
     }
 
     public static func live(
@@ -60,7 +67,8 @@ public struct SettingsStore: Sendable {
                     brandAffinities: nil
                 ))
             },
-            bio: .live(safety: safety)
+            bio: .live(safety: safety),
+            socials: .live(safety)
         )
     }
 }
@@ -102,7 +110,7 @@ public struct SettingsRow: Identifiable, Hashable, Sendable {
     /// Every other row is either editable here or stated here and set
     /// elsewhere — onboarding, the tune sheet, the shelf.
     public var isEditable: Bool {
-        id == "name" || id == "bio"
+        id == "name" || id == "bio" || id == "socials"
     }
 }
 
@@ -163,14 +171,19 @@ public final class SettingsModel {
         let profile = try? await store.profile()
         let anchor = try? await store.anchor()
         var bio: PublicText?
+        var socials: PublicText?
         if let bioStore = store.bio {
             bio = try? await bioStore.load()
+        }
+        if let socialsStore = store.socials {
+            socials = try? await socialsStore.load().first { $0.kind == .linkedSocial }
         }
         displayName = (profile ?? nil)?.displayName
         bioBody = bio?.body
         rows = Self.rows(
             profile: profile ?? nil, anchor: anchor ?? nil,
-            bio: store.bio == nil ? nil : (bio?.body ?? "")
+            bio: store.bio == nil ? nil : (bio?.body ?? ""),
+            socials: store.socials == nil ? nil : (socials?.body ?? "")
         )
         categories = Self.categories(rows)
     }
@@ -206,10 +219,18 @@ public final class SettingsModel {
     /// `bio` is nil when this store has no bio editor at all, and the row is
     /// omitted rather than rendered dead. An empty string means the editor
     /// exists and nothing has been written yet, which the row states.
-    static func rows(profile: Profile?, anchor: ShadeAnchorFact?, bio: String?) -> [SettingsRow] {
+    static func rows(
+        profile: Profile?, anchor: ShadeAnchorFact?, bio: String?, socials: String? = nil
+    ) -> [SettingsRow] {
         [
             SettingsRow(id: "name", label: "your name", value: profile?.displayName),
             bio.map { SettingsRow(id: "bio", label: "your bio", value: $0.isEmpty ? nil : $0) },
+            // The value is what you WROTE. `LinkedSocialsView` explains the
+            // row's `state`; a "pending" here would promise a review nobody
+            // performs (GLO-189).
+            socials.map {
+                SettingsRow(id: "socials", label: "where else you are", value: $0.isEmpty ? nil : $0)
+            },
             SettingsRow(id: "skin", label: "skin profile", value: skinLine(profile)),
             SettingsRow(id: "anchor", label: "shade anchor", value: anchorLine(anchor)),
             SettingsRow(id: "hair", label: "hair type", value: profile?.hairPattern),
@@ -246,38 +267,8 @@ public final class SettingsModel {
             return members.isEmpty ? nil : SettingsCategory(id: id, label: label, rows: members)
         }
         return [
-            group("profile", "your profile", ["name", "bio"]),
+            group("profile", "your profile", ["name", "bio", "socials"]),
             group("personal", "personal details", ["skin", "anchor", "hair", "domains", "birthday"])
         ].compactMap(\.self)
-    }
-
-    static func skinLine(_ profile: Profile?) -> String? {
-        guard let profile else { return nil }
-        let parts = [profile.toneBand.map { "tone \($0)" }, profile.skinType?.rawValue]
-        let line = parts.compactMap(\.self).joined(separator: " · ")
-        return line.isEmpty ? nil : line
-    }
-
-    /// The fit, not the shade. `user_shade_anchor` carries a variant id and a
-    /// fit, not a brand or shade name — the frame's "fenty 240 · fit logged"
-    /// would need a catalog lookup this screen does not do, and inventing the
-    /// half we cannot read would be worse than naming the half we can.
-    static func anchorLine(_ anchor: ShadeAnchorFact?) -> String? {
-        anchor.map { "fit logged · \($0.fit.label)" }
-    }
-
-    static func domainLine(_ profile: Profile?) -> String? {
-        guard let domains = profile?.domains, !domains.isEmpty else { return nil }
-        return domains.map(\.rawValue).joined(separator: " · ")
-    }
-
-    /// Month and year, because that is all there is. The day is dropped before
-    /// the write (`domain.md` §6) — the frame's "04 / 1998" shape implies a
-    /// precision the database deliberately does not keep.
-    static func birthdayLine(_ profile: Profile?) -> String? {
-        guard let raw = profile?.birthYearMonth, raw.count == 7 else { return nil }
-        let parts = raw.split(separator: "-")
-        guard parts.count == 2 else { return nil }
-        return "\(parts[1]) / \(parts[0])"
     }
 }
