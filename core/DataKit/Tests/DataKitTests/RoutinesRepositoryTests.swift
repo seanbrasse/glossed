@@ -89,7 +89,7 @@ private func keys(of value: some Encodable) throws -> [String] {
     let routineID = UUID()
     let cleanser = UUID(), serum = UUID(), spf = UUID()
     let routine = RoutinesRepository.OwnRoutineRow(
-        id: routineID, title: "am", slot: .am, startedOnRaw: nil, createdAt: Date()
+        id: routineID, title: "am", slot: .am, visibility: .onlyYou, startedOnRaw: nil, createdAt: Date()
     )
     // Deliberately shuffled — this is what a grouped rebuild can hand back.
     let steps = [
@@ -114,7 +114,7 @@ private func keys(of value: some Encodable) throws -> [String] {
     let routineID = UUID()
     let visible = UUID(), unreadable = UUID()
     let routine = RoutinesRepository.OwnRoutineRow(
-        id: routineID, title: "pm", slot: .pm, startedOnRaw: nil, createdAt: Date()
+        id: routineID, title: "pm", slot: .pm, visibility: .onlyYou, startedOnRaw: nil, createdAt: Date()
     )
     let steps = [
         RoutinesRepository.OwnStepRow(routineID: routineID, position: 0, userItemID: visible, note: nil),
@@ -131,7 +131,7 @@ private func keys(of value: some Encodable) throws -> [String] {
     // A stepless routine is a real state — `saveDraft` accepts an empty
     // `stepItemIDs` — and the profile tab has to be able to draw it.
     let routine = RoutinesRepository.OwnRoutineRow(
-        id: UUID(), title: "weekly", slot: .weekly, startedOnRaw: nil, createdAt: Date()
+        id: UUID(), title: "weekly", slot: .weekly, visibility: .onlyYou, startedOnRaw: nil, createdAt: Date()
     )
     let assembled = RoutinesRepository.assemble(routines: [routine], steps: [], names: [])
     #expect(assembled.count == 1)
@@ -145,10 +145,10 @@ private func keys(of value: some Encodable) throws -> [String] {
     let itemA = UUID(), itemB = UUID()
     let routines = [
         RoutinesRepository.OwnRoutineRow(
-            id: morning, title: "am", slot: .am, startedOnRaw: nil, createdAt: Date()
+            id: morning, title: "am", slot: .am, visibility: .onlyYou, startedOnRaw: nil, createdAt: Date()
         ),
         RoutinesRepository.OwnRoutineRow(
-            id: evening, title: "pm", slot: .pm, startedOnRaw: nil, createdAt: Date()
+            id: evening, title: "pm", slot: .pm, visibility: .onlyYou, startedOnRaw: nil, createdAt: Date()
         )
     ]
     let steps = [
@@ -168,7 +168,7 @@ private func keys(of value: some Encodable) throws -> [String] {
     // Every `date` column in the schema needs this — the platform decoder
     // wants a time component and throws on a bare calendar day.
     let routine = RoutinesRepository.OwnRoutineRow(
-        id: UUID(), title: "am", slot: .am, startedOnRaw: "2026-03-14", createdAt: Date()
+        id: UUID(), title: "am", slot: .am, visibility: .onlyYou, startedOnRaw: "2026-03-14", createdAt: Date()
     )
     let assembled = RoutinesRepository.assemble(routines: [routine], steps: [], names: [])
     let day = try #require(assembled[0].startedOn)
@@ -182,4 +182,12 @@ private func keys(of value: some Encodable) throws -> [String] {
     // leave the row claiming it was last changed at creation.
     let update = RoutinesRepository.TitleUpdate(title: "glass skin", updatedAt: "2026-08-30T00:00:00Z")
     #expect(try keys(of: update) == ["title", "updated_at"])
+}
+
+@Test func theScopeUpdateSendsVisibilityAndTheHandStampAndNothingElse() throws {
+    // 0053's write, under the StateUpdate discipline: exactly its columns,
+    // so a payload that grew `deleted_at` would fail here in Swift rather
+    // than turn "make it friends-only" into a delete.
+    let update = RoutinesRepository.ScopeUpdate(visibility: .friends, updatedAt: "2026-08-31T00:00:00Z")
+    #expect(try keys(of: update) == ["updated_at", "visibility"])
 }

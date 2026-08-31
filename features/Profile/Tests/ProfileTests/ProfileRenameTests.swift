@@ -10,7 +10,7 @@ import Testing
 private func routine(title: String = "morning glass skin") -> MyRoutine {
     MyRoutine(
         routineID: UUID(), title: title, slot: .am,
-        startedOn: nil, createdAt: Date(timeIntervalSince1970: 0), steps: []
+        visibility: .onlyYou, startedOn: nil, createdAt: Date(timeIntervalSince1970: 0), steps: []
     )
 }
 

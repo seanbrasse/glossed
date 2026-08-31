@@ -155,6 +155,22 @@ public struct CollectionsRepository: Sendable {
         }
     }
 
+    /// Who may read this collection — the same write the routines and looks
+    /// controls make since 0053, though `collections.visibility` predates
+    /// them (0021). A caller widening past `.onlyYou` owns the
+    /// `submitPublicText` obligation `rename` documents; this write does not
+    /// perform it.
+    public func setVisibility(collectionID: UUID, to scope: PrivacyScope) async throws(GlossedError) {
+        _ = try await client.requireUserID()
+        try await run {
+            _ = try await client.supabase
+                .from("collections")
+                .update(CollectionScopeUpdate(visibility: scope, updatedAt: Date().ISO8601Format()))
+                .eq("id", value: collectionID.uuidString)
+                .execute()
+        }
+    }
+
     /// Soft delete — `collection_is_visible()` tests `deleted_at is null`
     /// (probed in the function body), so setting it is what actually retracts
     /// the collection. A hard delete would cascade every `collection_items` row

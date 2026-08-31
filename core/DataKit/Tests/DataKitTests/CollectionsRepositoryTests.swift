@@ -153,6 +153,12 @@ import Testing
         title: "summer", updatedAt: "2026-08-30T00:00:00Z"
     ))
     #expect(rename == ["title", "updated_at"])
+
+    // …and the scope write follows the same rule (GLO-272's edit batch).
+    let scope = try encodedKeys(of: CollectionsRepository.CollectionScopeUpdate(
+        visibility: .publicScope, updatedAt: "2026-08-31T00:00:00Z"
+    ))
+    #expect(scope == ["updated_at", "visibility"])
 }
 
 @Test func aCollectionIsPrivateUntilSomethingElseSaysOtherwise() {

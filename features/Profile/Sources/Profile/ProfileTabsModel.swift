@@ -281,6 +281,7 @@ public final class ProfileTabsModel {
                 guard $0.routineID == target.id else { return $0 }
                 return MyRoutine(
                     routineID: $0.routineID, title: title, slot: $0.slot,
+                    visibility: $0.visibility,
                     startedOn: $0.startedOn, createdAt: $0.createdAt, steps: $0.steps
                 )
             }

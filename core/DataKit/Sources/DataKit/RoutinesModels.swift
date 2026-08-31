@@ -62,6 +62,8 @@ public struct MyRoutine: Sendable, Equatable, Identifiable {
     public let routineID: UUID
     public let title: String
     public let slot: RoutineSlot
+    /// Who may read this routine (0053, GLO-272) — per ITEM, not per surface.
+    public let visibility: PrivacyScope
     public let startedOn: Date?
     public let createdAt: Date
     /// In `position` order, always — see `assemble`.
@@ -78,12 +80,13 @@ public struct MyRoutine: Sendable, Equatable, Identifiable {
     }
 
     public init(
-        routineID: UUID, title: String, slot: RoutineSlot,
+        routineID: UUID, title: String, slot: RoutineSlot, visibility: PrivacyScope,
         startedOn: Date?, createdAt: Date, steps: [RoutineStep]
     ) {
         self.routineID = routineID
         self.title = title
         self.slot = slot
+        self.visibility = visibility
         self.startedOn = startedOn
         self.createdAt = createdAt
         self.steps = steps

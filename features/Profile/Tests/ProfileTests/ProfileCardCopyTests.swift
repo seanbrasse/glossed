@@ -18,7 +18,7 @@ private func routine(
 ) -> MyRoutine {
     MyRoutine(
         routineID: UUID(), title: "morning glass skin", slot: slot,
-        startedOn: startedOn, createdAt: Date(timeIntervalSince1970: 0), steps: steps
+        visibility: .onlyYou, startedOn: startedOn, createdAt: Date(timeIntervalSince1970: 0), steps: steps
     )
 }
 
