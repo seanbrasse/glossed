@@ -81,6 +81,8 @@ struct AppShell: View {
     @State var collectionTrip = UUID()
     /// The look composer, the drawer's fifth door (GLO-254, Sean's ruling).
     @State var lookOpen = false
+    /// The look the profile opened as a post (GLO-266).
+    @State var openLook: OpenLook?
     /// The same reasoning again, and it bites harder here: `LooksStore.live`
     /// mints the look's id once per store, so a reused composer would re-upload
     /// a second look's photos into the first look's R2 namespace.
@@ -144,20 +146,6 @@ struct AppShell: View {
         case .ready:
             tabs
         }
-    }
-
-    private func failedView(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-            Text("the local stack is not answering").font(Typography.display(24))
-            Text(message).meta()
-            Text(
-                "run `make setup`, then launch with SUPABASE_PUBLISHABLE_KEY from "
-                    + "`supabase status` in the environment. if sign-in fails, `supabase db reset` first."
-            ).meta()
-        }
-        .padding(Tokens.Space.s5)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Tokens.Ground.milk)
     }
 
     // MARK: - Tabs
@@ -240,6 +228,9 @@ struct AppShell: View {
         }
         .fullScreenCover(isPresented: $lookOpen) {
             lookComposer
+        }
+        .fullScreenCover(item: $openLook) { open in
+            lookPost(open)
         }
         .fullScreenCover(isPresented: $collectionOpen) {
             collectionComposer

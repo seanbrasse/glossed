@@ -28,6 +28,7 @@ public struct OwnProfileView: View {
     private let onClaimHandle: () -> Void
     private let onOpenPrivacy: () -> Void
     private let onCompose: ((ProfileComposable) -> Void)?
+    private let onOpenLook: ((UUID) -> Void)?
     private let settingsStore: SettingsStore?
     private let handleStore: HandleStore?
     private let onSignedOut: () -> Void
@@ -55,6 +56,8 @@ public struct OwnProfileView: View {
         scopesStore: ProfileScopesStore? = nil,
         // Absent, the empty state names what lands here and offers no `+`.
         onCompose: ((ProfileComposable) -> Void)? = nil,
+        // Absent, a look tile is a card rather than a door (GLO-266).
+        onOpenLook: ((UUID) -> Void)? = nil,
         // Absent, `onClaimHandle` is handed up as before — and GLO-239 stays
         // open. See `claimSheet`.
         handleStore: HandleStore? = nil
@@ -71,6 +74,7 @@ public struct OwnProfileView: View {
         self.onClaimHandle = onClaimHandle
         self.onOpenPrivacy = onOpenPrivacy
         self.onCompose = onCompose
+        self.onOpenLook = onOpenLook
         self.settingsStore = settingsStore
         self.handleStore = handleStore
         self.onSignedOut = onSignedOut
@@ -95,7 +99,8 @@ public struct OwnProfileView: View {
                                 // live behind it, and a control that opens
                                 // nothing is the GLO-189 mistake.
                                 onEditIdentity: settingsStore == nil
-                                    ? nil : { editingIdentity = $0 }
+                                    ? nil : { editingIdentity = $0 },
+                                onOpenLook: onOpenLook
                             )
                         }
                         SuggestedPeopleCard(store: suggestionsStore) { viewing = $0 }
