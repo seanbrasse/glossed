@@ -217,6 +217,43 @@ export function lookKey(
   return `users/${userID}/looks/${lookID}/${position}-${nonce}.${ext}`;
 }
 
+/// `users/<uid>/profile/<nonce>.<ext>`.
+///
+/// The pfp namespace (GLO-272: the avatar corner's edit icon). One prefix
+/// per user with nonced objects, cutouts' lifecycle: a re-shoot is a NEW
+/// object, the row's `photo_r2_key` moves to it, and the orphan waits for
+/// the sweep. The nonce matters here more than anywhere — this is a FACE
+/// (Regulated, domain.md §5), and no read path exists yet, so the
+/// unguessable key is the only thing between the bucket and a URL guesser.
+export function profileKey(
+  userID: string,
+  contentType: string,
+  nonce: string = randomNonce(),
+): string {
+  const ext = LOOK_CONTENT_TYPES[contentType];
+  return `users/${userID}/profile/${nonce}.${ext}`;
+}
+
+export function validateProfile(input: {
+  contentType?: string;
+  contentLength?: number;
+}): Rejection | null {
+  if (!input.contentType || !(input.contentType in LOOK_CONTENT_TYPES)) {
+    return `content_type must be one of ${Object.keys(LOOK_CONTENT_TYPES).join(", ")}`;
+  }
+  if (
+    typeof input.contentLength !== "number" ||
+    !Number.isInteger(input.contentLength) ||
+    input.contentLength <= 0
+  ) {
+    return "content_length must be a positive integer";
+  }
+  if (input.contentLength > MAX_UPLOAD_BYTES) {
+    return `content_length exceeds ${MAX_UPLOAD_BYTES} bytes`;
+  }
+  return null;
+}
+
 export function randomNonce(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");

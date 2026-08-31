@@ -19,6 +19,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   cutoutKey,
   lookKey,
+  profileKey,
   PRESIGN_TTL_SECONDS,
   presignGet,
   presignPut,
@@ -28,6 +29,7 @@ import {
   swatchKey,
   validate,
   validateLook,
+  validateProfile,
   validateRead,
   validateSwatch,
 } from "./presign.ts";
@@ -67,9 +69,13 @@ Deno.serve(async (req: Request) => {
   const wantsCutout = body.user_item_id !== undefined;
   const wantsLook = body.look_id !== undefined;
   const wantsRead = body.look_photo_ids !== undefined;
-  if ([wantsSwatch, wantsCutout, wantsLook, wantsRead].filter(Boolean).length !== 1) {
+  const wantsProfile = body.profile_photo === true;
+  if ([wantsSwatch, wantsCutout, wantsLook, wantsRead, wantsProfile].filter(Boolean).length !== 1) {
     return json(
-      { error: "exactly one of user_item_id, variant_id, look_id or look_photo_ids is required" },
+      {
+        error:
+          "exactly one of user_item_id, variant_id, look_id, look_photo_ids or profile_photo is required",
+      },
       400,
     );
   }
@@ -116,7 +122,9 @@ Deno.serve(async (req: Request) => {
     contentType: body.content_type as string,
     contentLength: body.content_length as number,
   };
-  const rejection = wantsSwatch
+  const rejection = wantsProfile
+    ? validateProfile(input)
+    : wantsSwatch
     ? validateSwatch(input)
     : wantsLook
     ? validateLook(input)
@@ -135,7 +143,16 @@ Deno.serve(async (req: Request) => {
 
     let key: string;
 
-    if (wantsSwatch) {
+    if (wantsProfile) {
+      // THE PFP (GLO-272). The gate is the session itself: you may always
+      // re-shoot your own face, and the key is derived from auth.uid(), so
+      // there is nothing to check against a row — the profiles UPDATE that
+      // stores the key runs later under RLS and answers for itself. No
+      // minor distinction here (one refusal shape preserved): a minor's pfp
+      // renders to nobody until a read path exists, and THAT path owes the
+      // minors ruling before it ships.
+      key = profileKey(user.id, input.contentType);
+    } else if (wantsSwatch) {
       // THE SAME PREDICATE THE INSERT POLICY USES, not a reimplementation of
       // it. can_post_swatch() (migration 0026) encodes both write gates —
       // minors cannot post at all, and you may only swatch a variant on your

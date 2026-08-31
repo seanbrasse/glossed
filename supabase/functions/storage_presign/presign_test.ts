@@ -12,6 +12,7 @@ import {
   MAX_UPLOAD_BYTES,
   presignGet,
   presignPut,
+  profileKey,
   r2Config,
   READ_BATCH_MAX,
   READ_TTL_SECONDS,
@@ -20,6 +21,7 @@ import {
   swatchKey,
   validate,
   validateLook,
+  validateProfile,
   validateRead,
   validateSwatch,
 } from "./presign.ts";
@@ -298,4 +300,21 @@ Deno.test("two reads of the same key sign identically within a second", async ()
   const key = `users/${USER}/looks/x/0-abc.jpg`;
   const [a, b] = await Promise.all([presignGet(config, key), presignGet(config, key)]);
   assertEquals(a, b);
+});
+
+// --- the pfp namespace (GLO-272) ------------------------------------------
+
+Deno.test("a profile key is namespaced, nonced, and typed", () => {
+  const key = profileKey(USER, "image/jpeg");
+  assertMatch(key, new RegExp(`^users/${USER}/profile/[0-9a-f]{32}\\.jpg$`));
+  // Two shots, two objects — the row's key moves; the orphan waits for the
+  // sweep. Predictability is the threat model: this is a FACE.
+  assert(profileKey(USER, "image/jpeg") !== profileKey(USER, "image/jpeg"));
+});
+
+Deno.test("a profile upload validates type and size like a look does", () => {
+  assertEquals(validateProfile({ contentType: "image/jpeg", contentLength: 1024 }), null);
+  assert(validateProfile({ contentType: "image/gif", contentLength: 1024 }));
+  assert(validateProfile({ contentType: "image/jpeg", contentLength: 0 }));
+  assert(validateProfile({ contentType: "image/jpeg", contentLength: MAX_UPLOAD_BYTES + 1 }));
 });
