@@ -31,6 +31,9 @@ public struct LookPostView: View {
     /// Non-nil for the owner's own look: the chips become editable and the
     /// "+ link" door opens (`LookLinksSection`). Nil renders read-only.
     private let linkEditor: LookLinkEditor?
+    /// Non-nil for the owner: the edit button (GLO-272 — "clicking into it
+    /// and hitting the edit button"). Nil for anyone else's look.
+    private let onEdit: (() -> Void)?
 
     public init(
         caption: String?,
@@ -40,7 +43,8 @@ public struct LookPostView: View {
         linkedCollections: [LinkablePick] = [],
         linkEditor: LookLinkEditor? = nil,
         onClose: @escaping () -> Void,
-        onOpenProduct: ((UUID) -> Void)? = nil
+        onOpenProduct: ((UUID) -> Void)? = nil,
+        onEdit: (() -> Void)? = nil
     ) {
         let ordered = media.sorted { $0.position < $1.position }
         self.caption = caption
@@ -50,6 +54,7 @@ public struct LookPostView: View {
         self.linkedRoutines = linkedRoutines
         self.linkedCollections = linkedCollections
         self.linkEditor = linkEditor
+        self.onEdit = onEdit
         _state = State(initialValue: LookTagViewerState(
             board: board, photoOrder: ordered.map(\.id)
         ))
@@ -58,11 +63,18 @@ public struct LookPostView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Tokens.Space.s4) {
-                Button("← back", action: onClose)
-                    .buttonStyle(.plain)
-                    .font(Typography.mono(12))
-                    .foregroundStyle(Tokens.Semantic.accentText)
-                    .underline()
+                HStack(spacing: Tokens.Space.s3) {
+                    Button("← back", action: onClose)
+                        .buttonStyle(.plain)
+                        .font(Typography.mono(12))
+                        .foregroundStyle(Tokens.Semantic.accentText)
+                        .underline()
+                    Spacer(minLength: 0)
+                    if let onEdit {
+                        Button("edit", action: onEdit)
+                            .buttonStyle(GlossedButtonStyle(.secondary, size: .sm))
+                    }
+                }
                 pager
                 if let caption, !caption.isEmpty {
                     Text(caption)
@@ -119,7 +131,7 @@ public struct LookPostView: View {
 
     private func page(_ item: LookMedia) -> some View {
         ZStack(alignment: .bottomLeading) {
-            photo(item)
+            LookPhotoView(media: item)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
             dots(on: item.id)
@@ -130,41 +142,6 @@ public struct LookPostView: View {
                 spotOverlay(spot)
             }
         }
-    }
-
-    @ViewBuilder private func photo(_ item: LookMedia) -> some View {
-        switch item.kind {
-        case let .photo(source):
-            switch source {
-            case let .data(bytes):
-                localImage(bytes)
-            case let .remote(url):
-                AsyncImage(url: url) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Tokens.Support.lilacSoft
-                }
-            case .unavailable:
-                // The ground plus one honest mono line — the photo's bytes
-                // have no read path yet, and its tags still work.
-                ZStack {
-                    Tokens.Support.lilacSoft
-                    Text("photo not available yet").meta()
-                }
-            }
-        }
-    }
-
-    @ViewBuilder private func localImage(_ bytes: Data) -> some View {
-        #if canImport(UIKit)
-            if let image = UIImage(data: bytes) {
-                Image(uiImage: image).resizable().scaledToFill()
-            } else {
-                Tokens.Support.lilacSoft
-            }
-        #else
-            Tokens.Support.lilacSoft
-        #endif
     }
 
     // MARK: - the tags
@@ -281,19 +258,5 @@ public struct LookPostView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(entry.product.label) — show its tag on the photo")
-    }
-}
-
-/// `.page` is iOS-only; the macOS test build compiles this package too, so
-/// the style is applied behind a platform check rather than at the call site.
-private struct PagedTabStyle: ViewModifier {
-    let showsIndex: Bool
-
-    func body(content: Content) -> some View {
-        #if os(iOS)
-            content.tabViewStyle(.page(indexDisplayMode: showsIndex ? .automatic : .never))
-        #else
-            content
-        #endif
     }
 }
