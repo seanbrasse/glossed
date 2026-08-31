@@ -61,6 +61,9 @@ extension AppShell {
                 // `PublicProfile.shelfVisible` — see `ProfileScopesStore`.
                 scopesStore: .live(PrivacyRepository(client: client)),
                 onCompose: compose,
+                // The tile becomes a door (GLO-266): the app owns the
+                // crossing, the same as `openProduct` and `rankingItem`.
+                onOpenLook: { openLook = OpenLook(id: $0) },
                 // GLO-239 closes here, not in the screen: presented from the
                 // profile, the claim sheet's dismissal is a signal the profile
                 // has, so it reloads instead of going on saying "no handle

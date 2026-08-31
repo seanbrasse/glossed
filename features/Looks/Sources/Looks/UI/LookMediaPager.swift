@@ -132,6 +132,10 @@ struct LookMediaPage: View {
             } placeholder: {
                 Tokens.Support.lilacSoft
             }
+        case .unavailable:
+            // Same rule as delta 14, stated rather than implied: the ground,
+            // not a torn-page glyph, and nothing pretending a load is coming.
+            Tokens.Support.lilacSoft
         }
     }
 

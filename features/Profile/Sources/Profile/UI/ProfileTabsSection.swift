@@ -19,6 +19,9 @@ struct ProfileTabsSection: View {
     /// layer has wired no settings store — the rows then do not render, on
     /// the same rule as `onCompose`: no door onto a room with no floor.
     let onEditIdentity: ((ProfileIdentityField) -> Void)?
+    /// Opens one look as a post (GLO-266). Nil until the app wires it — the
+    /// tile then renders untappable, per the no-dead-doors rule.
+    let onOpenLook: ((UUID) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s3) {
@@ -91,7 +94,18 @@ struct ProfileTabsSection: View {
     private var looks: some View {
         // Two columns rather than Instagram's three: with no photograph to
         // draw, a third column leaves a caption about eleven characters wide.
-        grid(model.looks, empty: "no looks yet", says: emptyLine(.look)) { LookTile(look: $0) }
+        grid(model.looks, empty: "no looks yet", says: emptyLine(.look)) { look in
+            if let onOpenLook {
+                Button {
+                    onOpenLook(look.id)
+                } label: {
+                    LookTile(look: look)
+                }
+                .buttonStyle(.plain)
+            } else {
+                LookTile(look: look)
+            }
+        }
     }
 
     private var collections: some View {
