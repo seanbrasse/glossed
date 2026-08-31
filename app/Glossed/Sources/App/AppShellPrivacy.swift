@@ -58,13 +58,10 @@ extension AppShell {
                     RoutinesRepository(client: client),
                     links: LinksRepository(client: client)
                 ),
-                // `shelf()` pins `user_id` as of GLO-258. It did not when this
-                // tab was designed: `user_items` carries OR'd own+public
-                // policies and `user_shelf_items` is `security_invoker`, so
-                // the unfiltered read returned a public stranger's rows into
-                // your own grid. Wiring this tab before that predicate existed
-                // would have put the leak on a second screen.
-                shelfStore: .live(ShelfRepository(client: client)),
+                // No shelfStore: Sean's Aug 31 ruling removed the shelf tab
+                // from the profile — the shelf is its own surface, and the
+                // store's absence is what removes the tab (the model filters
+                // tabs by wired stores).
                 // What the marks read. `privacy_scopes`, deliberately, and not
                 // `PublicProfile.shelfVisible` — see `ProfileScopesStore`.
                 scopesStore: .live(PrivacyRepository(client: client)),
@@ -75,6 +72,8 @@ extension AppShell {
                 // The cards become doors too (GLO-272): click in, edit there.
                 onOpenCollection: { openOwnItem = .collection($0) },
                 onOpenRoutine: { openOwnItem = .routine($0) },
+                // The pfp door (GLO-272): prepare → presign → PUT → key.
+                photoStore: .live(client: client),
                 // GLO-239 closes here, not in the screen: presented from the
                 // profile, the claim sheet's dismissal is a signal the profile
                 // has, so it reloads instead of going on saying "no handle

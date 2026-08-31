@@ -30,9 +30,6 @@ struct ProfileTabsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-            if model.canRename || onEditIdentity != nil {
-                editRow
-            }
             if model.tabs.count > 1 {
                 ProfileTabBar(
                     tabs: model.tabs, mark: model.mark(for:), selection: $model.tab
