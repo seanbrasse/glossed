@@ -12,6 +12,7 @@ public struct SettingsView: View {
     @State private var confirmingSignOut = false
     @State private var editingName = false
     @State private var editingBio = false
+    @State private var editingSocials = false
     private let onOpenPrivacy: () -> Void
     private let onSignedOut: () -> Void
     private let onBack: () -> Void
@@ -54,6 +55,17 @@ public struct SettingsView: View {
                 onBack: { editingName = false }
             )
         }
+        // GLO-261: `where else you are` left the profile and landed here. The
+        // screen behind it is unchanged (GLO-143) — only its door moved.
+        .sheet(
+            isPresented: $editingSocials,
+            onDismiss: { Task { await model.reload() } },
+            content: {
+                if let socialsStore = model.store.socials {
+                    LinkedSocialsView(store: socialsStore)
+                }
+            }
+        )
         .sheet(isPresented: $editingBio) {
             if let bioStore = model.store.bio {
                 BioView(store: bioStore, onBack: {
@@ -176,6 +188,7 @@ public struct SettingsView: View {
         switch row.id {
         case "name": editingName = true
         case "bio": editingBio = true
+        case "socials": editingSocials = true
         default: break
         }
     }
