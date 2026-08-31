@@ -73,6 +73,12 @@ struct AppShell: View {
     /// composer, so a second "new routine" starts empty rather than resuming
     /// the first one's title, steps and minted routine id.
     @State var routineTrip = UUID()
+    /// The collection composer, the drawer's third door (GLO-21).
+    @State var collectionOpen = false
+    /// `routineTrip`'s reasoning again: a new trip is a new composer, so a
+    /// second "new collection" starts empty rather than resuming the first
+    /// one's name, tint and picked products.
+    @State var collectionTrip = UUID()
     /// The look composer, the drawer's fifth door (GLO-254, Sean's ruling).
     @State var lookOpen = false
     /// The same reasoning again, and it bites harder here: `LooksStore.live`
@@ -234,6 +240,9 @@ struct AppShell: View {
         }
         .fullScreenCover(isPresented: $lookOpen) {
             lookComposer
+        }
+        .fullScreenCover(isPresented: $collectionOpen) {
+            collectionComposer
         }
         .fullScreenCover(item: $rankingItem) { item in
             faceOff(item)

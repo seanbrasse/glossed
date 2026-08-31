@@ -97,13 +97,11 @@ extension AppShell {
     ///   every line would come back `noMatch` and the "add N to your shelf"
     ///   button would never appear. That is a door onto a room with no floor;
     ///   the notice is the honest answer and stays until GLO-19.
-    /// - **collection** — this bullet said "no repository at all, GLO-230" and
-    ///   that expired when #387 merged one. The profile's collections tab reads
-    ///   it and draws real cards. What is still missing is the screen that
-    ///   MAKES a collection, which is GLO-21's remaining half, so the door
-    ///   still ends in a notice — but the notice now names the ticket that is
-    ///   open rather than the one that closed, and it is the same string the
-    ///   profile's `+` uses because both route through `AppShell.compose`.
+    /// - **collection** — this bullet said "no repository at all, GLO-230",
+    ///   which expired when #387 merged one, and then "the composer is still
+    ///   GLO-21", which expired when this door was wired. It now opens the
+    ///   composer, through the same `AppShell.compose` crossing the profile's
+    ///   `+` uses, so the two can never disagree again.
     var actionDrawer: some View {
         ActionDrawer(options: [
             .init(
