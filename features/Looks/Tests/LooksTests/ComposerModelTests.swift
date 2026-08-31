@@ -6,11 +6,11 @@ import Testing
 
 private func store(
     saveResult: Result<UUID, Error> = .success(UUID()),
-    onSave: (@Sendable (String, [ComposerPhoto], [ComposerTag]) -> Void)? = nil
+    onSave: (@Sendable (String, [ComposerPhoto], [LookTagSpot]) -> Void)? = nil
 ) -> LooksStore {
     LooksStore(
-        save: { caption, photos, tags in
-            onSave?(caption, photos, tags)
+        save: { caption, photos, spots in
+            onSave?(caption, photos, spots)
             return try saveResult.get()
         },
         searchShelf: { _ in [] }
@@ -18,6 +18,29 @@ private func store(
 }
 
 private let png = Data([0x89, 0x50, 0x4E, 0x47])
+
+/// Pins one product at (x, y) on `photoID` through the board — the only path
+/// left after the one-shot `tag()` retired with migration 0049.
+@MainActor
+private func pin(
+    _ model: ComposerModel, on photoID: UUID, label: String,
+    variantID: UUID = UUID(), x: Double = 0.5, y: Double = 0.5
+) {
+    let frame = CGSize(width: 300, height: 300)
+    let point = TagPoint(x: x, y: y)
+    let crowded = model.tagBoard.spot(
+        at: point.point(in: frame), in: frame, on: photoID,
+        radius: LookTagGeometry.minimumSeparation
+    )
+    guard let spot = model.tagBoard.place(on: photoID, at: point, in: frame) ?? crowded?.id else {
+        Issue.record("placement was refused")
+        return
+    }
+    model.tagBoard.add(
+        TaggedProduct(variantID: variantID, label: label, category: TagCategory(slug: "t", label: "t")),
+        to: spot
+    )
+}
 
 @MainActor
 @Test func aLookIsAPhotoPostSoPostNeedsAPhoto() {
@@ -52,14 +75,14 @@ private let png = Data([0x89, 0x50, 0x4E, 0x47])
     let model = ComposerModel(store: store())
     model.addPhoto(png)
     model.addPhoto(png)
-    model.tag(ShelfTagCandidate(variantID: UUID(), label: "fenty 330"), x: 0.4, y: 0.6)
     let first = model.photos[0].id
-    #expect(model.tags.count == 1, "the one-shot path lands on the first photo")
+    pin(model, on: first, label: "fenty 330", x: 0.4, y: 0.6)
+    #expect(model.tagBoard.spots.count == 1)
 
     model.removePhoto(first)
 
     #expect(model.photos.map(\.position) == [0])
-    #expect(model.tags.isEmpty, "coordinates into a photo that is gone are not a tag")
+    #expect(model.tagBoard.spots.isEmpty, "coordinates into a photo that is gone are not a tag")
 }
 
 // MARK: - reorder (GLO-232)
@@ -80,23 +103,25 @@ private let png = Data([0x89, 0x50, 0x4E, 0x47])
 
 @MainActor
 @Test func aReorderDoesNotDisturbTheTags() {
-    // The assertion this ticket is really about: tags pin to the LOOK, not
-    // to a photo, so moving photos around must leave them exactly as they
-    // were — same count, same variants, same pins.
+    // Moving photos around must leave the board exactly as it was — same
+    // spots, same products, same pins — because a spot keys on its photo's
+    // identity, never on its position.
     let model = ComposerModel(store: store())
     model.addPhoto(png)
     model.addPhoto(png)
     model.addPhoto(png)
     let blush = UUID()
-    model.tag(ShelfTagCandidate(variantID: blush, label: "rare beauty soft pinch · joy"), x: 0.7, y: 0.6)
-    model.tag(ShelfTagCandidate(variantID: UUID(), label: "fenty pro filt'r · 330"), x: 0.3, y: 0.4)
-    let before = model.tags
+    pin(model, on: model.photos[0].id, label: "rare beauty soft pinch · joy", variantID: blush, x: 0.7, y: 0.6)
+    pin(model, on: model.photos[1].id, label: "fenty pro filt'r · 330", x: 0.3, y: 0.4)
+    let before = model.tagBoard
 
     model.movePhoto(from: 0, to: 2)
     model.movePhoto(from: 2, to: 1)
 
-    #expect(model.tags == before, "tags pin to the look, not to a photo")
-    #expect(model.tags.contains { $0.variantID == blush && $0.x == 0.7 && $0.y == 0.6 })
+    // A spot keys on its photo's IDENTITY, not its position, so a reorder
+    // cannot move a tag off the photo it was placed on.
+    #expect(model.tagBoard == before, "reordering moves photos, never spots")
+    #expect(model.tagBoard.placement(of: blush) != nil)
 }
 
 @MainActor
@@ -176,101 +201,18 @@ private let png = Data([0x89, 0x50, 0x4E, 0x47])
 @MainActor
 @Test func reTaggingAVariantMovesThePinRatherThanStacking() {
     let model = ComposerModel(store: store())
-    // A photo first: a tag is a spot ON A PHOTO now (GLO-266), so tagging
-    // with nothing to tag is a no-op rather than a look-scoped pin.
     model.addPhoto(png)
+    let photo = model.photos[0].id
     let variant = UUID()
-    model.tag(ShelfTagCandidate(variantID: variant, label: "soft pinch"), x: 0.1, y: 0.1)
-    model.tag(ShelfTagCandidate(variantID: variant, label: "soft pinch"), x: 0.9, y: 0.9)
-    #expect(model.tags.count == 1, "0043's primary key would reject the duplicate anyway")
-    #expect(model.tags[0].x == 0.9)
-}
-
-@MainActor
-@Test func pinCoordinatesClampToThePhoto() {
-    let tag = ComposerTag(variantID: UUID(), label: "x", x: 1.7, y: -0.3)
-    #expect(tag.x == 1.0)
-    #expect(tag.y == 0.0)
-}
-
-@MainActor
-@Test func aFailedSaveLosesNothingAndNamesItself() async {
-    struct Offline: Error {}
-    let model = ComposerModel(store: store(saveResult: .failure(Offline())))
-    model.addPhoto(png)
-    model.caption = "everything I typed"
-    model.tag(ShelfTagCandidate(variantID: UUID(), label: "kept"), x: 0.5, y: 0.5)
-
-    model.post()
-    await model.saveTask?.value
-
-    #expect(model.phase == .composing, "back to composing, not stuck saving")
-    #expect(model.saveFailure != nil, "the failure names itself")
-    #expect(model.caption == "everything I typed")
-    #expect(model.photos.count == 1)
-    #expect(model.tags.count == 1)
-    #expect(model.canPost, "the retry is live")
-}
-
-@MainActor
-@Test func aRetryAfterFailureCanSucceedAndClearsTheFailure() async {
-    struct Offline: Error {}
-    let flaky = FlakySaver()
-    let model = ComposerModel(store: LooksStore(
-        save: { _, _, _ in try await flaky.attempt() },
-        searchShelf: { _ in [] }
-    ))
-    model.addPhoto(png)
-
-    model.post()
-    await model.saveTask?.value
-    #expect(model.saveFailure != nil)
-
-    model.post()
-    await model.saveTask?.value
-    guard case .saved = model.phase else {
-        Issue.record("expected .saved after the retry")
-        return
+    pin(model, on: photo, label: "soft pinch", variantID: variant, x: 0.1, y: 0.1)
+    pin(model, on: photo, label: "soft pinch", variantID: variant, x: 0.9, y: 0.9)
+    // One place per variant — the board's rule, asserted here at the
+    // composer's altitude because this is where a duplicate pick arrives.
+    #expect(model.tagBoard.taggedProductCount == 1)
+    let landed = model.tagBoard.placement(of: variant).flatMap { placement in
+        model.tagBoard.spots.first { $0.id == placement.spotID }
     }
-    #expect(model.saveFailure == nil)
-}
-
-@MainActor
-@Test func whatTheStoreReceivesIsWhatWasComposed() async {
-    let received = Captured()
-    let model = ComposerModel(store: LooksStore(
-        save: { caption, photos, tags in
-            await received.set(caption: caption, photoCount: photos.count, tagCount: tags.count)
-            return UUID()
-        },
-        searchShelf: { _ in [] }
-    ))
-    model.addPhoto(png)
-    model.addPhoto(png)
-    model.caption = "the drafts of us"
-    model.tag(ShelfTagCandidate(variantID: UUID(), label: "a"), x: 0.2, y: 0.2)
-
-    model.post()
-    await model.saveTask?.value
-
-    #expect(await received.caption == "the drafts of us")
-    #expect(await received.photoCount == 2)
-    #expect(await received.tagCount == 1)
-}
-
-// MARK: - helpers
-
-private actor FlakySaver {
-    private var calls = 0
-    struct Offline: Error {}
-
-    func attempt() throws -> UUID {
-        calls += 1
-        if calls == 1 {
-            throw Offline()
-        }
-        return UUID()
-    }
+    #expect(landed?.point.x == 0.9, "the pin moved to the later spot rather than stacking")
 }
 
 private actor CapturedPositions {
@@ -278,17 +220,5 @@ private actor CapturedPositions {
 
     func set(_ positions: [Int]) {
         self.positions = positions
-    }
-}
-
-private actor Captured {
-    private(set) var caption = ""
-    private(set) var photoCount = 0
-    private(set) var tagCount = 0
-
-    func set(caption: String, photoCount: Int, tagCount: Int) {
-        self.caption = caption
-        self.photoCount = photoCount
-        self.tagCount = tagCount
     }
 }

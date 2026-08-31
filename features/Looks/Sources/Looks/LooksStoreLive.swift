@@ -43,7 +43,7 @@ public extension LooksStore {
         let repository = LooksRepository(client: client)
         let lookID = UUID()
         return LooksStore(
-            save: { caption, photos, tags in
+            save: { caption, photos, spots in
                 var uploaded: [LookDraft.Photo] = []
                 for photo in photos.sorted(by: { $0.position < $1.position }) {
                     let prepared = try await preparer.prepare(photo.localData)
@@ -62,12 +62,25 @@ public extension LooksStore {
                     try await uploader.upload(prepared, to: PresignedUpload(
                         url: presign.url, headers: presign.headers ?? [:]
                     ))
-                    uploaded.append(.init(r2Key: presign.key, position: photo.position))
+                    // The composer's photo id IS the draft's photo id — the
+                    // board's spots reference it, so inventing a second id
+                    // here would orphan every tag at the join.
+                    uploaded.append(.init(id: photo.id, r2Key: presign.key, position: photo.position))
                 }
                 return try await repository.saveDraft(LookDraft(
                     caption: caption.isEmpty ? nil : caption,
                     photos: uploaded,
-                    tags: tags.map { .init(variantID: $0.variantID, x: $0.x, y: $0.y) },
+                    spots: spots.map { spot in
+                        LookDraft.Spot(
+                            id: spot.id,
+                            photoID: spot.photoID,
+                            x: spot.point.x,
+                            y: spot.point.y,
+                            products: spot.products.enumerated().map { index, product in
+                                LookDraft.SpotProduct(variantID: product.variantID, position: index)
+                            }
+                        )
+                    },
                     lookID: lookID
                 ))
             },

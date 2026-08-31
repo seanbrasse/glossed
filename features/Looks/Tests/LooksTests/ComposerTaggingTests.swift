@@ -4,9 +4,9 @@ import Testing
 @testable import Looks
 
 // The composer holding a tag BOARD rather than a flat list (GLO-266). What is
-// asserted here is the join: the board is the single source of truth, `tags`
-// is a projection of it, and photo removal is the one place the new rule
-// bites.
+// asserted here is the join: the board is the single source of truth, the
+// save takes its spots whole (0049), and photo removal is the one place the
+// photo-pinned rule bites.
 
 private func store() -> LooksStore {
     LooksStore(save: { _, _, _ in UUID() }, searchShelf: { _ in [] })
@@ -30,17 +30,18 @@ private let base = TagCategory(slug: "foundation", label: "foundation")
     model.tagBoard.add(TaggedProduct(variantID: UUID(), label: "fenty 330", category: base), to: spot)
 
     #expect(model.tagBoard.taggedProductCount == 2)
-    // The projection: one spot holding two products becomes two rows at the
-    // same coordinates, because that is all `look_tags` can carry today.
-    #expect(model.tags.count == 2)
-    #expect(model.tags.allSatisfy { $0.x == 0.4 && $0.y == 0.6 })
+    // One spot, two products, and the save sees exactly that shape — the
+    // projection that used to flatten this into two look-scoped rows was
+    // deleted with migration 0049, as its own banner promised.
+    #expect(model.tagBoard.spots.count == 1)
+    #expect(model.tagBoard.spots[0].products.count == 2)
 }
 
 @MainActor
-@Test func theProjectionDropsWhichPhotoWhichIsTheGapItself() {
-    // Two spots on two different photos project to four indistinguishable
-    // (variant, x, y) rows. Nothing in `[ComposerTag]` says which photo, and
-    // that is GLO-266's finding made concrete.
+@Test func twoSpotsOnTwoPhotosStayDistinguishableAllTheWayToTheSave() {
+    // The inverse of the deleted `theProjectionDropsWhichPhoto...` test: the
+    // gap it documented was closed by 0049, so identical coordinates on
+    // different photos now survive to the save as two distinct spots.
     let model = ComposerModel(store: store())
     model.addPhoto(png)
     model.addPhoto(png)
@@ -56,9 +57,8 @@ private let base = TagCategory(slug: "foundation", label: "foundation")
     model.tagBoard.add(TaggedProduct(variantID: UUID(), label: "a", category: lips), to: onFirst)
     model.tagBoard.add(TaggedProduct(variantID: UUID(), label: "b", category: lips), to: onSecond)
 
-    #expect(model.tags.count == 2)
-    #expect(Set(model.tags.map(\.x)) == [0.5], "same coordinates, different photos, no way to tell")
-    #expect(model.tagBoard.spots.count == 2, "the board still knows, and the schema does not")
+    #expect(model.tagBoard.spots.count == 2)
+    #expect(Set(model.tagBoard.spots.map(\.photoID)) == [first, second])
 }
 
 @MainActor
@@ -80,7 +80,7 @@ private let base = TagCategory(slug: "foundation", label: "foundation")
 
     model.removePhoto(first)
 
-    #expect(model.tags.map(\.label) == ["stays"])
+    #expect(model.tagBoard.spots.flatMap(\.products).map(\.label) == ["stays"])
     #expect(model.tagBoard.spots.count == 1)
 }
 
@@ -131,27 +131,18 @@ private let base = TagCategory(slug: "foundation", label: "foundation")
 }
 
 @MainActor
-@Test func theOneShotPathNeedsAPhotoBecauseATagIsASpotOnOne() {
-    let model = ComposerModel(store: store())
-    model.tag(ShelfTagCandidate(variantID: UUID(), label: "nothing to pin to"), x: 0.5, y: 0.5)
-    #expect(model.tags.isEmpty, "no photo, no spot, no tag")
-
-    model.addPhoto(png)
-    model.tag(ShelfTagCandidate(variantID: UUID(), label: "lands on the first"), x: 0.5, y: 0.5)
-    #expect(model.tags.count == 1)
-    #expect(model.tagBoard.spots[0].photoID == model.photos[0].id)
-}
-
-@MainActor
 @Test func untaggingByVariantFindsItWhereverItIsAndSweepsTheEmptyDot() {
     let model = ComposerModel(store: store())
     model.addPhoto(png)
     let variant = UUID()
-    model.tag(ShelfTagCandidate(variantID: variant, label: "only one here"), x: 0.5, y: 0.5)
+    guard let spot = model.tagBoard.place(on: model.photos[0].id, at: TagPoint(x: 0.5, y: 0.5), in: frame) else {
+        Issue.record("placement was refused")
+        return
+    }
+    model.tagBoard.add(TaggedProduct(variantID: variant, label: "only one here", category: lips), to: spot)
     #expect(model.tagBoard.spots.count == 1)
 
     model.removeTag(variant)
 
-    #expect(model.tags.isEmpty)
     #expect(model.tagBoard.spots.isEmpty, "a dot with nothing behind it is not a tag")
 }

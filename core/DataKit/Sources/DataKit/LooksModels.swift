@@ -57,17 +57,46 @@ public struct LookPhoto: Sendable, Equatable, Identifiable {
 
 /// One variant pinned to a look, at the point the user put it.
 ///
-/// `x`/`y` are the pin's fractional position within the photo, as written by
-/// the composer — `numeric` columns, so they cross as `Double`.
-public struct LookTag: Sendable, Equatable {
+/// One product inside a spot. `position` orders the spot's overlay; ties are
+/// broken by `variant_id` (0049's rule, applied in `assemble`).
+public struct LookSpotProduct: Sendable, Equatable {
     public let variantID: UUID
+    public let position: Int
+
+    public init(variantID: UUID, position: Int) {
+        self.variantID = variantID
+        self.position = position
+    }
+}
+
+/// A tag as 0049 shapes it and Sean specified it (GLO-266): a SPOT on one
+/// photo, holding several products. `x`/`y` are the pin's fractional position
+/// within THAT photo — `numeric` columns, so they cross as `Double`.
+///
+/// Named `LookSpot` rather than `LookTagSpot` because `features/Looks`
+/// already owns that name for its board-side value; two modules sharing it
+/// would make every cross-reference a qualification. This replaced
+/// `LookTag(variantID:x:y:)`, the 0043 shape, which was
+/// look-scoped and single-product — it could say neither which photo a pin
+/// was on nor hold a second product in the same spot.
+public struct LookSpot: Sendable, Equatable, Identifiable {
+    public let tagID: UUID
+    public let photoID: UUID
     public let x: Double
     public let y: Double
+    /// In overlay order — see `assemble`.
+    public let products: [LookSpotProduct]
 
-    public init(variantID: UUID, x: Double, y: Double) {
-        self.variantID = variantID
+    public var id: UUID {
+        tagID
+    }
+
+    public init(tagID: UUID, photoID: UUID, x: Double, y: Double, products: [LookSpotProduct]) {
+        self.tagID = tagID
+        self.photoID = photoID
         self.x = x
         self.y = y
+        self.products = products
     }
 }
 
@@ -89,7 +118,10 @@ public struct MyLook: Sendable, Equatable, Identifiable {
     public let createdAt: Date
     /// In `position` order, always — see `assemble`.
     public let photos: [LookPhoto]
-    public let tags: [LookTag]
+    /// Every spot on every photo of this look, in the photos' own order —
+    /// flat rather than nested so a "tagged products" list under the post
+    /// does not have to walk a tree to exist.
+    public let spots: [LookSpot]
 
     public var id: UUID {
         lookID
@@ -109,7 +141,7 @@ public struct MyLook: Sendable, Equatable, Identifiable {
 
     public init(
         lookID: UUID, caption: String?, state: LookState,
-        postedAt: Date?, createdAt: Date, photos: [LookPhoto], tags: [LookTag]
+        postedAt: Date?, createdAt: Date, photos: [LookPhoto], spots: [LookSpot]
     ) {
         self.lookID = lookID
         self.caption = caption
@@ -117,6 +149,6 @@ public struct MyLook: Sendable, Equatable, Identifiable {
         self.postedAt = postedAt
         self.createdAt = createdAt
         self.photos = photos
-        self.tags = tags
+        self.spots = spots
     }
 }
