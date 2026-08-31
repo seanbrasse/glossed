@@ -1,3 +1,4 @@
+import CoreGraphics
 import DataKit
 import Foundation
 import Observation
@@ -70,6 +71,14 @@ public struct ShelfTagCandidate: Identifiable, Sendable, Equatable {
     }
 }
 
+/// For the one call site that has no category to offer — the pre-board shelf
+/// picker, which knows a variant and a label and nothing else. Internal
+/// because it retires with that path; a tagged product in an honest bucket
+/// beats one missing from the list.
+extension TagCategory {
+    static let unknown = TagCategory(slug: "", label: "uncategorized")
+}
+
 @MainActor
 @Observable
 public final class ComposerModel {
@@ -82,7 +91,15 @@ public final class ComposerModel {
 
     public private(set) var phase: Phase = .composing
     public private(set) var photos: [ComposerPhoto] = []
-    public private(set) var tags: [ComposerTag] = []
+    /// Every tag on this look — spots on photos, each holding an ordered set
+    /// of products (GLO-266). **The single source of truth for tagging.**
+    ///
+    /// `internal(set)` rather than `private(set)`: the tagging canvas is a
+    /// view in this package and drives the board through a `Binding`, so it
+    /// needs write access. Outside the package it stays read-only, and the
+    /// model keeps the invariants that matter (a removed photo takes its
+    /// spots) in the methods that own them.
+    public internal(set) var tagBoard = LookTagBoard()
     /// The failed save's message, held until a retry answers (the sweep's
     /// triad: a failure names itself and keeps the way onward).
     public private(set) var saveFailure: String?
@@ -116,10 +133,14 @@ public final class ComposerModel {
         photos.append(ComposerPhoto(localData: data, position: photos.count))
     }
 
+    /// **The behaviour GLO-266 changes.** A tag used to pin to the LOOK, so it
+    /// survived its photo's removal — leaving coordinates into a photo that no
+    /// longer existed. A tag pins to a PHOTO now, so it goes when the photo
+    /// does.
     public func removePhoto(_ id: UUID) {
         photos.removeAll { $0.id == id }
         renumber()
-        // Tags pin to the look, not to a photo, so they survive a removal.
+        tagBoard.removeSpots(on: id)
     }
 
     /// Reorder. The dragged photo takes the destination's index and everything
@@ -127,9 +148,9 @@ public final class ComposerModel {
     /// saves, because `position` is rewritten from the array immediately
     /// after (GLO-232).
     ///
-    /// Tags are untouched on purpose: they pin to the LOOK, not to a photo
-    /// (`removePhoto` says the same thing from the other side), so a reorder
-    /// must not disturb them.
+    /// Tags are untouched on purpose, and now for a better reason than before:
+    /// a spot keys on its photo's IDENTITY, not on its position, so reordering
+    /// cannot move a tag off the photo it was placed on.
     public func movePhoto(from source: Int, to destination: Int) {
         guard photos.indices.contains(source) else { return }
         let target = min(max(destination, 0), photos.count - 1)
@@ -161,15 +182,63 @@ public final class ComposerModel {
         }
     }
 
-    /// One tag per variant — re-tagging moves the pin rather than stacking a
-    /// duplicate the DB would reject anyway (0043's primary key).
+    /// What the save can carry TODAY, projected down from the board.
+    ///
+    /// **The gap is visible right here.** `look_tags` is `(look_id,
+    /// variant_id, x, y)` — look-scoped, one product per row — so this
+    /// projection drops *which photo* on the floor and splits a spot holding
+    /// three products into three rows at the same coordinates. That is
+    /// GLO-266's finding, made concrete at the exact line where it costs
+    /// something. When the migration lands, `save` takes spots and this
+    /// projection is deleted rather than fixed.
+    public var tags: [ComposerTag] {
+        tagBoard.spots.flatMap { spot in
+            spot.products.map {
+                ComposerTag(variantID: $0.variantID, label: $0.label, x: spot.point.x, y: spot.point.y)
+            }
+        }
+    }
+
+    /// The one-shot path that predates the board: tag a product without
+    /// choosing a spot. It places on the FIRST photo, which is what a
+    /// look-scoped tag always silently meant.
+    ///
+    /// Kept because the debug catalog still calls it, and because a caller
+    /// with no category cannot build a `TaggedProduct` — hence
+    /// `TagCategory.unknown`. It retires with that fixture.
     public func tag(_ candidate: ShelfTagCandidate, x: Double, y: Double) {
-        tags.removeAll { $0.variantID == candidate.variantID }
-        tags.append(ComposerTag(variantID: candidate.variantID, label: candidate.label, x: x, y: y))
+        guard let first = photos.first else { return }
+        let point = TagPoint(x: x, y: y)
+        // A notional frame, because this path has no rendered size to offer.
+        // Big enough that two genuinely different pins get their own spots and
+        // two near-identical ones merge — which is the rule the tappable
+        // canvas applies against a real frame.
+        let frame = CGSize(width: 1000, height: 1000)
+        let crowded = tagBoard.spot(
+            at: point.point(in: frame),
+            in: frame,
+            on: first.id,
+            radius: LookTagGeometry.minimumSeparation
+        )
+        guard let spotID = tagBoard.place(on: first.id, at: point, in: frame) ?? crowded?.id else {
+            return
+        }
+        tagBoard.add(
+            TaggedProduct(variantID: candidate.variantID, label: candidate.label, category: .unknown),
+            to: spotID
+        )
     }
 
     public func removeTag(_ variantID: UUID) {
-        tags.removeAll { $0.variantID == variantID }
+        guard let placement = tagBoard.placement(of: variantID) else { return }
+        tagBoard.remove(variantID, from: placement.spotID)
+        tagBoard.discardEmptySpots()
+    }
+
+    /// The list under the photos, ordered by category, in the reader's own
+    /// photo order (GLO-266: "a list of tagged products, ordered by category").
+    public var tagListing: [LookTagListingGroup] {
+        tagBoard.listing(photoOrder: photos.map(\.id))
     }
 
     /// Saves a DRAFT, and the copy around this must say so: until image
