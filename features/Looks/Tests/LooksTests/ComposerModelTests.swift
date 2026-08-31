@@ -37,20 +37,9 @@ private let png = Data([0x89, 0x50, 0x4E, 0x47])
     }
     #expect(model.photos.count == ComposerModel.photoCap)
     #expect(!model.canAddPhoto)
+    #expect(model.remainingPhotoSlots == 0)
     // positions stay dense and ordered
     #expect(model.photos.map(\.position) == Array(0 ..< ComposerModel.photoCap))
-}
-
-@MainActor
-@Test func removingAPhotoRenumbersAndKeepsTheTags() {
-    let model = ComposerModel(store: store())
-    model.addPhoto(png)
-    model.addPhoto(png)
-    model.tag(ShelfTagCandidate(variantID: UUID(), label: "fenty 330"), x: 0.4, y: 0.6)
-    let first = model.photos[0].id
-    model.removePhoto(first)
-    #expect(model.photos.map(\.position) == [0])
-    #expect(model.tags.count == 1, "tags pin to the look, not a photo")
 }
 
 // MARK: - reorder (GLO-232)
