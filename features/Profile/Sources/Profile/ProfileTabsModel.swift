@@ -22,6 +22,9 @@ public final class ProfileTabsModel {
     public private(set) var looks: [ProfileLook] = []
     public private(set) var collections: [ProfileCollection] = []
     public private(set) var routines: [MyRoutine] = []
+    /// Each routine's linked collections (0052), keyed by routine id. Loaded
+    /// with the routines; missing key = no links = no chips.
+    public private(set) var routineLinks: [UUID: [LinkedItem]] = [:]
     public private(set) var shelf: [ProfileShelfEntry] = []
     public private(set) var scopes: PrivacyScopes?
     public private(set) var isLoading = true
@@ -98,6 +101,9 @@ public final class ProfileTabsModel {
         await read(looksStore?.mine, "looks") { self.looks = $0 }
         await read(collectionsStore?.mine, "collections") { self.collections = $0 }
         await read(routinesStore?.mine, "routines") { self.routines = $0 }
+        if let links = routinesStore?.links, !routines.isEmpty {
+            routineLinks = await (try? links(routines.map(\.routineID))) ?? [:]
+        }
         await read(shelfStore?.mine, "shelf") { self.shelf = $0 }
         // The profile opens on looks; if that seam was never wired, open on the
         // first one that was rather than on a blank pane.
@@ -190,6 +196,25 @@ public final class ProfileTabsModel {
     /// this tab is the same false claim `canRename` above was fixed for.
     public var editHint: String? {
         isEditing && canRename ? "tap any card to rename it" : nil
+    }
+
+    /// Whether the routine chips wear their × — a writer must exist.
+    public var canUnlinkCollections: Bool {
+        routinesStore?.unlinkCollection != nil
+    }
+
+    /// Chip off the moment the write returns, in place; a failure puts it
+    /// back AND says so (the saveRename rules, both of them).
+    public func unlinkCollection(_ collectionID: UUID, from routineID: UUID) async {
+        guard let write = routinesStore?.unlinkCollection else { return }
+        guard let removed = routineLinks[routineID]?.first(where: { $0.id == collectionID }) else { return }
+        routineLinks[routineID]?.removeAll { $0.id == collectionID }
+        do {
+            try await write(routineID, collectionID)
+        } catch {
+            routineLinks[routineID, default: []].append(removed)
+            note(error, fallback: "couldn't unlink that — try again.")
+        }
     }
 
     public func toggleEditing() {

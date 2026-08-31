@@ -17,16 +17,44 @@ public struct ProfileRoutinesStore: Sendable {
     /// closure: a rename that silently succeeds and changes nothing is worse
     /// than one that is not offered.
     public var rename: (@Sendable (UUID, String) async throws -> Void)?
+    /// Every routine's linked collections, one bulk read (0052). Nil renders
+    /// no chips — the tab-set rule again.
+    public var links: (@Sendable ([UUID]) async throws -> [UUID: [LinkedItem]])?
+    /// Unlinks one collection from one routine. Nil renders the chips
+    /// without their ×.
+    public var unlinkCollection: (@Sendable (_ routineID: UUID, _ collectionID: UUID) async throws -> Void)?
 
     public init(
         mine: @escaping @Sendable () async throws -> [MyRoutine],
-        rename: (@Sendable (UUID, String) async throws -> Void)? = nil
+        rename: (@Sendable (UUID, String) async throws -> Void)? = nil,
+        links: (@Sendable ([UUID]) async throws -> [UUID: [LinkedItem]])? = nil,
+        unlinkCollection: (@Sendable (UUID, UUID) async throws -> Void)? = nil
     ) {
         self.mine = mine
         self.rename = rename
+        self.links = links
+        self.unlinkCollection = unlinkCollection
     }
 
-    public static func live(_ routines: RoutinesRepository) -> ProfileRoutinesStore {
+    /// The optional-closure two-step, spelled as helpers because the compiler
+    /// cannot diagnose nested closures over an optional capture.
+    private static func linksRead(
+        _ links: LinksRepository?
+    ) -> (@Sendable ([UUID]) async throws -> [UUID: [LinkedItem]])? {
+        guard let links else { return nil }
+        return { try await links.linkedCollections(routineIDs: $0) }
+    }
+
+    private static func unlinkWrite(
+        _ links: LinksRepository?
+    ) -> (@Sendable (UUID, UUID) async throws -> Void)? {
+        guard let links else { return nil }
+        return { try await links.unlink(routineID: $0, collectionID: $1) }
+    }
+
+    public static func live(
+        _ routines: RoutinesRepository, links: LinksRepository? = nil
+    ) -> ProfileRoutinesStore {
         ProfileRoutinesStore(
             mine: { try await routines.mine() },
             // **The owner's copy, and only that.** `routines.title` is the
@@ -34,7 +62,9 @@ public struct ProfileRoutinesStore: Sendable {
             // approved `public_texts` row that `browse_routines` INNER JOINs
             // on. Nothing on this screen may imply otherwise — which is why
             // the sheet's copy says nothing about who can see the new name.
-            rename: { try await routines.rename(routineID: $0, to: $1) }
+            rename: { try await routines.rename(routineID: $0, to: $1) },
+            links: linksRead(links),
+            unlinkCollection: unlinkWrite(links)
         )
     }
 }

@@ -59,6 +59,10 @@ struct ShelfTile: View {
 /// steps numbered down the card with the numeral in cherry at width 18.
 struct RoutineCard: View {
     let routine: MyRoutine
+    /// The collections this routine goes with (0052). Empty draws nothing.
+    var links: [LinkedItem] = []
+    /// Editing shows each chip's × — nil keeps them inert display.
+    var onUnlink: ((UUID) -> Void)?
 
     var body: some View {
         GlossedCard {
@@ -79,6 +83,46 @@ struct RoutineCard: View {
                         }
                     }
                 }
+                if !links.isEmpty {
+                    linkRow
+                }
+            }
+        }
+    }
+
+    /// "goes with" — the routine's collections (0052), as inert chips, each
+    /// wearing an × while the profile is editing. The whole chip is the
+    /// remove target then; a 10pt glyph is not one.
+    private var linkRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Tokens.Space.s2) {
+            Text("goes with").meta()
+            ForEach(links) { link in
+                Button {
+                    onUnlink?(link.id)
+                } label: {
+                    HStack(spacing: Tokens.Space.s1) {
+                        Text(link.title)
+                            .font(Typography.mono(11))
+                            .foregroundStyle(Tokens.Ink.primary)
+                        if onUnlink != nil {
+                            Text("×")
+                                .font(Typography.mono(11, bold: true))
+                                .foregroundStyle(Tokens.Cherry.deep)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, Tokens.Space.s2)
+                    .background(Capsule().fill(Tokens.Ground.milk))
+                    .overlay(
+                        Capsule().strokeBorder(
+                            onUnlink != nil ? Tokens.Cherry.deep : Tokens.Ink.faint,
+                            lineWidth: Tokens.Border.hair
+                        )
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(onUnlink == nil)
+                .accessibilityLabel(onUnlink != nil ? "unlink \(link.title)" : link.title)
             }
         }
     }

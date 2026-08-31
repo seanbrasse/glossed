@@ -28,6 +28,9 @@ public struct LookPostView: View {
     /// policy at read time, so everything here is renderable.
     let linkedRoutines: [LinkablePick]
     let linkedCollections: [LinkablePick]
+    /// Non-nil for the owner's own look: the chips become editable and the
+    /// "+ link" door opens (`LookLinksSection`). Nil renders read-only.
+    private let linkEditor: LookLinkEditor?
 
     public init(
         caption: String?,
@@ -35,6 +38,7 @@ public struct LookPostView: View {
         board: LookTagBoard,
         linkedRoutines: [LinkablePick] = [],
         linkedCollections: [LinkablePick] = [],
+        linkEditor: LookLinkEditor? = nil,
         onClose: @escaping () -> Void,
         onOpenProduct: ((UUID) -> Void)? = nil
     ) {
@@ -45,6 +49,7 @@ public struct LookPostView: View {
         self.onOpenProduct = onOpenProduct
         self.linkedRoutines = linkedRoutines
         self.linkedCollections = linkedCollections
+        self.linkEditor = linkEditor
         _state = State(initialValue: LookTagViewerState(
             board: board, photoOrder: ordered.map(\.id)
         ))
@@ -64,7 +69,9 @@ public struct LookPostView: View {
                         .font(Typography.display(Typography.Size.body))
                         .foregroundStyle(Tokens.Ink.primary)
                 }
-                linkedSection
+                LookLinksSection(
+                    routines: linkedRoutines, collections: linkedCollections, editor: linkEditor
+                )
                 listing
             }
             .padding(Tokens.Space.s5)

@@ -69,7 +69,7 @@ private func step(_ name: String) -> RoutineComposerModel.Step {
     let written = Written()
     let model = RoutineComposerModel(store: RoutineStore(
         shelf: { [] },
-        create: { await written.set($0, $1, $2) }
+        create: { title, slot, steps, _ in await written.set(title, slot, steps) }
     ))
     let cleanser = step("cleanser")
     let mask = step("mask")
@@ -98,7 +98,7 @@ private func step(_ name: String) -> RoutineComposerModel.Step {
 @Test func aFailedSaveKeepsTheRoutineAndSpeaksInWords() async {
     let model = RoutineComposerModel(store: RoutineStore(
         shelf: { [] },
-        create: { _, _, _ in throw URLError(.timedOut) }
+        create: { _, _, _, _ in throw URLError(.timedOut) }
     ))
     model.title = "pm"
     model.toggle(step("serum"))
@@ -114,7 +114,7 @@ private func step(_ name: String) -> RoutineComposerModel.Step {
 @Test func aFailedShelfLoadIsAnExplainedEmptyNotABlank() async {
     let model = RoutineComposerModel(store: RoutineStore(
         shelf: { throw URLError(.notConnectedToInternet) },
-        create: { _, _, _ in }
+        create: { _, _, _, _ in }
     ))
     model.loadShelf()
     await model.task?.value

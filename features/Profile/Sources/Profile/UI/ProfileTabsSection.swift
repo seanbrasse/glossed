@@ -134,12 +134,24 @@ struct ProfileTabsSection: View {
         } else {
             VStack(alignment: .leading, spacing: Tokens.Space.s3) {
                 ForEach(model.routines) { routine in
-                    RoutineCard(routine: routine)
-                        .renameTarget(editing: model.isEditing, label: routine.title) {
-                            model.beginRename(
-                                RenameTarget(kind: .routine, id: routine.routineID, value: routine.title)
-                            )
-                        }
+                    RoutineCard(
+                        routine: routine,
+                        links: model.routineLinks[routine.routineID] ?? [],
+                        // The × rides EDIT MODE, the same gesture that renames
+                        // — one mode, every mutation. Inner buttons hit-test
+                        // first, so a chip tap unlinks and the card's body
+                        // still opens the rename.
+                        onUnlink: model.isEditing && model.canUnlinkCollections
+                            ? { collectionID in
+                                Task { await model.unlinkCollection(collectionID, from: routine.routineID) }
+                            }
+                            : nil
+                    )
+                    .renameTarget(editing: model.isEditing, label: routine.title) {
+                        model.beginRename(
+                            RenameTarget(kind: .routine, id: routine.routineID, value: routine.title)
+                        )
+                    }
                 }
             }
         }

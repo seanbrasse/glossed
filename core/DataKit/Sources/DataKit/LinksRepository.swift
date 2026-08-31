@@ -148,70 +148,68 @@ public struct LinksRepository: Sendable {
         }
     }
 
-    // MARK: - rows
+    // MARK: - unlink (Sean's Aug 31 follow-up: the composers only add)
 
-    struct LookRoutineRow: Encodable {
-        let lookID: UUID
-        let routineID: UUID
-        let position: Int
-
-        enum CodingKeys: String, CodingKey {
-            case lookID = "look_id"
-            case routineID = "routine_id"
-            case position
+    /// Deletes ride the pair's primary key and the tables' own delete
+    /// policies (own-only), so an unlink of somebody else's link deletes
+    /// zero rows rather than erroring — RLS filters, it does not throw.
+    /// Idempotent for the same reason: unlinking twice is one row gone.
+    public func unlink(lookID: UUID, routineID: UUID) async throws(GlossedError) {
+        _ = try await client.requireUserID()
+        try await run {
+            _ = try await client.supabase
+                .from("look_routines")
+                .delete()
+                .eq("look_id", value: lookID.uuidString)
+                .eq("routine_id", value: routineID.uuidString)
+                .execute()
         }
     }
 
-    struct LookCollectionRow: Encodable {
-        let lookID: UUID
-        let collectionID: UUID
-        let position: Int
-
-        enum CodingKeys: String, CodingKey {
-            case lookID = "look_id"
-            case collectionID = "collection_id"
-            case position
+    public func unlink(lookID: UUID, collectionID: UUID) async throws(GlossedError) {
+        _ = try await client.requireUserID()
+        try await run {
+            _ = try await client.supabase
+                .from("look_collections")
+                .delete()
+                .eq("look_id", value: lookID.uuidString)
+                .eq("collection_id", value: collectionID.uuidString)
+                .execute()
         }
     }
 
-    struct RoutineCollectionRow: Encodable {
-        let routineID: UUID
-        let collectionID: UUID
-        let position: Int
-
-        enum CodingKeys: String, CodingKey {
-            case routineID = "routine_id"
-            case collectionID = "collection_id"
-            case position
+    public func unlink(routineID: UUID, collectionID: UUID) async throws(GlossedError) {
+        _ = try await client.requireUserID()
+        try await run {
+            _ = try await client.supabase
+                .from("routine_collections")
+                .delete()
+                .eq("routine_id", value: routineID.uuidString)
+                .eq("collection_id", value: collectionID.uuidString)
+                .execute()
         }
     }
 
-    struct EmbeddedTitle: Decodable {
-        let title: String
-    }
-
-    struct EmbeddedRoutineRow: Decodable {
-        let routineID: UUID
-        let position: Int
-        /// Optional on purpose: an embed the caller's RLS refuses arrives as
-        /// null, and `links` drops the row rather than drawing a blank chip.
-        let routines: EmbeddedTitle?
-
-        enum CodingKeys: String, CodingKey {
-            case routineID = "routine_id"
-            case position, routines
+    /// Every routine's linked collections in ONE read, for a grid of cards —
+    /// N per-card queries is how a six-routine tab issues six round trips.
+    /// Grouped by routine, each group in `position` order.
+    public func linkedCollections(routineIDs: [UUID]) async throws(GlossedError) -> [UUID: [LinkedItem]] {
+        guard !routineIDs.isEmpty else { return [:] }
+        let rows: [EmbeddedRoutineCollectionRow] = try await run {
+            try await client.supabase
+                .from("routine_collections")
+                .select("routine_id,collection_id,position,collections(title)")
+                .in("routine_id", values: routineIDs.map(\.uuidString))
+                .order("position")
+                .execute()
+                .value
         }
-    }
-
-    struct EmbeddedCollectionRow: Decodable {
-        let collectionID: UUID
-        let position: Int
-        let collections: EmbeddedTitle?
-
-        enum CodingKeys: String, CodingKey {
-            case collectionID = "collection_id"
-            case position, collections
-        }
+        return Dictionary(grouping: rows, by: \.routineID)
+            .mapValues { group in
+                group.compactMap { row in
+                    row.collections.map { LinkedItem(id: row.collectionID, title: $0.title) }
+                }
+            }
     }
 
     private func run<T>(_ work: () async throws -> T) async throws(GlossedError) -> T {
