@@ -35,6 +35,35 @@ public struct ProfileRepository: Sendable {
         return rows.first
     }
 
+    /// Stores the pfp's R2 key after a successful upload (GLO-272 — the
+    /// avatar's edit icon). The KEY, not a URL: the app composes read URLs
+    /// through `storage_presign`'s own-pfp read, and the column is Regulated
+    /// the moment it holds a face (domain.md §5) — never into logs, props or
+    /// breadcrumbs; this method never even prints it. RLS pins the write to
+    /// the caller's own row; `updated_at` ships by hand (profiles carries no
+    /// touch trigger, `rename`'s rule elsewhere).
+    public func setPhotoKey(_ key: String) async throws(GlossedError) {
+        let userID = try await client.requireUserID()
+        try await run {
+            _ = try await client.supabase
+                .from("profiles")
+                .update(PhotoKeyUpdate(photoR2Key: key, updatedAt: Date().ISO8601Format()))
+                .eq("user_id", value: userID.uuidString)
+                .execute()
+        }
+    }
+
+    /// One write, exactly its columns — the StateUpdate discipline.
+    struct PhotoKeyUpdate: Encodable, Sendable {
+        let photoR2Key: String
+        let updatedAt: String
+
+        enum CodingKeys: String, CodingKey {
+            case photoR2Key = "photo_r2_key"
+            case updatedAt = "updated_at"
+        }
+    }
+
     /// The caller's shade anchor, or nil — and nil is a STATE the tune
     /// card exists for. The anchor is DERIVED (`user_shade_anchor` is a view
     /// over logged anchor-category items joined to their fits), so there is

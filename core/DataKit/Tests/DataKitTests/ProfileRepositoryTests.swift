@@ -134,3 +134,16 @@ private func draft(
     #expect(fact.fit == .justRight)
     #expect(fact.capturedAt == nil)
 }
+
+@Test func thePhotoKeyWriteSendsItsTwoColumnsAndNeverTheKeyToALog() throws {
+    // The StateUpdate discipline for the pfp (GLO-272): exactly photo_r2_key
+    // + the hand stamp (profiles has no touch trigger — probed, pg_trigger
+    // is empty for it). A payload that grew display_name would let a photo
+    // save silently rename the account.
+    let update = ProfileRepository.PhotoKeyUpdate(
+        photoR2Key: "users/u/profile/abc.jpg", updatedAt: "2026-08-31T00:00:00Z"
+    )
+    let data = try JSONEncoder().encode(update)
+    let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+    #expect(object.keys.sorted() == ["photo_r2_key", "updated_at"])
+}
