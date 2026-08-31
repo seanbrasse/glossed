@@ -32,6 +32,11 @@ public struct LookMedia: Identifiable, Sendable, Equatable {
 public enum LookMediaSource: Sendable, Equatable {
     case data(Data)
     case remote(URL)
+    /// A saved photo whose bytes cannot be fetched — there is no read path
+    /// for look photos yet (`storage_presign` signs PUTs only; GLO-266 notes
+    /// the gap). The page still exists, because its TAGS do: a spot pins to
+    /// this photo whether or not the pixels arrive.
+    case unavailable
 }
 
 /// The kit's numbers, in one place and citable. All of these are read off

@@ -30,9 +30,12 @@ struct LookComposerHost: View {
     private let onSaved: () -> Void
     private let onClose: () -> Void
 
+    private let search: LookTagSearch
+
     init(client: GlossedClient, onSaved: @escaping () -> Void, onClose: @escaping () -> Void) {
         self.onSaved = onSaved
         self.onClose = onClose
+        search = .overShelf(ShelfRepository(client: client))
         _model = State(initialValue: ComposerModel(store: .live(
             client: client,
             // **Chosen visibly, which is what `AlwaysAllowedChecker` asks for
@@ -54,6 +57,7 @@ struct LookComposerHost: View {
         ComposerView(
             model: model,
             onPickPhoto: { picking = true },
+            search: search,
             onSaved: { _ in onSaved() },
             onClose: onClose
         )
@@ -98,6 +102,159 @@ extension AppShell {
                 onClose: { lookOpen = false }
             )
             .id(lookTrip)
+        }
+    }
+}
+
+extension LookTagSearch {
+    /// Sean's ruling, Aug 31 (GLO-266's one open question, now closed): the
+    /// tag search is the SHELF — "opens up a search of our shelf and allows
+    /// users to go through and add items based on category, name, type."
+    ///
+    /// One fetch, filtered in memory: a shelf is hundreds of rows at its
+    /// wildest, and the match fields — brand, name, variant, category — are
+    /// all on the row already. `scope: .shelf` is declared, not inferred, so
+    /// the picker's copy tells the truth about what it covers.
+    static func overShelf(_ shelf: ShelfRepository) -> LookTagSearch {
+        LookTagSearch(scope: .shelf) { query in
+            let rows = try await shelf.shelf()
+            let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return rows
+                .filter { row in
+                    guard !needle.isEmpty else { return true }
+                    return row.productName.lowercased().contains(needle)
+                        || row.brandName.lowercased().contains(needle)
+                        || row.categoryLabel.lowercased().contains(needle)
+                        || (row.variantLabel?.lowercased().contains(needle) ?? false)
+                }
+                .map { row in
+                    TagSearchResult(
+                        variantID: row.variantID,
+                        // The row's own rendering — brand, product, and the
+                        // shade when there is one. Never reassembled by the
+                        // picker (its rule: it must not invent a shade name).
+                        label: [row.brandName, row.productName].joined(separator: " ")
+                            + (row.variantLabel.map { " · \($0)" } ?? ""),
+                        category: TagCategory(slug: row.categorySlug, label: row.categoryLabel),
+                        isOnYourShelf: true
+                    )
+                }
+        }
+    }
+}
+
+/// The look the profile opened (GLO-266). A wrapper because a bare UUID is
+/// not `Identifiable`, and the shell's covers key on identity.
+struct OpenLook: Identifiable {
+    let id: UUID
+}
+
+/// Loads one of YOUR looks and shows it as a post.
+///
+/// The app owns this crossing for AppShellProductPage's reason: the tile is
+/// `features/Profile`'s, the post view is `features/Looks`', and features
+/// never import features.
+///
+/// **Labels come from the shelf.** `MyLook.spots` carries variant ids and
+/// nothing else — the schema's shape — and Sean's scope ruling means every
+/// taggable product IS a shelf row, so the shelf read resolves them. A tag
+/// whose product has since left the shelf still renders, in an honest
+/// bucket, rather than vanishing from a photo it is pinned to.
+struct LookPostHost: View {
+    let client: GlossedClient
+    let lookID: UUID
+    let onClose: () -> Void
+
+    /// What the post view needs, loaded. A named type because the house
+    /// linter is right about three-member tuples: this one crosses an await.
+    struct LoadedPost {
+        let caption: String?
+        let media: [LookMedia]
+        let board: LookTagBoard
+    }
+
+    @State private var post: LoadedPost?
+    @State private var failed = false
+
+    var body: some View {
+        Group {
+            if let post {
+                LookPostView(
+                    caption: post.caption, media: post.media, board: post.board,
+                    onClose: onClose
+                )
+            } else if failed {
+                VStack(alignment: .leading, spacing: Tokens.Space.s3) {
+                    Button("← back", action: onClose)
+                        .buttonStyle(.plain)
+                        .font(Typography.mono(12))
+                        .foregroundStyle(Tokens.Semantic.accentText)
+                        .underline()
+                    Text("that look didn't load — try again.").meta()
+                }
+                .padding(Tokens.Space.s5)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(Tokens.Ground.milk)
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Tokens.Ground.milk)
+            }
+        }
+        .task { await load() }
+    }
+
+    private func load() async {
+        do {
+            let looks = try await LooksRepository(client: client).mine()
+            guard let look = looks.first(where: { $0.lookID == lookID }) else {
+                failed = true
+                return
+            }
+            let rows = await (try? ShelfRepository(client: client).shelf()) ?? []
+            let byVariant = Dictionary(rows.map { ($0.variantID, $0) }) { first, _ in first }
+            let media = look.photos.map { photo in
+                // No read path exists for look photos yet — storage_presign
+                // signs PUTs only. `.unavailable` says so on the page instead
+                // of spinning at a URL that cannot be built.
+                LookMedia(id: photo.photoID, position: photo.position, kind: .photo(.unavailable))
+            }
+            let spots = look.spots.map { spot in
+                LookTagSpot(
+                    id: spot.tagID, photoID: spot.photoID,
+                    point: TagPoint(x: spot.x, y: spot.y),
+                    products: spot.products.map { product in
+                        if let row = byVariant[product.variantID] {
+                            TaggedProduct(
+                                variantID: product.variantID,
+                                label: [row.brandName, row.productName].joined(separator: " ")
+                                    + (row.variantLabel.map { " · \($0)" } ?? ""),
+                                category: TagCategory(slug: row.categorySlug, label: row.categoryLabel)
+                            )
+                        } else {
+                            // Off the shelf since it was tagged. An honest
+                            // bucket beats a dot that lost its contents.
+                            TaggedProduct(
+                                variantID: product.variantID,
+                                label: "a product no longer on your shelf",
+                                category: TagCategory(slug: "", label: "no longer on your shelf")
+                            )
+                        }
+                    }
+                )
+            }
+            post = LoadedPost(caption: look.caption, media: media, board: LookTagBoard(spots))
+        } catch {
+            failed = true
+        }
+    }
+}
+
+extension AppShell {
+    /// The cover the profile's look tile opens (GLO-266).
+    @ViewBuilder func lookPost(_ open: OpenLook) -> some View {
+        if let client = session.client {
+            LookPostHost(client: client, lookID: open.id, onClose: { openLook = nil })
         }
     }
 }
