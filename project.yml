@@ -90,6 +90,9 @@ schemes:
         Glossed: all
     run:
       config: Debug
+    # Empty on purpose: the app target has no XCTest bundle, and every suite
+    # lives in the local SPM packages. `xcodebuild test -scheme Glossed` will
+    # therefore refuse the test action — run `make test` instead.
     test:
       config: Debug
       targets: []
