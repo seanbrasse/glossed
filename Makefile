@@ -1,4 +1,4 @@
-.PHONY: setup dev lint format test db-reset db-test db-test-clean generate functions-test catalog-snapshot catalog-restore catalog-generations
+.PHONY: setup dev run lint format test db-reset db-test db-test-clean generate functions-test catalog-snapshot catalog-restore catalog-generations
 
 setup:
 	brew bundle --no-upgrade
@@ -11,6 +11,40 @@ generate:
 
 dev: generate
 	open Glossed.xcodeproj
+
+# Build, install and launch on the canon simulator, with the env the app needs.
+#
+# It exists because doing this by hand went wrong in a way that cost a whole
+# evening and looked like six broken features. `.github/workflows/ci.yml` builds
+# with `CODE_SIGNING_ALLOWED=NO`, which is CORRECT there — CI never launches
+# anything — and a reader who copies that line gets an UNSIGNED app. An unsigned
+# app has no Keychain access; supabase-swift persists the session to the
+# Keychain; so `signIn` succeeds and the very next `auth.session` throws. Every
+# live read comes back `notAuthenticated`, and discover, shelf and profile —
+# all three built and merged — render their "not built yet" placeholders over a
+# perfectly working app.
+#
+# So: no `CODE_SIGNING_ALLOWED=NO` here, and the key comes from `supabase
+# status` rather than being pasted (a local dev key is still a key as far as
+# gitleaks is concerned — HANDOFF §8).
+#
+# It does NOT pass `--console-pty`: that blocks until the app exits, which is
+# fine for a human watching logs and wrong for anything scripted. The echo at
+# the end says how to get the logs separately.
+#
+# Override the device with `make run SIM=<udid or name>`.
+SIM ?= iPhone 16 Pro
+DERIVED ?= $(HOME)/.glossed/DerivedData
+run: generate
+	xcodebuild build -project Glossed.xcodeproj -scheme Glossed \
+	  -destination 'platform=iOS Simulator,name=$(SIM)' -derivedDataPath $(DERIVED)
+	xcrun simctl boot '$(SIM)' 2>/dev/null || true
+	xcrun simctl install '$(SIM)' \
+	  '$(DERIVED)/Build/Products/Debug-iphonesimulator/Glossed.app'
+	SIMCTL_CHILD_SUPABASE_URL="http://127.0.0.1:54321" \
+	SIMCTL_CHILD_SUPABASE_PUBLISHABLE_KEY="$$(supabase status -o json | jq -r .PUBLISHABLE_KEY)" \
+	  xcrun simctl launch '$(SIM)' com.glossed.app
+	@echo "launched. logs: xcrun simctl spawn '$(SIM)' log stream --predicate 'process == \"Glossed\"'"
 
 lint:
 	swiftlint --strict
