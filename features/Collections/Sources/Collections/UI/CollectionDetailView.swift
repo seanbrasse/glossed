@@ -142,7 +142,7 @@ public struct CollectionDetailView: View {
 /// trade, made here for a cover.
 private struct EditCover<Cover: View>: ViewModifier {
     let isPresented: Binding<Bool>
-    @ViewBuilder @ViewBuilder let cover: () -> Cover
+    @ViewBuilder let cover: () -> Cover
 
     func body(content: Content) -> some View {
         #if os(iOS)
