@@ -6,14 +6,19 @@ import Foundation
 // otherwise have pushed past SwiftLint's 300-line ceiling — the same remedy
 // `RoutinesModels.swift` applied to `RoutinesRepository.swift`.
 
-/// What the profile shows under the identity block (GLO-261).
+/// What the profile shows under the identity block: your looks, your
+/// collections, your routines, your shelf (GLO-261).
+///
+/// **`looks` is first and is the default**, which is Sean's instruction —
+/// "users will see their bio, pfp, name, and then looks as default". The
+/// frame's two-segment `Segmented ['routines','collections']` is superseded.
 ///
 /// The set is derived from the seams the app actually filled, so a tab never
 /// appears in front of a surface that cannot answer: a tab whose content is
 /// "coming soon" is the drawer's `collections land with GLO-21` mistake
-/// wearing different words (GLO-189). Looks and shelf join in their own PR.
+/// wearing different words (GLO-189).
 public enum ProfileTab: String, CaseIterable, Sendable {
-    case routines, collections
+    case looks, collections, routines, shelf
 
     /// Lowercase, like every label in the app. The kit's segment words are
     /// the enum's own.
@@ -31,8 +36,10 @@ public enum ProfileTab: String, CaseIterable, Sendable {
     /// `ProfileScopeMark.ceiling` is what closes that gap.
     public var surface: VisibilitySurface? {
         switch self {
+        case .looks: .looks
         case .collections: nil
         case .routines: .routines
+        case .shelf: .shelf
         }
     }
 }

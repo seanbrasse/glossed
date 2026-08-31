@@ -2,8 +2,13 @@ import DataKit
 import DesignSystem
 import SwiftUI
 
-/// `G.Profile`'s lower half: the tab strip and the tab it selects (GLO-230),
-/// where every tab now carries its own scope (GLO-261).
+/// The profile's body of work: the scoped tab strip and the grid it selects
+/// (GLO-261).
+///
+/// Sean, after driving the merged screen: *"otherwise, users will see their
+/// bio, pfp, name, and then looks as default, or collections, or routines,
+/// etc."* Everything below the identity block is content; the only control is
+/// the strip that chooses which content.
 struct ProfileTabsSection: View {
     @Bindable var model: ProfileTabsModel
 
@@ -19,18 +24,65 @@ struct ProfileTabsSection: View {
     }
 
     @ViewBuilder private var content: some View {
-        switch model.tab {
-        case .routines: routines
-        case .collections: collections
+        if model.isLoading {
+            ProgressView().frame(maxWidth: .infinity)
+        } else {
+            switch model.tab {
+            case .looks: looks
+            case .collections: collections
+            case .routines: routines
+            case .shelf: shelf
+            }
+        }
+    }
+
+    // MARK: - The grids
+
+    private var looks: some View {
+        // Two columns rather than Instagram's three: with no photograph to
+        // draw, a third column leaves a caption about eleven characters wide.
+        grid(
+            model.looks, empty: "no looks yet",
+            says: "a look is a photo of a face you made. start one from the + button."
+        ) { LookTile(look: $0) }
+    }
+
+    private var collections: some View {
+        grid(
+            model.collections, empty: "no collections yet",
+            says: "a collection is a group of things you own. make one from the + button."
+        ) { CollectionCard(collection: $0) }
+    }
+
+    private var shelf: some View {
+        grid(
+            model.shelf, empty: "nothing on your shelf yet",
+            says: "log something you own and it lands here."
+        ) { ShelfTile(entry: $0) }
+    }
+
+    /// Routines stay a single column: a routine card carries its numbered
+    /// steps, and two of those side by side wrap every step line.
+    @ViewBuilder private var routines: some View {
+        if model.routines.isEmpty {
+            emptyPane(
+                "no routines yet",
+                "a routine is the order you use things in. build one from the + button."
+            )
+        } else {
+            VStack(alignment: .leading, spacing: Tokens.Space.s3) {
+                ForEach(model.routines) { RoutineCard(routine: $0) }
+            }
         }
     }
 
     /// The frame's `gridTemplateColumns:'1fr 1fr'` at `gap:12`.
-    @ViewBuilder private var collections: some View {
-        if model.isLoading {
-            ProgressView().frame(maxWidth: .infinity)
-        } else if model.collections.isEmpty {
-            emptyCollections
+    @ViewBuilder
+    private func grid<T: Identifiable>(
+        _ items: [T], empty: String, says: String, @ViewBuilder card: @escaping (T) -> some View
+    ) -> some View {
+        if items.isEmpty {
+            emptyPane(empty, says)
         } else {
             LazyVGrid(
                 columns: [
@@ -39,151 +91,28 @@ struct ProfileTabsSection: View {
                 ],
                 spacing: Tokens.Space.s3
             ) {
-                ForEach(model.collections) { CollectionCard(collection: $0) }
+                ForEach(items) { card($0) }
             }
         }
     }
 
-    private var emptyCollections: some View {
+    /// One tab empty on a profile that is not. Never blank — it says what the
+    /// thing is and where it is made. It does not offer to make one: the
+    /// shell's own `+` is everywhere else's, and two create affordances on one
+    /// screen is one too many.
+    ///
+    /// None of it says who will see the thing. A look's audience depends on
+    /// the looks scope and on GLO-26, which has not decided; a collection is
+    /// created `only_you` and no surface in V1 widens it. Copy about a scope
+    /// no screen controls is the GLO-208 shape (GLO-189).
+    private func emptyPane(_ title: String, _ line: String) -> some View {
         GlossedCard {
             VStack(alignment: .leading, spacing: Tokens.Space.s2) {
-                Text("no collections yet")
+                Text(title)
                     .font(Typography.display(Typography.Size.h3))
                     .foregroundStyle(Tokens.Ink.primary)
-                // Says what a collection is and where they are made. It does
-                // not say who can see one, because in V1 nobody can and a
-                // sentence about that would be copy for a scope no screen
-                // controls (GLO-208).
-                Text("a collection is a group of things you own. make one from the + button.")
-                    .meta()
+                Text(line).meta()
             }
         }
-    }
-
-    @ViewBuilder private var routines: some View {
-        if model.isLoading {
-            ProgressView().frame(maxWidth: .infinity)
-        } else if model.routines.isEmpty {
-            emptyRoutines
-        } else {
-            VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-                ForEach(model.routines) { RoutineCard(routine: $0) }
-            }
-        }
-    }
-
-    /// Never blank, the empty-state rule the shelf already follows: it says
-    /// what a routine is and where routines are made. It does not offer to
-    /// make one — the composer lives behind the + drawer and this feature
-    /// cannot reach it.
-    private var emptyRoutines: some View {
-        GlossedCard {
-            VStack(alignment: .leading, spacing: Tokens.Space.s2) {
-                Text("no routines yet")
-                    .font(Typography.display(Typography.Size.h3))
-                    .foregroundStyle(Tokens.Ink.primary)
-                Text("a routine is the order you use things in. build one from the + button.")
-                    .meta()
-            }
-        }
-    }
-}
-
-/// One routine, as the frame draws it: title beside the mono count, then the
-/// steps numbered down the card with the numeral in cherry at width 18.
-struct RoutineCard: View {
-    let routine: MyRoutine
-
-    var body: some View {
-        GlossedCard {
-            VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-                HStack(alignment: .firstTextBaseline, spacing: Tokens.Space.s2) {
-                    Text(routine.title)
-                        .font(Typography.display(Typography.Size.body))
-                        .foregroundStyle(Tokens.Ink.primary)
-                    // A count of your OWN steps — not a claim about people, so
-                    // it carries no cohort and wears no evidence chrome.
-                    Text(ProfileTabsModel.stepsLine(routine)).meta()
-                    Spacer(minLength: 0)
-                }
-                if !routine.steps.isEmpty {
-                    VStack(alignment: .leading, spacing: Tokens.Space.s2) {
-                        ForEach(Array(routine.steps.enumerated()), id: \.element.id) { index, step in
-                            stepRow(index: index, step: step)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func stepRow(index: Int, step: RoutineStep) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Tokens.Space.s3) {
-            Text("\(index + 1)")
-                .font(Typography.display(Typography.Size.small))
-                .foregroundStyle(Tokens.Cherry.base)
-                .frame(width: 18, alignment: .leading)
-            Text(ProfileTabsModel.stepLine(step))
-                .font(.system(size: Typography.Size.small))
-                .foregroundStyle(Tokens.Ink.primary)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-        }
-    }
-}
-
-/// One collection, as the frame draws it: a tinted card, content pushed to the
-/// bottom, title over `mono(N products)`.
-///
-/// `minHeight:96` and the bottom alignment are the frame's own — they are what
-/// makes a two-word title and a six-word one the same object on the page.
-struct CollectionCard: View {
-    let collection: ProfileCollection
-
-    var body: some View {
-        GlossedCard(tint: Self.tint(collection.tint), padding: Tokens.Space.s3) {
-            CollectionCardBody(collection: collection)
-        }
-    }
-
-    /// `collections.cover_tint` is nullable `text` with no check constraint, so
-    /// an unrecognised word is a real possibility. It draws untinted rather
-    /// than throwing: a cover is decoration, and a cosmetic column should never
-    /// be able to take the grid down.
-    ///
-    /// The four words are the kit's four soft fills and `GlossedCard` already
-    /// owns them — nothing here names a colour.
-    ///
-    /// The return type is spelled through `CollectionCardBody` because
-    /// `GlossedCard.Tint` is nested inside a generic, so each specialisation
-    /// has its own. That is also why the card's content is a named view rather
-    /// than an inline closure.
-    static func tint(_ word: String?) -> GlossedCard<CollectionCardBody>.Tint {
-        switch word {
-        case "butter": .butter
-        case "cherry": .cherry
-        case "mint": .mint
-        case "lilac": .lilac
-        default: .plain
-        }
-    }
-}
-
-/// Bottom-aligned, per the frame's `justifyContent:'flex-end'`.
-struct CollectionCardBody: View {
-    let collection: ProfileCollection
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Tokens.Space.s1) {
-            Spacer(minLength: 0)
-            Text(collection.title)
-                .font(Typography.display(Typography.Size.body))
-                .foregroundStyle(Tokens.Ink.primary)
-                .fixedSize(horizontal: false, vertical: true)
-            // A count of your own collection, not a claim about people — no
-            // cohort, and no evidence chrome.
-            Text(ProfileTabsModel.productsLine(collection.itemN)).meta()
-        }
-        .frame(maxWidth: .infinity, minHeight: 96, alignment: .bottomLeading)
     }
 }

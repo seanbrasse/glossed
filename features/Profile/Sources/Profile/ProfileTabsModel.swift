@@ -1,90 +1,65 @@
 import DataKit
 import Foundation
 
-// The tab set and the scope vocabulary live next door in `ProfileScope.swift`.
+// The tab set and the scope vocabulary live in `ProfileScope.swift`; the seams
+// and the shapes they return live in `ProfileTabsStores.swift`; the words the
+// cards wear live in `ProfileCardCopy.swift`. All three were this file until
+// looks and shelf took it past SwiftLint's 300-line ceiling.
 
-/// How the profile's tabs reach persistence. Closures, not repositories, for
-/// the reason `LooksStore` and `CollectionsStore` are: features never import
-/// features, and the model is driven in tests with no client present.
-public struct ProfileRoutinesStore: Sendable {
-    public var mine: @Sendable () async throws -> [MyRoutine]
-
-    public init(mine: @escaping @Sendable () async throws -> [MyRoutine]) {
-        self.mine = mine
-    }
-
-    public static func live(_ routines: RoutinesRepository) -> ProfileRoutinesStore {
-        ProfileRoutinesStore(mine: { try await routines.mine() })
-    }
-}
-
-/// One card of the collections grid.
+/// The profile's body of work: which tab is showing, what is in it, and what
+/// each tab's scope mark says (GLO-261).
 ///
-/// **`visibility` is carried, reversing #393's choice, and the reason is new.**
-/// That PR left it off on the ground that a field a screen renders is an
-/// invitation to write copy about a scope no surface controls (GLO-208). The
-/// tab mark changes the calculus: collections have no account-level scope, so
-/// the only way the collections tab can state its ceiling truthfully is from
-/// the rows themselves. The fact is carried because it is now claimed — and it
-/// is claimed in exactly one place, the mark.
-///
-/// `tint` is the wire word from `collections.cover_tint`, not a colour: the
-/// column is nullable `text` with no check constraint, so an unrecognised
-/// value is a real possibility and draws untinted rather than throwing.
-public struct ProfileCollection: Identifiable, Equatable, Sendable {
-    public let id: UUID
-    public let title: String
-    public let tint: String?
-    /// The frame's `mono(c.count + ' products')`. A count of YOUR OWN
-    /// collection — no cohort, no evidence chrome.
-    public let itemN: Int
-    public let visibility: PrivacyScope
-
-    public init(
-        id: UUID, title: String, tint: String?, itemN: Int,
-        visibility: PrivacyScope = .onlyYou
-    ) {
-        self.id = id
-        self.title = title
-        self.tint = tint
-        self.itemN = itemN
-        self.visibility = visibility
-    }
-}
-
-/// The collections half of the seam.
-public struct ProfileCollectionsStore: Sendable {
-    public var mine: @Sendable () async throws -> [ProfileCollection]
-
-    public init(mine: @escaping @Sendable () async throws -> [ProfileCollection]) {
-        self.mine = mine
-    }
-}
-
-/// The tab strip's state, and the copy each card wears.
+/// Sean, after driving the merged screen: *"users will see their bio, pfp,
+/// name, and then looks as default, or collections, or routines, etc."* The
+/// profile stops being a list of things you can do and becomes the things you
+/// have made.
 @MainActor
 @Observable
 public final class ProfileTabsModel {
-    public var tab: ProfileTab = .routines
-    public private(set) var routines: [MyRoutine] = []
+    public var tab: ProfileTab = .looks
+    public private(set) var looks: [ProfileLook] = []
     public private(set) var collections: [ProfileCollection] = []
+    public private(set) var routines: [MyRoutine] = []
+    public private(set) var shelf: [ProfileShelfEntry] = []
     public private(set) var scopes: PrivacyScopes?
     public private(set) var isLoading = true
     public private(set) var errorMessage: String?
 
-    private let routinesStore: ProfileRoutinesStore?
+    private let looksStore: ProfileLooksStore?
     private let collectionsStore: ProfileCollectionsStore?
+    private let routinesStore: ProfileRoutinesStore?
+    private let shelfStore: ProfileShelfStore?
     private let scopesStore: ProfileScopesStore?
 
     public init(
-        routines: ProfileRoutinesStore?,
+        looks: ProfileLooksStore? = nil,
         collections: ProfileCollectionsStore? = nil,
+        routines: ProfileRoutinesStore? = nil,
+        shelf: ProfileShelfStore? = nil,
         scopes: ProfileScopesStore? = nil
     ) {
-        routinesStore = routines
+        looksStore = looks
         collectionsStore = collections
+        routinesStore = routines
+        shelfStore = shelf
         scopesStore = scopes
     }
+
+    /// Only the tabs that have a seam behind them, in Sean's order.
+    public var tabs: [ProfileTab] {
+        ProfileTab.allCases.filter { available($0) }
+    }
+
+    private func available(_ tab: ProfileTab) -> Bool {
+        switch tab {
+        case .looks: looksStore != nil
+        case .collections: collectionsStore != nil
+        case .routines: routinesStore != nil
+        case .shelf: shelfStore != nil
+        }
+    }
+
+    // MARK: - The scope mark
 
     /// What the tab's mark says: the most any other person could reach in it.
     ///
@@ -93,8 +68,8 @@ public final class ProfileTabsModel {
     /// than a privacy signal that waits. `nil` also when no scopes seam is
     /// wired at all, for the same reason.
     ///
-    /// The account surfaces read `privacy_scopes` directly. Collections have
-    /// no such surface, so their mark is the ceiling of the rows on the
+    /// The three account surfaces read `privacy_scopes` directly. Collections
+    /// have no such surface, so their mark is the ceiling of the rows on the
     /// screen — see `ProfileTab.surface`.
     public func mark(for tab: ProfileTab) -> ProfileScopeMark? {
         guard let scopes else { return nil }
@@ -102,6 +77,30 @@ public final class ProfileTabsModel {
             return ProfileScopeMark(scopes.scope(for: surface))
         }
         return ProfileScopeMark.ceiling(of: collections.map(\.visibility))
+    }
+
+    // MARK: - Loading
+
+    /// Every wired tab loads together, because the strip switches between
+    /// things that are already there — a tab that starts a fetch when it is
+    /// tapped puts a spinner behind a control that reads as instant.
+    ///
+    /// One failure does not blank the others: each read keeps whatever it got,
+    /// and the first message wins. A user with routines and a looks read that
+    /// timed out should still see their routines.
+    public func load() async {
+        isLoading = true
+        defer { isLoading = false }
+        await loadScopes()
+        await read(looksStore?.mine, "looks") { self.looks = $0 }
+        await read(collectionsStore?.mine, "collections") { self.collections = $0 }
+        await read(routinesStore?.mine, "routines") { self.routines = $0 }
+        await read(shelfStore?.mine, "shelf") { self.shelf = $0 }
+        // The profile opens on looks; if that seam was never wired, open on the
+        // first one that was rather than on a blank pane.
+        if !available(tab), let first = tabs.first {
+            tab = first
+        }
     }
 
     /// A failed scopes read leaves every mark absent rather than defaulting to
@@ -117,127 +116,21 @@ public final class ProfileTabsModel {
         }
     }
 
-    /// Only the tabs that have a seam behind them, in the frame's order.
-    public var tabs: [ProfileTab] {
-        ProfileTab.allCases.filter { available($0) }
-    }
-
-    private func available(_ tab: ProfileTab) -> Bool {
-        switch tab {
-        case .routines: routinesStore != nil
-        case .collections: collectionsStore != nil
-        }
-    }
-
-    /// Both tabs load together, because the segmented control switches between
-    /// two things that are already there — a tab that starts a fetch when it is
-    /// tapped puts a spinner behind a control that reads as instant.
-    ///
-    /// One failure does not blank the other tab: each read keeps whatever it
-    /// got, and the first message wins. A user with routines and a collections
-    /// read that timed out should still see their routines.
-    public func load() async {
-        isLoading = true
-        defer { isLoading = false }
-        await loadScopes()
-        if let routinesStore {
-            do {
-                routines = try await routinesStore.mine()
-            } catch {
-                note(error, fallback: "couldn't load your routines. pull to try again.")
-            }
-        }
-        if let collectionsStore {
-            do {
-                collections = try await collectionsStore.mine()
-            } catch {
-                note(error, fallback: "couldn't load your collections. pull to try again.")
-            }
-        }
-        // The frame opens on `routines`; if that tab was never wired, open on
-        // the one that was rather than on a blank pane.
-        if !available(tab), let first = tabs.first {
-            tab = first
+    private func read<T>(
+        _ mine: (@Sendable () async throws -> [T])?,
+        _ what: String,
+        into: ([T]) -> Void
+    ) async {
+        guard let mine else { return }
+        do {
+            try await into(mine())
+        } catch {
+            note(error, fallback: "couldn't load your \(what). pull to try again.")
         }
     }
 
     private func note(_ error: Error, fallback: String) {
         guard errorMessage == nil else { return }
         errorMessage = (error as? GlossedError)?.userMessage ?? fallback
-    }
-
-    /// The frame's `mono(r.steps.length + ' steps · ' + r.since)`.
-    ///
-    /// **`since` diverges, and it has to.** The kit's fixture writes freeform
-    /// cadence copy — `started week 3`, `twice a week`, `every 5 days` — and
-    /// no column carries any of it. What `routines` does carry is the slot and
-    /// `started_on`, so the line states those and stops. Inventing the kit's
-    /// phrasing would be a routine describing a schedule nobody set.
-    public nonisolated static func stepsLine(_ routine: MyRoutine) -> String {
-        var parts = [
-            "\(routine.stepN) \(routine.stepN == 1 ? "step" : "steps")",
-            slotWord(routine.slot)
-        ]
-        if let since = sinceWord(routine.startedOn) {
-            parts.append("since \(since)")
-        }
-        return parts.joined(separator: " · ")
-    }
-
-    /// The kit's words for the four slots — `am` · `pm` · `weekly` ·
-    /// `wash day`.
-    ///
-    /// `RoutineSlot.label` says `morning` / `evening` instead, which is
-    /// **GLO-210**: the composer, browse and the kit disagree, and the fix is
-    /// two lines in DataKit. DataKit is frozen to this lane, so the kit's
-    /// words are mapped here rather than shipped wrong. **Delete this when
-    /// GLO-210 lands** and call `slot.label` — the ticket is the licence for
-    /// the duplication, not an excuse to keep it.
-    nonisolated static func slotWord(_ slot: RoutineSlot) -> String {
-        switch slot {
-        case .am: "am"
-        case .pm: "pm"
-        case .weekly: "weekly"
-        case .washDay: "wash day"
-        }
-    }
-
-    /// Month and year, lowercase.
-    ///
-    /// Read in UTC on purpose: `started_on` is a Postgres `date`, and a bare
-    /// calendar day rendered in the device's zone walks back a month for
-    /// anyone west of Greenwich. The month words are the app's own rather than
-    /// a `DateFormatter`'s, which keeps the copy lowercase without a
-    /// locale-dependent `lowercased()` — and keeps this helper `Sendable`,
-    /// since `DateFormatter` is not.
-    nonisolated static func sinceWord(_ date: Date?) -> String? {
-        guard let date else { return nil }
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? calendar.timeZone
-        let parts = calendar.dateComponents([.month, .year], from: date)
-        guard let month = parts.month, let year = parts.year, months.indices.contains(month - 1) else {
-            return nil
-        }
-        return "\(months[month - 1]) \(year)"
-    }
-
-    nonisolated static let months = [
-        "jan", "feb", "mar", "apr", "may", "jun",
-        "jul", "aug", "sep", "oct", "nov", "dec"
-    ]
-
-    /// The frame's `mono(c.count + ' products')`, singular at one.
-    nonisolated static func productsLine(_ n: Int) -> String {
-        "\(n) \(n == 1 ? "product" : "products")"
-    }
-
-    /// One step, named by the thing you own. `brand · product · shade`, and
-    /// the shade only when the row has one — a step that prints an empty
-    /// separator reads as a missing fact rather than an absent one.
-    nonisolated static func stepLine(_ step: RoutineStep) -> String {
-        [step.brandName, step.productName, step.variantLabel]
-            .compactMap(\.self)
-            .filter { !$0.isEmpty }
-            .joined(separator: " · ")
     }
 }

@@ -32,6 +32,12 @@ private func collection(
     ProfileCollection(id: UUID(), title: title, tint: tint, itemN: itemN, visibility: visibility)
 }
 
+private func look(
+    caption: String? = "glass skin sunday", photoN: Int = 3, isPublished: Bool = true
+) -> ProfileLook {
+    ProfileLook(id: UUID(), caption: caption, photoN: photoN, isPublished: isPublished)
+}
+
 private func scopesStore(
     shelf: PrivacyScope = .onlyYou, rankings: PrivacyScope = .onlyYou,
     routines: PrivacyScope = .onlyYou, looks: PrivacyScope = .onlyYou
@@ -41,20 +47,74 @@ private func scopesStore(
     })
 }
 
-// MARK: - The scope mark, which is what will earn the preview's deletion
+// MARK: - The tab set
 
 @MainActor
-@Test func aTabReadsTheAccountSurfaceThatGovernsIt() async {
-    // GLOSSED has four per-surface scopes where Instagram has one account
-    // switch, so "your profile is what a stranger sees" is only true if the
-    // difference is on the screen. The mark is where it goes (GLO-261).
+@Test func looksIsTheDefaultTabAndComesFirst() {
+    // Sean, GLO-261: "users will see their bio, pfp, name, and then looks as
+    // default, or collections, or routines, etc."
     let model = ProfileTabsModel(
+        looks: ProfileLooksStore(mine: { [] }),
+        collections: ProfileCollectionsStore(mine: { [] }),
         routines: ProfileRoutinesStore(mine: { [] }),
-        scopes: scopesStore(routines: .friends)
+        shelf: ProfileShelfStore(mine: { [] })
+    )
+    #expect(model.tabs == [.looks, .collections, .routines, .shelf])
+    #expect(model.tab == .looks)
+}
+
+@MainActor
+@Test func aTabWithNoSeamBehindItNeverAppears() {
+    // A tab in front of a surface that cannot answer is the drawer's
+    // "collections land with GLO-21" mistake in different words (GLO-189).
+    let model = ProfileTabsModel(routines: ProfileRoutinesStore(mine: { [] }))
+    #expect(model.tabs == [.routines])
+}
+
+@MainActor
+@Test func withLooksUnwiredTheScreenOpensOnTheFirstTabThatExists() async {
+    // Rather than on `looks`, which would be a blank pane behind a strip that
+    // does not offer it.
+    let model = ProfileTabsModel(collections: ProfileCollectionsStore(mine: { [collection()] }))
+    await model.load()
+    #expect(model.tab == .collections)
+}
+
+@MainActor
+@Test func withNoStoresAtAllTheWholeLowerHalfIsAbsent() async {
+    let model = ProfileTabsModel()
+    #expect(model.tabs.isEmpty)
+    await model.load()
+    // Nothing to read is not a failure — the app layer has not wired the seam.
+    #expect(model.errorMessage == nil)
+    #expect(model.looks.isEmpty)
+}
+
+// MARK: - The scope mark, which is what earns the preview's deletion
+
+@MainActor
+@Test func eachTabCarriesItsOwnSurfacesScope() async {
+    // GLOSSED has four per-surface scopes where Instagram has one account
+    // switch. The mark is the whole reason `what a stranger sees` can go.
+    let model = ProfileTabsModel(
+        looks: ProfileLooksStore(mine: { [] }),
+        routines: ProfileRoutinesStore(mine: { [] }),
+        shelf: ProfileShelfStore(mine: { [] }),
+        scopes: scopesStore(shelf: .publicScope, routines: .friends, looks: .onlyYou)
     )
     await model.load()
-    #expect(ProfileTab.routines.surface == .routines)
+    #expect(model.mark(for: .looks) == .onlyYou)
     #expect(model.mark(for: .routines) == .friends)
+    #expect(model.mark(for: .shelf) == .publicToAnyone)
+}
+
+@Test func looksHasItsOwnScopeColumnAndDoesNotBorrowOne() {
+    // Probed, not assumed: `visibility_surface` has four members and `looks`
+    // is one of them, so the looks tab's mark is a read rather than an
+    // invention. (It ships inert until Phase 2, which is a fact about what
+    // consults it, not about whether the column exists.)
+    #expect(VisibilitySurface.allCases.contains(.looks))
+    #expect(ProfileTab.looks.surface == .looks)
 }
 
 @Test func collectionsHaveNoAccountLevelSurfaceSoTheirMarkIsTheCeiling() {
@@ -73,7 +133,6 @@ private func scopesStore(
 @MainActor
 @Test func theCollectionsMarkFollowsTheCollectionsActuallyLoaded() async {
     let model = ProfileTabsModel(
-        routines: nil,
         collections: ProfileCollectionsStore(mine: {
             [collection(visibility: .onlyYou), collection(visibility: .publicScope)]
         }),
@@ -87,9 +146,9 @@ private func scopesStore(
 @Test func withNoScopesSeamNoTabCarriesAMark() async {
     // The strip draws nothing rather than guessing. A privacy signal that
     // guesses is worse than one that waits.
-    let model = ProfileTabsModel(routines: ProfileRoutinesStore(mine: { [] }))
+    let model = ProfileTabsModel(looks: ProfileLooksStore(mine: { [] }))
     await model.load()
-    #expect(model.mark(for: .routines) == nil)
+    #expect(model.mark(for: .looks) == nil)
 }
 
 @MainActor
@@ -98,13 +157,13 @@ private func scopesStore(
     // applies it — and wrong for a read that failed, where "only you" would be
     // an assurance nobody checked.
     let model = ProfileTabsModel(
-        routines: ProfileRoutinesStore(mine: { [] }),
+        looks: ProfileLooksStore(mine: { [] }),
         scopes: ProfileScopesStore(scopes: {
             throw GlossedError(.offline, userMessage: "you're offline.")
         })
     )
     await model.load()
-    #expect(model.mark(for: .routines) == nil)
+    #expect(model.mark(for: .looks) == nil)
     #expect(model.errorMessage == "you're offline.")
 }
 
@@ -115,140 +174,49 @@ private func scopesStore(
     #expect(ProfileScopeMark.publicToAnyone.label == "public")
 }
 
-@MainActor
-@Test func aTabWithNoSeamBehindItNeverAppears() {
-    // The frame declares both segments because its data is a fixture. A
-    // segment in front of a surface that cannot answer is the drawer's
-    // "collections land with GLO-21" mistake in different words.
-    let model = ProfileTabsModel(routines: ProfileRoutinesStore(mine: { [] }))
-    #expect(model.tabs == [.routines])
-}
+// MARK: - Reading
 
 @MainActor
-@Test func bothSeamsWiredGivesTheFramesTwoSegmentsInItsOrder() {
+@Test func everyWiredTabLoadsTogether() async {
     let model = ProfileTabsModel(
-        routines: ProfileRoutinesStore(mine: { [] }),
-        collections: ProfileCollectionsStore(mine: { [] })
-    )
-    #expect(model.tabs == [.routines, .collections])
-    // The frame opens on routines.
-    #expect(model.tab == .routines)
-}
-
-@MainActor
-@Test func withOnlyCollectionsWiredTheScreenOpensOnTheTabThatExists() async {
-    // Rather than on `routines`, which would be a blank pane behind a control
-    // that does not offer the alternative.
-    let model = ProfileTabsModel(
-        routines: nil, collections: ProfileCollectionsStore(mine: { [collection()] })
-    )
-    await model.load()
-    #expect(model.tab == .collections)
-    #expect(model.collections.count == 1)
-}
-
-@MainActor
-@Test func oneTabFailingDoesNotBlankTheOther() async {
-    // A user with routines and a collections read that timed out should still
-    // see their routines.
-    let model = ProfileTabsModel(
+        looks: ProfileLooksStore(mine: { [look()] }),
+        collections: ProfileCollectionsStore(mine: { [collection()] }),
         routines: ProfileRoutinesStore(mine: { [routine()] }),
-        collections: ProfileCollectionsStore(mine: {
-            throw GlossedError(.offline, userMessage: "you're offline.")
+        shelf: ProfileShelfStore(mine: {
+            [ProfileShelfEntry(id: UUID(), brandName: "cosrx", productName: "snail mucin")]
         })
     )
     await model.load()
+    #expect(model.looks.count == 1)
+    #expect(model.collections.count == 1)
     #expect(model.routines.count == 1)
-    #expect(model.collections.isEmpty)
-    #expect(model.errorMessage == "you're offline.")
-}
-
-@Test func theProductsLineIsSingularForOne() {
-    #expect(ProfileTabsModel.productsLine(0) == "0 products")
-    #expect(ProfileTabsModel.productsLine(1) == "1 product")
-    #expect(ProfileTabsModel.productsLine(12) == "12 products")
-}
-
-@MainActor
-@Test func anUnknownCoverTintDrawsUntintedRatherThanFailing() {
-    // `collections.cover_tint` is nullable text with no check constraint, so
-    // the column will accept anything. A cosmetic value must never be able to
-    // take the grid down.
-    #expect(CollectionCard.tint("butter") == .butter)
-    #expect(CollectionCard.tint("cherry") == .cherry)
-    #expect(CollectionCard.tint("mint") == .mint)
-    #expect(CollectionCard.tint("lilac") == .lilac)
-    #expect(CollectionCard.tint(nil) == .plain)
-    #expect(CollectionCard.tint("chartreuse") == .plain)
-}
-
-@MainActor
-@Test func withNoStoresAtAllTheWholeLowerHalfIsAbsent() async {
-    let model = ProfileTabsModel(routines: nil)
-    #expect(model.tabs.isEmpty)
-    await model.load()
-    // Nothing to read is not a failure — the app layer has not wired the seam.
-    #expect(model.errorMessage == nil)
-    #expect(model.routines.isEmpty)
-}
-
-@MainActor
-@Test func routinesLoadInTheOrderTheRepositoryGivesThem() async {
-    let model = ProfileTabsModel(routines: ProfileRoutinesStore(mine: {
-        [routine(title: "morning glass skin"), routine(title: "pm reset", slot: .pm)]
-    }))
-    await model.load()
-    #expect(model.routines.map(\.title) == ["morning glass skin", "pm reset"])
+    #expect(model.shelf.count == 1)
     #expect(!model.isLoading)
     #expect(model.errorMessage == nil)
 }
 
 @MainActor
-@Test func aFailedReadSaysSoInTheRepositorysOwnWords() async {
-    let model = ProfileTabsModel(routines: ProfileRoutinesStore(mine: {
-        throw GlossedError(.offline, userMessage: "you're offline.")
-    }))
+@Test func oneFailedReadDoesNotBlankTheOtherTabs() async {
+    let model = ProfileTabsModel(
+        looks: ProfileLooksStore(mine: {
+            throw GlossedError(.offline, userMessage: "you're offline.")
+        }),
+        routines: ProfileRoutinesStore(mine: { [routine()] })
+    )
     await model.load()
     #expect(model.errorMessage == "you're offline.")
+    #expect(model.routines.count == 1)
 }
 
-@Test func theStepsLineCountsStepsAndNamesTheSlot() {
-    #expect(
-        ProfileTabsModel.stepsLine(routine(slot: .am, steps: [step(0, "cosrx", "snail mucin")]))
-            == "1 step · am"
+@MainActor
+@Test func drafsAreKeptOnYourOwnProfileAndSaySo() async {
+    // `LooksRepository.mine()` returns every state. A draft you cannot see is
+    // a draft you cannot finish.
+    let model = ProfileTabsModel(
+        looks: ProfileLooksStore(mine: { [look(isPublished: false), look()] })
     )
-    #expect(
-        ProfileTabsModel.stepsLine(routine(slot: .pm, steps: []))
-            == "0 steps · pm"
-    )
-}
-
-@Test func theStepsLineAddsSinceOnlyWhenAStartDateExists() {
-    // `started_on` is a Postgres `date`. Formatted in the device's zone it
-    // walks back a month for anyone west of Greenwich, so the formatter is
-    // pinned to UTC.
-    #expect(ProfileTabsModel.sinceWord(nil) == nil)
-    #expect(ProfileTabsModel.sinceWord(marchFirst) == "mar 2026")
-    #expect(
-        ProfileTabsModel.stepsLine(routine(slot: .washDay, startedOn: marchFirst))
-            == "0 steps · wash day · since mar 2026"
-    )
-}
-
-@Test func theSlotWearsTheKitsWordsNotDataKitsLabel() {
-    // GLO-210: `RoutineSlot.label` says morning/evening, the kit says am/pm.
-    // Delete this mapping — and this test — when the DataKit fix lands.
-    #expect(RoutineSlot.am.label == "morning")
-    #expect(ProfileTabsModel.slotWord(.am) == "am")
-    #expect(ProfileTabsModel.slotWord(.pm) == "pm")
-    #expect(ProfileTabsModel.slotWord(.weekly) == "weekly")
-    #expect(ProfileTabsModel.slotWord(.washDay) == "wash day")
-}
-
-@Test func aStepNamesTheThingYouOwnAndSkipsTheShadeWhenThereIsNone() {
-    #expect(ProfileTabsModel.stepLine(step(0, "cosrx", "snail mucin")) == "cosrx · snail mucin")
-    #expect(
-        ProfileTabsModel.stepLine(step(1, "fenty", "pro filt'r", "240"))
-            == "fenty · pro filt'r · 240"
-    )
+    await model.load()
+    #expect(model.looks.count == 2)
+    #expect(ProfileCardCopy.lookLine(photoN: 3, isPublished: false) == "3 photos · draft")
+    #expect(ProfileCardCopy.lookLine(photoN: 1, isPublished: true) == "1 photo")
 }
