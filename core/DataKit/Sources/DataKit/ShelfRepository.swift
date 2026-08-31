@@ -3,20 +3,17 @@ import Supabase
 
 /// The user's own shelf: items, chips, fits.
 ///
-/// **RLS is not what makes a read here "mine", and the comment that used to
-/// stand in this place said it was.** `user_items` carries TWO select policies
-/// — `user_items_own` and `user_items_public` — and Postgres OR's policies for
-/// the same command, so an unfiltered select returns your own rows *plus* every
-/// row `item_is_published()` admits. `user_shelf_items` is `security_invoker`
-/// and inherits exactly that.
+/// **RLS is not what makes a read here "mine", and the comment that stood in
+/// this place said it was.** `user_items` carries PERMISSIVE `user_items_own`
+/// and `user_items_public` policies, Postgres OR's them, and `user_shelf_items`
+/// is `security_invoker` — so an unfiltered select returns your rows plus every
+/// row `item_is_published()` admits. Probed: with an owner's shelf scope set to
+/// `public`, a stranger's unfiltered read returned that owner's row.
 ///
-/// Probed, not reasoned: with juli's `privacy_scopes.shelf` set to `public`, as
-/// maya `select … from user_shelf_items` returned six rows — maya's five and
-/// juli's one. With `user_id = auth.uid()` pinned it returned five. Every
-/// collection read below therefore pins `user_id` itself, and
-/// `requireUserID()`'s return value is USED rather than discarded — discarding
-/// it is the tell this defect leaves behind (GLO-258, and #387 for the same
-/// defect in `RoutinesRepository.mine`).
+/// Every collection read below therefore pins `user_id`, and `requireUserID()`'s
+/// return value is USED rather than discarded — discarding it is the tell this
+/// defect leaves (GLO-258; #387, same defect in `RoutinesRepository`). The
+/// instrument is `owner_scoped_reads.test.sql`: a Swift test cannot see a policy.
 public struct ShelfRepository: Sendable {
     private let client: GlossedClient
 
@@ -42,10 +39,8 @@ public struct ShelfRepository: Sendable {
     /// rank. `items(status:)` above returns the raw table rows — a variant id
     /// and a status — which is enough to count what you own and nothing else.
     ///
-    /// `user_id` is pinned for the reason the type comment gives. The view is
-    /// `security_invoker`, so it is `user_items`' OR'd policies answering here,
-    /// and a shelf that quietly grew somebody else's foundation is what this
-    /// predicate stops — on this screen and on the profile's shelf tab.
+    /// `user_id` is pinned for the reason the type comment gives — this read
+    /// draws the shelf tab and the profile's, so the leak had two screens.
     public func shelf(status: ItemStatus? = nil) async throws(GlossedError) -> [ShelfRow] {
         let userID = try await client.requireUserID()
         return try await run {
@@ -266,39 +261,5 @@ public struct ShelfRepository: Sendable {
         } catch {
             throw GlossedError.from(error)
         }
-    }
-}
-
-public struct LogDraft: Sendable {
-    public let variantID: UUID
-    public let status: ItemStatus
-    public let startedOn: Date?
-    public let note: String?
-    /// Client-generated so a retry resolves to the same row.
-    public let clientID: UUID
-
-    public init(
-        variantID: UUID,
-        status: ItemStatus = .own,
-        startedOn: Date? = nil,
-        note: String? = nil,
-        clientID: UUID = UUID()
-    ) {
-        self.variantID = variantID
-        self.status = status
-        self.startedOn = startedOn
-        self.note = note
-        self.clientID = clientID
-    }
-
-    func row(userID: UUID) -> LogRow {
-        LogRow(
-            userID: userID.uuidString,
-            variantID: variantID.uuidString,
-            status: status.rawValue,
-            startedOn: startedOn.map { $0.formatted(.iso8601.year().month().day()) },
-            note: note,
-            clientID: clientID.uuidString
-        )
     }
 }
