@@ -10,13 +10,17 @@ import {
   cutoutKey,
   lookKey,
   MAX_UPLOAD_BYTES,
+  presignGet,
   presignPut,
   r2Config,
+  READ_BATCH_MAX,
+  READ_TTL_SECONDS,
   randomNonce,
   resolvePublishableKey,
   swatchKey,
   validate,
   validateLook,
+  validateRead,
   validateSwatch,
 } from "./presign.ts";
 
@@ -258,4 +262,40 @@ Deno.test("a re-shot look photo is a new object, never an overwrite", () => {
   const a = lookKey("u1", lookInput.lookID, 0, "image/jpeg");
   const b = lookKey("u1", lookInput.lookID, 0, "image/jpeg");
   assert(a !== b, "the nonce must differ — the row's r2_key moves, the orphan waits for the sweep");
+});
+
+// --- the read path (GLO-272) ---------------------------------------------
+
+Deno.test("a read asks for uuids, some, and not too many", () => {
+  assertEquals(validateRead([ITEM]), null);
+  assert(validateRead([]));
+  assert(validateRead("not-an-array"));
+  assert(validateRead([ITEM, "../../etc"]));
+  assert(validateRead(Array.from({ length: READ_BATCH_MAX + 1 }, () => ITEM)));
+  assertEquals(validateRead(Array.from({ length: READ_BATCH_MAX }, () => ITEM)), null);
+});
+
+Deno.test("a read signature commits to nothing but the key and the clock", async () => {
+  const url = await presignGet(config, `users/${USER}/looks/x/0-abc.jpg`);
+  const parsed = new URL(url);
+  // GET signs no headers beyond host — there is no content to commit to.
+  assertEquals(parsed.searchParams.get("X-Amz-SignedHeaders"), "host");
+  assertEquals(parsed.searchParams.get("X-Amz-Expires"), String(READ_TTL_SECONDS));
+  assert(parsed.searchParams.get("X-Amz-Signature"));
+  assertStringIncludes(url, "https://acct.r2.cloudflarestorage.com/glossed-dev/");
+});
+
+Deno.test("reads outlive writes on purpose, and both stay short-lived", () => {
+  // A tile grid holds its URLs while the user scrolls; a leaked read URL
+  // still dies within the hour. The WRITE ttl stays five minutes.
+  assert(READ_TTL_SECONDS > 300);
+  assert(READ_TTL_SECONDS <= 3600);
+});
+
+Deno.test("two reads of the same key sign identically within a second", async () => {
+  // No nonce on the read path — the key IS the object, so caching a URL for
+  // its lifetime is safe and identical requests are cache-friendly.
+  const key = `users/${USER}/looks/x/0-abc.jpg`;
+  const [a, b] = await Promise.all([presignGet(config, key), presignGet(config, key)]);
+  assertEquals(a, b);
 });

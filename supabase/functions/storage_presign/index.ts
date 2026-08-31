@@ -20,12 +20,15 @@ import {
   cutoutKey,
   lookKey,
   PRESIGN_TTL_SECONDS,
+  presignGet,
   presignPut,
   r2Config,
+  READ_TTL_SECONDS,
   resolvePublishableKey,
   swatchKey,
   validate,
   validateLook,
+  validateRead,
   validateSwatch,
 } from "./presign.ts";
 
@@ -63,8 +66,46 @@ Deno.serve(async (req: Request) => {
   const wantsSwatch = body.variant_id !== undefined;
   const wantsCutout = body.user_item_id !== undefined;
   const wantsLook = body.look_id !== undefined;
-  if ([wantsSwatch, wantsCutout, wantsLook].filter(Boolean).length !== 1) {
-    return json({ error: "exactly one of user_item_id, variant_id or look_id is required" }, 400);
+  const wantsRead = body.look_photo_ids !== undefined;
+  if ([wantsSwatch, wantsCutout, wantsLook, wantsRead].filter(Boolean).length !== 1) {
+    return json(
+      { error: "exactly one of user_item_id, variant_id, look_id or look_photo_ids is required" },
+      400,
+    );
+  }
+
+  // THE READ PATH (GLO-272: tiles preview their first photo, posts render
+  // their carousel). Separate from the PUT flow below because it validates
+  // ids alone — no content type, no byte count, nothing to commit a
+  // signature to but the key.
+  if (wantsRead) {
+    const rejection = validateRead(body.look_photo_ids);
+    if (rejection) return json({ error: rejection }, 400);
+    try {
+      const supabase = createClient(env("SUPABASE_URL") ?? "", resolvePublishableKey(env), {
+        global: { headers: { Authorization: authorization } },
+      });
+      // Under the caller's OWN JWT, so RLS is the authorization: the owner
+      // reads every photo of their own looks, a stranger only what
+      // look_photos_public_read admits (posted + can_view_item since 0053).
+      // A photo the caller may not see is simply absent from the answer —
+      // not an error, and not an oracle for whether the id exists.
+      const { data: rows, error } = await supabase
+        .from("look_photos")
+        .select("id,r2_key")
+        .in("id", body.look_photo_ids as string[]);
+      if (error) throw error;
+
+      const config = r2Config(env);
+      const urls: Record<string, string> = {};
+      for (const row of rows ?? []) {
+        urls[row.id] = await presignGet(config, row.r2_key);
+      }
+      return json({ urls, expires_in: READ_TTL_SECONDS }, 200);
+    } catch (error) {
+      console.error("storage_presign read failed", error);
+      return json({ error: "presign failed" }, 500);
+    }
   }
 
   const input = {
