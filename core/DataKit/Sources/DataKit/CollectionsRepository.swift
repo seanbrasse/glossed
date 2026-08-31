@@ -75,14 +75,31 @@ public struct CollectionsRepository: Sendable {
     /// `RoutinesRepository.mine` makes for an unreadable step.
     ///
     /// **Handed somebody else's public collection id, this returns `[]` rather
-    /// than their shelf.** `collection_items_public` would let the first read
-    /// see their membership rows, but the second goes through
-    /// `user_shelf_items`, which is `security_invoker` and so answers only for
-    /// YOUR shelf — their `user_items` are not yours, so every row is dropped
-    /// by `ordered`. Stated rather than left to be rediscovered: the safety
-    /// here is the view's, not this function's.
+    /// than their shelf — and as of GLO-258 that is true because of the
+    /// predicate below, not because of the view.**
+    ///
+    /// The comment that stood here said the safety was `user_shelf_items`'
+    /// own: *"which is `security_invoker` and so answers only for YOUR
+    /// shelf"*. That reasoning is inverted. `security_invoker` means the view
+    /// runs with the INVOKER's RLS — which is `user_items_own` **OR**
+    /// `user_items_public`. It is not an ownership filter; it is the opposite
+    /// of one.
+    ///
+    /// Probed, rolled back: with juli's collection public and her **shelf
+    /// scope still `only_you`**, `collection_items` handed maya one membership
+    /// row and the unfiltered view read handed back juli's product. The
+    /// database intends that disclosure — 0021's `item_is_published` calls it
+    /// "the BOUNDED disclosure", publishing a collection discloses the
+    /// products in THAT collection — so the behaviour was defensible and the
+    /// comment was not.
+    ///
+    /// `items()` is an owner-side read: every caller passes an id that came
+    /// from `mine()`. Pinning `user_id` makes the promise above enforced
+    /// rather than asserted. **A surface that renders somebody else's public
+    /// collection is a different read** and owes its own `can_view` story;
+    /// it must not reach for this one.
     public func items(collectionID: UUID) async throws(GlossedError) -> [ShelfRow] {
-        _ = try await client.requireUserID()
+        let userID = try await client.requireUserID()
         let members: [MemberRow] = try await run {
             try await client.supabase
                 .from("collection_items")
@@ -98,6 +115,7 @@ public struct CollectionsRepository: Sendable {
             try await client.supabase
                 .from("user_shelf_items")
                 .select()
+                .eq("user_id", value: userID.uuidString)
                 .in("user_item_id", values: members.map(\.userItemID.uuidString))
                 .execute()
                 .value
