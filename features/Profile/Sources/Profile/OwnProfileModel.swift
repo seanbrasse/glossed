@@ -166,8 +166,8 @@ public final class OwnProfileModel {
     /// What the avatar draws its initial from — the same source every other
     /// screen uses.
     ///
-    /// `ViewedProfileView` and `StrangerPreviewView` both pass
-    /// `displayName ?? handle`; this screen passed `handle` alone. That was
+    /// `ViewedProfileView` passes `displayName ?? handle`; this screen passed
+    /// `handle` alone. That was
     /// harmless until #352 made a display name settable, and then it wasn't:
     /// set the name "rae" on the handle `@maya_k` and everyone else sees "r"
     /// while your own profile shows "m". You would be the only person looking

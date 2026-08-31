@@ -123,7 +123,7 @@ private func store(
 
 @MainActor
 @Test func yourOwnAvatarUsesTheSameNameEveryoneElseSees() async {
-    // ViewedProfileView and StrangerPreviewView both draw the initial from
+    // ViewedProfileView draws the initial from
     // `displayName ?? handle`. This screen drew it from the handle alone,
     // which was invisible until #352 made a display name settable — and then
     // "rae" on @maya_k gave everyone else "r" and you "m". You would be the
