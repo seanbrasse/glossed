@@ -24,6 +24,33 @@ extension AppShell {
         .background(Tokens.Ground.milk)
     }
 
+    /// A tab whose screen EXISTS but whose data did not arrive.
+    ///
+    /// **A separate state from `unbuiltTab`, because conflating them told a
+    /// direct lie for most of a session.** Discover is built and merged (#314,
+    /// #371); with an unsigned build the session could not be read back, the
+    /// model stayed nil, and this branch announced `not built yet · GLO-20`
+    /// over a screen that worked perfectly. Sean read it as a broken app.
+    ///
+    /// That is GLO-189 in the direction the handoff says nobody watches: copy
+    /// that tells you a built thing is unbuilt is exactly as false as copy that
+    /// tells you an unbuilt thing is built — it just fails politely, by hiding
+    /// work instead of promising it. It also names a ticket that is not the
+    /// problem, which sends the next reader to the wrong place entirely.
+    /// `because` is the caller's, not a default, because the two reasons this
+    /// fires are genuinely different — a read that failed and a session that
+    /// does not exist — and one badge covering both would be the same
+    /// conflation in a smaller box.
+    func unreadableTab(_ name: String, line: String, because: String) -> some View {
+        VStack(spacing: Tokens.Space.s2) {
+            Text(name).font(Typography.display(30)).foregroundStyle(Tokens.Ink.primary)
+            Text(line).meta()
+            Badge(because, tone: .butter)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Tokens.Ground.milk)
+    }
+
     /// The discover screen, with the shelf's identity rule: a rebuilt model
     /// is a new screen, and `.id` is what tells SwiftUI so.
     ///
@@ -119,7 +146,13 @@ extension AppShell {
                 }
             }
         } else {
-            unbuiltTab("discover", ticket: "GLO-20", line: "picked for you, from your anchor")
+            // Not `unbuiltTab`: this branch is a failed read, not an unbuilt
+            // screen. See `unreadableTab`.
+            unreadableTab(
+                "discover",
+                line: "picked for you, from your anchor",
+                because: "built — this data didn't load"
+            )
         }
     }
 

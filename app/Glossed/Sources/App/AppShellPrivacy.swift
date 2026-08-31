@@ -68,7 +68,15 @@ extension AppShell {
                 handleStore: .live(SocialRepository(client: client))
             )
         } else {
-            unbuiltTab("you", ticket: "GLO-21", line: "profile · collections · settings")
+            // `client` is nil only after sign out now that `boot()` proves the
+            // session reads (see `AppSession`), and this said `not built yet ·
+            // GLO-21` over a profile that is entirely built. Signing back in
+            // is GLO-18/GLO-23; until then this states what is true.
+            unreadableTab(
+                "you",
+                line: "your looks, collections, routines and shelf",
+                because: "built — you're signed out"
+            )
         }
     }
 
