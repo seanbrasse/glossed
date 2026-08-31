@@ -86,8 +86,9 @@ public struct OwnProfileView: View {
         .background(Tokens.Ground.milk)
         .task { await model.load() }
         .task { await tabs.load() }
+        .renameSheet(model: tabs)
         .overlay(alignment: .bottom) {
-            if let message = model.errorMessage {
+            if let message = model.errorMessage ?? tabs.errorMessage {
                 Toast(message).padding(.bottom, Tokens.Space.s8)
             }
         }
