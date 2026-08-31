@@ -42,6 +42,30 @@ final class AppSession {
     /// repositories are. Events queue in memory and post to `track_ingest`
     /// in batches; `flush()` fires on scene transitions from the shell.
     private(set) var tracker: Tracker?
+    /// **This account has never answered the quiz, so FLOW 1 is what it gets.**
+    ///
+    /// The signal is `profiles.own() == nil`, which is the row onboarding's own
+    /// account step writes — so the trigger and the thing that clears it are the
+    /// same fact, and no separate "seen onboarding" flag can drift from it.
+    ///
+    /// Real auth is GLO-23 and the DEBUG shell signs in as a seeded user who
+    /// already has a profile, so this is false in normal drives. Set
+    /// `GLOSSED_ONBOARDING=1` to see the flow anyway — Sean, Aug 31: *"just
+    /// ignore auth for now, we will have the flows for before and after and I
+    /// will wire it in later."* That is what "before" means here, and when real
+    /// sign-up lands a genuinely new account gets FLOW 1 with nothing further
+    /// to wire.
+    private(set) var needsOnboarding = false
+    /// How many things the shelf holds, for `OnbBuildView`'s progress line.
+    /// Counted from the same read that builds the model rather than reached for
+    /// through it — the count is the session's, not the screen's.
+    private(set) var shelfItemCount = 0
+    /// brand · product · shade → a REAL `variants.id`, preloaded once.
+    ///
+    /// `OnboardingFlowModel.resolveVariant` is synchronous, so the lookup has to
+    /// already be in memory when the user taps a shade. Foundation only: the
+    /// anchor question asks for a foundation and nothing else uses this.
+    private var anchorVariants: [String: UUID] = [:]
 
     /// Clears everything a signed-in session held (GLO-213).
     ///
@@ -89,6 +113,13 @@ final class AppSession {
                 // failing later was silent and named the wrong ticket.
                 _ = try await booted.requireUserID()
                 client = booted
+                // Before the shelf, because the shell decides between FLOW 1
+                // and the tabs on it and a wrong first frame is a flash of the
+                // wrong app.
+                needsOnboarding = try await Self.needsOnboarding(
+                    ProfileRepository(client: booted), environment: environment
+                )
+                anchorVariants = await Self.anchorVariants(CatalogRepository(client: booted))
                 tracker = Tracker(poster: TrackIngestPoster(client: booted))
                 imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
                 await reloadShelf()
@@ -112,6 +143,7 @@ final class AppSession {
         guard let client else { return }
         let repository = ShelfRepository(client: client)
         guard let rows = try? await repository.shelf() else { return }
+        shelfItemCount = rows.count
         discoverModel = DiscoverModel(
             store: .repository(
                 AggregatesRepository(client: client),
@@ -153,5 +185,56 @@ final class AppSession {
     func flushTracker() {
         guard let tracker else { return }
         Task { await tracker.flush() }
+    }
+
+    /// Nil profile means the quiz was never answered. The env override exists
+    /// because both seeded accounts already have a profiles row (GLO-182), so
+    /// without it the flow is unreachable in every drive this project makes.
+    private static func needsOnboarding(
+        _ profiles: ProfileRepository, environment: [String: String]
+    ) async throws -> Bool {
+        if environment["GLOSSED_ONBOARDING"] == "1" {
+            return true
+        }
+        return try await profiles.own() == nil
+    }
+
+    /// Every foundation variant the local catalog carries, keyed the way the
+    /// picker names one. Failure is empty, not fatal: an unresolvable anchor
+    /// makes the payoff say it has nothing to show, which is true, rather than
+    /// taking the whole flow down.
+    private static func anchorVariants(_ catalog: CatalogRepository) async -> [String: UUID] {
+        guard let hits = try? await catalog.search("foundation", limit: 60) else { return [:] }
+        var map: [String: UUID] = [:]
+        for hit in hits where hit.categorySlug == "foundation" {
+            guard let variants = try? await catalog.variants(productID: hit.id) else { continue }
+            for variant in variants {
+                guard let shade = variant.shadeCode else { continue }
+                map[anchorKey(brand: hit.brandName, product: hit.name, shade: shade)] = variant.id
+            }
+        }
+        return map
+    }
+
+    /// Lowercased and trimmed on both sides, because the picker's strings come
+    /// from the kit and the catalog's come from an importer.
+    static func anchorKey(brand: String, product: String, shade: String) -> String {
+        [brand, product, shade]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .joined(separator: "·")
+    }
+
+    /// Handed to `OnboardingFlowModel`, which calls it when a shade is picked.
+    func resolveAnchorVariant(brand: String, product: String, shade: String) -> UUID? {
+        anchorVariants[Self.anchorKey(brand: brand, product: product, shade: shade)]
+    }
+
+    /// Onboarding wrote a profile, so the reason to show it is gone. Re-reads
+    /// rather than assuming: the account step can be skipped, and a flow that
+    /// exited without writing should come back next launch.
+    func onboardingFinished() async {
+        guard let client else { return }
+        needsOnboarding = await (try? ProfileRepository(client: client).own()) == nil
+        await reloadShelf()
     }
 }

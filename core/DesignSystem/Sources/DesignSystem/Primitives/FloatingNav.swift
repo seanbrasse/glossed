@@ -82,6 +82,19 @@ public struct FloatingNav<TabID: Hashable>: View {
         .animation(Tokens.Motion.pop(), value: isActive)
         .accessibilityLabel(tab.label)
         .accessibilityAddTraits(isActive ? [.isSelected] : [])
+        // Publishes where this tab actually sits, so the onboarding tour can
+        // point at one (GLO-245). The nav is the only thing that knows: its
+        // own frame includes the `+`, the capsule adds padding, and a caller
+        // dividing the whole bar into equal parts lands between two tabs —
+        // which is exactly what the tour did before this existed.
+        .background {
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: FloatingNavTabAnchors.self,
+                    value: [tab.label: proxy.frame(in: .global).midX]
+                )
+            }
+        }
     }
 
     @ViewBuilder
