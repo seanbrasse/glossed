@@ -26,7 +26,7 @@ import SwiftUI
 struct LookComposerHost: View {
     @State private var model: ComposerModel
     @State private var picking = false
-    @State private var picked: PhotosPickerItem?
+    @State private var picked: [PhotosPickerItem] = []
     private let onSaved: () -> Void
     private let onClose: () -> Void
 
@@ -61,7 +61,13 @@ struct LookComposerHost: View {
             onSaved: { _ in onSaved() },
             onClose: onClose
         )
-        .photosPicker(isPresented: $picking, selection: $picked, matching: .images)
+        // Multiselect (Sean, Aug 31: "add several images at one time"),
+        // bounded by the composer's own remaining room so the picker cannot
+        // offer a sixth photo the model would drop.
+        .photosPicker(
+            isPresented: $picking, selection: $picked,
+            maxSelectionCount: model.remainingPhotoSlots, matching: .images
+        )
         // Keyed on the selection so a second pick re-runs it; the load is
         // cancelled with the sheet rather than outliving it.
         .task(id: picked) { await addPicked() }
@@ -71,12 +77,20 @@ struct LookComposerHost: View {
     /// shows exactly the photos the composer holds, so a photo that did not
     /// arrive is already visible as its own absence. The failure worth naming
     /// is the save's, and `ComposerView` already names that one.
+    ///
+    /// Loaded in the PICKER's order, one strip append per batch — the model
+    /// positions them, and `addPhotos` drops overflow if a race got past the
+    /// picker bound.
     private func addPicked() async {
-        guard let picked else { return }
-        if let data = try? await picked.loadTransferable(type: Data.self) {
-            model.addPhoto(data)
+        guard !picked.isEmpty else { return }
+        var loaded: [Data] = []
+        for item in picked {
+            if let data = try? await item.loadTransferable(type: Data.self) {
+                loaded.append(data)
+            }
         }
-        self.picked = nil
+        _ = model.addPhotos(loaded)
+        picked = []
     }
 }
 
@@ -139,161 +153,6 @@ extension LookTagSearch {
                         isOnYourShelf: true
                     )
                 }
-        }
-    }
-}
-
-/// The look the profile opened (GLO-266). A wrapper because a bare UUID is
-/// not `Identifiable`, and the shell's covers key on identity.
-struct OpenLook: Identifiable {
-    let id: UUID
-}
-
-/// Loads one of YOUR looks and shows it as a post.
-///
-/// The app owns this crossing for AppShellProductPage's reason: the tile is
-/// `features/Profile`'s, the post view is `features/Looks`', and features
-/// never import features.
-///
-/// **Labels come from the shelf.** `MyLook.spots` carries variant ids and
-/// nothing else — the schema's shape — and Sean's scope ruling means every
-/// taggable product IS a shelf row, so the shelf read resolves them. A tag
-/// whose product has since left the shelf still renders, in an honest
-/// bucket, rather than vanishing from a photo it is pinned to.
-struct LookPostHost: View {
-    let client: GlossedClient
-    let lookID: UUID
-    let onClose: () -> Void
-
-    /// What the post view needs, loaded. A named type because the house
-    /// linter is right about three-member tuples: this one crosses an await.
-    struct LoadedPost {
-        let caption: String?
-        let media: [LookMedia]
-        let board: LookTagBoard
-        let linkedRoutines: [LinkablePick]
-        let linkedCollections: [LinkablePick]
-    }
-
-    @State private var post: LoadedPost?
-    @State private var failed = false
-
-    var body: some View {
-        Group {
-            if let post {
-                LookPostView(
-                    caption: post.caption, media: post.media, board: post.board,
-                    linkedRoutines: post.linkedRoutines,
-                    linkedCollections: post.linkedCollections,
-                    // `mine()` is what loaded this post, so the viewer IS the
-                    // owner — the editor is unconditional here, and becomes
-                    // conditional the day a stranger's look renders.
-                    linkEditor: linkEditor,
-                    onClose: onClose
-                )
-            } else if failed {
-                VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-                    Button("← back", action: onClose)
-                        .buttonStyle(.plain)
-                        .font(Typography.mono(12))
-                        .foregroundStyle(Tokens.Semantic.accentText)
-                        .underline()
-                    Text("that look didn't load — try again.").meta()
-                }
-                .padding(Tokens.Space.s5)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .background(Tokens.Ground.milk)
-            } else {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Tokens.Ground.milk)
-            }
-        }
-        .task { await load() }
-    }
-
-    private var linkEditor: LookLinkEditor {
-        let links = LinksRepository(client: client)
-        let routines = RoutinesRepository(client: client)
-        let collections = CollectionsRepository(client: client)
-        let lookID = lookID
-        return LookLinkEditor(
-            linkables: {
-                async let mine = routines.mine()
-                async let theirs = collections.mine()
-                return try await LookLinkables(
-                    routines: mine.map { LinkablePick(id: $0.routineID, title: $0.title) },
-                    collections: theirs.map { LinkablePick(id: $0.collectionID, title: $0.title) }
-                )
-            },
-            link: { routineIDs, collectionIDs in
-                try await links.link(lookID: lookID, routineIDs: routineIDs, collectionIDs: collectionIDs)
-            },
-            unlinkRoutine: { try await links.unlink(lookID: lookID, routineID: $0) },
-            unlinkCollection: { try await links.unlink(lookID: lookID, collectionID: $0) }
-        )
-    }
-
-    private func load() async {
-        do {
-            let looks = try await LooksRepository(client: client).mine()
-            guard let look = looks.first(where: { $0.lookID == lookID }) else {
-                failed = true
-                return
-            }
-            let rows = await (try? ShelfRepository(client: client).shelf()) ?? []
-            let byVariant = Dictionary(rows.map { ($0.variantID, $0) }) { first, _ in first }
-            let media = look.photos.map { photo in
-                // No read path exists for look photos yet — storage_presign
-                // signs PUTs only. `.unavailable` says so on the page instead
-                // of spinning at a URL that cannot be built.
-                LookMedia(id: photo.photoID, position: photo.position, kind: .photo(.unavailable))
-            }
-            let spots = look.spots.map { spot in
-                LookTagSpot(
-                    id: spot.tagID, photoID: spot.photoID,
-                    point: TagPoint(x: spot.x, y: spot.y),
-                    products: spot.products.map { product in
-                        if let row = byVariant[product.variantID] {
-                            TaggedProduct(
-                                variantID: product.variantID,
-                                label: [row.brandName, row.productName].joined(separator: " ")
-                                    + (row.variantLabel.map { " · \($0)" } ?? ""),
-                                category: TagCategory(slug: row.categorySlug, label: row.categoryLabel)
-                            )
-                        } else {
-                            // Off the shelf since it was tagged. An honest
-                            // bucket beats a dot that lost its contents.
-                            TaggedProduct(
-                                variantID: product.variantID,
-                                label: "a product no longer on your shelf",
-                                category: TagCategory(slug: "", label: "no longer on your shelf")
-                            )
-                        }
-                    }
-                )
-            }
-            // What the look GOES WITH (0050) — read through the both-halves
-            // policy, so nothing arrives that should not render. A failed
-            // links read degrades to none rather than failing the post.
-            let links = await (try? LinksRepository(client: client).links(lookID: lookID))
-                ?? LookLinks(routines: [], collections: [])
-            post = LoadedPost(
-                caption: look.caption, media: media, board: LookTagBoard(spots),
-                linkedRoutines: links.routines.map { LinkablePick(id: $0.id, title: $0.title) },
-                linkedCollections: links.collections.map { LinkablePick(id: $0.id, title: $0.title) }
-            )
-        } catch {
-            failed = true
-        }
-    }
-}
-
-extension AppShell {
-    /// The cover the profile's look tile opens (GLO-266).
-    @ViewBuilder func lookPost(_ open: OpenLook) -> some View {
-        if let client = session.client {
-            LookPostHost(client: client, lookID: open.id, onClose: { openLook = nil })
         }
     }
 }
