@@ -1,9 +1,19 @@
 import Foundation
 import Supabase
 
-/// The user's own shelf: items, chips, fits. Every call is scoped to the signed-in
-/// user by RLS; `requireUserID()` fails fast rather than issuing a query that
-/// would silently return nothing.
+/// The user's own shelf: items, chips, fits.
+///
+/// **RLS is not what makes a read here "mine", and the comment that stood in
+/// this place said it was.** `user_items` carries PERMISSIVE `user_items_own`
+/// and `user_items_public` policies, Postgres OR's them, and `user_shelf_items`
+/// is `security_invoker` — so an unfiltered select returns your rows plus every
+/// row `item_is_published()` admits. Probed: with an owner's shelf scope set to
+/// `public`, a stranger's unfiltered read returned that owner's row.
+///
+/// Every collection read below therefore pins `user_id`, and `requireUserID()`'s
+/// return value is USED rather than discarded — discarding it is the tell this
+/// defect leaves (GLO-258; #387, same defect in `RoutinesRepository`). The
+/// instrument is `owner_scoped_reads.test.sql`: a Swift test cannot see a policy.
 public struct ShelfRepository: Sendable {
     private let client: GlossedClient
 
@@ -12,9 +22,13 @@ public struct ShelfRepository: Sendable {
     }
 
     public func items(status: ItemStatus? = nil) async throws(GlossedError) -> [UserItem] {
-        _ = try await client.requireUserID()
+        let userID = try await client.requireUserID()
         return try await run {
-            let base = client.supabase.from("user_items").select().is("deleted_at", value: nil)
+            let base = client.supabase
+                .from("user_items")
+                .select()
+                .eq("user_id", value: userID.uuidString)
+                .is("deleted_at", value: nil)
             let filtered = status.map { base.eq("status", value: $0.rawValue) } ?? base
             return try await filtered.order("created_at", ascending: false).execute().value
         }
@@ -24,10 +38,16 @@ public struct ShelfRepository: Sendable {
     /// `user_items → variants → products → brands → categories` and carries the
     /// rank. `items(status:)` above returns the raw table rows — a variant id
     /// and a status — which is enough to count what you own and nothing else.
+    ///
+    /// `user_id` is pinned for the reason the type comment gives — this read
+    /// draws the shelf tab and the profile's, so the leak had two screens.
     public func shelf(status: ItemStatus? = nil) async throws(GlossedError) -> [ShelfRow] {
-        _ = try await client.requireUserID()
+        let userID = try await client.requireUserID()
         return try await run {
-            let base = client.supabase.from("user_shelf_items").select()
+            let base = client.supabase
+                .from("user_shelf_items")
+                .select()
+                .eq("user_id", value: userID.uuidString)
             let filtered = status.map { base.eq("status", value: $0.rawValue) } ?? base
             return try await filtered.order("logged_at", ascending: false).execute().value
         }
@@ -241,39 +261,5 @@ public struct ShelfRepository: Sendable {
         } catch {
             throw GlossedError.from(error)
         }
-    }
-}
-
-public struct LogDraft: Sendable {
-    public let variantID: UUID
-    public let status: ItemStatus
-    public let startedOn: Date?
-    public let note: String?
-    /// Client-generated so a retry resolves to the same row.
-    public let clientID: UUID
-
-    public init(
-        variantID: UUID,
-        status: ItemStatus = .own,
-        startedOn: Date? = nil,
-        note: String? = nil,
-        clientID: UUID = UUID()
-    ) {
-        self.variantID = variantID
-        self.status = status
-        self.startedOn = startedOn
-        self.note = note
-        self.clientID = clientID
-    }
-
-    func row(userID: UUID) -> LogRow {
-        LogRow(
-            userID: userID.uuidString,
-            variantID: variantID.uuidString,
-            status: status.rawValue,
-            startedOn: startedOn.map { $0.formatted(.iso8601.year().month().day()) },
-            note: note,
-            clientID: clientID.uuidString
-        )
     }
 }
