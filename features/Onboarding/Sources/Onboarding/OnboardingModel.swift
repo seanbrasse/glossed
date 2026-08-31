@@ -152,12 +152,28 @@ public final class OnboardingModel {
     /// The prior, assembled: the account step supplies the birthday and
     /// writes the whole draft in one batch (the ticket's PR 3). The 0-based
     /// palette index becomes the 1-based tone band HERE and nowhere else.
+    /// What the app calls you. Collected at the account stage, not here, but
+    /// it rides the same `ProfileDraft` so the whole prior lands in ONE write
+    /// — which is also why it cannot be collected after `createAccount`.
+    ///
+    /// **Nothing derived a handle from it and nothing should.** A handle is an
+    /// identifier (GLO-191); a name is moderated text. Suggesting one from the
+    /// other is a convenience, and the suggestion is made on the handle screen
+    /// where the user still confirms it — a generated identity nobody chose is
+    /// not the same thing as a generated suggestion.
+    public var displayName = ""
+
     public func draft(birthYearMonth: String) -> ProfileDraft {
-        ProfileDraft(
+        let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ProfileDraft(
             birthYearMonth: birthYearMonth,
             domains: domains,
             toneBand: toneIndex.map { $0 + 1 },
-            hairPattern: hairPattern
+            hairPattern: hairPattern,
+            // Empty means "not given", not "cleared": `saveProfile` upserts and
+            // a nil column leaves the old value standing, which is the rule
+            // `DisplayNameView` already documents.
+            displayName: name.isEmpty ? nil : name
         )
     }
 

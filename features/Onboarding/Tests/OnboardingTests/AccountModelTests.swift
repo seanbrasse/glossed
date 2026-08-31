@@ -81,17 +81,28 @@ private let fixedToday = date(2026, 8, 29)
 @Test func twelveIsBlockedTypedAndThirteenPasses() {
     // both sides of COPPA's line, one day apart in effect: born 2013-09-01
     // is 12 on the fixed today; born 2013-08-01 turned 13 that month
+    // The gate now runs on `birthdayContinued`, not on the write: an under-13
+    // is refused at the question that decides it rather than two screens later
+    // after they have typed a name (GLO-245). It still refuses on the write
+    // too — belt and braces, asserted below.
     let blocked = AccountModel(today: fixedToday)
     blocked.birthday = date(2013, 9, 1)
-    var created = false
-    blocked.createAccount(quiz: OnboardingModel()) { created = true }
+    blocked.birthdayContinued()
     #expect(blocked.ageError?.code == .underAgeMinimum)
-    #expect(!created)
+    #expect(blocked.stage != .name, "a refused birthday does not advance to the name step")
+
+    var created = false
+    blocked.displayName = "blocked"
+    blocked.createAccount(quiz: OnboardingModel()) { created = true }
+    #expect(!created, "and the write refuses it a second time")
 
     let allowed = AccountModel(today: fixedToday)
     allowed.birthday = date(2013, 8, 1)
-    allowed.createAccount(quiz: OnboardingModel()) { created = true }
+    allowed.birthdayContinued()
     #expect(allowed.ageError == nil)
+    #expect(allowed.stage == .name, "an adult is asked for a name next")
+    allowed.displayName = "maya"
+    allowed.createAccount(quiz: OnboardingModel()) { created = true }
     #expect(created) // no store wired → straight through
 }
 
@@ -131,6 +142,7 @@ private let fixedToday = date(2026, 8, 29)
         today: fixedToday
     )
     model.birthday = date(1999, 3, 9)
+    model.displayName = "maya"
     model.createAccount(quiz: quiz) {}
     await model.createTask?.value
     let draft = await written.draft
@@ -146,6 +158,7 @@ private let fixedToday = date(2026, 8, 29)
         today: fixedToday
     )
     model.birthday = date(1999, 3, 9)
+    model.displayName = "maya"
     var created = false
     model.createAccount(quiz: OnboardingModel()) { created = true }
     await model.createTask?.value
@@ -209,4 +222,36 @@ private let fixedToday = date(2026, 8, 29)
     phone.verifyCode()
     #expect(!phone.isAuthenticated)
     #expect(phone.stage == .birthday)
+}
+
+/// The name is required, and it rides the SAME write as the quiz's prior —
+/// which is why it is asked before `createAccount` and not after.
+@MainActor
+@Test func aNameIsRequiredAndRidesTheSameWrite() async {
+    actor Written {
+        var draft: ProfileDraft?
+        func set(_ value: ProfileDraft) {
+            draft = value
+        }
+    }
+    let written = Written()
+    let model = AccountModel(
+        store: AccountStore(finish: { await written.set($0) }),
+        today: fixedToday
+    )
+    model.birthday = date(1999, 3, 9)
+    model.birthdayContinued()
+
+    var created = false
+    #expect(!model.canCreate, "a blank name cannot create an account")
+    model.createAccount(quiz: OnboardingModel()) { created = true }
+    #expect(!created)
+
+    model.displayName = "  maya  "
+    #expect(model.canCreate)
+    model.createAccount(quiz: OnboardingModel()) { created = true }
+    await model.createTask?.value
+    #expect(created)
+    let draft = await written.draft
+    #expect(draft?.displayName == "maya", "trimmed, and in the one write")
 }
