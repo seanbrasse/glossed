@@ -2,55 +2,75 @@ import DataKit
 import DesignSystem
 import SwiftUI
 
-/// Your own profile. GLO-124, `docs/tech/02` §3.3–§3.4.
+/// Your own profile: a body of work, not a control panel (GLO-261).
 ///
-/// Built from the design system (Sean, Aug 29: no frames for 1.5).
+/// Sean, Aug 30, after driving the merged screen: *"I don't like the add a
+/// look, what a stranger sees, where else you are button in the profile. Think
+/// of profile kind of like instagram profile/pinterest."* All three are gone.
+/// What is left is your identity, your counts, and your things.
+///
+/// **`what a stranger sees` is deleted, reversing GLO-190.** The need that
+/// ticket named was real — "the privacy model is correct and unverifiable" —
+/// and a modal was the wrong shape for it. The answer now lives on the tab
+/// strip, where every tab carries its own scope, so the question is answered
+/// permanently and in place. See `ProfileScopeMark`.
+///
+/// `where else you are` is not deleted so much as relocated: linked socials is
+/// a setting, and settings has been categorised since GLO-257.
 public struct OwnProfileView: View {
     @State private var model: OwnProfileModel
     @State private var tabs: ProfileTabsModel
     @State private var viewing: SuggestedPerson?
-    @State private var editingSocials = false
-    @State private var previewing = false
     @State private var showingSettings = false
+    @State private var claimingHandle = false
     private let onClaimHandle: () -> Void
     private let onOpenPrivacy: () -> Void
+    private let onCompose: ((ProfileComposable) -> Void)?
     private let settingsStore: SettingsStore?
+    private let handleStore: HandleStore?
     private let onSignedOut: () -> Void
 
     private let suggestionsStore: ViewedProfileStore
     private let safetyStore: SafetyActionsStore
-    private let socialsStore: LinkedSocialsStore
-    private let previewStore: StrangerPreviewStore
 
     public init(
         store: OwnProfileStore,
         suggestionsStore: ViewedProfileStore,
         safetyStore: SafetyActionsStore,
-        socialsStore: LinkedSocialsStore,
-        previewStore: StrangerPreviewStore,
         onClaimHandle: @escaping () -> Void,
         onOpenPrivacy: @escaping () -> Void,
         settingsStore: SettingsStore? = nil,
         onSignedOut: @escaping () -> Void = {},
-        // Defaulted so the app layer compiles unchanged and wires the seam in
-        // its own PR (GLO-230). Absent, the segmented control and the tabs
-        // below it simply do not render — the frame's lower half is missing
-        // rather than pretending to be empty, which is the only honest thing a
-        // screen with no read can do.
+        // Defaulted so the app layer compiles unchanged and wires each seam in
+        // its own PR. Absent, a tab simply does not render — a tab in front of
+        // a surface that cannot answer is the drawer's `collections land with
+        // GLO-21` mistake wearing different words (GLO-189).
+        looksStore: ProfileLooksStore? = nil,
+        collectionsStore: ProfileCollectionsStore? = nil,
         routinesStore: ProfileRoutinesStore? = nil,
-        collectionsStore: ProfileCollectionsStore? = nil
+        shelfStore: ProfileShelfStore? = nil,
+        // Absent, no tab carries a mark. The strip does not guess.
+        scopesStore: ProfileScopesStore? = nil,
+        // Absent, the empty state names what lands here and offers no `+`.
+        onCompose: ((ProfileComposable) -> Void)? = nil,
+        // Absent, `onClaimHandle` is handed up as before — and GLO-239 stays
+        // open. See `claimSheet`.
+        handleStore: HandleStore? = nil
     ) {
         _tabs = State(
-            wrappedValue: ProfileTabsModel(routines: routinesStore, collections: collectionsStore)
+            wrappedValue: ProfileTabsModel(
+                looks: looksStore, collections: collectionsStore,
+                routines: routinesStore, shelf: shelfStore, scopes: scopesStore
+            )
         )
         self.suggestionsStore = suggestionsStore
         self.safetyStore = safetyStore
-        self.socialsStore = socialsStore
-        self.previewStore = previewStore
         _model = State(wrappedValue: OwnProfileModel(store: store))
         self.onClaimHandle = onClaimHandle
         self.onOpenPrivacy = onOpenPrivacy
+        self.onCompose = onCompose
         self.settingsStore = settingsStore
+        self.handleStore = handleStore
         self.onSignedOut = onSignedOut
     }
 
@@ -65,15 +85,10 @@ public struct OwnProfileView: View {
                         claimPrompt
                     } else {
                         counts
-                        // The frame's order: the segmented control and its
-                        // tab sit directly under the stat line, above
-                        // everything the profile grew afterwards.
                         if !tabs.tabs.isEmpty {
-                            ProfileTabsSection(model: tabs)
+                            ProfileTabsSection(model: tabs, onCompose: onCompose)
                         }
                         SuggestedPeopleCard(store: suggestionsStore) { viewing = $0 }
-                        previewLink
-                        socialsLink
                     }
                 }
             }
@@ -82,14 +97,12 @@ public struct OwnProfileView: View {
         .background(Tokens.Ground.milk)
         .task { await model.load() }
         .task { await tabs.load() }
+        .renameSheet(model: tabs)
         .overlay(alignment: .bottom) {
-            if let message = model.errorMessage {
+            if let message = model.errorMessage ?? tabs.errorMessage {
                 Toast(message).padding(.bottom, Tokens.Space.s8)
             }
         }
-        // A suggestion carries the user id the follow graph needs — the only
-        // place a client legitimately holds one for someone else, since
-        // public_profile deliberately does not return it.
         .sheet(isPresented: $showingSettings) {
             if let settingsStore {
                 SettingsView(
@@ -103,12 +116,16 @@ public struct OwnProfileView: View {
                 )
             }
         }
-        .sheet(isPresented: $previewing) {
-            StrangerPreviewView(store: previewStore)
+        .claimSheet(isPresented: $claimingHandle, store: handleStore) {
+            // **GLO-239, closed.** The claim used to be presented by the shell,
+            // so nothing here knew it had happened and the profile went on
+            // saying "no handle yet" over a handle that was already public.
+            // Presented from this view, dismissal is a signal this view has.
+            Task { await model.load() }
         }
-        .sheet(isPresented: $editingSocials) {
-            LinkedSocialsView(store: socialsStore)
-        }
+        // A suggestion carries the user id the follow graph needs — the only
+        // place a client legitimately holds one for someone else, since
+        // public_profile deliberately does not return it.
         .sheet(item: $viewing) { person in
             ViewedProfileView(
                 store: suggestionsStore, handle: person.handle,
@@ -117,44 +134,33 @@ public struct OwnProfileView: View {
         }
     }
 
-    /// The pop moment: the handle.
+    /// The identity block, in Sean's order: `[avatar] display name / @handle`,
+    /// then the bio.
     ///
-    /// `G.Profile` makes the DISPLAY NAME the h1 and shows no handle at all,
-    /// because the frame predates handles entirely — V1 had no public
-    /// identity to address. GLO-187 made the handle the profile's address, and
-    /// #363 settled the governing principle for this screen: your own profile
-    /// shows the identity everyone else sees, or you become the only person
-    /// looking at a different one. So the identity block below is
-    /// `ViewedProfileView`'s, element for element — handle, name, badges,
-    /// bio — and the frame's ordering is deliberately not followed.
+    /// **The display name leads and the handle sits under it**, which inverts
+    /// what #363 shipped. That PR made the handle the h1 on the argument that
+    /// the handle is the profile's address (GLO-187) — it still is, and it is
+    /// still on the identity line, one line down. Sean's sketch is explicit
+    /// about the order and this is his screen. A profile with no display name
+    /// promotes the handle rather than leading with a blank.
     ///
-    /// What it renders is the PUBLISHED projection (`public_profile`), not
-    /// your underlying facts, so an absent badge or bio here means you have
-    /// published none — which is the true statement, and the one "what a
-    /// stranger sees" then explains at length.
+    /// What it renders is the PUBLISHED projection (`public_profile`), not your
+    /// underlying facts, so an absent badge or bio here means you have
+    /// published none — which is the true statement, and now the only one:
+    /// there is no preview modal left to explain it at length.
     private var header: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s2) {
-            Text("YOU").eyebrow()
             HStack(spacing: Tokens.Space.s3) {
-                // Hidden from VoiceOver: it is the same initial the handle
-                // beside it already says, and announcing "m" then "@maya_k"
-                // reads as two facts when it is one.
+                // Hidden from VoiceOver: it is the same initial the name
+                // beside it already says, and announcing "m" then "maya" reads
+                // as two facts when it is one.
                 Avatar(name: model.avatarName, size: 52)
                     .accessibilityHidden(true)
-                Text(model.handle.map { "@\($0)" } ?? "no handle yet")
-                    .font(Typography.display(Typography.Size.h1))
-                    .foregroundStyle(model.handle == nil ? Tokens.Ink.faint : Tokens.Ink.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+                identity
                 Spacer(minLength: Tokens.Space.s2)
                 // The frame's entry to settings, and the only one — settings
                 // is a state of this screen, not a tab.
                 IconButton("gearshape", label: "settings") { showingSettings = true }
-            }
-            if let name = model.displayName {
-                Text(name)
-                    .font(.system(size: Typography.Size.body))
-                    .foregroundStyle(Tokens.Ink.soft)
             }
             ProfileBadgeRow(
                 skinType: model.profile?.badgeSkinType,
@@ -173,14 +179,20 @@ public struct OwnProfileView: View {
         }
     }
 
-    private var previewLink: some View {
-        Button("what a stranger sees", action: { previewing = true })
-            .buttonStyle(.glossed(.primary, block: true))
-    }
-
-    private var socialsLink: some View {
-        Button("where else you are", action: { editingSocials = true })
-            .buttonStyle(.glossed(.secondary, block: true))
+    @ViewBuilder private var identity: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(model.leadName)
+                .font(Typography.display(Typography.Size.h2))
+                .foregroundStyle(model.handle == nil ? Tokens.Ink.faint : Tokens.Ink.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            if let under = model.handleLine {
+                Text(under)
+                    .font(Typography.mono(Typography.Size.small))
+                    .foregroundStyle(Tokens.Ink.soft)
+                    .lineLimit(1)
+            }
+        }
     }
 
     private var claimPrompt: some View {
@@ -189,16 +201,34 @@ public struct OwnProfileView: View {
                 Text("a handle is how people find you. nothing of yours is public until you pick one.")
                     .font(.system(size: Typography.Size.body))
                     .foregroundStyle(Tokens.Ink.primary)
-                Button("claim a handle", action: onClaimHandle)
-                    .buttonStyle(.glossed(.primary, block: true))
+                Button("claim a handle") {
+                    if handleStore == nil { onClaimHandle() } else { claimingHandle = true }
+                }
+                .buttonStyle(.glossed(.primary, block: true))
             }
         }
     }
 
-    /// The frame's stat line: one row of mono counts under the bio, not a card
-    /// of cells. See `OwnProfileModel.statLine` for what each part is and why
-    /// the frame's third clause is absent.
+    /// Sean's three metrics, one mono line under the identity block.
+    /// See `OwnProfileModel.statLine`.
     private var counts: some View {
         Text(model.statLine).meta()
+    }
+}
+
+private extension View {
+    /// Presents the handle claim from the profile itself when the seam is
+    /// wired, so the profile can reload when it closes (GLO-239).
+    @ViewBuilder
+    func claimSheet(
+        isPresented: Binding<Bool>, store: HandleStore?, onDismiss: @escaping () -> Void
+    ) -> some View {
+        if let store {
+            sheet(isPresented: isPresented, onDismiss: onDismiss) {
+                HandleClaimView(store: store)
+            }
+        } else {
+            self
+        }
     }
 }

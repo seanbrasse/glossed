@@ -1,135 +1,129 @@
 import DataKit
 import Foundation
 
-/// The profile's lower half — `G.Profile`'s `Segmented ['routines','collections']`
-/// and whichever tab it selects (GLO-230).
+/// The profile's body of work: which tab is showing, what is in it, and what
+/// each tab's scope mark says (GLO-261).
 ///
-/// The frame declares both options unconditionally because its data is a
-/// fixture. Here the set is derived from the seams the app actually filled, so
-/// a segment never appears in front of a surface that cannot answer: a tab
-/// whose content is "coming soon" is the drawer's `collections land with
-/// GLO-21` mistake wearing different words (GLO-189).
-public enum ProfileTab: String, CaseIterable, Sendable {
-    case routines, collections
-
-    /// Lowercase, like every label in the app. The kit's segment words are
-    /// the enum's own.
-    public var label: String {
-        rawValue
-    }
-}
-
-/// How the profile's tabs reach persistence. Closures, not repositories, for
-/// the reason `LooksStore` and `CollectionsStore` are: features never import
-/// features, and the model is driven in tests with no client present.
-public struct ProfileRoutinesStore: Sendable {
-    public var mine: @Sendable () async throws -> [MyRoutine]
-
-    public init(mine: @escaping @Sendable () async throws -> [MyRoutine]) {
-        self.mine = mine
-    }
-
-    public static func live(_ routines: RoutinesRepository) -> ProfileRoutinesStore {
-        ProfileRoutinesStore(mine: { try await routines.mine() })
-    }
-}
-
-/// One card of the collections grid — the whole of what the frame draws, and
-/// nothing more.
-///
-/// **A local shape rather than DataKit's `MyCollection`, deliberately.** The
-/// two carry the same facts, but `MyCollection` also carries `visibility`, and
-/// a field on a struct this screen renders is an invitation to write copy
-/// about it. V1 creates every collection `only_you` and no surface here can
-/// change, honour or truthfully report that — copy about a scope no screen
-/// controls is the GLO-208 shape. What is not carried cannot be claimed.
-///
-/// `tint` is the wire word from `collections.cover_tint`, not a colour: the
-/// column is nullable `text` with no check constraint, so an unrecognised
-/// value is a real possibility and draws untinted rather than throwing.
-public struct ProfileCollection: Identifiable, Equatable, Sendable {
-    public let id: UUID
-    public let title: String
-    public let tint: String?
-    /// The frame's `mono(c.count + ' products')`. A count of YOUR OWN
-    /// collection — no cohort, no evidence chrome.
-    public let itemN: Int
-
-    public init(id: UUID, title: String, tint: String?, itemN: Int) {
-        self.id = id
-        self.title = title
-        self.tint = tint
-        self.itemN = itemN
-    }
-}
-
-/// The collections half of the seam.
-public struct ProfileCollectionsStore: Sendable {
-    public var mine: @Sendable () async throws -> [ProfileCollection]
-
-    public init(mine: @escaping @Sendable () async throws -> [ProfileCollection]) {
-        self.mine = mine
-    }
-}
-
-/// The tab strip's state, and the copy each card wears.
+/// Sean, after driving the merged screen: *"users will see their bio, pfp,
+/// name, and then looks as default, or collections, or routines, etc."* The
+/// profile stops being a list of things you can do and becomes the things you
+/// have made.
 @MainActor
 @Observable
 public final class ProfileTabsModel {
-    public var tab: ProfileTab = .routines
-    public private(set) var routines: [MyRoutine] = []
+    public var tab: ProfileTab = .looks
+    public var isEditing = false
+    public var renaming: RenameTarget?
+    public private(set) var looks: [ProfileLook] = []
     public private(set) var collections: [ProfileCollection] = []
+    public private(set) var routines: [MyRoutine] = []
+    public private(set) var shelf: [ProfileShelfEntry] = []
+    public private(set) var scopes: PrivacyScopes?
     public private(set) var isLoading = true
+    public private(set) var isSavingRename = false
     public private(set) var errorMessage: String?
 
-    private let routinesStore: ProfileRoutinesStore?
+    private let looksStore: ProfileLooksStore?
     private let collectionsStore: ProfileCollectionsStore?
+    private let routinesStore: ProfileRoutinesStore?
+    private let shelfStore: ProfileShelfStore?
+    private let scopesStore: ProfileScopesStore?
 
-    public init(routines: ProfileRoutinesStore?, collections: ProfileCollectionsStore? = nil) {
-        routinesStore = routines
+    public init(
+        looks: ProfileLooksStore? = nil,
+        collections: ProfileCollectionsStore? = nil,
+        routines: ProfileRoutinesStore? = nil,
+        shelf: ProfileShelfStore? = nil,
+        scopes: ProfileScopesStore? = nil
+    ) {
+        looksStore = looks
         collectionsStore = collections
+        routinesStore = routines
+        shelfStore = shelf
+        scopesStore = scopes
     }
 
-    /// Only the tabs that have a seam behind them, in the frame's order.
+    /// Only the tabs that have a seam behind them, in Sean's order.
     public var tabs: [ProfileTab] {
         ProfileTab.allCases.filter { available($0) }
     }
 
     private func available(_ tab: ProfileTab) -> Bool {
         switch tab {
-        case .routines: routinesStore != nil
+        case .looks: looksStore != nil
         case .collections: collectionsStore != nil
+        case .routines: routinesStore != nil
+        case .shelf: shelfStore != nil
         }
     }
 
-    /// Both tabs load together, because the segmented control switches between
-    /// two things that are already there — a tab that starts a fetch when it is
+    // MARK: - The scope mark
+
+    /// What the tab's mark says: the most any other person could reach in it.
+    ///
+    /// `nil` while the scopes are still loading, and the strip draws no mark
+    /// rather than a placeholder one — a privacy signal that guesses is worse
+    /// than a privacy signal that waits. `nil` also when no scopes seam is
+    /// wired at all, for the same reason.
+    ///
+    /// The three account surfaces read `privacy_scopes` directly. Collections
+    /// have no such surface, so their mark is the ceiling of the rows on the
+    /// screen — see `ProfileTab.surface`.
+    public func mark(for tab: ProfileTab) -> ProfileScopeMark? {
+        guard let scopes else { return nil }
+        if let surface = tab.surface {
+            return ProfileScopeMark(scopes.scope(for: surface))
+        }
+        return ProfileScopeMark.ceiling(of: collections.map(\.visibility))
+    }
+
+    // MARK: - Loading
+
+    /// Every wired tab loads together, because the strip switches between
+    /// things that are already there — a tab that starts a fetch when it is
     /// tapped puts a spinner behind a control that reads as instant.
     ///
-    /// One failure does not blank the other tab: each read keeps whatever it
-    /// got, and the first message wins. A user with routines and a collections
-    /// read that timed out should still see their routines.
+    /// One failure does not blank the others: each read keeps whatever it got,
+    /// and the first message wins. A user with routines and a looks read that
+    /// timed out should still see their routines.
     public func load() async {
         isLoading = true
         defer { isLoading = false }
-        if let routinesStore {
-            do {
-                routines = try await routinesStore.mine()
-            } catch {
-                note(error, fallback: "couldn't load your routines. pull to try again.")
-            }
-        }
-        if let collectionsStore {
-            do {
-                collections = try await collectionsStore.mine()
-            } catch {
-                note(error, fallback: "couldn't load your collections. pull to try again.")
-            }
-        }
-        // The frame opens on `routines`; if that tab was never wired, open on
-        // the one that was rather than on a blank pane.
+        await loadScopes()
+        await read(looksStore?.mine, "looks") { self.looks = $0 }
+        await read(collectionsStore?.mine, "collections") { self.collections = $0 }
+        await read(routinesStore?.mine, "routines") { self.routines = $0 }
+        await read(shelfStore?.mine, "shelf") { self.shelf = $0 }
+        // The profile opens on looks; if that seam was never wired, open on the
+        // first one that was rather than on a blank pane.
         if !available(tab), let first = tabs.first {
             tab = first
+        }
+    }
+
+    /// A failed scopes read leaves every mark absent rather than defaulting to
+    /// `only you`. The default is right for a user with no row — the repository
+    /// already applies it — but wrong for a read that failed, where "only you"
+    /// would be an assurance nobody checked.
+    private func loadScopes() async {
+        guard let scopesStore else { return }
+        do {
+            scopes = try await scopesStore.scopes()
+        } catch {
+            note(error, fallback: "couldn't check who can see your things.")
+        }
+    }
+
+    private func read<T>(
+        _ mine: (@Sendable () async throws -> [T])?,
+        _ what: String,
+        into: ([T]) -> Void
+    ) async {
+        guard let mine else { return }
+        do {
+            into(try await mine())
+        } catch {
+            note(error, fallback: "couldn't load your \(what). pull to try again.")
         }
     }
 
@@ -138,78 +132,107 @@ public final class ProfileTabsModel {
         errorMessage = (error as? GlossedError)?.userMessage ?? fallback
     }
 
-    /// The frame's `mono(r.steps.length + ' steps · ' + r.since)`.
+    // MARK: - Emptiness, and the +
+
+    /// True when every wired tab is empty — the state Sean's `+` belongs to.
     ///
-    /// **`since` diverges, and it has to.** The kit's fixture writes freeform
-    /// cadence copy — `started week 3`, `twice a week`, `every 5 days` — and
-    /// no column carries any of it. What `routines` does carry is the slot and
-    /// `started_on`, so the line states those and stops. Inventing the kit's
-    /// phrasing would be a routine describing a schedule nobody set.
-    public nonisolated static func stepsLine(_ routine: MyRoutine) -> String {
-        var parts = [
-            "\(routine.stepN) \(routine.stepN == 1 ? "step" : "steps")",
-            slotWord(routine.slot)
-        ]
-        if let since = sinceWord(routine.startedOn) {
-            parts.append("since \(since)")
-        }
-        return parts.joined(separator: " · ")
+    /// Across all tabs rather than the showing one: *"In an empty state,
+    /// you'll have a plus button that directs you to make a look, collection,
+    /// routine, etc."* A `+` that appeared whenever the open tab happened to be
+    /// empty would be a second create affordance sitting under the shell's own
+    /// one, on a profile that is not empty at all.
+    public var isEmpty: Bool {
+        looks.isEmpty && collections.isEmpty && routines.isEmpty && shelf.isEmpty
     }
 
-    /// The kit's words for the four slots — `am` · `pm` · `weekly` ·
-    /// `wash day`.
+    // MARK: - Edit mode (the frame's `edit profile` / `done editing`)
+
+    /// Whether the tab now showing has anything to rename. The button is not
+    /// drawn otherwise: an `edit profile` that turns nothing into a target is
+    /// a control that does nothing, and this project has shipped that already.
+    public var canEdit: Bool {
+        renameWrite(for: tab) != nil
+    }
+
+    public var editButtonLabel: String {
+        isEditing ? "done editing" : "edit profile"
+    }
+
+    /// The frame's mono hint, shown only while editing.
+    public var editHint: String? {
+        isEditing ? "tap any card to rename it" : nil
+    }
+
+    public func toggleEditing() {
+        isEditing.toggle()
+        if !isEditing {
+            renaming = nil
+        }
+    }
+
+    public func beginRename(_ target: RenameTarget) {
+        guard isEditing, renameWrite(for: tab) != nil else { return }
+        errorMessage = nil
+        renaming = target
+    }
+
+    private func renameWrite(for tab: ProfileTab) -> (@Sendable (UUID, String) async throws -> Void)? {
+        switch tab {
+        case .routines: routinesStore?.rename
+        case .collections: collectionsStore?.rename
+        case .looks, .shelf: nil
+        }
+    }
+
+    /// Writes the new title, then updates the row in place.
     ///
-    /// `RoutineSlot.label` says `morning` / `evening` instead, which is
-    /// **GLO-210**: the composer, browse and the kit disagree, and the fix is
-    /// two lines in DataKit. DataKit is frozen to this lane, so the kit's
-    /// words are mapped here rather than shipped wrong. **Delete this when
-    /// GLO-210 lands** and call `slot.label` — the ticket is the licence for
-    /// the duplication, not an excuse to keep it.
-    nonisolated static func slotWord(_ slot: RoutineSlot) -> String {
-        switch slot {
-        case .am: "am"
-        case .pm: "pm"
-        case .weekly: "weekly"
-        case .washDay: "wash day"
-        }
-    }
-
-    /// Month and year, lowercase.
+    /// In place rather than by reloading: the write returned, so the stored
+    /// title is the trimmed string that was sent, and a reload would flash a
+    /// spinner over a list that is already correct. The trim is done here as
+    /// well as in the repository so the two cannot disagree about what landed.
     ///
-    /// Read in UTC on purpose: `started_on` is a Postgres `date`, and a bare
-    /// calendar day rendered in the device's zone walks back a month for
-    /// anyone west of Greenwich. The month words are the app's own rather than
-    /// a `DateFormatter`'s, which keeps the copy lowercase without a
-    /// locale-dependent `lowercased()` — and keeps this helper `Sendable`,
-    /// since `DateFormatter` is not.
-    nonisolated static func sinceWord(_ date: Date?) -> String? {
-        guard let date else { return nil }
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? calendar.timeZone
-        let parts = calendar.dateComponents([.month, .year], from: date)
-        guard let month = parts.month, let year = parts.year, months.indices.contains(month - 1) else {
-            return nil
+    /// A blank title is refused before the round trip, in the repository's own
+    /// words — `routines.title` is `not null` but has no length check, and a
+    /// routine with a blank name is unaddressable in a list.
+    public func saveRename() async {
+        guard let target = renaming, let write = renameWrite(for: target.tabForKind) else { return }
+        let trimmed = target.value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            errorMessage = "give it a name."
+            return
         }
-        return "\(months[month - 1]) \(year)"
+        isSavingRename = true
+        defer { isSavingRename = false }
+        errorMessage = nil
+        do {
+            try await write(target.id, trimmed)
+            apply(trimmed, to: target)
+            renaming = nil
+        } catch {
+            // The sheet stays open with what was typed. A rename that closes
+            // on failure loses the words and tells you it worked.
+            errorMessage = (error as? GlossedError)?.userMessage ?? "that didn't save. try again."
+        }
     }
 
-    nonisolated static let months = [
-        "jan", "feb", "mar", "apr", "may", "jun",
-        "jul", "aug", "sep", "oct", "nov", "dec"
-    ]
-
-    /// The frame's `mono(c.count + ' products')`, singular at one.
-    nonisolated static func productsLine(_ n: Int) -> String {
-        "\(n) \(n == 1 ? "product" : "products")"
-    }
-
-    /// One step, named by the thing you own. `brand · product · shade`, and
-    /// the shade only when the row has one — a step that prints an empty
-    /// separator reads as a missing fact rather than an absent one.
-    nonisolated static func stepLine(_ step: RoutineStep) -> String {
-        [step.brandName, step.productName, step.variantLabel]
-            .compactMap(\.self)
-            .filter { !$0.isEmpty }
-            .joined(separator: " · ")
+    private func apply(_ title: String, to target: RenameTarget) {
+        switch target.kind {
+        case .routine:
+            routines = routines.map {
+                guard $0.routineID == target.id else { return $0 }
+                return MyRoutine(
+                    routineID: $0.routineID, title: title, slot: $0.slot,
+                    startedOn: $0.startedOn, createdAt: $0.createdAt, steps: $0.steps
+                )
+            }
+        case .collection:
+            collections = collections.map {
+                guard $0.id == target.id else { return $0 }
+                return ProfileCollection(
+                    id: $0.id, title: title, tint: $0.tint,
+                    itemN: $0.itemN, visibility: $0.visibility
+                )
+            }
+        }
     }
 }
