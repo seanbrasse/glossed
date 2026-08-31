@@ -53,9 +53,6 @@ public struct LookTagCanvas<Photo: View>: View {
     @Binding private var board: LookTagBoard
     /// Which spot's picker is open. Nil is "no sheet".
     @State private var editing: UUID?
-    /// The photo's drawn size, measured once by the layout. Placement and
-    /// hit-testing are both in points, so both need it.
-    @State private var measured: CGSize = .zero
 
     private let photoID: UUID
     private let search: LookTagSearch
@@ -83,18 +80,24 @@ public struct LookTagCanvas<Photo: View>: View {
         }
     }
 
+    /// The gesture lives INSIDE the GeometryReader and reads the proxy
+    /// directly, so the tap and the size it is judged against are the same
+    /// frame — the first version stored the size from `onAppear` into
+    /// `measured` and guarded on it, and a zero captured before layout made
+    /// every tap a silent no-op (found driving Sean's Aug 31 screenshot).
     private var canvas: some View {
         photo()
             .overlay {
                 GeometryReader { proxy in
-                    dots(in: proxy.size)
-                        .onAppear { measured = proxy.size }
-                        .onChange(of: proxy.size) { _, size in measured = size }
+                    ZStack(alignment: .topLeading) {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture(coordinateSpace: .local) { location in
+                                tap(at: location, in: proxy.size)
+                            }
+                        dots(in: proxy.size)
+                    }
                 }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture(coordinateSpace: .local) { location in
-                tap(at: location)
             }
     }
 
@@ -115,8 +118,7 @@ public struct LookTagCanvas<Photo: View>: View {
     /// doing nothing, that tap opens the dot it was crowding, which is the
     /// tag the user was almost certainly aiming at. Past the separation it
     /// places a new, empty spot and opens its search.
-    private func tap(at location: CGPoint) {
-        let size = measured
+    private func tap(at location: CGPoint, in size: CGSize) {
         guard size.width > 0, size.height > 0 else { return }
         if let hit = board.spot(at: location, in: size, on: photoID) {
             editing = hit.id
