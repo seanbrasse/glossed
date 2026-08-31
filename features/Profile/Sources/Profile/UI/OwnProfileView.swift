@@ -14,6 +14,7 @@ public struct OwnProfileView: View {
     @State private var showingSettings = false
     private let onClaimHandle: () -> Void
     private let onOpenPrivacy: () -> Void
+    private let onCompose: ((ProfileComposable) -> Void)?
     private let settingsStore: SettingsStore?
     private let onSignedOut: () -> Void
 
@@ -38,7 +39,9 @@ public struct OwnProfileView: View {
         // rather than pretending to be empty, which is the only honest thing a
         // screen with no read can do.
         routinesStore: ProfileRoutinesStore? = nil,
-        collectionsStore: ProfileCollectionsStore? = nil
+        collectionsStore: ProfileCollectionsStore? = nil,
+        // Absent, the empty state names what lands here and offers no `+`.
+        onCompose: ((ProfileComposable) -> Void)? = nil
     ) {
         _tabs = State(
             wrappedValue: ProfileTabsModel(collections: collectionsStore, routines: routinesStore)
@@ -50,6 +53,7 @@ public struct OwnProfileView: View {
         _model = State(wrappedValue: OwnProfileModel(store: store))
         self.onClaimHandle = onClaimHandle
         self.onOpenPrivacy = onOpenPrivacy
+        self.onCompose = onCompose
         self.settingsStore = settingsStore
         self.onSignedOut = onSignedOut
     }
@@ -69,7 +73,7 @@ public struct OwnProfileView: View {
                         // tab sit directly under the stat line, above
                         // everything the profile grew afterwards.
                         if !tabs.tabs.isEmpty {
-                            ProfileTabsSection(model: tabs)
+                            ProfileTabsSection(model: tabs, onCompose: onCompose)
                         }
                         SuggestedPeopleCard(store: suggestionsStore) { viewing = $0 }
                         previewLink

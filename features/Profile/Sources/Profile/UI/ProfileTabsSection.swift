@@ -11,6 +11,10 @@ import SwiftUI
 /// the strip that chooses which content.
 struct ProfileTabsSection: View {
     @Bindable var model: ProfileTabsModel
+    /// Nil for a build whose app layer has wired no composer. The empty state
+    /// then says what the profile holds and stops, rather than offering a `+`
+    /// that opens nothing.
+    let onCompose: ((ProfileComposable) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s3) {
@@ -26,6 +30,10 @@ struct ProfileTabsSection: View {
     @ViewBuilder private var content: some View {
         if model.isLoading {
             ProgressView().frame(maxWidth: .infinity)
+        } else if model.isEmpty {
+            // Sean's `+`: one empty state for the whole profile, not one per
+            // tab. See `ProfileTabsModel.isEmpty`.
+            ProfileEmptyState(onCompose: onCompose)
         } else {
             switch model.tab {
             case .looks: looks
@@ -41,17 +49,13 @@ struct ProfileTabsSection: View {
     private var looks: some View {
         // Two columns rather than Instagram's three: with no photograph to
         // draw, a third column leaves a caption about eleven characters wide.
-        grid(
-            model.looks, empty: "no looks yet",
-            says: "a look is a photo of a face you made. start one from the + button."
-        ) { LookTile(look: $0) }
+        grid(model.looks, empty: "no looks yet", says: emptyLine(.look)) { LookTile(look: $0) }
     }
 
     private var collections: some View {
-        grid(
-            model.collections, empty: "no collections yet",
-            says: "a collection is a group of things you own. make one from the + button."
-        ) { CollectionCard(collection: $0) }
+        grid(model.collections, empty: "no collections yet", says: emptyLine(.collection)) {
+            CollectionCard(collection: $0)
+        }
     }
 
     private var shelf: some View {
@@ -65,10 +69,7 @@ struct ProfileTabsSection: View {
     /// steps, and two of those side by side wrap every step line.
     @ViewBuilder private var routines: some View {
         if model.routines.isEmpty {
-            emptyPane(
-                "no routines yet",
-                "a routine is the order you use things in. build one from the + button."
-            )
+            emptyPane("no routines yet", emptyLine(.routine))
         } else {
             VStack(alignment: .leading, spacing: Tokens.Space.s3) {
                 ForEach(model.routines) { RoutineCard(routine: $0) }
@@ -98,13 +99,8 @@ struct ProfileTabsSection: View {
 
     /// One tab empty on a profile that is not. Never blank — it says what the
     /// thing is and where it is made. It does not offer to make one: the
-    /// shell's own `+` is everywhere else's, and two create affordances on one
-    /// screen is one too many.
-    ///
-    /// None of it says who will see the thing. A look's audience depends on
-    /// the looks scope and on GLO-26, which has not decided; a collection is
-    /// created `only_you` and no surface in V1 widens it. Copy about a scope
-    /// no screen controls is the GLO-208 shape (GLO-189).
+    /// profile-wide `+` is the empty state's, and the shell's own `+` is
+    /// everywhere else's. Two create affordances on one screen is one too many.
     private func emptyPane(_ title: String, _ line: String) -> some View {
         GlossedCard {
             VStack(alignment: .leading, spacing: Tokens.Space.s2) {
@@ -113,6 +109,20 @@ struct ProfileTabsSection: View {
                     .foregroundStyle(Tokens.Ink.primary)
                 Text(line).meta()
             }
+        }
+    }
+
+    /// What each thing IS, in the app's own voice.
+    ///
+    /// None of it says who will see the thing. A look's audience depends on
+    /// the looks scope and on GLO-26, which has not decided; a collection is
+    /// created `only_you` and no surface in V1 widens it. Copy about a scope
+    /// no screen controls is the GLO-208 shape (GLO-189).
+    private func emptyLine(_ what: ProfileComposable) -> String {
+        switch what {
+        case .look: "a look is a photo of a face you made. start one from the + button."
+        case .collection: "a collection is a group of things you own. make one from the + button."
+        case .routine: "a routine is the order you use things in. build one from the + button."
         }
     }
 }
