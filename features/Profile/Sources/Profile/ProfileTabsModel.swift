@@ -17,12 +17,15 @@ import Foundation
 @Observable
 public final class ProfileTabsModel {
     public var tab: ProfileTab = .looks
+    public var isEditing = false
+    public var renaming: RenameTarget?
     public private(set) var looks: [ProfileLook] = []
     public private(set) var collections: [ProfileCollection] = []
     public private(set) var routines: [MyRoutine] = []
     public private(set) var shelf: [ProfileShelfEntry] = []
     public private(set) var scopes: PrivacyScopes?
     public private(set) var isLoading = true
+    public private(set) var isSavingRename = false
     public private(set) var errorMessage: String?
 
     private let looksStore: ProfileLooksStore?
@@ -145,5 +148,125 @@ public final class ProfileTabsModel {
     private func note(_ error: Error, fallback: String) {
         guard errorMessage == nil else { return }
         errorMessage = (error as? GlossedError)?.userMessage ?? fallback
+    }
+
+    // MARK: - Edit mode (the frame's `edit profile` / `done editing`)
+
+    /// Whether the tab now showing has anything to rename.
+    ///
+    /// **This used to be the whole gate on `edit profile`, and its own comment
+    /// described a promise it did not keep.** It read *"whether the tab now
+    /// showing has anything to rename — an `edit profile` that turns nothing
+    /// into a target is a control that does nothing, and this project has
+    /// shipped that already."* But `renameWrite(for:)` switches on the tab
+    /// **kind**, never on its contents, so the button drew over `no
+    /// collections yet` and edit mode then offered `tap any card to rename it`
+    /// with no cards on screen. Found by driving it (GLO-271's sweep,
+    /// finding 05).
+    ///
+    /// It now means what it says: a rename target needs a writer **and** a row
+    /// to point at.
+    public var canRename: Bool {
+        renameWrite(for: tab) != nil && !currentTabIsEmpty
+    }
+
+    /// Whether the tab now showing has any rows at all.
+    private var currentTabIsEmpty: Bool {
+        switch tab {
+        case .looks: looks.isEmpty
+        case .collections: collections.isEmpty
+        case .routines: routines.isEmpty
+        case .shelf: shelf.isEmpty
+        }
+    }
+
+    public var editButtonLabel: String {
+        isEditing ? "done editing" : "edit profile"
+    }
+
+    /// The frame's mono hint — and it may only promise what the tab can do.
+    ///
+    /// Silent otherwise: a hint naming an interaction that is not available on
+    /// this tab is the same false claim `canRename` above was fixed for.
+    public var editHint: String? {
+        isEditing && canRename ? "tap any card to rename it" : nil
+    }
+
+    public func toggleEditing() {
+        isEditing.toggle()
+        if !isEditing {
+            renaming = nil
+        }
+    }
+
+    /// Guarded on the TARGET's writer, not on the tab now showing — the same
+    /// rule `saveRename` follows, and for the same reason: a tab switched
+    /// under an open sheet must not decide what a rename means. `canRename`
+    /// is the *button's* gate, and emptiness is not a reason to refuse a
+    /// target that was handed over.
+    public func beginRename(_ target: RenameTarget) {
+        guard isEditing, renameWrite(for: target.tabForKind) != nil else { return }
+        errorMessage = nil
+        renaming = target
+    }
+
+    private func renameWrite(for tab: ProfileTab) -> (@Sendable (UUID, String) async throws -> Void)? {
+        switch tab {
+        case .routines: routinesStore?.rename
+        case .collections: collectionsStore?.rename
+        case .looks, .shelf: nil
+        }
+    }
+
+    /// Writes the new title, then updates the row in place.
+    ///
+    /// In place rather than by reloading: the write returned, so the stored
+    /// title is the trimmed string that was sent, and a reload would flash a
+    /// spinner over a list that is already correct. The trim is done here as
+    /// well as in the repository so the two cannot disagree about what landed.
+    ///
+    /// A blank title is refused before the round trip, in the repository's own
+    /// words — `routines.title` is `not null` but has no length check, and a
+    /// routine with a blank name is unaddressable in a list.
+    public func saveRename() async {
+        guard let target = renaming, let write = renameWrite(for: target.tabForKind) else { return }
+        let trimmed = target.value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            errorMessage = "give it a name."
+            return
+        }
+        isSavingRename = true
+        defer { isSavingRename = false }
+        errorMessage = nil
+        do {
+            try await write(target.id, trimmed)
+            apply(trimmed, to: target)
+            renaming = nil
+        } catch {
+            // The sheet stays open with what was typed. A rename that closes
+            // on failure loses the words and tells you it worked.
+            errorMessage = (error as? GlossedError)?.userMessage ?? "that didn't save. try again."
+        }
+    }
+
+    private func apply(_ title: String, to target: RenameTarget) {
+        switch target.kind {
+        case .routine:
+            routines = routines.map {
+                guard $0.routineID == target.id else { return $0 }
+                return MyRoutine(
+                    routineID: $0.routineID, title: title, slot: $0.slot,
+                    startedOn: $0.startedOn, createdAt: $0.createdAt, steps: $0.steps
+                )
+            }
+        case .collection:
+            collections = collections.map {
+                guard $0.id == target.id else { return $0 }
+                return ProfileCollection(
+                    id: $0.id, title: title, tint: $0.tint,
+                    itemN: $0.itemN, visibility: $0.visibility
+                )
+            }
+        }
     }
 }

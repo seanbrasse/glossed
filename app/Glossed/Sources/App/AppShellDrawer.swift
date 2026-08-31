@@ -1,4 +1,5 @@
 import DesignSystem
+import Profile
 import SwiftUI
 
 // The + drawer, in its own file for the reason `AppShellDiscover` and
@@ -96,11 +97,11 @@ extension AppShell {
     ///   every line would come back `noMatch` and the "add N to your shelf"
     ///   button would never appear. That is a door onto a room with no floor;
     ///   the notice is the honest answer and stays until GLO-19.
-    /// - **collection** — unbuilt at the time of writing (no repository at all,
-    ///   GLO-230) and being built now by its own lane. The notice stays rather
-    ///   than a seam, because a seam wired to nothing is the same broken door
-    ///   with a nicer name, and swapping the notice for the real screen is one
-    ///   line once `features/Collections` exists.
+    /// - **collection** — this bullet said "no repository at all, GLO-230",
+    ///   which expired when #387 merged one, and then "the composer is still
+    ///   GLO-21", which expired when this door was wired. It now opens the
+    ///   composer, through the same `AppShell.compose` crossing the profile's
+    ///   `+` uses, so the two can never disagree again.
     var actionDrawer: some View {
         ActionDrawer(options: [
             .init(
@@ -129,7 +130,13 @@ extension AppShell {
                 tint: .lilac
             ) {
                 drawerOpen = false
-                notice = "collections are being built — GLO-230"
+                // Routed through the profile's crossing so the two `+`
+                // affordances cannot disagree. The old literal here said
+                // `collections are being built — GLO-230` and had been false
+                // since #387 merged that ticket's repository — GLO-189 in the
+                // direction nobody watches, hiding built work rather than
+                // promising unbuilt work. See `AppShell.compose`.
+                compose(.collection)
             },
             .init(
                 label: "new routine",

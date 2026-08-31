@@ -68,6 +68,26 @@ final class AppSession {
                 let config = try GlossedConfig.validated(from: environment)
                 let booted = GlossedClient(config: config)
                 try await booted.signIn(email: "maya@local.test", password: "password")
+                // **`signIn` returning is not proof the session can be READ
+                // back**, and the difference is not academic — it cost a
+                // session. `supabase-swift` persists the session to the
+                // Keychain, and an UNSIGNED build has no keychain access, so
+                // the sign-in succeeded and the very next `auth.session`
+                // threw. Every live read came back `notAuthenticated`,
+                // `reloadShelf()` swallowed it on its `try?`, and three built
+                // tabs rendered their "not built yet" placeholder over a
+                // working app.
+                //
+                // Reproduced by `codesign -d --entitlements`: an app built
+                // with `CODE_SIGNING_ALLOWED=NO` — CI's flag, and the one a
+                // reader copies out of `ci.yml` — is not signed at all. That
+                // flag is correct for CI, which only ever builds. It is wrong
+                // for anything you intend to launch.
+                //
+                // So `.ready` now means "a read works", not "a request
+                // returned". Failing here is loud and names the cause;
+                // failing later was silent and named the wrong ticket.
+                _ = try await booted.requireUserID()
                 client = booted
                 tracker = Tracker(poster: TrackIngestPoster(client: booted))
                 imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
@@ -93,7 +113,16 @@ final class AppSession {
         let repository = ShelfRepository(client: client)
         guard let rows = try? await repository.shelf() else { return }
         discoverModel = DiscoverModel(
-            store: .repository(AggregatesRepository(client: client), taste: TasteRepository(client: client)),
+            store: .repository(
+                AggregatesRepository(client: client),
+                taste: TasteRepository(client: client),
+                // GLO-260. `DiscoverStore.categories` stays nil without this,
+                // so the category eyebrow merged in #388 rendered nothing —
+                // a correct, tested, invisible feature waiting on one
+                // argument. `catalog` is optional precisely so the app layer
+                // could fill it in its own PR; this is that PR.
+                catalog: CatalogRepository(client: client)
+            ),
             imageBase: imageBase,
             tracker: tracker
         )

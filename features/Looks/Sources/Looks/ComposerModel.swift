@@ -105,10 +105,18 @@ public final class ComposerModel {
     public private(set) var saveFailure: String?
     public var caption = ""
 
-    /// The cap is the composer's, not the database's — a limit worth
-    /// workshopping, enforced here so the extreme state is designed rather
-    /// than discovered (GLO-88's whole family).
-    public static let photoCap = 6
+    /// The cap is the composer's, not the database's — enforced here so the
+    /// extreme state is designed rather than discovered (GLO-88's whole
+    /// family).
+    ///
+    /// **Five, because Sean said five** (GLO-266: "adding multiple photos at
+    /// once, with a limit of 5"). It was six, workshopped rather than
+    /// specified; this is the specified number and it replaces the guess.
+    /// Nothing downstream cares about the value — `look_photos.position` is
+    /// dense from zero under `unique (look_id, position)` and `renumber()`
+    /// keeps it so at any count — but the number itself is a product
+    /// decision, so it changes deliberately and says why.
+    public static let photoCap = 5
     public static let captionCap = 2200
 
     private let store: LooksStore?
@@ -118,8 +126,16 @@ public final class ComposerModel {
         self.store = store
     }
 
+    /// How many more this look will take. The picker is bounded by THIS
+    /// rather than by the cap, so a selection can never be larger than the
+    /// room left — the overflow is prevented at the door instead of being
+    /// silently trimmed after the fact.
+    public var remainingPhotoSlots: Int {
+        max(0, Self.photoCap - photos.count)
+    }
+
     public var canAddPhoto: Bool {
-        photos.count < Self.photoCap
+        remainingPhotoSlots > 0
     }
 
     /// Post needs a photo — a look IS a photo post (tech/03 §1). The caption
@@ -128,9 +144,33 @@ public final class ComposerModel {
         !photos.isEmpty && phase == .composing && caption.count <= Self.captionCap
     }
 
-    public func addPhoto(_ data: Data) {
-        guard canAddPhoto else { return }
-        photos.append(ComposerPhoto(localData: data, position: photos.count))
+    /// Several at once, in the order they were picked — GLO-266's first
+    /// sentence ("adding multiple photos at once"). The picker hands back a
+    /// SELECTION, so this is the primitive and the single-photo call is the
+    /// convenience, not the other way round.
+    ///
+    /// A selection larger than the room left keeps its first photos and drops
+    /// the rest rather than failing whole: the user picked in an order and the
+    /// front of it is what they reached for first. The accepted count comes
+    /// back so a caller can tell the difference between "all of them" and
+    /// "as many as fit" — this model does not hold that as state, because a
+    /// bounded picker (`remainingPhotoSlots`) means it should not arise.
+    @discardableResult
+    public func addPhotos(_ items: [Data]) -> Int {
+        let room = remainingPhotoSlots
+        guard room > 0 else { return 0 }
+        let taken = items.prefix(room)
+        // `position` is a placeholder here on purpose: `renumber()` is the one
+        // path that assigns it, and a second piece of arithmetic in this
+        // method is exactly what that comment forbids.
+        photos.append(contentsOf: taken.map { ComposerPhoto(localData: $0, position: 0) })
+        renumber()
+        return taken.count
+    }
+
+    @discardableResult
+    public func addPhoto(_ data: Data) -> Int {
+        addPhotos([data])
     }
 
     /// **The behaviour GLO-266 changes.** A tag used to pin to the LOOK, so it

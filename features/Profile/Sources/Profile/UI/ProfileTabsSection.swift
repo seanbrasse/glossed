@@ -15,15 +15,57 @@ struct ProfileTabsSection: View {
     /// then says what the profile holds and stops, rather than offering a `+`
     /// that opens nothing.
     let onCompose: ((ProfileComposable) -> Void)?
+    /// Opens the editor for one identity field. Nil for a build whose app
+    /// layer has wired no settings store — the rows then do not render, on
+    /// the same rule as `onCompose`: no door onto a room with no floor.
+    let onEditIdentity: ((ProfileIdentityField) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s3) {
+            if model.canRename || onEditIdentity != nil {
+                editRow
+            }
             if model.tabs.count > 1 {
                 ProfileTabBar(
                     tabs: model.tabs, mark: model.mark(for:), selection: $model.tab
                 )
             }
             content
+        }
+    }
+
+    /// The frame's `edit profile` / `done editing`, its variant flipping
+    /// secondary → mint, with the mono hint beside it while editing — and,
+    /// underneath while editing, the identity fields.
+    ///
+    /// **Sean's ruling, Aug 31:** *"Edit profile should allow users to update
+    /// their bio, pfp, and maybe lock specific looks and routines and
+    /// collections as private."* Name and bio land here. Both editors already
+    /// existed and were reachable only through settings → your profile, so
+    /// this opens a second door onto built screens rather than building any.
+    ///
+    /// The photo is not here: there is no photo column in the schema —
+    /// `profiles` carries `avatar_seed` and nothing else — so it waits on a
+    /// migration (GLO-275). Per-item locks are GLO-276.
+    private var editRow: some View {
+        VStack(alignment: .leading, spacing: Tokens.Space.s2) {
+            HStack(spacing: Tokens.Space.s2) {
+                Button(model.editButtonLabel) { model.toggleEditing() }
+                    .buttonStyle(.glossed(model.isEditing ? .mint : .secondary, size: .sm))
+                if let hint = model.editHint {
+                    Text(hint).meta()
+                }
+                Spacer(minLength: 0)
+            }
+            if model.isEditing, let onEditIdentity {
+                HStack(spacing: Tokens.Space.s2) {
+                    ForEach(ProfileIdentityField.allCases) { field in
+                        Button(field.label) { onEditIdentity(field) }
+                            .buttonStyle(.glossed(.secondary, size: .sm))
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
         }
     }
 
@@ -53,8 +95,13 @@ struct ProfileTabsSection: View {
     }
 
     private var collections: some View {
-        grid(model.collections, empty: "no collections yet", says: emptyLine(.collection)) {
-            CollectionCard(collection: $0)
+        grid(model.collections, empty: "no collections yet", says: emptyLine(.collection)) { collection in
+            CollectionCard(collection: collection)
+                .renameTarget(editing: model.isEditing, label: collection.title) {
+                    model.beginRename(
+                        RenameTarget(kind: .collection, id: collection.id, value: collection.title)
+                    )
+                }
         }
     }
 
@@ -72,7 +119,14 @@ struct ProfileTabsSection: View {
             emptyPane("no routines yet", emptyLine(.routine))
         } else {
             VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-                ForEach(model.routines) { RoutineCard(routine: $0) }
+                ForEach(model.routines) { routine in
+                    RoutineCard(routine: routine)
+                        .renameTarget(editing: model.isEditing, label: routine.title) {
+                            model.beginRename(
+                                RenameTarget(kind: .routine, id: routine.routineID, value: routine.title)
+                            )
+                        }
+                }
             }
         }
     }
