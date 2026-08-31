@@ -101,6 +101,24 @@ public extension LooksRepository {
         }
     }
 
+    /// Swaps ONE photo's bytes (0054, the photo-swap ruling): the row —
+    /// its id, position, and every tag pinned to it — survives; only
+    /// `r2_key` moves, which is also all the column grant admits. The old
+    /// object orphans for the sweep, cutouts' lifecycle.
+    ///
+    /// Called AFTER the new bytes landed in R2 (the pipeline's order), so
+    /// the row never points at an object that does not exist.
+    func swapPhotoKey(photoID: UUID, to r2Key: String) async throws(GlossedError) {
+        _ = try await client.requireUserID()
+        try await run {
+            _ = try await client.supabase
+                .from("look_photos")
+                .update(PhotoKeySwap(r2Key: r2Key))
+                .eq("id", value: photoID.uuidString)
+                .execute()
+        }
+    }
+
     /// HARD delete — unlike routines and collections, `looks` has no
     /// `deleted_at`, so this is the row gone, photos, spots and links
     /// cascading with it (`looks_delete_own`). The R2 objects behind the
@@ -129,6 +147,14 @@ public extension LooksRepository {
     /// Encodes `caption` even when nil — a plain optional would OMIT the key,
     /// and PostgREST leaves an unsent column untouched, so "clear the
     /// caption" would silently do nothing.
+    struct PhotoKeySwap: Encodable, Sendable {
+        let r2Key: String
+
+        enum CodingKeys: String, CodingKey {
+            case r2Key = "r2_key"
+        }
+    }
+
     internal struct CaptionUpdate: Encodable, Sendable {
         let caption: String?
 

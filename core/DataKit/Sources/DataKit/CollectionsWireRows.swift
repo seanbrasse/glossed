@@ -14,10 +14,11 @@ extension CollectionsRepository {
         /// grid down over a cosmetic column.
         let coverTint: String?
         let visibility: PrivacyScope
+        let description: String?
         let createdAt: Date
 
         enum CodingKeys: String, CodingKey {
-            case id, title, visibility
+            case id, title, visibility, description
             case coverTint = "cover_tint"
             case createdAt = "created_at"
         }
@@ -63,6 +64,24 @@ extension CollectionsRepository {
     /// `collections` carries no touch trigger (probed — `pg_trigger` is empty
     /// for it), so a rename that did not set `updated_at` would leave the row
     /// claiming it was last changed at creation.
+    /// Encodes even when nil — the CaptionUpdate rule: an omitted key leaves
+    /// the column untouched, and "clear the description" must clear it.
+    struct CollectionDescriptionUpdate: Encodable, Sendable {
+        let description: String?
+        let updatedAt: String
+
+        func encode(to encoder: any Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(description, forKey: .description)
+            try container.encode(updatedAt, forKey: .updatedAt)
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case description
+            case updatedAt = "updated_at"
+        }
+    }
+
     struct CollectionScopeUpdate: Encodable, Sendable {
         let visibility: PrivacyScope
         let updatedAt: String
@@ -117,6 +136,7 @@ extension CollectionsRepository {
                 coverTint: collection.coverTint.flatMap(CollectionTint.init(rawValue:)),
                 visibility: collection.visibility,
                 itemN: drawn.count,
+                description: collection.description,
                 createdAt: collection.createdAt
             )
         }

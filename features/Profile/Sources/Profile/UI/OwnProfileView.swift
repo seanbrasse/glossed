@@ -282,20 +282,3 @@ public struct OwnProfileView: View {
         Text(model.statLine).meta()
     }
 }
-
-private extension View {
-    /// Presents the handle claim from the profile itself when the seam is
-    /// wired, so the profile can reload when it closes (GLO-239).
-    @ViewBuilder
-    func claimSheet(
-        isPresented: Binding<Bool>, store: HandleStore?, onDismiss: @escaping () -> Void
-    ) -> some View {
-        if let store {
-            sheet(isPresented: isPresented, onDismiss: onDismiss) {
-                HandleClaimView(store: store)
-            }
-        } else {
-            self
-        }
-    }
-}
