@@ -16,7 +16,7 @@ import Testing
     let kept = UUID(), alsoKept = UUID(), removedFromShelf = UUID()
     let collection = CollectionsRepository.OwnCollectionRow(
         id: collectionID, title: "spring", coverTint: "mint",
-        visibility: .onlyYou, createdAt: Date()
+        visibility: .onlyYou, description: nil, createdAt: Date()
     )
     let members = [kept, alsoKept, removedFromShelf].enumerated().map { index, item in
         CollectionsRepository.MemberRow(
@@ -41,7 +41,7 @@ import Testing
     // cosmetic column.
     let rows = ["mint", "chartreuse", nil].map { tint in
         CollectionsRepository.OwnCollectionRow(
-            id: UUID(), title: "t", coverTint: tint, visibility: .onlyYou, createdAt: Date()
+            id: UUID(), title: "t", coverTint: tint, visibility: .onlyYou, description: nil, createdAt: Date()
         )
     }
     let assembled = CollectionsRepository.assemble(collections: rows, members: [], live: [])
@@ -63,7 +63,7 @@ import Testing
     let itemA = UUID(), itemB = UUID(), itemC = UUID()
     let collections = [spring, summer].map {
         CollectionsRepository.OwnCollectionRow(
-            id: $0, title: "t", coverTint: nil, visibility: .onlyYou, createdAt: Date()
+            id: $0, title: "t", coverTint: nil, visibility: .onlyYou, description: nil, createdAt: Date()
         )
     }
     let members = [
@@ -82,7 +82,7 @@ import Testing
     // A collection you just created has nothing in it, and the grid still has
     // to draw the card.
     let collection = CollectionsRepository.OwnCollectionRow(
-        id: UUID(), title: "new", coverTint: "lilac", visibility: .onlyYou, createdAt: Date()
+        id: UUID(), title: "new", coverTint: "lilac", visibility: .onlyYou, description: nil, createdAt: Date()
     )
     let assembled = CollectionsRepository.assemble(collections: [collection], members: [], live: [])
     #expect(assembled.count == 1)
@@ -159,6 +159,18 @@ import Testing
         visibility: .publicScope, updatedAt: "2026-08-31T00:00:00Z"
     ))
     #expect(scope == ["updated_at", "visibility"])
+}
+
+@Test func aClearedDescriptionSendsNullNotAnOmittedKey() throws {
+    // The CaptionUpdate rule, again: PostgREST leaves an unsent column
+    // untouched, so "remove the description" must SEND null.
+    let cleared = try JSONSerialization.jsonObject(
+        with: JSONEncoder().encode(CollectionsRepository.CollectionDescriptionUpdate(
+            description: nil, updatedAt: "2026-08-31T00:00:00Z"
+        ))
+    ) as? [String: Any] ?? [:]
+    #expect(cleared.keys.sorted() == ["description", "updated_at"])
+    #expect(cleared["description"] is NSNull)
 }
 
 @Test func aCollectionIsPrivateUntilSomethingElseSaysOtherwise() {

@@ -41,6 +41,9 @@ public struct MyCollection: Sendable, Equatable, Identifiable {
     /// counting those would make a card claim "12 products" over a grid that
     /// draws nine.
     public let itemN: Int
+    /// The owner's words on what this collection is (0054). Nil is "never
+    /// said" — the card and detail simply omit the line.
+    public let description: String?
     public let createdAt: Date
 
     public var id: UUID {
@@ -49,13 +52,14 @@ public struct MyCollection: Sendable, Equatable, Identifiable {
 
     public init(
         collectionID: UUID, title: String, coverTint: CollectionTint?,
-        visibility: PrivacyScope, itemN: Int, createdAt: Date
+        visibility: PrivacyScope, itemN: Int, description: String? = nil, createdAt: Date
     ) {
         self.collectionID = collectionID
         self.title = title
         self.coverTint = coverTint
         self.visibility = visibility
         self.itemN = itemN
+        self.description = description
         self.createdAt = createdAt
     }
 }

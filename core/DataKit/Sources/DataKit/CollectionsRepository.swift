@@ -45,7 +45,7 @@ public struct CollectionsRepository: Sendable {
         let collections: [OwnCollectionRow] = try await run {
             try await client.supabase
                 .from("collections")
-                .select("id,title,cover_tint,visibility,created_at")
+                .select("id,title,cover_tint,visibility,description,created_at")
                 .eq("user_id", value: userID.uuidString)
                 .is("deleted_at", value: nil)
                 .order("created_at", ascending: false)
@@ -150,6 +150,22 @@ public struct CollectionsRepository: Sendable {
             _ = try await client.supabase
                 .from("collections")
                 .update(CollectionTitleUpdate(title: trimmed, updatedAt: Date().ISO8601Format()))
+                .eq("id", value: collectionID.uuidString)
+                .execute()
+        }
+    }
+
+    /// The owner's words about the collection (0054). Nil CLEARS — the
+    /// payload encodes an explicit null, so "remove the description" removes
+    /// it. Same moderation queue as every user text (GLO-31 pending).
+    public func setDescription(collectionID: UUID, to description: String?) async throws(GlossedError) {
+        _ = try await client.requireUserID()
+        try await run {
+            _ = try await client.supabase
+                .from("collections")
+                .update(CollectionDescriptionUpdate(
+                    description: description, updatedAt: Date().ISO8601Format()
+                ))
                 .eq("id", value: collectionID.uuidString)
                 .execute()
         }

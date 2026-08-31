@@ -230,3 +230,11 @@ private func keys(of value: some Encodable) throws -> [String] {
     #expect(products[1].variantID == tied[0], "the tie breaks by variant_id")
     #expect(assembled[0].spots[0].photoID == photoID)
 }
+
+@Test func theSwapSendsTheKeyAloneSoATagCanNeverBeOrphanedByIt() throws {
+    // 0054's shape: the row survives a swap — a payload that grew `id`,
+    // `position` or `look_id` could repoint tags or reorder the carousel as
+    // a side effect of changing bytes. One column, exactly.
+    let payload = try keys(of: LooksRepository.PhotoKeySwap(r2Key: "users/u/looks/l/0-n.jpg"))
+    #expect(payload == ["r2_key"])
+}
