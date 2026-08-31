@@ -85,6 +85,31 @@ public struct ProfileCollectionsStore: Sendable {
         self.mine = mine
         self.rename = rename
     }
+
+    /// The last of the five `live` adapters, and the only one that had to wait:
+    /// `CollectionsRepository` landed in #387, after the shape above was drawn.
+    ///
+    /// `coverTint` is mapped to its **wire word**, not to a colour — see
+    /// `ProfileCollection.tint` for why the feature carries the string and
+    /// `CollectionCard` decides what it draws. `visibility` comes across
+    /// because the collections tab's scope mark is the ceiling of these rows
+    /// and has no account-level surface to read instead.
+    public static func live(_ collections: CollectionsRepository) -> ProfileCollectionsStore {
+        ProfileCollectionsStore(
+            mine: {
+                try await collections.mine().map {
+                    ProfileCollection(
+                        id: $0.collectionID,
+                        title: $0.title,
+                        tint: $0.coverTint?.rawValue,
+                        itemN: $0.itemN,
+                        visibility: $0.visibility
+                    )
+                }
+            },
+            rename: { try await collections.rename(collectionID: $0, to: $1) }
+        )
+    }
 }
 
 /// One tile of the looks grid.
