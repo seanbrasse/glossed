@@ -59,10 +59,10 @@ select lives_ok($$
 $$, 'maya gets a scopes row with every column defaulted');
 
 select results_eq($$
-    select shelf::text, rankings::text, routines::text, looks::text, discoverable
+    select shelf::text, rankings::text, discoverable
       from privacy_scopes where user_id = '00000000-0000-0000-0000-000000000001'
-$$, $$ values ('only_you', 'only_you', 'only_you', 'only_you', false) $$,
-    'all four surfaces default only_you and discoverable defaults false');
+$$, $$ values ('only_you', 'only_you', false) $$,
+    'both remaining surfaces default only_you and discoverable defaults false — routines and looks moved to their rows (0053)');
 
 -- ---------------------------------------------------------------------------
 -- can_view: owner short-circuit, and the missing-row default.

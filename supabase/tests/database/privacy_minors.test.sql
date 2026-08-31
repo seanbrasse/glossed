@@ -10,7 +10,7 @@
 -- DISABLING the trigger, not by going through it.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(24);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -45,8 +45,8 @@ select ok(not is_minor_user(:'maya'), 'maya does not');
 -- ---------------------------------------------------------------------------
 select set_config('role', 'postgres', true);
 alter table privacy_scopes disable trigger privacy_scopes_minor_lock;
-insert into privacy_scopes (user_id, shelf, rankings, routines, looks, discoverable)
-values (:'juli', 'public', 'public', 'public', 'public', true);
+insert into privacy_scopes (user_id, shelf, rankings, discoverable)
+values (:'juli', 'public', 'public', true);
 alter table privacy_scopes enable trigger privacy_scopes_minor_lock;
 
 -- a mutual follow, so `friends` would otherwise be reachable
@@ -55,22 +55,28 @@ insert into follows (follower_id, followed_id) values (:'maya', :'juli'), (:'jul
 select test_as(:'maya');
 select ok(not can_view(:'juli', 'shelf'),    'minor · shelf=public · mutual viewer → invisible');
 select ok(not can_view(:'juli', 'rankings'), 'minor · rankings=public · mutual viewer → invisible');
-select ok(not can_view(:'juli', 'routines'), 'minor · routines=public · mutual viewer → invisible');
-select ok(not can_view(:'juli', 'looks'),    'minor · looks=public · mutual viewer → invisible');
+select ok(not can_view_item(:'juli', 'public'),
+    'minor · a PUBLIC item · mutual viewer → invisible — the minor gate outranks the item scope (0053)');
+select ok(not can_view_item(:'juli', 'friends'),
+    'minor · a friends item · mutual viewer → invisible');
 
 select test_as('00000000-0000-0000-0000-00000000beef');
 select ok(not can_view(:'juli', 'shelf'),    'minor · shelf=public · stranger → invisible');
 select ok(not can_view(:'juli', 'rankings'), 'minor · rankings=public · stranger → invisible');
-select ok(not can_view(:'juli', 'routines'), 'minor · routines=public · stranger → invisible');
-select ok(not can_view(:'juli', 'looks'),    'minor · looks=public · stranger → invisible');
+select ok(not can_view_item(:'juli', 'public'),
+    'minor · a public item · stranger → invisible');
+select ok(not can_view_item(:'juli', 'public') and not can_view(:'juli', 'routines'),
+    'and the retired routines surface arm fails closed too');
 
 -- anon: no JWT at all, the link-card and web-page path
 select set_config('role', 'postgres', true);
 select set_config('request.jwt.claims', null, true);
 select ok(not can_view(null, :'juli', 'shelf'),    'minor · shelf=public · ANON → invisible');
 select ok(not can_view(null, :'juli', 'rankings'), 'minor · rankings=public · ANON → invisible');
-select ok(not can_view(null, :'juli', 'routines'), 'minor · routines=public · ANON → invisible');
-select ok(not can_view(null, :'juli', 'looks'),    'minor · looks=public · ANON → invisible');
+select ok(not can_view_item(:'juli', 'public'),
+    'minor · a public item · ANON → invisible');
+select ok(not can_view(null, :'juli', 'looks'),
+    'the retired looks surface arm fails closed for anon');
 
 -- ---------------------------------------------------------------------------
 -- The minor still sees their own everything. The lock is about other people.
@@ -78,8 +84,8 @@ select ok(not can_view(null, :'juli', 'looks'),    'minor · looks=public · ANO
 select test_as(:'juli');
 select ok(can_view(:'juli', 'shelf'),    'the minor sees their own shelf');
 select ok(can_view(:'juli', 'rankings'), 'the minor sees their own rankings');
-select ok(can_view(:'juli', 'routines'), 'the minor sees their own routines');
-select ok(can_view(:'juli', 'looks'),    'the minor sees their own looks');
+select ok(can_view_item(:'juli', 'only_you'), 'the minor sees their own items — the owner short-circuit outranks everything');
+select ok(can_view_item(:'juli', 'public'),   'their own public items too');
 
 -- ---------------------------------------------------------------------------
 -- The write trigger — the polite half.
@@ -94,9 +100,7 @@ $$, '23514', null, 'the trigger refuses a minor setting shelf');
 select throws_ok($$
     insert into privacy_scopes (user_id, rankings) values ('00000000-0000-0000-0000-000000000002', 'friends')
 $$, '23514', null, 'the trigger refuses a minor setting rankings');
-select throws_ok($$
-    insert into privacy_scopes (user_id, routines) values ('00000000-0000-0000-0000-000000000002', 'public')
-$$, '23514', null, 'the trigger refuses a minor setting routines');
+-- routines left the table (0053); the trigger's remaining columns still lock.
 select throws_ok($$
     insert into privacy_scopes (user_id, discoverable) values ('00000000-0000-0000-0000-000000000002', true)
 $$, '23514', null, 'the trigger refuses a minor setting discoverable');

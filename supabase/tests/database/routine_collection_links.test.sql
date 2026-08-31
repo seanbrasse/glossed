@@ -29,12 +29,11 @@ insert into profiles (user_id, birth_year_month, domains) values
 
 -- The ROUTINE scope is public from the start; the COLLECTION's own visibility
 -- is the variable under test, and it begins closed.
-insert into privacy_scopes (user_id, routines) values
-    ('ba000000-0000-0000-0000-000000000001', 'public');
+-- Per-item since 0053: the routine's own row opens below, after insert.
 
-insert into routines (id, user_id, title, slot) values
+insert into routines (id, user_id, title, slot, visibility) values
     ('2b000000-0000-0000-0000-000000000001', 'ba000000-0000-0000-0000-000000000001',
-     'a public routine', 'am');
+     'a public routine', 'am', 'public');
 insert into collections (id, user_id, title, visibility) values
     ('3b000000-0000-0000-0000-000000000001', 'ba000000-0000-0000-0000-000000000001',
      'a private collection', 'only_you');

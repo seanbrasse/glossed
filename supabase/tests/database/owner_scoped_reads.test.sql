@@ -56,8 +56,10 @@ insert into profiles (user_id, birth_year_month, domains) values
     ('05c07ed0-0000-0000-0000-000000000001', '1990-01', '{makeup}'),
     ('05c07ed0-0000-0000-0000-000000000002', '1991-02', '{makeup}');
 
-insert into privacy_scopes (user_id, shelf, rankings, routines, looks) values
-    ('05c07ed0-0000-0000-0000-000000000001', 'public', 'public', 'public', 'public');
+insert into privacy_scopes (user_id, shelf, rankings) values
+    ('05c07ed0-0000-0000-0000-000000000001', 'public', 'public');
+-- routines and looks open on their rows since 0053; this fixture's inserts
+-- below carry visibility where the scenario needs it.
 
 insert into brands (id, name, normalized_name) values
     ('05c07ed0-0000-0000-0000-0000000000b1', 'scoped test brand', 'scoped test brand');
@@ -75,9 +77,9 @@ insert into user_items (id, user_id, variant_id, status, client_id) values
 insert into collections (id, user_id, title, visibility) values
     ('05c07ed0-0000-0000-0000-0000000000a1', '05c07ed0-0000-0000-0000-000000000001',
      'the owner''s published kit', 'public');
-insert into looks (id, user_id, caption, state, posted_at) values
+insert into looks (id, user_id, caption, state, posted_at, visibility) values
     ('05c07ed0-0000-0000-0000-0000000000a2', '05c07ed0-0000-0000-0000-000000000001',
-     'a published look', 'public', now());
+     'a published look', 'public', now(), 'public');
 
 -- ── the viewer. Not a follower, not blocked: a stranger with an account. ────
 select test_as('05c07ed0-0000-0000-0000-000000000002');

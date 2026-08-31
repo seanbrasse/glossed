@@ -111,8 +111,8 @@ select is((select count(*)::int from look_tags), 0,
     'public state with no looks scope grants nothing — can_view default-deny holds');
 
 set local role postgres;
-insert into privacy_scopes (user_id, looks) values
-    ('a9000000-0000-0000-0000-000000000001', 'public');
+update looks set visibility = 'public'
+ where user_id = 'a9000000-0000-0000-0000-000000000001';
 
 select test_as('a9000000-0000-0000-0000-000000000002');
 select is((select count(*)::int from look_tags), 2,
