@@ -41,7 +41,7 @@ public struct OwnProfileView: View {
         collectionsStore: ProfileCollectionsStore? = nil
     ) {
         _tabs = State(
-            wrappedValue: ProfileTabsModel(routines: routinesStore, collections: collectionsStore)
+            wrappedValue: ProfileTabsModel(collections: collectionsStore, routines: routinesStore)
         )
         self.suggestionsStore = suggestionsStore
         self.safetyStore = safetyStore
