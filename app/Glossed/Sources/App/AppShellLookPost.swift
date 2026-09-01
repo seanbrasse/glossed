@@ -170,6 +170,15 @@ struct LookPostHost: View {
                 )
             },
             setLinks: { changes in
+                // REMOVES FIRST since 0054: one-per-look means the old link
+                // must clear before the replacement lands, or the insert
+                // dies on the unique index.
+                for id in changes.removeRoutineIDs {
+                    try await links.unlink(lookID: lookID, routineID: id)
+                }
+                for id in changes.removeCollectionIDs {
+                    try await links.unlink(lookID: lookID, collectionID: id)
+                }
                 if !changes.addRoutineIDs.isEmpty || !changes.addCollectionIDs.isEmpty {
                     try await links.link(
                         lookID: lookID,
@@ -177,19 +186,18 @@ struct LookPostHost: View {
                         collectionIDs: changes.addCollectionIDs
                     )
                 }
-                for id in changes.removeRoutineIDs {
-                    try await links.unlink(lookID: lookID, routineID: id)
-                }
-                for id in changes.removeCollectionIDs {
-                    try await links.unlink(lookID: lookID, collectionID: id)
-                }
             },
             linkables: {
                 async let mine = routines.mine()
                 async let theirs = collections.mine()
                 return try await LookLinkables(
                     routines: mine.map { LinkablePick(id: $0.routineID, title: $0.title) },
-                    collections: theirs.map { LinkablePick(id: $0.collectionID, title: $0.title) }
+                    collections: theirs.map {
+                        LinkablePick(
+                            id: $0.collectionID, title: $0.title,
+                            tintWord: $0.coverTint?.rawValue, itemN: $0.itemN
+                        )
+                    }
                 )
             },
             delete: { try await looks.delete(lookID: lookID) }
