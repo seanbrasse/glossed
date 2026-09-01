@@ -176,3 +176,25 @@ private extension LookEditStore {
     _ = await model.save()
     #expect(recorder.writes == ["posted"])
 }
+
+@MainActor
+@Test func theLadderReadsDraftOverAnyScopeAndWritesBothColumns() async {
+    // One dial over two columns (Sean's night ruling): draft wins the read
+    // whatever the scope says; a scope rung posts AT that scope; climbing
+    // back to draft keeps the scope so the round trip restores everything.
+    let recorder = Recorder()
+    let model = makeModel(visibility: .friends, isPosted: false, store: .recording(into: recorder))
+    #expect(model.reach == .draft, "a draft reads as draft even holding a friends scope")
+    model.reach = .friends
+    #expect(model.isPosted && model.visibility == .friends)
+    _ = await model.save()
+    #expect(recorder.writes == ["posted"], "same scope → only the state write")
+    model.reach = .draft
+    #expect(!model.isPosted)
+    #expect(model.visibility == .friends, "the scope survives the descent")
+    model.reach = .onlyYou
+    #expect(
+        model.isPosted && model.visibility == .onlyYou,
+        "only-you is POSTED-private — the rung that is not draft"
+    )
+}

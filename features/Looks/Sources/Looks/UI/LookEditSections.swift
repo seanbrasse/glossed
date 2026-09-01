@@ -5,46 +5,33 @@ import SwiftUI
 // The edit screen's reach and links halves, split from `LookEditView.swift`
 // for the 300-line ceiling — the `ComposerTagSection` split, again.
 
-/// WHO SEES IT + whether it is posted — Sean's archive ruling as two
-/// controls: scope chips (private / friends / public) and the unpost row.
-/// Both STAGE; nothing writes until the save button.
+/// WHO SEES IT — the ladder (Sean's ruling, Aug 31 night): draft · only
+/// you · friends · public, ONE dial over the two columns underneath.
+/// Draft and only-you are both invisible to others; the meaning line under
+/// the rungs is what teaches the difference (unfinished vs. kept private).
+/// Everything STAGES; nothing writes until the save button.
 struct LookEditReachSection: View {
     @Bindable var model: LookEditModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-            VStack(alignment: .leading, spacing: Tokens.Space.s2) {
-                Text("WHO SEES IT").eyebrow()
-                HStack(spacing: Tokens.Space.s2) {
-                    ForEach(PrivacyScope.allCases, id: \.self) { scope in
-                        chip(scope)
-                    }
-                }
-                if model.visibility == .onlyYou, model.isPosted {
-                    // The archive state, named: still posted, reaching nobody.
-                    Text("archived — posted, but only you can see it.").meta()
+        VStack(alignment: .leading, spacing: Tokens.Space.s2) {
+            Text("WHO SEES IT").eyebrow()
+            HStack(spacing: Tokens.Space.s2) {
+                ForEach(LookEditModel.Reach.allCases, id: \.self) { rung in
+                    chip(rung)
                 }
             }
-            VStack(alignment: .leading, spacing: Tokens.Space.s2) {
-                Text("POSTED").eyebrow()
-                HStack(spacing: Tokens.Space.s2) {
-                    Text(model.isPosted ? "on your profile" : "a draft — not posted")
-                        .font(Typography.display(Typography.Size.small))
-                        .foregroundStyle(Tokens.Ink.primary)
-                    Spacer(minLength: 0)
-                    Button(model.isPosted ? "unpost" : "post") {
-                        model.isPosted.toggle()
-                    }
-                    .buttonStyle(GlossedButtonStyle(.secondary, size: .sm))
-                }
-            }
+            // The current rung, explained — this line carries the draft /
+            // only-you distinction the collapsed control would otherwise
+            // blur.
+            Text(model.reach.meaning).meta()
         }
     }
 
-    private func chip(_ scope: PrivacyScope) -> some View {
-        let isOn = model.visibility == scope
-        return Button(scope.label) {
-            model.visibility = scope
+    private func chip(_ rung: LookEditModel.Reach) -> some View {
+        let isOn = model.reach == rung
+        return Button(rung.label) {
+            model.reach = rung
         }
         .buttonStyle(.plain)
         .font(Typography.mono(12))
@@ -54,6 +41,7 @@ struct LookEditReachSection: View {
         .background(Capsule().fill(isOn ? Tokens.Ink.primary : Tokens.Ground.card))
         .overlay(Capsule().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.hair))
         .accessibilityAddTraits(isOn ? .isSelected : [])
+        .accessibilityLabel("\(rung.label) — \(rung.meaning)")
     }
 }
 
