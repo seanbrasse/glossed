@@ -66,6 +66,18 @@ public struct LookTagViewerState: Sendable, Equatable {
         !board.isEmpty
     }
 
+    /// How many products are tagged, for the collapsed listing's header.
+    ///
+    /// **Entries, not groups.** `listing` is grouped by category, so counting
+    /// the groups would put "3" on a header that opens onto seven products —
+    /// a number that describes the code's shape rather than the user's things.
+    /// The count is on the closed header because a collapsed section whose
+    /// header does not say how much is inside makes opening it a guess
+    /// (`ShelfListView` reached the same conclusion).
+    public var taggedProductCount: Int {
+        listing.reduce(0) { $0 + $1.entries.count }
+    }
+
     /// Whether the eye on a list row would take you somewhere else. Used to
     /// word the row, not to hide it: a product tagged on the photo you are
     /// already looking at still reveals its dot.

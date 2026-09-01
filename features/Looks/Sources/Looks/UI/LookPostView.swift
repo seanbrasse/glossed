@@ -16,8 +16,19 @@ import SwiftUI
 /// **A look post is attributed content, never a claim** (GLO-196): no n, no
 /// `EvidenceLine`, and the only count anywhere is "N photos" chrome.
 public struct LookPostView: View {
-    @State private var state: LookTagViewerState
+    /// Internal for the reason `isListingOpen` is: the listing section is this
+    /// same type in `LookPostListing.swift`, and `private` is file-scoped.
+    @State var state: LookTagViewerState
     @State private var measured: CGSize = .zero
+    /// **Collapsed by default** (Sean, Sept 1: "products tagged in the look
+    /// should be in an expandable tab"). The photos are the post; the product
+    /// list is the receipts, and a look that opens with a wall of names under
+    /// it reads as a catalogue entry rather than something someone made.
+    ///
+    /// Internal, not private: the section itself lives in
+    /// `LookPostListing.swift` — the same type across two files, and `private`
+    /// is file-scoped.
+    @State var isListingOpen = false
     private let caption: String?
     private let media: [LookMedia]
     private let onClose: () -> Void
@@ -255,43 +266,7 @@ public struct LookPostView: View {
 
     // MARK: - the list under the photos
 
-    /// "under each photo will be a list of tagged products, ordered by
-    /// category" — and the eye beside a row reveals its dot, crossing photos
-    /// when it must (`reveal` is that whole sentence in one call).
-    @ViewBuilder private var listing: some View {
-        if state.hasTags {
-            VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-                Text("TAGGED IN THIS LOOK").eyebrow()
-                ForEach(state.listing) { group in
-                    VStack(alignment: .leading, spacing: Tokens.Space.s2) {
-                        Text(group.category.label).meta()
-                        ForEach(group.entries) { entry in
-                            listingRow(entry)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func listingRow(_ entry: LookTagListingEntry) -> some View {
-        Button {
-            withAnimation(Tokens.Motion.pop(Tokens.Motion.med)) {
-                _ = state.reveal(entry.product.variantID)
-            }
-        } label: {
-            HStack(spacing: Tokens.Space.s2) {
-                Text(entry.product.label)
-                    .font(Typography.display(Typography.Size.small))
-                    .foregroundStyle(Tokens.Ink.primary)
-                Spacer(minLength: 0)
-                EyeIcon(size: 15)
-                    .foregroundStyle(Tokens.Ink.soft)
-            }
-            .padding(.vertical, Tokens.Space.s1)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(entry.product.label) — show its tag on the photo")
-    }
+    // "under each photo will be a list of tagged products, ordered by
+    // category" — and the eye beside a row reveals its dot, crossing photos
+    // when it must (`reveal` is that whole sentence in one call).
 }

@@ -161,12 +161,12 @@ public struct RoutineDetailView: View {
                 Text("GOES WITH").eyebrow()
                 ForEach(collections) { pick in
                     HStack(spacing: Tokens.Space.s1) {
-                        Text("collection")
-                            .font(Typography.mono(10))
-                            .foregroundStyle(Tokens.Ink.soft)
                         Text(pick.title)
                             .font(Typography.mono(12))
                             .foregroundStyle(Tokens.Ink.primary)
+                        Text("- collection")
+                            .font(Typography.mono(10))
+                            .foregroundStyle(Tokens.Ink.soft)
                     }
                     .padding(.vertical, 6)
                     .padding(.horizontal, Tokens.Space.s3)
