@@ -23,9 +23,6 @@ public struct OwnProfileView: View {
     @State private var viewing: SuggestedPerson?
     @State private var showingSettings = false
     @State private var claimingHandle = false
-    /// The pfp upload's failure line, rendered under the header row (a line
-    /// inside the avatar's column would shove the identity sideways).
-    @State private var photoFailure: String?
     /// The identity field `edit profile` is editing, if any (GLO-271).
     @State private var editingIdentity: ProfileIdentityField?
     private let onClaimHandle: () -> Void
@@ -213,17 +210,12 @@ public struct OwnProfileView: View {
                 // The avatar hides from VoiceOver inside the control (the
                 // same initial the name beside it already says); the edit
                 // badge stays audible — it is a different fact.
-                ProfileAvatarControl(
-                    name: model.avatarName, store: photoStore, failure: $photoFailure
-                )
+                ProfileAvatarControl(name: model.avatarName, store: photoStore)
                 identity
                 Spacer(minLength: Tokens.Space.s2)
                 // The frame's entry to settings, and the only one — settings
                 // is a state of this screen, not a tab.
                 IconButton("gearshape", label: "settings") { showingSettings = true }
-            }
-            if let photoFailure {
-                Text(photoFailure).meta()
             }
             ProfileBadgeRow(
                 skinType: model.profile?.badgeSkinType,

@@ -34,6 +34,9 @@ public struct LookPostView: View {
     /// Non-nil for the owner: the edit button (GLO-272 — "clicking into it
     /// and hitting the edit button"). Nil for anyone else's look.
     private let onEdit: (() -> Void)?
+    /// Non-nil for the owner: tapping a photo opens it for the swap (the
+    /// evening ruling). Nil renders the photos as they were — untappable.
+    private let onOpenPhoto: ((LookMedia) -> Void)?
 
     public init(
         caption: String?,
@@ -44,7 +47,8 @@ public struct LookPostView: View {
         linkEditor: LookLinkEditor? = nil,
         onClose: @escaping () -> Void,
         onOpenProduct: ((UUID) -> Void)? = nil,
-        onEdit: (() -> Void)? = nil
+        onEdit: (() -> Void)? = nil,
+        onOpenPhoto: ((LookMedia) -> Void)? = nil
     ) {
         let ordered = media.sorted { $0.position < $1.position }
         self.caption = caption
@@ -55,6 +59,7 @@ public struct LookPostView: View {
         self.linkedCollections = linkedCollections
         self.linkEditor = linkEditor
         self.onEdit = onEdit
+        self.onOpenPhoto = onOpenPhoto
         _state = State(initialValue: LookTagViewerState(
             board: board, photoOrder: ordered.map(\.id)
         ))
@@ -134,6 +139,12 @@ public struct LookPostView: View {
             LookPhotoView(media: item)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // The owner's door onto the swap. Dots and the toggle sit
+                    // ABOVE this in the ZStack, so their taps still win.
+                    onOpenPhoto?(item)
+                }
             dots(on: item.id)
             if state.hasTags {
                 tagToggle

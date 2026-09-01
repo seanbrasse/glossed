@@ -78,7 +78,7 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         # Shown verbatim in the permission prompt, so it says what the camera is
         # for in the user's terms — not "camera access required".
-        INFOPLIST_KEY_NSCameraUsageDescription: "to scan a barcode and find the exact shade you're holding"
+        INFOPLIST_KEY_NSCameraUsageDescription: "to scan a barcode, or take a photo for your looks and profile"
 
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 0.1.0
