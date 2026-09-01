@@ -27,6 +27,8 @@ struct ProfileTabsSection: View {
     /// edit mode the card is the rename target, one gesture per mode.
     let onOpenCollection: ((UUID) -> Void)?
     let onOpenRoutine: ((UUID) -> Void)?
+    /// Opens the default want-to-try collection (batch 2). Same nil rule.
+    let onOpenWantToTry: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s3) {
@@ -110,7 +112,13 @@ struct ProfileTabsSection: View {
         }
     }
 
-    private var collections: some View {
+    @ViewBuilder private var collections: some View {
+        // The DEFAULT collection leads (batch 2) — always there when the
+        // seam is wired: a default exists even empty, and the empty card
+        // says what lands in it.
+        if model.hasWantToTry {
+            wantToTryLead
+        }
         grid(model.collections, empty: "no collections yet", says: emptyLine(.collection)) { collection in
             CollectionCard(collection: collection)
                 .renameTarget(editing: model.isEditing, label: collection.title) {
@@ -123,6 +131,26 @@ struct ProfileTabsSection: View {
                     open: onOpenCollection.map { open in { open(collection.id) } }
                 )
         }
+    }
+
+    /// Sized like a grid tile, not a banner: the frame's own two columns,
+    /// with an empty second cell — the card leads, it does not shout.
+    private var wantToTryLead: some View {
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(), spacing: Tokens.Space.s3),
+                GridItem(.flexible())
+            ],
+            spacing: Tokens.Space.s3
+        ) {
+            WantToTryCard(entries: model.wantToTry)
+                .openTarget(
+                    enabled: !model.isEditing, label: "want to try",
+                    open: onOpenWantToTry
+                )
+            Color.clear
+        }
+        .padding(.bottom, Tokens.Space.s3)
     }
 
     private var shelf: some View {
