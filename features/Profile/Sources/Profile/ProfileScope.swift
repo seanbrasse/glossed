@@ -28,17 +28,22 @@ public enum ProfileTab: String, CaseIterable, Sendable {
 
     /// Which account-level privacy surface governs this tab, when one does.
     ///
-    /// **`collections` returns nil, and that is a fact about the schema rather
-    /// than an omission here.** `visibility_surface` has four members — shelf,
-    /// rankings, routines, looks — and collections is not one of them:
-    /// `collections.visibility` is a per-row `scope_enum` column, so a
-    /// collection carries its own scope and the account carries none for them.
-    /// `ProfileScopeMark.ceiling` is what closes that gap.
-    public var surface: VisibilitySurface? {
+    /// **Only `shelf` has an account-level scope now, and the rest is a fact
+    /// about the schema rather than an omission here.** Collections were
+    /// always per-row; migration 0053 moved looks and routines the same way
+    /// (GLO-272), dropping `privacy_scopes.routines` and `.looks`. Each of the
+    /// three carries its own `visibility` column, so the account holds no
+    /// scope for them and `ProfileScopeMark.ceiling` is what reports them.
+    ///
+    /// This returned `.looks` and `.routines` until GLO-274. Those were read
+    /// straight into `scopes.scope(for:)` against columns that had not existed
+    /// since 0053 — the failing read behind `something went wrong.` on every
+    /// visit to the profile.
+    public var surface: ScopedSurface? {
         switch self {
-        case .looks: .looks
+        case .looks: nil
         case .collections: nil
-        case .routines: .routines
+        case .routines: nil
         case .shelf: .shelf
         }
     }

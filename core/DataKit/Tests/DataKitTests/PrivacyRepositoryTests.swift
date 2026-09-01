@@ -46,7 +46,7 @@ import Testing
     // can_view applies server-side. The defaulted value has to agree, or a
     // screen renders "unknown" for a state that is definitively private.
     let defaults = PrivacyScopes()
-    for surface in VisibilitySurface.allCases {
+    for surface in ScopedSurface.allCases {
         #expect(defaults.scope(for: surface) == .onlyYou)
     }
     #expect(defaults.discoverable == false)
@@ -60,28 +60,22 @@ import Testing
 }
 
 @Test func theSummaryIsDerivedAndSaysMixedRatherThanRounding() {
-    // The summary above the four rows is READ-ONLY and derived. A stored one
+    // The summary above the rows is READ-ONLY and derived. A stored one
     // could disagree with the rows, and the rows are the truth.
     #expect(PrivacyScopes().overallScope == .onlyYou)
 
-    let allPublic = PrivacyScopes(
-        shelf: .publicScope, rankings: .publicScope,
-        routines: .publicScope, looks: .publicScope
-    )
+    let allPublic = PrivacyScopes(shelf: .publicScope, rankings: .publicScope)
     #expect(allPublic.overallScope == .publicScope)
 
     // One row differing makes it mixed — NOT rounded to the loosest, which
     // would show "public" to someone whose rankings are private, and not to
     // the tightest, which would hide that something is public.
-    let mixed = PrivacyScopes(
-        shelf: .publicScope, rankings: .friends,
-        routines: .publicScope, looks: .publicScope
-    )
+    let mixed = PrivacyScopes(shelf: .publicScope, rankings: .friends)
     #expect(mixed.overallScope == nil)
 }
 
 @Test func aSingleFriendsRowIsMixedNotFriends() {
-    // The subtle case: three private and one friends is still mixed. Reporting
+    // The subtle case: one private and one friends is still mixed. Reporting
     // "friends" would overstate exposure; reporting "only you" would understate
     // it. Neither is safe, so the screen says mixed.
     let one = PrivacyScopes(rankings: .friends)
@@ -91,26 +85,36 @@ import Testing
 @Test func scopeLookupCoversEverySurface() {
     // A surface added to the enum without a case here would silently read the
     // wrong row. Distinct values per surface make that visible.
-    let scopes = PrivacyScopes(
-        shelf: .publicScope, rankings: .friends,
-        routines: .onlyYou, looks: .publicScope
-    )
+    let scopes = PrivacyScopes(shelf: .publicScope, rankings: .friends)
     #expect(scopes.scope(for: .shelf) == .publicScope)
     #expect(scopes.scope(for: .rankings) == .friends)
-    #expect(scopes.scope(for: .routines) == .onlyYou)
-    #expect(scopes.scope(for: .looks) == .publicScope)
 }
 
 @Test func scopesDecodeFromTheWireShape() throws {
     // The column names are the coding keys; a rename on either side breaks
     // here rather than at runtime on someone's privacy screen.
     let json = Data("""
-    {"shelf":"public","rankings":"friends","routines":"only_you","looks":"only_you","discoverable":true}
+    {"shelf":"public","rankings":"friends","discoverable":true}
     """.utf8)
     let decoded = try JSONDecoder().decode(PrivacyScopes.self, from: json)
     #expect(decoded.shelf == .publicScope)
     #expect(decoded.rankings == .friends)
-    #expect(decoded.routines == .onlyYou)
     #expect(decoded.discoverable)
     #expect(decoded.overallScope == nil)
+}
+
+@Test func theSelectListIsTheCodingKeys() {
+    // The guard this type did not have. `scopes()` asked for
+    // `shelf,rankings,routines,looks,discoverable` for the whole life of
+    // migration 0053, which had dropped the last two — every profile visit got
+    // `column privacy_scopes.routines does not exist` (GLO-274).
+    //
+    // A decode test cannot catch that: `Codable` ignores unknown keys, so a
+    // fixture carrying dropped columns decodes cleanly. Only tying the query
+    // to the keys does, and this asserts the tie rather than the value.
+    #expect(PrivacyScopes.selectList == "shelf,rankings,discoverable")
+    #expect(
+        PrivacyScopes.selectList.split(separator: ",").map(String.init)
+            == PrivacyScopes.CodingKeys.allCases.map(\.rawValue)
+    )
 }

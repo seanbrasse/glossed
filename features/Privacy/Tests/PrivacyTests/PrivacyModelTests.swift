@@ -8,7 +8,7 @@ import Testing
 
 private func store(
     load: @escaping @Sendable () async throws -> PrivacyScopes = { PrivacyScopes() },
-    setScope: @escaping @Sendable (VisibilitySurface, PrivacyScope) async throws -> Void = { _, _ in },
+    setScope: @escaping @Sendable (ScopedSurface, PrivacyScope) async throws -> Void = { _, _ in },
     setDiscoverable: @escaping @Sendable (Bool) async throws -> Void = { _ in }
 ) -> PrivacyStore {
     PrivacyStore(load: load, setScope: setScope, setDiscoverable: setDiscoverable)
@@ -28,7 +28,7 @@ private func store(
 @MainActor
 @Test func mixedRowsSayMixedRatherThanRounding() async {
     let model = PrivacyModel(store: store(load: {
-        PrivacyScopes(shelf: .publicScope, rankings: .onlyYou, routines: .onlyYou)
+        PrivacyScopes(shelf: .publicScope, rankings: .onlyYou)
     }))
     await model.load()
     // Not "public" (which would overstate exposure to someone whose rankings
@@ -64,13 +64,15 @@ private func store(
     // A write that reset its neighbours would silently publish or hide
     // surfaces the user never touched.
     let model = PrivacyModel(store: store(load: {
-        PrivacyScopes(shelf: .publicScope, rankings: .friends, routines: .onlyYou)
+        PrivacyScopes(shelf: .publicScope, rankings: .friends)
     }))
     await model.load()
-    await model.setScope(.routines, to: .publicScope)
+    // Was `.routines` until GLO-274 — 0053 dropped that column, so the
+    // neighbour-preservation promise is asserted on a row that still exists.
+    await model.setScope(.rankings, to: .publicScope)
+    // shelf is the untouched neighbour; rankings is the one written.
     #expect(model.scopes.shelf == .publicScope)
-    #expect(model.scopes.rankings == .friends)
-    #expect(model.scopes.routines == .publicScope)
+    #expect(model.scopes.rankings == .publicScope)
 }
 
 @MainActor
@@ -150,7 +152,7 @@ private func store(
     // A reference box: the store closure is @Sendable, so a captured `var`
     // cannot be mutated from inside it.
     final class Written: @unchecked Sendable {
-        var surfaces: [VisibilitySurface] = []
+        var surfaces: [ScopedSurface] = []
     }
     let written = Written()
     let model = PrivacyModel(store: store(setScope: { surface, _ in

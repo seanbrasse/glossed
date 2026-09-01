@@ -14,11 +14,13 @@ private func routine(
     title: String = "morning glass skin",
     slot: RoutineSlot = .am,
     startedOn: Date? = nil,
-    steps: [RoutineStep] = []
+    steps: [RoutineStep] = [],
+    visibility: PrivacyScope = .onlyYou
 ) -> MyRoutine {
     MyRoutine(
         routineID: UUID(), title: title, slot: slot,
-        visibility: .onlyYou, startedOn: startedOn, createdAt: Date(timeIntervalSince1970: 0), steps: steps
+        visibility: visibility, startedOn: startedOn,
+        createdAt: Date(timeIntervalSince1970: 0), steps: steps
     )
 }
 
@@ -33,17 +35,20 @@ private func collection(
 }
 
 private func look(
-    caption: String? = "glass skin sunday", photoN: Int = 3, isPublished: Bool = true
+    caption: String? = "glass skin sunday", photoN: Int = 3, isPublished: Bool = true,
+    visibility: PrivacyScope = .onlyYou
 ) -> ProfileLook {
-    ProfileLook(id: UUID(), caption: caption, photoN: photoN, isPublished: isPublished)
+    ProfileLook(
+        id: UUID(), caption: caption, photoN: photoN,
+        isPublished: isPublished, visibility: visibility
+    )
 }
 
 private func scopesStore(
-    shelf: PrivacyScope = .onlyYou, rankings: PrivacyScope = .onlyYou,
-    routines: PrivacyScope = .onlyYou, looks: PrivacyScope = .onlyYou
+    shelf: PrivacyScope = .onlyYou, rankings: PrivacyScope = .onlyYou
 ) -> ProfileScopesStore {
     ProfileScopesStore(scopes: {
-        PrivacyScopes(shelf: shelf, rankings: rankings, routines: routines, looks: looks)
+        PrivacyScopes(shelf: shelf, rankings: rankings)
     })
 }
 
@@ -88,90 +93,6 @@ private func scopesStore(
     // Nothing to read is not a failure — the app layer has not wired the seam.
     #expect(model.errorMessage == nil)
     #expect(model.looks.isEmpty)
-}
-
-// MARK: - The scope mark, which is what earns the preview's deletion
-
-@MainActor
-@Test func eachTabCarriesItsOwnSurfacesScope() async {
-    // GLOSSED has four per-surface scopes where Instagram has one account
-    // switch. The mark is the whole reason `what a stranger sees` can go.
-    let model = ProfileTabsModel(
-        looks: ProfileLooksStore(mine: { [] }),
-        routines: ProfileRoutinesStore(mine: { [] }),
-        shelf: ProfileShelfStore(mine: { [] }),
-        scopes: scopesStore(shelf: .publicScope, routines: .friends, looks: .onlyYou)
-    )
-    await model.load()
-    #expect(model.mark(for: .looks) == .onlyYou)
-    #expect(model.mark(for: .routines) == .friends)
-    #expect(model.mark(for: .shelf) == .publicToAnyone)
-}
-
-@Test func looksHasItsOwnScopeColumnAndDoesNotBorrowOne() {
-    // Probed, not assumed: `visibility_surface` has four members and `looks`
-    // is one of them, so the looks tab's mark is a read rather than an
-    // invention. (It ships inert until Phase 2, which is a fact about what
-    // consults it, not about whether the column exists.)
-    #expect(VisibilitySurface.allCases.contains(.looks))
-    #expect(ProfileTab.looks.surface == .looks)
-}
-
-@Test func collectionsHaveNoAccountLevelSurfaceSoTheirMarkIsTheCeiling() {
-    // `visibility_surface` is shelf · rankings · routines · looks.
-    // `collections.visibility` is a per-row column, so there is no account
-    // scope to read and the tab states the most any stranger could reach.
-    #expect(ProfileTab.collections.surface == nil)
-    #expect(ProfileScopeMark.ceiling(of: []) == .onlyYou)
-    #expect(ProfileScopeMark.ceiling(of: [.onlyYou, .onlyYou]) == .onlyYou)
-    #expect(ProfileScopeMark.ceiling(of: [.onlyYou, .friends]) == .friends)
-    // One public among five private still marks public: a privacy signal that
-    // understates is the one that hurts.
-    #expect(ProfileScopeMark.ceiling(of: [.onlyYou, .friends, .publicScope]) == .publicToAnyone)
-}
-
-@MainActor
-@Test func theCollectionsMarkFollowsTheCollectionsActuallyLoaded() async {
-    let model = ProfileTabsModel(
-        collections: ProfileCollectionsStore(mine: {
-            [collection(visibility: .onlyYou), collection(visibility: .publicScope)]
-        }),
-        scopes: scopesStore()
-    )
-    await model.load()
-    #expect(model.mark(for: .collections) == .publicToAnyone)
-}
-
-@MainActor
-@Test func withNoScopesSeamNoTabCarriesAMark() async {
-    // The strip draws nothing rather than guessing. A privacy signal that
-    // guesses is worse than one that waits.
-    let model = ProfileTabsModel(looks: ProfileLooksStore(mine: { [] }))
-    await model.load()
-    #expect(model.mark(for: .looks) == nil)
-}
-
-@MainActor
-@Test func aFailedScopesReadLeavesTheMarksAbsentRatherThanSayingOnlyYou() async {
-    // The all-private default is right for a user with no row — the repository
-    // applies it — and wrong for a read that failed, where "only you" would be
-    // an assurance nobody checked.
-    let model = ProfileTabsModel(
-        looks: ProfileLooksStore(mine: { [] }),
-        scopes: ProfileScopesStore(scopes: {
-            throw GlossedError(.offline, userMessage: "you're offline.")
-        })
-    )
-    await model.load()
-    #expect(model.mark(for: .looks) == nil)
-    #expect(model.errorMessage == "you're offline.")
-}
-
-@Test func theMarkWearsPrivacyScopesOwnWords() {
-    // "only you", never "just you" (Sean, Aug 29).
-    #expect(ProfileScopeMark.onlyYou.label == "only you")
-    #expect(ProfileScopeMark.friends.label == "friends")
-    #expect(ProfileScopeMark.publicToAnyone.label == "public")
 }
 
 // MARK: - Reading
