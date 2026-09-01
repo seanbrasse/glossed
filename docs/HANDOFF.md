@@ -1,7 +1,24 @@
-# Session handoff — Sept 1 2026 (session 17: the whole edit/photo economy shipped, R2 went live, and one un-opened PR holds the category tree)
+# Session handoff — Sept 1 2026 (session 18: the app runs on Sean's phone, Apple sign-in is real, and hosted finally caught up)
 
 Where Phase 1 stands, what to do next, and what the last three sessions learned.
 Read `docs/README.md` first for the design; this file is only about state.
+
+## Session 18 at a glance (Sept 1)
+
+**6 PRs merged** (#468, #429, #470, #432, #471, #472 — counted, each watched to
+green under Sean's per-batch merge grants). **One PR is open and green: #473.**
+
+| What | Where |
+|---|---|
+| **The app runs on Sean's actual iPhone**, tethered, signed with his team — not the simulator. Bundle ID is now `com.glossed.beauty`; `com.glossed.app` is owned by a different Apple developer account and was never available | #468, GLO-50, §0 |
+| **Sign in with Apple works end to end** — App ID capability, Supabase provider, and the Swift: `AppleNonce`, `AppleSignInController`, and a DataKit opening for `signInWithIdToken`. Nothing advances until the server returns | #471, GLO-23 |
+| **Migration 0055: an account cannot be under 13.** COPPA was a client-side promise — `AccountModel.createAccount` in Swift, on the happy path. A direct PostgREST insert with `birth_year_month = '2020-01'` was accepted without complaint | #470, GLO-23 |
+| **Migration 0056: a calendar bomb, defused.** A freshly-built database has partitions for this month and next, never last — so `refresh_event_rollups(current_date - 1)` has nowhere to write on the 1st. Reachable 1 day in 30, and CI had never run on a first-of-month since the table was created | #470, §8 |
+| **GLO-274 was a live bug, not pending work** — `PrivacyRepository.scopes()` still selected two columns 0053 dropped, so every visit to `you` raised a toast that then *stayed*. Diagnosed from a screen recording plus the Postgres log, not by reading code | #472 |
+| **Hosted is caught up — 13 migrations applied, and verified.** It was **divergent, not behind**: it held 0040–0042 and 0046 but not 0043 | §0, §8 |
+| **Onboarding mounts in the real shell**, and nobody gets through without a name and a handle | #429, #432, GLO-245 |
+| **Linear's 6 epics became milestones** inside the Phase 1 project (52 issues reassigned), and all 7 ingest tickets were verified against `origin/main` and closed | — |
+| The tagged-product list **collapses**, and a link **says its name first** (`morning glass skin - routine`) | **#473, open** |
 
 ## Session 17 at a glance (Aug 31 → Sept 1)
 
@@ -80,19 +97,66 @@ them. Rotation note: the token is account-wide R2 admin (`glossed-local-dev`
 under Sean's profile API tokens) because Cloudflare's R2 dashboard writes
 were down mid-setup — rotate to bucket-scoped when their dashboard recovers.
 
-### An un-opened PR holds two commits that MUST ship together
+### TWO migrations claim slot 0055, and one of them is mine
 
-Branch `feat/GLO-272-category-tree` (pushed) carries the DataKit guard
-(`categories()` pins `parent_id is null`) AND migration 0055 (the 202-leaf
-category tree). Migration 0055 is APPLIED to the local DB but not on `main`
-— the same local-ahead-of-repo shape session 16 warned about. Open ONE PR
-from that branch (both commits, size-override) and merge it before anything
-else touches categories; shipping the data without the guard floods five
-category pickers. §1 has the exact command.
+`main` now carries `20260901000055_an_account_cannot_be_under_13.sql` (#470,
+this session). The un-opened branch `feat/GLO-272-category-tree` carries
+`20260901000055_the_category_tree_grows_to_fit_the_shelf.sql`. **Same version
+prefix, different files.** Supabase keys the ledger on that prefix, so the two
+cannot coexist on one branch.
 
+This is a session-18 mistake, stated plainly: the previous handoff's §0 warned
+that this exact branch held migration 0055, and I took the slot anyway without
+looking. The migration lock is not just "one open PR" — it is one open
+*number*, and an un-opened branch still holds its number.
 
-**Four things, all of which cost real time this session and none of which are
-visible in the code.**
+**Fix before opening that PR** (rename on the branch, not on `main` — `main`'s
+0055 is merged and must not move):
+
+```bash
+git checkout feat/GLO-272-category-tree && git rebase origin/main
+git mv supabase/migrations/20260901000055_the_category_tree_grows_to_fit_the_shelf.sql \
+       supabase/migrations/20260901000057_the_category_tree_grows_to_fit_the_shelf.sql
+```
+
+Then open the PR as the previous handoff describes: **both commits, one squash**
+(DataKit guard + the 202-leaf tree), size-override, because shipping the data
+without the guard floods five category pickers. Also state the taxonomy decision
+it encodes — products rank at the TOP level, the 202 leaves are vocabulary.
+
+### Hosted is caught up, and the ledger will lie to you about it
+
+Hosted (`nsnniahnfmagoejwrgvc`) now matches the repo's **56 migrations**. Verify
+the arithmetic before trusting it, because the ledger shows **59 rows**:
+
+- `badges_never_name_the_value` and `bios_auto_approve` each appear **twice** —
+  re-applied this session, safe only because both are `create or replace`.
+- Repo file 0046 landed as **two** hosted rows (`reference_data_tree_and_domain_chips`,
+  `reference_data_category_chips`).
+
+59 − 2 − 1 = 56. ✅
+
+**Hosted was divergent, not behind** — it held 0040–0042 and 0046 but not 0043,
+so "N migrations behind" was never the right description and any catch-up plan
+built on that number would have been wrong.
+
+**The ledger versions are MCP-generated timestamps that do not map to repo
+filenames.** Repo `20260831000053_an_item_carries_its_own_visibility.sql` is
+hosted `20260901213611`. So: **never ask whether a migration landed by matching a
+version.** Grep an object name out of the file and probe for THAT:
+
+```bash
+psql "$DB" -c "select count(*) from pg_proc where proname = 'can_view_item'"
+```
+
+**This is the condition that hid GLO-274** — hosted still had the dropped
+columns, so the stale read succeeded there and failed only against a database
+that was actually current. `supabase login` + `supabase db push` would end the
+whole class of problem; no CLI token exists, and Sean chose to continue via MCP
+for this round. **Getting that token is the highest-value chore on the list.**
+
+**The rest of §0 is standing hazard, accumulated across sessions 15–18. None of
+it is visible in the code, and each entry cost real time at least once.**
 
 ### `main` runs no CI, and a limit can be broken by a *merge* rather than a commit
 
@@ -160,6 +224,45 @@ the installed binary. **Use `make run`** — it exists now for exactly this, and
 it also supplies the two env vars. *Shape: a flag that is correct in one context
 is not therefore correct in another, and "it built" is not "it runs".*
 
+### Building to a real phone: what `make run` does NOT cover
+
+`make run` targets the simulator. A tethered device needs four things that took
+a session to find, all now in `project.yml`:
+
+- **`DEVELOPMENT_TEAM: QHGRFFYNUJ`** and `CODE_SIGN_STYLE: Automatic`. Device
+  builds had previously worked only via the XC Wildcard profile.
+- **Bundle ID `com.glossed.beauty`.** `com.glossed.app` is registered to a
+  *different* Apple developer account and cannot be claimed. Sean picked this as
+  an interim — *"I'm not settled on the glossed name for now"* — so treat the
+  identifier as provisional, not as a naming decision.
+- **An explicit `info:` block instead of `GENERATE_INFOPLIST_FILE`.**
+  `NSAppTransportSecurity` is a *dictionary*, and `INFOPLIST_KEY_*` can only
+  carry scalars. Switching also means `CFBundleShortVersionString` and
+  `CFBundleVersion` must be pinned to `$(MARKETING_VERSION)` /
+  `$(CURRENT_PROJECT_VERSION)` — XcodeGen otherwise defaults the version to 1.0
+  and silently drops yours.
+- **A bundle rung in `AppSession.boot()`'s config lookup.** A phone launches with
+  no environment at all, and `SUPABASE_PUBLISHABLE_KEY` has no fallback, so the
+  keys are baked in at build time via `GlossedSupabaseURL` /
+  `GlossedSupabasePublishableKey`. The values are passed on the `xcodebuild`
+  command line and are **not** committed.
+
+For LAN access to a local stack: `NSAllowsLocalNetworking` covers `.local` and
+unqualified hostnames but **not raw IPv4** — a raw IP needs an
+`NSExceptionDomains` entry — and iOS 14+ terminates the app outright without
+`NSLocalNetworkUsageDescription`.
+
+### Sign in with Apple needs far less configuration than the guides suggest
+
+The **native** flow (`signInWithIdToken`) needs only the **bundle ID as the
+Client ID** in Supabase. No Services ID, no `.p8`, no client secret. Two traps:
+
+- Supabase's provider form rejects a save with *"Secret key should be a JWT"*
+  even when the Apple flow does not use one — the rule is **"must be a JWT *if
+  present*"**, and a leftover secret from another provider fails it. Clear it.
+- Apple must receive `sha256(rawNonce)`; Supabase must receive the **raw** one.
+  Sending the same value to both fails in a way that reads like a config problem.
+
 ### A package can be linked into the app target and imported by nothing
 
 `grep -rn "import <Package>" app/` is the two-second check §2 already
@@ -207,9 +310,12 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Thing | State |
 |---|---|
-| **The category-tree PR — open it FIRST** | Branch `feat/GLO-272-category-tree` is pushed with two commits (DataKit guard + migration 0055 + 8-assert pgTAP), green locally (`swift test` DataKit 133; the new `category_tree.test.sql` 8/8). NO PR exists — two `gh pr create`s failed in a background-script race (§8). Open it: `gh pr create --head feat/GLO-272-category-tree` with size-override; body should say guard+data ship as one squash so the pickers can never see leaves unguarded. Also state the taxonomy decision it encodes: products rank at the TOP level, the 202 leaves are vocabulary — if Sean wants leaf-level ladders instead, that is a different build |
+| **The category-tree PR — renumber, THEN open** | Branch `feat/GLO-272-category-tree` is pushed with two commits (DataKit guard + the 202-leaf tree + 8-assert pgTAP), green locally. **Its migration collides with `main`'s 0055 — rename it to 0057 first (§0).** Then one PR, both commits, size-override |
+| **#473 is open and green** | `feat/look-tags-and-card-naming` — the collapsible tagged list + name-first link labels. All checks SUCCESS, mergeable CLEAN, one commit behind `main`. Not merged: Sean's merge grants this session were per-batch and this PR came after the last one. `gh pr merge 473 --squash --delete-branch` |
+| **GLO-23 is In Progress, not Done** | Apple sign-in shipped (#471) and the age floor shipped (#470). **Phone OTP is still no-ops** — `AccountStore.sendCode`/`verifyCode` — because Sean deferred Twilio explicitly ("we deal with twilio later"). The ticket stays open on that half |
+| **Hosted needs a CLI token** | `supabase db push` is unavailable; everything this session went through MCP, which stamps ledger versions that do not match repo filenames (§0). One `supabase login` retires the whole problem |
 | **Local pgTAP baseline moved** | `make db-test` locally now fails `shelf_view` #14 (old dev-data cutout) AND `suggested_people` (this session restored dev handle `maya` for drives — the fixture collides). Both local-only; CI's fresh DB is the arbiter. Do not "fix" the tests |
-| **Linear is at its free issue cap** | `save_issue` is refused workspace-wide. Batches 2–3 are tracked as comments on [GLO-272](https://linear.app/glossed/issue/GLO-272). Until Sean upgrades or archives, put new work there too |
+| **Linear's cap blocks CREATES, not updates** | Session 17 recorded `save_issue` as "refused workspace-wide"; that is too strong. **Updating an existing issue works** — GLO-274 was moved to Done this session. The cap is on issue *count*, so a new issue is what fails. Batches 2–3 stay tracked as comments on [GLO-272](https://linear.app/glossed/issue/GLO-272); keep putting new work there |
 | **Session-16 in-flight rows below are STALE** | The schema lane (0049–0051), look-tagging lane, and #412–#421 all merged during session 17. Left for one cycle per the house rule |
 | **The GLO-261 profile stack** | **DONE.** #408–#411 all merged Aug 31. #410 had to be rebased first: it still descended from the pre-squash commits, which had inflated it from 4 files to 12 — the squash-inflation shape in §0, caught by `git diff --stat` and not by any label |
 | **The app-layer chain** | **DONE.** #423 #424 #425 #426 #427 all merged Aug 31, in that order, each driven on device first. `main` builds, lints clean, and launches signed-in — checked on `main` itself after the last merge, which is the one thing no PR's CI does |
@@ -240,7 +346,7 @@ the right to delete the preview. This deliberately reverses **GLO-190**.
 | ~~**GLO-260** — the discover eyebrow~~ | **Done — #425.** One argument. The eyebrow (`FRAGRANCE`) renders; the same screenshot on `main` an hour earlier had none |
 | **GLO-258** — five unaudited tables left | The RLS OR leak. **The shelf's two are closed (#422)** — `ShelfRepository.shelf()` and `.items()` both leaked, reproduced against a public owner, and the shipped shelf tab was leaking too. `supabase/tests/database/owner_scoped_reads.test.sql` is the instrument and needs no migration slot; extend it rather than writing a second file |
 | ~~**GLO-239** — the profile does not refresh after a handle claim~~ | **Done — #424.** The profile presents the claim sheet itself now, so dismissal is a signal it has. **Not drivable on maya** (she has a handle); reasoned from the code, and whoever gets a handle-less account should confirm it |
-| **GLO-245** — onboarding mounts only from the debug picker | Mounting FLOW 1 in the real shell is easy; **finishing it is blocked on GLO-23.** `AccountStore.sendCode`/`verifyCode` are no-ops pending Twilio and `finish` writes a profile that needs a session, so a new-account path dead-ends at the account step. Do not mount it before then — that is the door-onto-no-floor this session spent the night removing |
+| ~~**GLO-245** — onboarding mounts only from the debug picker~~ | **Done — #429, #432.** FLOW 1 mounts in the real shell and the name+handle step ships. What unblocked it was GLO-23's Apple half: the new-account path now gets a real session, so `finish` has one to write a profile with. The **phone** path still dead-ends pending Twilio |
 | **GLO-224** — does Discover own a search field? | Needs Sean. Three costed answers on the ticket. An honest placeholder (`brand, product, shade…`) already shipped; the IA question did not |
 | **GLO-227** — discover chips | Blocked on a DataKit opening. Option B (`topChips(productIDs:)`) recommended — no migration, serves every product-card surface |
 
@@ -248,28 +354,31 @@ the right to delete the preview. This deliberately reverses **GLO-190**.
 
 ## 2. What exists
 
-**Every package, `swift test`, run at handoff — 816 passing, no failures.** Not
-recalled, and not partial: the previous table listed seven of eighteen.
+**Every package, `swift test`, run at handoff — 914 passing, no failures across
+all 18.** Re-run this session, not carried forward. Seven packages failed the
+first sweep on stale `.build` caches and passed after `rm -rf .build`; the counts
+below are from the passing run (§8 has the trap — the error names a DataKit file
+the failing package does not touch).
 
 | Package | Tests | State |
 |---|---|---|
-| `core/DataKit` | **125** | The frozen core. Two openings spent: routines/collections/looks (Aug 30), and the shelf's scoping fix (Aug 31, #422) |
+| `core/DataKit` | **133** | The frozen core. **Four openings spent**: routines/collections/looks (Aug 30), the shelf's scoping fix (#422), `signInWithApple(idToken:nonce:)` (#471), and the GLO-274 privacy read (#472). The last derives its select list from `CodingKeys` so a dropped column cannot silently break it again |
 | `core/DesignSystem` | **54** | `KitIcons` carries the drawer's five glyphs + a pencil |
 | `core/Media` | **8** | **It exists** — `PhotoPreparer`, `PresignedUploader`. GLO-148 says it never has; that is stale |
 | `core/Tracking` | **15** | The event queue |
 | `features/AddLadder` | **120** | The biggest suite in the repo |
 | `features/Browse` | **14** | |
-| `features/Collections` | **10** | Composer + store. **Wired to the drawer and the profile `+` as of #426** |
+| `features/Collections` | **17** | Composer + store. **Wired to the drawer and the profile `+` as of #426** |
 | `features/Discover` | **35** | The stream. Category eyebrow live as of #425 |
 | `features/Import` | **12** | Screen + model; **no live `ImportParsing` conformance exists** — GLO-19 |
 | `features/Leaderboard` | **16** | |
-| `features/Looks` | **24** | Composer, reorder, media deck; reachable from the drawer's fifth door |
-| `features/Onboarding` | **60** | FLOW 1 is a real flow (#383) and **still mounts only from the debug picker** — GLO-245, blocked on GLO-23 |
+| `features/Looks` | **86** | Composer, reorder, media deck; reachable from the drawer's fifth door |
+| `features/Onboarding` | **69** | FLOW 1 **mounts in the real shell** as of #429; name+handle ships (#432); **Sign in with Apple is real** (#471) — `AppleNonce`, `AppleSignInController`, and one seam covering sheet + server call so the model stays testable. Phone OTP still stubbed |
 | `features/Privacy` | **18** | |
 | `features/ProductPage` | **22** | |
-| `features/Profile` | **97** | The redesign, complete and wired (#403–#411, #424) |
+| `features/Profile` | **101** | The redesign, complete and wired (#403–#411, #424) |
 | `features/Ranking` | **41** | The face-off. **Reachable as of #423** — it was not before, whatever the last handoff said |
-| `features/Routines` | **7** | Composer only; the profile's routines tab reads through `ProfileRoutinesStore` |
+| `features/Routines` | **15** | Composer only; the profile's routines tab reads through `ProfileRoutinesStore` |
 | `features/Shelf` | **138** | |
 
 **A red package here is a stale cache until proven otherwise.** `features/Shelf`
@@ -504,7 +613,7 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 
 | Blocked thing | On what | Who |
 |---|---|---|
-| Any new Linear issue | **Workspace at the free issue cap** — `save_issue` refused. Upgrade or archive | Sean |
+| Any **new** Linear issue | Workspace at the free issue cap. **Updates to existing issues work** (verified session 18); only creates fail. Upgrade or archive | Sean |
 | R2 token rotation | Cloudflare's R2 dashboard writes recovering (active incident Sept 1); then mint a bucket-scoped token and swap `.env` | Sean / Cloudflare |
 | Leaf-level ranking question | The 0055 tree ranks at the top level BY DESIGN. If Sean ever wants "rank your lipsticks" as its own ladder, that is a product decision + a re-point of `products.category_id` consumers — ask, don't drift into it | Sean |
 | [GLO-262](https://linear.app/glossed/issue/GLO-262) profile views | **Which of three shapes, or none.** Aggregate-only, identified-and-visible, or identified-owner-only. It is a privacy decision before a schema one — an identified viewer log would be **the first surveillance surface in the app**. Recommendation on the ticket: aggregate-only or not in V1 | Sean |
@@ -515,11 +624,11 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | [GLO-237](https://linear.app/glossed/issue/GLO-237) CI | `.github/workflows/` is frozen to agents. Two-line fix: `curl --fail --retry` **and** pin SwiftFormat on **both** sides — the Brewfile pins nothing either, so both float independently | Sean |
 | [GLO-218](https://linear.app/glossed/issue/GLO-218) | Two rulings: one routine per look or many, and may it credit **someone else's**? If yes the link needs its own `can_view` check **or a private routine leaks through a public look** — [GLO-263](https://linear.app/glossed/issue/GLO-263) carries the trap | Sean |
 | [GLO-267](https://linear.app/glossed/issue/GLO-267) seed fixture | **Ready to build, needs a go-ahead only because it moves shared state.** `seed.sql` has no cross-user public fixture, so every isolation assertion in the repo runs against an empty set. Changing seed data reaches every lane's drive at once, and nine PRs were open when it was filed | Sean |
-| [GLO-245](https://linear.app/glossed/issue/GLO-245) onboarding | Not blocked on a decision — blocked on **GLO-23**. `AccountStore.sendCode`/`verifyCode` are no-ops pending Twilio and `finish` needs a session, so mounting FLOW 1 gives a flow that dead-ends at the account step. Sign in with Apple + Twilio secrets are the unblock | Sean |
+| [GLO-245](https://linear.app/glossed/issue/GLO-245) onboarding | **Partly unblocked.** FLOW 1 now mounts in the real shell (#429) and the name+handle step ships (#432), because Sign in with Apple gives the new-account path a real session. The **phone** path still dead-ends at the account step pending Twilio | Sean |
 | Any further DataKit opening | Per-session. Aug 30–31's is spent; Aug 31's second opening (the shelf's scoping fix, #422) is **also spent** | Sean |
 | Any migration slot | Per-migration. Held by the schema lane at handoff for GLO-266/263/265 | Sean |
 | [GLO-172](https://linear.app/glossed/issue/GLO-172), [GLO-156](https://linear.app/glossed/issue/GLO-156), [GLO-178](https://linear.app/glossed/issue/GLO-178) | Design calls, unchanged. Render both options and let him pick rather than re-deriving them | Sean |
-| GLO-23 Apple + phone auth | Sign in with Apple capability + Twilio secrets are keyboard-minutes; every account screen already runs against the stub | Sean |
+| GLO-23 — **phone OTP half only** | Sign in with Apple is **DONE** (#471): App ID capability, Supabase provider, and the Swift all shipped and were driven on Sean's phone. What remains is Twilio, which Sean deferred outright ("we deal with twilio later"). `sendCode`/`verifyCode` stay no-ops until then | Sean |
 | The hosted project | Still needs a DB password, service-role key, or CLI login. **Hosted is at 46 migrations and lacks `0043` (looks) and `0047` (handles)** — probed, not assumed | Sean |
 | Landing page → Rakuten / Impact / Beauty API | Unchanged: Vercel project creation 403s on team role; the signups need the channel URL | Sean |
 | GLO-85 queue consumer | `ANTHROPIC_API_KEY` **and** Sean's direct word | Sean |
@@ -527,6 +636,81 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | Save/wishlist mapping | Whether `want_to_try` IS tech/07's +0.5 save signal | Sean |
 
 ## 8. What went wrong, so you don't repeat it
+
+### Session 18 (Sept 1) — append-only, newest first
+
+**I took a migration slot the previous handoff had warned me about.** Its §0 said
+in as many words that `feat/GLO-272-category-tree` held migration 0055. I read
+that section, then numbered the age floor 0055 anyway. The lock is one open
+*number*, not one open PR, and an un-opened branch still holds its number. §0
+carries the fix.
+
+**Three separate squash-merge traps, all in one stack, all costing real time:**
+
+1. `gh pr merge --delete-branch` on #432 **closed #469**, because GitHub closes
+   any PR whose base branch is deleted — and a *closed* PR's base cannot be
+   changed, so it could not simply be retargeted. #469 had to be reopened as
+   **#471** off `main`.
+2. Compensating with `--delete-branch=false` on #429 then left #432 pointing at
+   a stale base and showing **CONFLICTING** — a conflict with no conflicting
+   lines. Retargeting to `main` cleared it.
+3. Plain `git rebase` on the child **replayed the parent's pre-squash commit**,
+   re-adding code that was already on `main`. The stacked-rebase incantation is
+   `git rebase --onto <new-base> <old-parent-tip>`, and nothing warns you.
+
+**I stated a docs conclusion as settled and it was wrong.** I said the native
+Apple flow needs no client secret — true — and then the Supabase dashboard
+refused to save with *"Secret key should be a JWT."* The actual rule is **"must
+be a JWT *if present*"**: a stray secret left over from the Google provider was
+failing validation on a field the Apple flow does not use. Clearing it saved.
+The claim was right about Apple and wrong about the form.
+
+**A screen recording came out 0 bytes twice.** `TaskStop` hard-kills, so
+`simctl recordVideo` never writes the moov atom and the file is unplayable —
+stop it with `pkill -INT -f "simctl io"` instead. After the first kill,
+CoreSimulator held a stale host record lock; only rebooting the device cleared
+it.
+
+**Two bugs in my own migration, both caught by the test rather than by review.**
+I asserted 2026-09-01 was "ambiguous" for a `2013-08` birthday when it is the
+first *certainly-13* day, and I wrote a comment claiming `birth_year_month` was
+nullable when it is `NOT NULL`. Also drafted a dead-code
+`ensure_events_partitions_window()` helper and cut it — the cron already covers
+long-running databases; only fresh installs need 0056.
+
+**`Codable` ignores unknown keys, so no decode test could have caught GLO-274.**
+The struct kept decoding fine; the *select list* was what named dropped columns,
+and only the database objected. `PrivacyScopes` now derives its select list from
+its `CodingKeys` (`CaseIterable`) so the two cannot drift again.
+
+**The profile's scope mark read `public` over a draft.** Found by driving the
+fixed build, not by reading it: `looks_public_read` tests `state = 'public'`, so
+unpublished looks must be excluded from the ceiling. Two existing tests failed my
+first attempt at `mark(for:)` — they assert a privacy signal must *wait* rather
+than guess. I restored the guard rather than weakening the tests.
+
+**Top-level `private` in Swift is file-scoped**, so promoting test helpers to
+internal collided with `ProfileCardCopyTests`' same-named declarations.
+Fixtures stay localized per the package's existing convention.
+
+**The stale-`.build` trap recurred, at seven times the scale — §2's existing
+warning was not enough.** Session 17 hit it in one package (`features/Shelf`) and
+wrote "a red package here is a stale cache until proven otherwise." That sentence
+was there, and it still cost time, because the failure does not look like a cache
+problem: **it breaks the packages DOWNSTREAM of the one you changed, and blames
+the wrong file.** After the DataKit edits, `swift test` failed in
+**7 of 18 packages** — AddLadder, Browse, Discover, Import, Leaderboard,
+ProductPage, Ranking — with type-inference errors reported *inside
+`core/DataKit/Sources/DataKit/RoutinesRepository.swift`*, a file none of them
+touch and which compiles fine on its own (DataKit's own 133 tests passed in the
+same run). It ends in a bare `error: fatalError` naming nothing.
+
+All seven passed after `rm -rf <package>/.build` — 120, 14, 35, 12, 16, 22, 41,
+no code change. The tell is the shape: **the failing package is not the package
+named in the error.** Before
+debugging any cross-package compiler error after a DataKit change, clear the
+caches — and note that a per-package sweep is exactly how this surfaces, which is
+another reason §5 says to run all of them rather than the one you touched.
 
 ### Session 17 (Aug 31 → Sept 1) — append-only, newest first
 
