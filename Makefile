@@ -43,7 +43,7 @@ run: generate
 	  '$(DERIVED)/Build/Products/Debug-iphonesimulator/Glossed.app'
 	SIMCTL_CHILD_SUPABASE_URL="http://127.0.0.1:54321" \
 	SIMCTL_CHILD_SUPABASE_PUBLISHABLE_KEY="$$(supabase status -o json | jq -r .PUBLISHABLE_KEY)" \
-	  xcrun simctl launch '$(SIM)' com.glossed.app
+	  xcrun simctl launch '$(SIM)' com.glossed.beauty
 	@echo "launched. logs: xcrun simctl spawn '$(SIM)' log stream --predicate 'process == \"Glossed\"'"
 
 lint:

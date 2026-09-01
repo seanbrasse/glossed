@@ -60,9 +60,38 @@ final class AppSession {
         #if DEBUG
             do {
                 var environment = ProcessInfo.processInfo.environment
+                // Three sources, most specific first: the launch environment,
+                // then the bundle, then the simulator's loopback.
+                //
+                // **The bundle rung exists because a phone has no launch
+                // environment.** `make run` hands the simulator both values
+                // via `SIMCTL_CHILD_*`, which works precisely because we are
+                // the ones launching it. Tapping an icon on a device launches
+                // with nothing, and `SUPABASE_PUBLISHABLE_KEY` has no default
+                // at all — so a device build read only from the environment
+                // would boot once from our `devicectl` launch and then say
+                // "the app isn't set up correctly" every time thereafter.
+                // Reading the bundle makes the installed app self-sufficient.
+                for key in ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY"] {
+                    guard environment[key] == nil else { continue }
+                    let bundleKey = key == "SUPABASE_URL"
+                        ? "GlossedSupabaseURL"
+                        : "GlossedSupabasePublishableKey"
+                    // Bound first so the condition stays on one line: a wrapped
+                    // two-clause `if let` puts swiftformat (brace on its own
+                    // line) and swiftlint's `opening_brace` (same line) in
+                    // direct conflict, and there is no spelling of it both
+                    // accept.
+                    let baked = Bundle.main.object(forInfoDictionaryKey: bundleKey) as? String
+                    if let baked, !baked.isEmpty {
+                        environment[key] = baked
+                    }
+                }
                 if environment["SUPABASE_URL"] == nil {
                     // The simulator's loopback into `supabase start`. Local
-                    // only — the hosted URL is deliberately not here to reach.
+                    // only — the hosted URL is deliberately not here to reach,
+                    // and it is loopback rather than the Mac's LAN name
+                    // because a simulator shares the Mac's network stack.
                     environment["SUPABASE_URL"] = "http://127.0.0.1:54321"
                 }
                 let config = try GlossedConfig.validated(from: environment)

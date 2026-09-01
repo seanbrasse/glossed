@@ -70,15 +70,61 @@ targets:
       - package: Onboarding
       - package: Routines
       - package: Collections
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.glossed.app
-        GENERATE_INFOPLIST_FILE: true
-        INFOPLIST_KEY_UILaunchScreen_Generation: true
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+    # An explicit Info.plist rather than GENERATE_INFOPLIST_FILE, because
+    # `NSAppTransportSecurity` is a dictionary and the generated-plist build
+    # settings (`INFOPLIST_KEY_*`) only carry scalars. Every key that used to
+    # be an `INFOPLIST_KEY_` is carried over verbatim below.
+    info:
+      path: app/Glossed/Info.plist
+      properties:
+        # XcodeGen defaults these to 1.0/1, which would silently drop the
+        # versions set below — the generated-plist path used to read them.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         # Shown verbatim in the permission prompt, so it says what the camera is
         # for in the user's terms — not "camera access required".
-        INFOPLIST_KEY_NSCameraUsageDescription: "to scan a barcode, or take a photo for your looks and profile"
+        NSCameraUsageDescription: "to scan a barcode, or take a photo for your looks and profile"
+
+        # Running on a real phone means talking to the Mac's `supabase start`
+        # over the LAN, and that is plain http to a `.local` name — which ATS
+        # blocks by default. `NSAllowsLocalNetworking` is the narrow key for
+        # exactly this: it permits insecure loads to unqualified and `.local`
+        # hosts and NOTHING else, so the open internet stays TLS-only. A raw
+        # IP would not be covered — Apple scopes this key to hostnames, and an
+        # address needs its own `NSExceptionDomains` entry — which is the
+        # reason the device build addresses the Mac by Bonjour name and not by
+        # a DHCP address that changes.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        # iOS 14+ gates the local network behind a permission prompt, and an
+        # app that reaches the LAN without this key does not fail politely —
+        # it is terminated. This string is what the prompt shows.
+        NSLocalNetworkUsageDescription: "to reach the glossed catalog running on your mac"
+
+        # Injected at build time, never committed: `$(...)` is expanded by the
+        # build, so the key lives in the command line and the shipped plist,
+        # not in git. Empty in every build that does not pass them, which is
+        # what keeps the simulator's env-var path (see `make run`) primary.
+        GlossedSupabaseURL: $(GLOSSED_SUPABASE_URL)
+        GlossedSupabasePublishableKey: $(GLOSSED_SUPABASE_PUBLISHABLE_KEY)
+    settings:
+      base:
+        # `com.glossed.app` is registered to another Apple Developer account
+        # and can never be ours (GLO-50) — the device build only ever worked
+        # because it signed against the XC Wildcard profile, which cannot
+        # carry a single capability.
+        PRODUCT_BUNDLE_IDENTIFIER: com.glossed.beauty
+        GENERATE_INFOPLIST_FILE: false
+
+        # Sean's personal team, so a debug build can be signed for his own
+        # device. Automatic signing keeps the profile Xcode's problem.
+        DEVELOPMENT_TEAM: QHGRFFYNUJ
+        CODE_SIGN_STYLE: Automatic
+
+        GLOSSED_SUPABASE_URL: ""
+        GLOSSED_SUPABASE_PUBLISHABLE_KEY: ""
 
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 0.1.0
