@@ -644,6 +644,18 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 
 ### Session 18 (Sept 1) — append-only, newest first
 
+**I wrote this handoff from memory instead of invoking the skill that exists for
+it, and the skill caught two gaps.** `session-handoff` was installed the whole
+time. Writing the document first and running the skill afterwards surfaced (a) no
+next-agent *prompt* — the skill is explicit that the reference and the
+instruction are different documents — and (b) no drift pass over the sections the
+session did not touch, which is where the §6 toast correction came from.
+
+The shape, because it is not about this one skill: **an available procedure you
+approximate from memory will pass its own review.** The document looked complete
+because I was grading it against my own plan. Check for a skill or checklist
+before producing the artifact, not after.
+
 **I took a migration slot the previous handoff had warned me about.** Its §0 said
 in as many words that `feat/GLO-272-category-tree` held migration 0055. I read
 that section, then numbered the age floor 0055 anyway. The lock is one open
