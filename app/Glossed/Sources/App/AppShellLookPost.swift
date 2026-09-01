@@ -45,6 +45,7 @@ struct LookPostHost: View {
     @State private var post: LoadedPost?
     @State private var failed = false
     @State private var editing = false
+    @State private var swapping: LookMedia?
 
     var body: some View {
         Group {
@@ -61,10 +62,29 @@ struct LookPostHost: View {
                     // `mine()` is what loaded this post, so the viewer IS the
                     // owner — the edit door is unconditional here, and becomes
                     // conditional the day a stranger's look renders.
-                    onEdit: { editing = true }
+                    onEdit: { editing = true },
+                    // The owner's door onto the swap (the evening ruling).
+                    onOpenPhoto: { swapping = $0 }
                 )
                 .fullScreenCover(isPresented: $editing) {
                     editScreen(for: post)
+                }
+                .fullScreenCover(item: $swapping) { media in
+                    LookPhotoSwapView(
+                        media: media,
+                        swap: LookPhotoSwap.pipeline(
+                            client: client, lookID: lookID,
+                            photoID: media.id, position: media.position
+                        ),
+                        onSwapped: {
+                            swapping = nil
+                            // Reload in place — the carousel must show what
+                            // the SERVER holds, freshly signed.
+                            self.post = nil
+                            Task { await load() }
+                        },
+                        onClose: { swapping = nil }
+                    )
                 }
             } else if failed {
                 VStack(alignment: .leading, spacing: Tokens.Space.s3) {

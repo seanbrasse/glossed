@@ -3,10 +3,10 @@ import PhotosUI
 import SwiftUI
 
 /// The avatar, and — for the owner with a wired store — the door onto its
-/// photo (GLO-272: "an edit icon on the corner of the pfp that lets the
-/// user open it and edit the photo"). The `edit profile` button is gone;
-/// this corner icon is what replaced its photo half, and the username's
-/// half lives in settings.
+/// photo. Reworked to Sean's evening ruling: TAPPING THE AVATAR opens the
+/// photo up (`ProfilePhotoViewer`), and the swap — library or camera —
+/// happens there; the corner badge stays as the affordance that says the
+/// door exists. The username's editor lives in settings.
 ///
 /// Nil store renders the plain seeded avatar — no dead doors. A photo that
 /// fails to load, sign, or exist renders the seed too: a pfp is chrome, and
@@ -14,28 +14,33 @@ import SwiftUI
 struct ProfileAvatarControl: View {
     let name: String
     let store: ProfilePhotoStore?
-    /// Owned by the HEADER, not this control: a failure line inside the
-    /// avatar's column would widen it and shove the identity sideways —
-    /// found on the drive. The parent renders it under the whole row.
-    @Binding var failure: String?
-
     @State private var photoURL: URL?
-    @State private var picking = false
-    @State private var picked: PhotosPickerItem?
-    @State private var uploading = false
+    @State private var viewing = false
 
     private static let size: CGFloat = 52
 
     var body: some View {
-        avatar
-            .overlay(alignment: .bottomTrailing) {
-                if store != nil {
-                    editBadge
+        Group {
+            if let store {
+                Button {
+                    viewing = true
+                } label: {
+                    avatar
+                        .overlay(alignment: .bottomTrailing) { editBadge }
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("your photo — open and edit")
+                .modifier(PhotoViewerCover(isPresented: $viewing) {
+                    ProfilePhotoViewer(
+                        name: name, store: store, photoURL: $photoURL,
+                        onClose: { viewing = false }
+                    )
+                })
+            } else {
+                avatar
             }
-            .photosPicker(isPresented: $picking, selection: $picked, matching: .images)
-            .task { await refresh() }
-            .task(id: picked) { await uploadPicked() }
+        }
+        .task { await refresh() }
     }
 
     @ViewBuilder private var avatar: some View {
@@ -57,43 +62,32 @@ struct ProfileAvatarControl: View {
         }
     }
 
-    /// The corner icon — the house's own `EditBadge` (a drawn pencil, per
-    /// the no-SF-symbols-for-kit-marks rule), riding the avatar's edge. The
-    /// glyph is small; the button's contentShape is the badge circle plus
-    /// its offset, which is what a thumb actually gets.
+    /// The corner badge — a STICKER now (EditBadge's own doctrine): the
+    /// whole avatar is the button, and the badge only says the door exists.
     private var editBadge: some View {
-        Button {
-            picking = true
-        } label: {
-            EditBadge()
-                .opacity(uploading ? 0.45 : 1)
-        }
-        .buttonStyle(.plain)
-        .disabled(uploading)
-        .offset(x: Tokens.Space.s1, y: Tokens.Space.s1)
-        .accessibilityLabel("edit your photo")
+        EditBadge()
+            .offset(x: Tokens.Space.s1, y: Tokens.Space.s1)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 
     private func refresh() async {
         guard let store else { return }
         photoURL = await store.currentURL()
     }
+}
 
-    private func uploadPicked() async {
-        guard let store, let picked else { return }
-        self.picked = nil
-        guard let data = try? await picked.loadTransferable(type: Data.self) else { return }
-        uploading = true
-        failure = nil
-        do {
-            try await store.upload(data)
-            // Re-sign rather than showing the local bytes: what renders is
-            // what the SERVER holds, so a save that silently failed cannot
-            // masquerade as a saved photo.
-            photoURL = await store.currentURL()
-        } catch {
-            failure = "that photo didn't save — try again."
-        }
-        uploading = false
+/// `fullScreenCover` is iOS-only; the macOS test build compiles this package
+/// too — the `EditCover` trade, made for the pfp.
+private struct PhotoViewerCover<Cover: View>: ViewModifier {
+    let isPresented: Binding<Bool>
+    @ViewBuilder let cover: () -> Cover
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+            content.fullScreenCover(isPresented: isPresented, content: cover)
+        #else
+            content.sheet(isPresented: isPresented, content: cover)
+        #endif
     }
 }
