@@ -195,38 +195,62 @@ public struct LookPostView: View {
         .accessibilityLabel(state.isRevealingTags ? "hide tags" : "show tags")
     }
 
-    /// The dot, opened: "a small overlay in the photo view. We can click on
-    /// products in the overlay." Anchored to the photo's bottom rather than
-    /// floated at the dot — a card clamped inside a small photo ends up
-    /// covering its own dot more often than beside it.
+    /// The dot, opened, BESIDE the dot (Sean, Sept 1: "show the products
+    /// next to the dot… a small, somewhat translucent card… so you can
+    /// literally see what product is being used where on the face"). This
+    /// replaced the bottom-anchored card, which answered WHAT but lost the
+    /// WHERE.
+    ///
+    /// A dark translucent scrim (Ink at 72%) with milk text — the pair that
+    /// stays legible over any photo, light or busy; the tokens carry both
+    /// colors. Flips to whichever side of the dot has room and clamps to the
+    /// photo, so it sits beside its dot rather than over it. One spot open
+    /// at a time is `LookTagViewerState`'s own rule — both roads here (a dot
+    /// tap, the listing's eye) go through it.
     private func spotOverlay(_ spot: LookTagSpot) -> some View {
-        VStack(alignment: .leading, spacing: Tokens.Space.s1) {
+        let anchor = spot.point.point(in: measured)
+        let cardWidth: CGFloat = 190
+        let gap: CGFloat = 14
+        let inset: CGFloat = Tokens.Space.s2
+        // Beside the dot: right of it when the dot sits in the left half,
+        // left of it otherwise — then clamped so a corner dot's card stays
+        // on the photo.
+        let rawX = anchor.x <= measured.width / 2
+            ? anchor.x + gap + cardWidth / 2
+            : anchor.x - gap - cardWidth / 2
+        let minX = cardWidth / 2 + inset
+        let maxX = max(measured.width - cardWidth / 2 - inset, minX)
+        let estimatedHeight = CGFloat(spot.products.count) * 20 + 2 * Tokens.Space.s2 + 8
+        let minY = estimatedHeight / 2 + inset
+        let maxY = max(measured.height - estimatedHeight / 2 - inset, minY)
+        return VStack(alignment: .leading, spacing: Tokens.Space.s1) {
             ForEach(spot.products) { product in
                 if let onOpenProduct {
                     Button(product.label) { onOpenProduct(product.variantID) }
                         .buttonStyle(.plain)
-                        .font(Typography.display(Typography.Size.small))
-                        .foregroundStyle(Tokens.Ink.primary)
+                        .font(Typography.mono(11))
+                        .foregroundStyle(Tokens.Ground.milk)
                         .underline()
+                        .multilineTextAlignment(.leading)
                 } else {
                     Text(product.label)
-                        .font(Typography.display(Typography.Size.small))
-                        .foregroundStyle(Tokens.Ink.primary)
+                        .font(Typography.mono(11))
+                        .foregroundStyle(Tokens.Ground.milk)
+                        .multilineTextAlignment(.leading)
                 }
             }
         }
-        .padding(Tokens.Space.s3)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Tokens.Space.s2)
+        .frame(width: cardWidth, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: Tokens.Radius.md).fill(Tokens.Ground.card)
+            RoundedRectangle(cornerRadius: Tokens.Radius.sm)
+                .fill(Tokens.Ink.primary.opacity(0.72))
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: Tokens.Radius.md)
-                .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.hair)
+        .position(
+            x: min(max(rawX, minX), maxX),
+            y: min(max(anchor.y, minY), maxY)
         )
-        .padding(Tokens.Space.s3)
-        .padding(.leading, Tokens.hitTarget)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .transition(.opacity)
     }
 
     // MARK: - the list under the photos
