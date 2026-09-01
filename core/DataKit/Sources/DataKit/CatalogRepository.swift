@@ -111,11 +111,29 @@ public struct CatalogRepository: Sendable {
         }
     }
 
+    /// TOP-LEVEL categories only — the rankable set every picker, ladder and
+    /// leaderboard means by "category". The 0055 tree put ~200 LEAF product
+    /// types under these as children; without this predicate all five
+    /// category consumers would flood with them the moment the tree landed.
     public func categories(domain: Domain? = nil) async throws(GlossedError) -> [Category] {
         try await run {
             let table = client.supabase.from("categories").select()
+                .is("parent_id", value: nil)
             let filtered = domain.map { table.eq("domain", value: $0.rawValue) } ?? table
             return try await filtered.order("slug").execute().value
+        }
+    }
+
+    /// A top-level category's leaf product types (0055) — the fine-grained
+    /// vocabulary ("aha", "lip oil", "bond builder") for classification and
+    /// pickers that want the second level. Empty for a leafless category.
+    public func subtypes(of categoryID: UUID) async throws(GlossedError) -> [Category] {
+        try await run {
+            try await client.supabase.from("categories").select()
+                .eq("parent_id", value: categoryID.uuidString)
+                .order("label")
+                .execute()
+                .value
         }
     }
 
