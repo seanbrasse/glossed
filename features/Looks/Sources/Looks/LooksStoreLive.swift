@@ -68,7 +68,12 @@ public extension LooksStore {
                 async let theirs = collections.mine()
                 return try await LookLinkables(
                     routines: mine.map { LinkablePick(id: $0.routineID, title: $0.title) },
-                    collections: theirs.map { LinkablePick(id: $0.collectionID, title: $0.title) }
+                    collections: theirs.map {
+                        LinkablePick(
+                            id: $0.collectionID, title: $0.title,
+                            tintWord: $0.coverTint?.rawValue, itemN: $0.itemN
+                        )
+                    }
                 )
             },
             link: { lookID, routineIDs, collectionIDs in

@@ -222,3 +222,22 @@ private actor CapturedPositions {
         self.positions = positions
     }
 }
+
+@MainActor
+@Test func linkTogglesAreRadioButtonsSince0054() {
+    // "A look can have one collection, and one routine linked to it" —
+    // picking another replaces, picking the same clears. The Set stays the
+    // storage; these toggles are its only writers and cap it at one.
+    let model = ComposerModel(store: nil)
+    let am = UUID(), pm = UUID()
+    model.toggleRoutine(am)
+    #expect(model.linkedRoutineIDs == [am])
+    model.toggleRoutine(pm)
+    #expect(model.linkedRoutineIDs == [pm], "picking another REPLACES")
+    model.toggleRoutine(pm)
+    #expect(model.linkedRoutineIDs.isEmpty, "picking the same clears")
+    let grails = UUID(), spring = UUID()
+    model.toggleCollection(grails)
+    model.toggleCollection(spring)
+    #expect(model.linkedCollectionIDs == [spring])
+}

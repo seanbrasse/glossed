@@ -23,34 +23,6 @@ public struct ComposerPhoto: Identifiable, Sendable, Equatable {
 /// pin-tag picker's source — you tag what you OWN (tech/03 §1), so this
 /// searches the shelf, never the catalog.
 /// Something a look can link (0050): one of YOUR routines or collections,
-/// as a pickable row. Titles only — the composer draws chips, not cards.
-public struct LinkablePick: Identifiable, Sendable, Equatable {
-    public let id: UUID
-    public let title: String
-
-    public init(id: UUID, title: String) {
-        self.id = id
-        self.title = title
-    }
-}
-
-/// What the link section offers: the caller's own routines and collections.
-/// Own-only, matching the write policies — a look may not annex somebody
-/// else's routine, so the picker must not offer one.
-public struct LookLinkables: Sendable, Equatable {
-    public let routines: [LinkablePick]
-    public let collections: [LinkablePick]
-
-    public var isEmpty: Bool {
-        routines.isEmpty && collections.isEmpty
-    }
-
-    public init(routines: [LinkablePick], collections: [LinkablePick]) {
-        self.routines = routines
-        self.collections = collections
-    }
-}
-
 public struct LooksStore: Sendable {
     /// Takes the board's SPOTS since 0049 landed — the projection down to
     /// look-scoped single-product rows lived in `ComposerModelLegacyTags`
