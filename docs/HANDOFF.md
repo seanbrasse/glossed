@@ -1,7 +1,25 @@
-# Session handoff — Aug 31 2026 (session 16: five merged features turned out to be unreachable, and a build flag was making the whole app look broken)
+# Session handoff — Sept 1 2026 (session 17: the whole edit/photo economy shipped, R2 went live, and one un-opened PR holds the category tree)
 
-Where Phase 1 stands, what to do next, and what the last two sessions learned.
+Where Phase 1 stands, what to do next, and what the last three sessions learned.
 Read `docs/README.md` first for the design; this file is only about state.
+
+## Session 17 at a glance (Aug 31 → Sept 1)
+
+**26 PRs merged** (#441–#466 — counted, all watched to green and squash-merged
+under Sean's standing merge-on-green grant for the session). One branch is
+**committed, green locally, and has NO PR** — see §1 first.
+
+| What | Where |
+|---|---|
+| **Per-item privacy replaced per-surface** for looks + routines: migration 0053, `can_view_item`, archive = scope-not-state, the per-surface arms fail closed | #441–#443, GLO-272 |
+| **The R2 photo economy went from nonexistent to live end-to-end**: read path (batched signed GETs), pfp write+read namespaces, and — this session — an actual Cloudflare bucket + creds. First real photos ever rendered | #444, #452, #454, §0 |
+| **The uniform edit pattern** (click in → edit → disabled-until-dirty save → confirm → delete-with-warning) shipped for looks, collections, routines; cards became doors | #447–#453 |
+| **Batch 2**: collection descriptions, one-routine-one-collection per look (unique indexes), photo swap keeps the slot (row/position/tags survive, only `r2_key` moves), want-to-try default collection (virtual — renders `shelf(status: want_to_try)`), split link pickers (routine by label, collection as its card), open-then-swap photo viewers with camera | #457–#463 |
+| **The reach ladder**: draft · only you · friends · public as ONE dial over the two columns; schema untouched (GLO-26's gate and `posted_at` stay on the draft→public transition) | #464 |
+| **Spot cards render beside their dot** — translucent ink, milk text | #465 |
+| **The `.task(id:)` self-cancel bug**: both photo viewers cleared `picked` first and cancelled their own upload; found the moment R2 went live, because before that the presign 500 masked it | #466, §8 |
+| **The category tree for Sean's comprehensive product listing** — 10 new rankable groups, 4 relabels, 202 leaf types under `parent_id` — is committed and green locally but the PR was never opened (a background-script race, §8) | §1, branch `feat/GLO-272-category-tree` |
+
 
 **Session 16 was one lane, and it spent the night on crossings rather than
 features.** Nothing below was built from scratch except the collections
@@ -46,6 +64,32 @@ not estimated. Highlights, in rough order of how much they matter:
 ---
 
 ## 0. Read this first
+
+### Photos silently die when `supabase functions serve` is not running
+
+Every photo surface (pfp, look uploads, carousels, tile previews, swaps)
+rides `storage_presign`, which the local stack does NOT serve by default —
+`supabase start` lists `edge_runtime` under "Stopped services", and cycling
+the stack kills a running serve. The failure is quiet: the app renders its
+honest placeholders ("photo not available yet") and nothing errors. Before
+any photo work: `supabase functions serve` in its own terminal, and restart
+it after every `supabase start`. Credentials live ONLY in
+`supabase/functions/.env` (gitignored, present in the main checkout AND this
+worktree; bucket `glossed-dev`, account in the file). Never print or commit
+them. Rotation note: the token is account-wide R2 admin (`glossed-local-dev`
+under Sean's profile API tokens) because Cloudflare's R2 dashboard writes
+were down mid-setup — rotate to bucket-scoped when their dashboard recovers.
+
+### An un-opened PR holds two commits that MUST ship together
+
+Branch `feat/GLO-272-category-tree` (pushed) carries the DataKit guard
+(`categories()` pins `parent_id is null`) AND migration 0055 (the 202-leaf
+category tree). Migration 0055 is APPLIED to the local DB but not on `main`
+— the same local-ahead-of-repo shape session 16 warned about. Open ONE PR
+from that branch (both commits, size-override) and merge it before anything
+else touches categories; shipping the data without the guard floods five
+category pickers. §1 has the exact command.
+
 
 **Four things, all of which cost real time this session and none of which are
 visible in the code.**
@@ -163,6 +207,10 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Thing | State |
 |---|---|
+| **The category-tree PR — open it FIRST** | Branch `feat/GLO-272-category-tree` is pushed with two commits (DataKit guard + migration 0055 + 8-assert pgTAP), green locally (`swift test` DataKit 133; the new `category_tree.test.sql` 8/8). NO PR exists — two `gh pr create`s failed in a background-script race (§8). Open it: `gh pr create --head feat/GLO-272-category-tree` with size-override; body should say guard+data ship as one squash so the pickers can never see leaves unguarded. Also state the taxonomy decision it encodes: products rank at the TOP level, the 202 leaves are vocabulary — if Sean wants leaf-level ladders instead, that is a different build |
+| **Local pgTAP baseline moved** | `make db-test` locally now fails `shelf_view` #14 (old dev-data cutout) AND `suggested_people` (this session restored dev handle `maya` for drives — the fixture collides). Both local-only; CI's fresh DB is the arbiter. Do not "fix" the tests |
+| **Linear is at its free issue cap** | `save_issue` is refused workspace-wide. Batches 2–3 are tracked as comments on [GLO-272](https://linear.app/glossed/issue/GLO-272). Until Sean upgrades or archives, put new work there too |
+| **Session-16 in-flight rows below are STALE** | The schema lane (0049–0051), look-tagging lane, and #412–#421 all merged during session 17. Left for one cycle per the house rule |
 | **The GLO-261 profile stack** | **DONE.** #408–#411 all merged Aug 31. #410 had to be rebased first: it still descended from the pre-squash commits, which had inflated it from 4 files to 12 — the squash-inflation shape in §0, caught by `git diff --stat` and not by any label |
 | **The app-layer chain** | **DONE.** #423 #424 #425 #426 #427 all merged Aug 31, in that order, each driven on device first. `main` builds, lints clean, and launches signed-in — checked on `main` itself after the last merge, which is the one thing no PR's CI does |
 | **Schema lane — GLO-266, GLO-263, GLO-265** | Holds the **migration slot**. #412, #414–#421 open at this handoff. **Their migrations 0049–0051 are APPLIED to the local database while their files are not on `main`** — so the local DB is three ahead of the repo. A pgTAP suite that touches `routines.cadence` (NOT NULL, no default) passes locally and fails in CI. Probed, not assumed |
@@ -421,6 +469,13 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | The scoped ConfidenceMeter in G.Leaderboard has no defined live data source — deferred, not decorated | GLO-20 / §1 |
 | Save/wishlist (+0.5) needs the want_to_try-as-intent ruling before code | tech/07 §2 / §1 |
 | Un-dismiss management UI (the row is deletable by construction; no surface offers it yet) | [GLO-181](https://linear.app/glossed/issue/GLO-181) note |
+| **Session 17:** GLO-279 — the profile's rename-in-place machinery is dead code (edit-profile button removed; edit screens own renames). Pure deletion | [GLO-279](https://linear.app/glossed/issue/GLO-279) |
+| **Session 17:** the collection COMPOSER takes no description (create-then-edit); Sean may want it at creation | GLO-272 comments |
+| **Session 17:** profile grid can hold a stale tile after an edit under the cover until its next load (same as post-composer saves) | GLO-272 comments, #448 body |
+| **Session 17:** pfp reads are OWN-ONLY by construction; rendering anyone else's face owes the minors ruling (said in-code at the read branch) | #454 |
+| **Session 17:** R2 orphan reaping (re-shoots, deleted looks, pfp swaps all orphan old objects) is a standing server-side job nobody owns | 0053/0054 comments |
+| **Session 17:** the "something went wrong." toast on the profile is local-only and predates the batch — it tracks local edge-runtime/feed flakiness, never reproduced with functions served | #446 body |
+| **Session 17:** want-to-try leaf slugs vs the shelf's `want_to_try` status: the default collection renders STATUS; the new `body`/`device` etc. leaves are catalog vocabulary. Unrelated systems that share words — do not merge them | 0055, WantToTryStore |
 
 ## 7. Blocked on a human, not on code
 
@@ -437,10 +492,21 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | Video in looks | **Deferred** — *"maybe we leave video for a v2? Beyond phase 2."* [GLO-234](https://linear.app/glossed/issue/GLO-234) dropped to Low with his sub-rulings recorded (15s cap; audio kept, muted by default, sticky across cards) |
 | Settings shape | **Grouped categories the user taps into**, and the **birthday is read-only** — no affordance, not a disabled field. [GLO-257](https://linear.app/glossed/issue/GLO-257) |
 
+**Unblocked in session 17 — left in for one cycle:**
+
+| Was blocked | What happened (Sept 1) |
+|---|---|
+| R2 / any photo feature | **DONE.** Bucket `glossed-dev` + creds exist; pipeline verified in-app both directions. The Cloudflare R2 *dashboard* was mid-incident — bucket was created over REST with a profile API token when the R2 pages hung |
+| The migration slot | Free at handoff — 0053/0054 merged; 0055 waits in the un-opened PR (§1) |
+| DataKit openings | GLO-272's grant was used across the whole session (edit writes, swap, description, category guard). Treat as **spent**; per-session rule stands |
+
 **Still blocked, and an agent must not spin on these:**
 
 | Blocked thing | On what | Who |
 |---|---|---|
+| Any new Linear issue | **Workspace at the free issue cap** — `save_issue` refused. Upgrade or archive | Sean |
+| R2 token rotation | Cloudflare's R2 dashboard writes recovering (active incident Sept 1); then mint a bucket-scoped token and swap `.env` | Sean / Cloudflare |
+| Leaf-level ranking question | The 0055 tree ranks at the top level BY DESIGN. If Sean ever wants "rank your lipsticks" as its own ladder, that is a product decision + a re-point of `products.category_id` consumers — ask, don't drift into it | Sean |
 | [GLO-262](https://linear.app/glossed/issue/GLO-262) profile views | **Which of three shapes, or none.** Aggregate-only, identified-and-visible, or identified-owner-only. It is a privacy decision before a schema one — an identified viewer log would be **the first surveillance surface in the app**. Recommendation on the ticket: aggregate-only or not in V1 | Sean |
 | [GLO-266](https://linear.app/glossed/issue/GLO-266) tag search scope | His own open question: shelf, whole catalog, or catalog-with-shelf-first. **Recommendation: catalog-wide, shelf ranked first** — GLO-196 makes a look attributed content, never a claim, so an evidence rule should not gate a tag. Built so the scope is one injected query | Sean |
 | [GLO-224](https://linear.app/glossed/issue/GLO-224) discover search | Does discover own a search field, or does search stay behind the `+`? Three costed answers on the ticket. The honesty half already shipped (`brand, product, shade…`); **do not ship the frame's `vibe search:` placeholder over name/brand FTS** | Sean |
@@ -461,6 +527,79 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | Save/wishlist mapping | Whether `want_to_try` IS tech/07's +0.5 save signal | Sean |
 
 ## 8. What went wrong, so you don't repeat it
+
+### Session 17 (Aug 31 → Sept 1) — append-only, newest first
+
+**A background script and a foreground branch switch raced, and the loser was
+invisible.** The habit all session was one backgrounded compound: build → lint
+→ commit → push → `gh pr create` → poll-and-merge. It worked 20+ times — until
+a foreground `git checkout -B` ran while the background script was still in
+its 36-second build. The script's later `git commit` landed on the NEW branch,
+its push shipped an empty branch, and both `gh pr create` attempts failed with
+"No commits between main and …" — leaving the category tree merged-looking
+locally and nonexistent remotely. **The shape: git state is process-global; a
+backgrounded script that touches the index or HEAD owns the worktree until it
+exits. Background ONLY the poll-and-merge; do commit/push/create in the
+foreground and read `gh pr list --head <branch>` for a number before moving
+on.** Also the poller's `gh pr view $N` with an empty `$N` silently falls back
+to the *current branch* — quote-and-check `$N` first.
+
+**`.task(id: picked)` cancels itself if you clear `picked` first.** Both new
+photo viewers cleared the picker selection as step one of the upload handler —
+which changes the task id, which cancels the running task, which kills every
+in-flight URLSession call with -999, which surfaced as "that photo didn't
+save" over a pipeline that was fine. The composer's original picker cleared at
+the END; the new code didn't copy that, and nothing caught it because uploads
+could not succeed locally anyway (no R2) until the very hour the bug mattered.
+**Anything running under `.task(id:)` must not mutate its own id until done —
+and an error path that can't be exercised locally is untested, not passing.**
+
+**`CODE_SIGNING_ALLOWED=NO` cost a third drive.** Session 16 wrote the rule,
+session 17 broke it anyway by copying the CI invocation for a "quick check"
+and then driving that build: unsigned → no Keychain → every read
+`notAuthenticated` → the app reads as broken. `make run` exists precisely so
+nobody types the flag. Build-only compile checks are fine; never LAUNCH that
+artifact.
+
+**form_input "ok" on a React radio is not a selection.** Cloudflare's R2 token
+form: `form_input` on the Admin-Read-&-Write radio returned ok, the UI kept
+Object-Read-only selected, and the submit nearly minted a useless token. **On
+JS-framework forms, click the element and re-screenshot to confirm state;
+form_input is only trustworthy for text fields.**
+
+**When a vendor dashboard hangs, check their status page before debugging
+yourself.** Three R2 dashboard writes hung silently (bucket ×2, token ×1) with
+no error UI. cloudflarestatus.com showed an active R2 incident. The unblock
+was routing around the broken plane: profile-level API token (different
+backend) → REST bucket create → S3 creds derived as token-id +
+SHA-256(token). An hour of UI retries would have found nothing.
+
+**A merged PR left `main` one line over the file ceiling — again.** The chrome
+PR merged with `OwnProfileView.swift` at 301 lines (session 16's exact
+merge-race shape; the limit is per-file and `main` runs no lint of its own).
+It surfaced as a red herring on the NEXT branch's local lint, and was fixed by
+extracting `ProfileClaimSheet.swift` inside an unrelated PR, honestly labeled.
+**After merging anything that grew a file near 300, `wc -l` it on main.**
+
+**Restoring dev data changed the local test baseline.** Re-inserting handle
+`maya` (needed so drives are not stuck on "no handle yet") made
+`suggested_people.test.sql` collide on `handles_pkey` locally. Known class
+(shelf_view #14 is the same). **The local pgTAP baseline is now TWO known
+failures; CI is the arbiter. Write down every dev-data write you make, because
+it becomes someone's mystery red test.**
+
+**A scripted block cut can silently take the wrong span.** A python extraction
+for a 300-line split matched a doc comment INSIDE the block, produced a file
+starting with `}`, and the reflex `git checkout --` recovery ALSO reverted two
+unrelated staged-in-working-tree edits in the same files, which then had to be
+re-applied from memory. **Cut blocks by exact anchor lines you have just read,
+and never checkout-revert a file holding unstaged work you still want.**
+
+**swiftformat and swiftlint disagree about multiline declaration braces.** A
+class declaring two protocols across lines gets its brace re-wrapped by one
+tool and flagged by the other, forever. Restructure instead: one-line
+declaration plus per-protocol `extension`s. Re-running the formatters in
+alternation converges on nothing.
 
 ### Session 16 (Aug 31) — the crossings, and three false claims in this file
 
