@@ -120,12 +120,16 @@ struct LookLinksSection: View {
             }
         } label: {
             HStack(spacing: Tokens.Space.s1) {
-                Text(kind)
-                    .font(Typography.mono(10))
-                    .foregroundStyle(Tokens.Ink.soft)
+                // Name first, then the kind (Sean, Sept 1). What the thing is
+                // called is the thing you are looking for; "routine" is how it
+                // is filed. Leading with the file made every chip in a mixed
+                // list start with the same two words.
                 Text(title)
                     .font(Typography.mono(12))
                     .foregroundStyle(Tokens.Ink.primary)
+                Text("- \(kind)")
+                    .font(Typography.mono(10))
+                    .foregroundStyle(Tokens.Ink.soft)
                 if isEditing {
                     Text("×")
                         .font(Typography.mono(12, bold: true))
@@ -222,10 +226,12 @@ private struct LookLinkPickerSheet: View {
     private func row(_ pick: LinkablePick, kind: String, add: @escaping () -> Void) -> some View {
         Button(action: add) {
             HStack(spacing: Tokens.Space.s2) {
-                Text(kind).font(Typography.mono(10)).foregroundStyle(Tokens.Ink.soft)
                 Text(pick.title)
                     .font(Typography.mono(12))
                     .foregroundStyle(Tokens.Ink.primary)
+                // This list mixes routines and collections, so the kind earns
+                // its place — it just stops going first.
+                Text("- \(kind)").font(Typography.mono(10)).foregroundStyle(Tokens.Ink.soft)
                 Spacer(minLength: 0)
                 Text("link").font(Typography.mono(11)).foregroundStyle(Tokens.Cherry.deep)
             }

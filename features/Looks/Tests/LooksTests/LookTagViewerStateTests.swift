@@ -142,3 +142,33 @@ private struct Fixture {
     state.show(photoID: UUID())
     #expect(state.showingPhotoID == fixture.photoOne)
 }
+
+@Test func theTaggedCountIsProductsNotCategories() {
+    // The collapsed listing's header (Sean, Sept 1: "products tagged in the
+    // look should be in an expandable tab"). `listing` groups by category, so
+    // counting groups would put "2" on a header opening onto however many
+    // products those groups hold. The fixture's two products sit in two
+    // different categories, which is precisely the case where group-count and
+    // product-count agree by accident — so a third product is added to one of
+    // them, and only an entry count survives it.
+    var board = LookTagBoard()
+    let photo = UUID()
+    guard let spot = board.place(on: photo, at: TagPoint(x: 0.5, y: 0.5), in: frame) else {
+        fatalError("fixture placement was refused")
+    }
+    board.add(TaggedProduct(variantID: UUID(), label: "dior lip glow", category: lips), to: spot)
+    board.add(TaggedProduct(variantID: UUID(), label: "mac ruby woo", category: lips), to: spot)
+    board.add(TaggedProduct(variantID: UUID(), label: "fenty 330", category: base), to: spot)
+
+    let state = LookTagViewerState(board: board, photoOrder: [photo])
+    #expect(state.listing.count == 2)
+    #expect(state.taggedProductCount == 3)
+}
+
+@Test func anUntaggedLookOffersNoListingAtAll() {
+    // The header is only drawn behind `hasTags`, and a count of zero would be
+    // a control with nothing behind it — the composer's rule.
+    let state = LookTagViewerState(board: LookTagBoard(), photoOrder: [UUID()])
+    #expect(!state.hasTags)
+    #expect(state.taggedProductCount == 0)
+}

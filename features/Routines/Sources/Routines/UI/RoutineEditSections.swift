@@ -75,8 +75,8 @@ struct RoutineEditLinksSection: View {
             Text("GOES WITH").eyebrow()
             ForEach(model.collections) { pick in
                 HStack(spacing: Tokens.Space.s1) {
-                    Text("collection").font(Typography.mono(10)).foregroundStyle(Tokens.Ink.soft)
                     Text(pick.title).font(Typography.mono(12)).foregroundStyle(Tokens.Ink.primary)
+                    Text("- collection").font(Typography.mono(10)).foregroundStyle(Tokens.Ink.soft)
                     Button("×") {
                         model.collections.removeAll { $0.id == pick.id }
                     }
