@@ -1,0 +1,30 @@
+-- A freshly built database has no room for yesterday. GLO-23 (incidental).
+--
+-- 0011 bootstraps partitions for `current_date` and `current_date + 1 month`.
+-- Nothing creates the month BEFORE, and something needs it:
+-- `refresh_event_rollups(current_date - 1)` aggregates yesterday, and on the
+-- first of a month yesterday belongs to the previous one.
+--
+-- **This only bites a database built today.** In a long-running one the
+-- previous month's partition is already there — the `events-partition-ahead`
+-- job runs `17 2 1 * *` and mints a month ahead each time, so by the time a
+-- month becomes "last month" it has existed for two. It is the fresh install
+-- that starts life with a two-month window and no room behind it.
+--
+-- Which makes CI the thing it actually breaks, and it did: on 2026-09-01
+-- `events.test.sql` inserted at `current_date - interval '12 hours'` — August,
+-- on a database migrated in September — and died with `no partition of
+-- relation "events" found for row`, on a branch whose only other change was an
+-- unrelated trigger. Not a test bug: the test describes what the rollups
+-- genuinely do, and the partition window is what was wrong.
+--
+-- It hid because it is reachable on 1 day in 30 and CI had not run on a
+-- first-of-month since the table was created. Same shape as HANDOFF §0's
+-- fixtures-that-cannot-fail: not a test passing wrongly, but a condition
+-- nothing ever evaluated.
+--
+-- One statement, deliberately. The cron does not need changing — it is already
+-- correct for a database that has been alive a month — and retention cuts at
+-- 12 months, so the extra month behind is never the one being dropped.
+
+select ensure_events_partition((current_date - interval '1 month')::date);
