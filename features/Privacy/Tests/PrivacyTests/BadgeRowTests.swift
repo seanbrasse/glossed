@@ -16,7 +16,7 @@ private func badges(
 
 private func store(
     load: @escaping @Sendable () async throws -> PrivacyScopes = { PrivacyScopes() },
-    setScope: @escaping @Sendable (VisibilitySurface, PrivacyScope) async throws -> Void = { _, _ in },
+    setScope: @escaping @Sendable (ScopedSurface, PrivacyScope) async throws -> Void = { _, _ in },
     setDiscoverable: @escaping @Sendable (Bool) async throws -> Void = { _ in }
 ) -> PrivacyStore {
     PrivacyStore(load: load, setScope: setScope, setDiscoverable: setDiscoverable)

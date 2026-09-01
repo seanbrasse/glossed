@@ -6,12 +6,12 @@ import Foundation
 /// same shape as `ProductFitStore`.
 public struct PrivacyStore: Sendable {
     public var load: @Sendable () async throws -> PrivacyScopes
-    public var setScope: @Sendable (VisibilitySurface, PrivacyScope) async throws -> Void
+    public var setScope: @Sendable (ScopedSurface, PrivacyScope) async throws -> Void
     public var setDiscoverable: @Sendable (Bool) async throws -> Void
 
     public init(
         load: @escaping @Sendable () async throws -> PrivacyScopes,
-        setScope: @escaping @Sendable (VisibilitySurface, PrivacyScope) async throws -> Void,
+        setScope: @escaping @Sendable (ScopedSurface, PrivacyScope) async throws -> Void,
         setDiscoverable: @escaping @Sendable (Bool) async throws -> Void
     ) {
         self.load = load
@@ -28,33 +28,36 @@ public struct PrivacyStore: Sendable {
     }
 }
 
-/// The four rows the screen shows, in the order it shows them.
+/// The rows the screen shows, in the order it shows them.
 ///
-/// `looks` is deliberately absent: the column exists so Phase 2 inherits a
-/// tested one, but there are no looks to scope yet and a row governing nothing
-/// is a promise the app cannot keep. It joins the list when looks ship.
+/// **Two, and the two that were removed were governing nothing.** Migration
+/// 0053 dropped `privacy_scopes.routines` and `privacy_scopes.looks` when
+/// GLO-272 moved those decisions onto the rows themselves. The screen kept
+/// offering both anyway, and every tap on them upserted a column that had not
+/// existed since — the failing write that put `something went wrong.` on the
+/// profile (GLO-274).
+///
+/// So this is not a design trim. A control that cannot store its answer is the
+/// dead-affordance defect (GLO-151), and per-item visibility is GLO-276's
+/// screen to build. Until it exists, a routine's or look's scope is set where
+/// it now lives — on the item.
 public enum PrivacyRow: CaseIterable, Sendable {
-    /// Frame order (G.Privacy), looks first. It is on this screen because
-    /// `overallScope` already counts it: with looks absent, setting the other
-    /// three to public left the header reading "mixed" over four identical
-    /// rows, with nothing on screen a user could touch to resolve it.
-    case looks, shelf, rankings, routines
+    case shelf, rankings
 
-    public var surface: VisibilitySurface {
+    /// The stored scope this row writes. `ScopedSurface`, not
+    /// `VisibilitySurface`: the wider enum is what let the dropped surfaces be
+    /// written in the first place.
+    public var surface: ScopedSurface {
         switch self {
-        case .looks: .looks
         case .shelf: .shelf
         case .rankings: .rankings
-        case .routines: .routines
         }
     }
 
     public var title: String {
         switch self {
-        case .looks: "your looks"
         case .shelf: "your shelf"
         case .rankings: "your rankings"
-        case .routines: "your routines"
         }
     }
 
@@ -62,10 +65,8 @@ public enum PrivacyRow: CaseIterable, Sendable {
     /// screen is a way of not answering the question.
     public var detail: String {
         switch self {
-        case .looks: "the photos you post, and the products tagged in them."
         case .shelf: "the products you've logged, and what you think of them."
         case .rankings: "your ordered lists, and where each product sits."
-        case .routines: "your am, pm, weekly and wash-day steps."
         }
     }
 }
@@ -203,8 +204,6 @@ public final class PrivacyModel {
         PrivacyScopes(
             shelf: row == .shelf ? scope : current.shelf,
             rankings: row == .rankings ? scope : current.rankings,
-            routines: row == .routines ? scope : current.routines,
-            looks: row == .looks ? scope : current.looks,
             discoverable: current.discoverable
         )
     }
@@ -215,7 +214,7 @@ public final class PrivacyModel {
     /// card rather than a fifth row.
     static func applying(all scope: PrivacyScope, in current: PrivacyScopes) -> PrivacyScopes {
         PrivacyScopes(
-            shelf: scope, rankings: scope, routines: scope, looks: scope,
+            shelf: scope, rankings: scope,
             discoverable: current.discoverable
         )
     }
@@ -224,8 +223,6 @@ public final class PrivacyModel {
         PrivacyScopes(
             shelf: current.shelf,
             rankings: current.rankings,
-            routines: current.routines,
-            looks: current.looks,
             discoverable: discoverable
         )
     }

@@ -87,15 +87,41 @@ public final class ProfileTabsModel {
     /// than a privacy signal that waits. `nil` also when no scopes seam is
     /// wired at all, for the same reason.
     ///
-    /// The three account surfaces read `privacy_scopes` directly. Collections
-    /// have no such surface, so their mark is the ceiling of the rows on the
-    /// screen — see `ProfileTab.surface`.
+    /// **Only the shelf reads `privacy_scopes` now.** Looks, collections and
+    /// routines each carry their own `visibility` since 0053 (GLO-272), so
+    /// their mark is the ceiling of the rows actually on the screen.
+    ///
+    /// This used to hand `.looks` and `.routines` to `scopes.scope(for:)` and
+    /// fall through to *collections'* ceiling for everything else — so the
+    /// looks tab was marked by the collections it does not contain. Both
+    /// halves were wrong and GLO-274 is where they are corrected.
+    /// **The `scopes` guard covers every tab, including the three that do not
+    /// read it.** That looks over-broad and is deliberate: a ceiling over rows
+    /// that failed to load is an empty list, and an empty list ceilings to
+    /// `only you` — which would state "nobody can see this" about things we
+    /// simply did not manage to read. `scopes` failing is the signal that this
+    /// screen's reads are degraded, so no tab claims anything.
     public func mark(for tab: ProfileTab) -> ProfileScopeMark? {
         guard let scopes else { return nil }
         if let surface = tab.surface {
             return ProfileScopeMark(scopes.scope(for: surface))
         }
-        return ProfileScopeMark.ceiling(of: collections.map(\.visibility))
+        switch tab {
+        // **Drafts do not count toward the ceiling.** `mine()` returns every
+        // state, and the mark answers "the most any other person could reach"
+        // — a draft reaches nobody, because `looks_public_read` tests
+        // `state = 'public'` and not the visibility column. Counting one made
+        // the tab read `public` over a single unpublished look, which is a
+        // false alarm rather than a safe overstatement: it tells someone their
+        // draft is out there.
+        case .looks:
+            return ProfileScopeMark.ceiling(
+                of: looks.filter(\.isPublished).map(\.visibility)
+            )
+        case .collections: return ProfileScopeMark.ceiling(of: collections.map(\.visibility))
+        case .routines: return ProfileScopeMark.ceiling(of: routines.map(\.visibility))
+        case .shelf: return nil
+        }
     }
 
     // MARK: - Loading

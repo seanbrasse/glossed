@@ -33,11 +33,37 @@ public enum PrivacyScope: String, Codable, Sendable, CaseIterable {
     }
 }
 
-/// The four surfaces a scope applies to. Mirrors `visibility_surface`.
-/// `looks` is inert until Phase 2 and ships now so Phase 2 inherits a tested
-/// column rather than a migration.
+/// The four surfaces `can_view` can be asked about. Mirrors the
+/// `visibility_surface` enum, which still carries all four — the per-item move
+/// (0053) changed where a routine's or look's scope is STORED, not what the
+/// visibility question is called.
 public enum VisibilitySurface: String, Codable, Sendable, CaseIterable {
     case shelf, rankings, routines, looks
+}
+
+/// The surfaces that still carry a scope of their own on `privacy_scopes`.
+///
+/// **Two, not four, and the difference is a schema fact.** Migration 0053
+/// dropped `privacy_scopes.routines` and `privacy_scopes.looks` because
+/// GLO-272 moved those decisions onto the rows themselves — a routine and a
+/// look each carry their own visibility now, so one switch for "your routines"
+/// no longer describes anything storable.
+///
+/// A separate type rather than a validated `VisibilitySurface`, because this
+/// is exactly the bug that shipped: the wider enum let `setScope(.routines,…)`
+/// compile, and it upserted a column that had not existed since 0053. The
+/// narrow type makes that call impossible to write rather than possible to
+/// write and wrong.
+public enum ScopedSurface: String, Codable, Sendable, CaseIterable {
+    case shelf, rankings
+
+    /// Every scoped surface is a visibility surface; the reverse is not true.
+    public var visibility: VisibilitySurface {
+        switch self {
+        case .shelf: .shelf
+        case .rankings: .rankings
+        }
+    }
 }
 
 /// One row of `privacy_scopes`.
@@ -49,48 +75,62 @@ public enum VisibilitySurface: String, Codable, Sendable, CaseIterable {
 public struct PrivacyScopes: Codable, Sendable, Equatable {
     public let shelf: PrivacyScope
     public let rankings: PrivacyScope
-    public let routines: PrivacyScope
-    public let looks: PrivacyScope
     public let discoverable: Bool
 
-    enum CodingKeys: String, CodingKey {
-        case shelf, rankings, routines, looks, discoverable
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case shelf, rankings, discoverable
     }
+
+    /// The column list `scopes()` asks PostgREST for, built FROM the coding
+    /// keys rather than written beside them.
+    ///
+    /// **A hand-written list is how this broke.** The select said
+    /// `shelf,rankings,routines,looks,discoverable` for the whole life of
+    /// migration 0053, which had dropped the last two — PostgREST answered
+    /// `column privacy_scopes.routines does not exist` on every profile visit,
+    /// and nothing in the type system objected because the string and the
+    /// struct were two independent sources.
+    ///
+    /// Deriving it means the next column change breaks the decode, which is
+    /// loud, instead of the query, which was not. Note that a decode test
+    /// could never have caught it: `Codable` ignores unknown keys, so a
+    /// fixture carrying the dropped columns decodes cleanly either way.
+    static let selectList = CodingKeys.allCases.map(\.rawValue).joined(separator: ",")
 
     public init(
         shelf: PrivacyScope = .onlyYou,
         rankings: PrivacyScope = .onlyYou,
-        routines: PrivacyScope = .onlyYou,
-        looks: PrivacyScope = .onlyYou,
         discoverable: Bool = false
     ) {
         self.shelf = shelf
         self.rankings = rankings
-        self.routines = routines
-        self.looks = looks
         self.discoverable = discoverable
     }
 
-    public func scope(for surface: VisibilitySurface) -> PrivacyScope {
+    public func scope(for surface: ScopedSurface) -> PrivacyScope {
         switch surface {
         case .shelf: shelf
         case .rankings: rankings
-        case .routines: routines
-        case .looks: looks
         }
     }
 
-    /// The summary the privacy screen shows above the four rows — GLO-119
+    /// The summary the privacy screen shows above its rows — GLO-119
     /// calls this the "derived master"; the name here avoids a term the lint
     /// config rejects, and the behaviour is the ticket's.
     ///
     /// READ-ONLY and derived, never stored: a single stored summary would let
     /// it and the rows disagree, and the rows are the truth.
     ///
-    /// `nil` means the four rows are mixed — which the screen states plainly
-    /// rather than rounding to the loosest or the tightest.
+    /// `nil` means the rows are mixed — which the screen states plainly rather
+    /// than rounding to the loosest or the tightest.
+    ///
+    /// Two rows now, not four (0053). Worth knowing that this used to read
+    /// "mixed" over four identical-looking rows when `looks` was absent from
+    /// the screen but present in the aggregate — the summary counted a row
+    /// nobody could see or resolve. Aggregating exactly what the screen shows
+    /// is what stops that recurring.
     public var overallScope: PrivacyScope? {
-        let all = [shelf, rankings, routines, looks]
+        let all = [shelf, rankings]
         return all.allSatisfy { $0 == shelf } ? shelf : nil
     }
 }
@@ -118,7 +158,7 @@ public struct PrivacyRepository: Sendable {
         let rows: [PrivacyScopes] = try await run {
             try await client.supabase
                 .from("privacy_scopes")
-                .select("shelf,rankings,routines,looks,discoverable")
+                .select(PrivacyScopes.selectList)
                 .eq("user_id", value: userID.uuidString)
                 .execute()
                 .value
@@ -134,7 +174,7 @@ public struct PrivacyRepository: Sendable {
     /// not by this method. The check is deliberately not mirrored here — a
     /// client-side age test is a second source of truth that can drift from the
     /// one that matters, and the trigger is the one that cannot be bypassed.
-    public func setScope(_ surface: VisibilitySurface, to scope: PrivacyScope) async throws(GlossedError) {
+    public func setScope(_ surface: ScopedSurface, to scope: PrivacyScope) async throws(GlossedError) {
         let userID = try await client.requireUserID()
         try await run {
             _ = try await client.supabase
