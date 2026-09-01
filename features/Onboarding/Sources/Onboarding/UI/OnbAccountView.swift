@@ -82,13 +82,20 @@ public struct OnbAccountView: View {
         VStack(spacing: Tokens.Space.s2) {
             switch model.stage {
             case .method:
+                // GLO-23: this now runs Apple's sheet and waits for the server
+                // before the walk moves. `landIfAuthenticated` is the same
+                // completion it always was — it just fires on success rather
+                // than on the tap.
                 Button {
-                    model.chooseApple()
-                    landIfAuthenticated()
+                    model.signInWithApple { landIfAuthenticated() }
                 } label: {
-                    Label("sign in with apple", systemImage: "apple.logo")
+                    Label(
+                        model.isCreating ? "signing in\u{2026}" : "sign in with apple",
+                        systemImage: "apple.logo"
+                    )
                 }
                 .buttonStyle(.glossed(block: true))
+                .disabled(model.isCreating)
                 Button {
                     model.choosePhone()
                 } label: {

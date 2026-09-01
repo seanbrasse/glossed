@@ -92,6 +92,35 @@ public actor GlossedClient {
         }
     }
 
+    /// Sign in with Apple, native flow (GLO-23).
+    ///
+    /// **Frozen-core opening, and deliberately the smallest one that works.**
+    /// Reading Sean's "write GLO-23's Swift" as authorizing it; veto at review
+    /// if that is wrong. One method, no new types, no `AuthenticationServices`
+    /// import — the credential dance belongs to whoever has a window, and this
+    /// layer only knows how to hand a token to the server.
+    ///
+    /// **The nonce goes in RAW, and getting that backwards fails closed.**
+    /// Apple is handed the SHA256 of a random string and stamps that hash into
+    /// the token's `nonce` claim; Supabase hashes what it is given here and
+    /// compares. So the hashed value belongs to Apple and the original belongs
+    /// here — sending the hash to both makes Supabase compare `sha256(hash)`
+    /// against `hash` and reject every sign-in with a signature error that
+    /// names nothing. `OpenIDConnectCredentials.nonce` states the contract:
+    /// *"the hash of this value is compared to the value in the ID token."*
+    ///
+    /// No `accessToken`: that parameter exists for tokens carrying an
+    /// `at_hash` claim, and Apple's identity token does not.
+    public func signInWithApple(idToken: String, nonce: String) async throws(GlossedError) {
+        do {
+            _ = try await client.auth.signInWithIdToken(
+                credentials: .init(provider: .apple, idToken: idToken, nonce: nonce)
+            )
+        } catch {
+            throw GlossedError.from(error)
+        }
+    }
+
     public func signOut() async throws(GlossedError) {
         do {
             try await client.auth.signOut()
