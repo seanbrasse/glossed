@@ -19,10 +19,10 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   cutoutKey,
   lookKey,
-  profileKey,
   PRESIGN_TTL_SECONDS,
   presignGet,
   presignPut,
+  profileKey,
   r2Config,
   READ_TTL_SECONDS,
   resolvePublishableKey,
