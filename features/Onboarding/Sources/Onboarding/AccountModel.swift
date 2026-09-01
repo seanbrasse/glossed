@@ -49,7 +49,11 @@ public final class AccountModel {
     /// The typed under-13 rejection, set only by an attempted create —
     /// the screen renders its `userMessage`, never a raw string.
     public private(set) var ageError: GlossedError?
-    public private(set) var isCreating = false
+    /// `internal(set)`, not `private(set)`: the Apple walk lives in
+    /// `AccountAppleSignIn.swift` because this file is at SwiftLint's ceiling,
+    /// and `private` is file-scoped. Read-only outside the module either way,
+    /// so the public API is unchanged.
+    public internal(set) var isCreating = false
     /// The login path's terminal. Signup ends at `createAccount`'s
     /// `onCreated`; login had no equivalent, so `verifyCode` and
     /// `chooseApple` in `.login` mode set a stage they were already on and
@@ -60,7 +64,9 @@ public final class AccountModel {
     public private(set) var isAuthenticated = false
 
     public let mode: Mode
-    private let store: AccountStore?
+    /// Internal rather than private so the Apple walk one file over can read
+    /// its `signInWithApple` seam. Never exposed publicly.
+    let store: AccountStore?
     /// Injected so the age math is a fact in tests, not a race with the
     /// wall clock.
     private let today: Date
@@ -249,30 +255,7 @@ public final class AccountModel {
     }
 
     /// A failed finish — network, RLS, constraint — rendered in words.
-    public private(set) var creationError: GlossedError?
-}
-
-/// The seams the app fills: nothing here knows transports. `finish` is the
-/// batch profile write (dev session today; the real auth handoff is
-/// GLO-23's, and it slots in without changing this shape).
-public struct AccountStore: Sendable {
-    public var sendCode: @Sendable (_ phone: String) async throws -> Void
-    public var verifyCode: @Sendable (_ phone: String, _ code: String) async throws -> Void
-    public var finish: @Sendable (_ draft: ProfileDraft) async throws -> Void
-
-    public init(
-        sendCode: @escaping @Sendable (String) async throws -> Void = { _ in },
-        verifyCode: @escaping @Sendable (String, String) async throws -> Void = { _, _ in },
-        finish: @escaping @Sendable (ProfileDraft) async throws -> Void
-    ) {
-        self.sendCode = sendCode
-        self.verifyCode = verifyCode
-        self.finish = finish
-    }
-
-    /// The live write: the quiz's prior lands through the repository the
-    /// DataKit opening added.
-    public static func repository(_ profiles: ProfileRepository) -> AccountStore {
-        AccountStore(finish: { try await profiles.saveProfile($0) })
-    }
+    /// `internal(set)` for the reason `isCreating` is — the Apple walk sets it
+    /// from the next file over. Still read-only to callers.
+    public internal(set) var creationError: GlossedError?
 }
