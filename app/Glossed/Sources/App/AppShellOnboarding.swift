@@ -27,7 +27,20 @@ extension AppShell {
         if let client = session.client {
             OnboardingFlowView(
                 flow: OnboardingFlowModel(
-                    store: .repository(ProfileRepository(client: client)),
+                    // GLO-23's Apple half, live. The feature runs the sheet and
+                    // owns the nonce; this crossing only carries the finished
+                    // token to the frozen core, which is the whole reason
+                    // `AuthenticationServices` never reaches DataKit.
+                    store: .repository(
+                        ProfileRepository(client: client),
+                        signInWithApple: {
+                            let identity = try await AppleSignInController().signIn()
+                            try await client.signInWithApple(
+                                idToken: identity.idToken,
+                                nonce: identity.rawNonce
+                            )
+                        }
+                    ),
                     resolveVariant: { brand, product, shade in
                         session.resolveAnchorVariant(brand: brand, product: product, shade: shade)
                     }
