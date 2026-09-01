@@ -92,6 +92,71 @@ public final class LookEditModel {
     public var caption: String
     public var visibility: PrivacyScope
     public var isPosted: Bool
+
+    /// The ladder's four rungs (Sean's ruling, Aug 31 night): draft · only
+    /// you · friends · public — ONE question in the UI over the TWO columns
+    /// underneath. `state` and `visibility` keep their jobs (the moderation
+    /// gate and posted_at live on the draft→public transition; archive stays
+    /// scope, not state) — this is presentation collapsing, not schema.
+    public enum Reach: Equatable, Sendable, CaseIterable {
+        case draft
+        case onlyYou
+        case friends
+        case publicReach
+
+        /// Lowercase, the app's voice.
+        public var label: String {
+            switch self {
+            case .draft: "draft"
+            case .onlyYou: "only you"
+            case .friends: "friends"
+            case .publicReach: "public"
+            }
+        }
+
+        /// What the rung MEANS, said under the ladder — draft and only-you
+        /// are both invisible to others, and this line is what teaches the
+        /// difference.
+        public var meaning: String {
+            switch self {
+            case .draft: "not posted — reads as unfinished, and only you can open it."
+            case .onlyYou: "posted, kept private — done, but only you can see it."
+            case .friends: "posted to people you follow back."
+            case .publicReach: "posted to anyone."
+            }
+        }
+    }
+
+    /// The one dial the edit screen shows. Reading: draft wins whatever the
+    /// scope says (a draft is invisible at any scope). Writing: picking a
+    /// scope rung POSTS at that scope; picking draft unposts and leaves the
+    /// scope where it was, so climbing back restores exactly what you had.
+    public var reach: Reach {
+        get {
+            guard isPosted else { return .draft }
+            switch visibility {
+            case .onlyYou: return .onlyYou
+            case .friends: return .friends
+            case .publicScope: return .publicReach
+            }
+        }
+        set {
+            switch newValue {
+            case .draft:
+                isPosted = false
+            case .onlyYou:
+                isPosted = true
+                visibility = .onlyYou
+            case .friends:
+                isPosted = true
+                visibility = .friends
+            case .publicReach:
+                isPosted = true
+                visibility = .publicScope
+            }
+        }
+    }
+
     public var board: LookTagBoard
     public var routines: [LinkablePick]
     public var collections: [LinkablePick]
