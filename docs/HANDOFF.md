@@ -297,7 +297,7 @@ you get a config-missing screen:
 ```bash
 SIMCTL_CHILD_SUPABASE_URL="http://127.0.0.1:54321" \
 SIMCTL_CHILD_SUPABASE_PUBLISHABLE_KEY="$(supabase status -o json | jq -r .PUBLISHABLE_KEY)" \
-xcrun simctl launch <UDID> com.glossed.app
+xcrun simctl launch <UDID> com.glossed.beauty
 ```
 
 **Live fixtures — and the correction that matters.** maya owns `morning glass
@@ -778,7 +778,7 @@ day it was made; the restore is FOUR scripts; worktrees share refs.
 **Session 7:** simulator screenshots are ~2.29× device points on the canon
 16 Pro — a tap computed from screenshot pixels lands nowhere and fails
 SILENTLY; convert to the 402×874 point frame first. The bundle id is
-`com.glossed.app` — launching `co.glossed.app` from memory got
+`com.glossed.beauty` — launching `co.glossed.app` from memory got
 FBSOpenApplicationServiceErrorDomain 4; read project.yml, don't recall.
 Bash cwd persists across tool calls — a lingering `cd features/AddLadder`
 made `make lint` fail with a false red that pattern-matches a real one
@@ -1328,7 +1328,7 @@ exercised in the same run.
 **The simulator canon: iPhone 16 Pro (iOS 18.0), UDID
 `0E1EF64B-E2E3-4A51-B322-29BBEFCEEFE1` — one booted device, always;** shut
 down strays, borrow with a ping when two lanes run. Bundle id
-`com.glossed.app` (read `project.yml`, don't recall it). **Screenshot pixels
+`com.glossed.beauty` (read `project.yml`, don't recall it). **Screenshot pixels
 are 2.284× device points** — the 918-wide capture maps to a 402×874 point
 frame, and a tap computed from raw pixels lands nowhere and fails silently.
 **The top ~50pt is the status bar and the system eats the tap** (§8). Launch:
