@@ -72,6 +72,12 @@ extension AppShell {
                 // The cards become doors too (GLO-272): click in, edit there.
                 onOpenCollection: { openOwnItem = .collection($0) },
                 onOpenRoutine: { openOwnItem = .routine($0) },
+                // The default collection (batch 2): card leads the
+                // collections tab, opens the wishlist detail.
+                onOpenWantToTry: { openOwnItem = .wantToTry },
+                wantToTryStore: AppShell.wantToTryStore(
+                    client: client, imageBase: session.imageBase
+                ),
                 // The pfp door (GLO-272): prepare → presign → PUT → key.
                 photoStore: .live(client: client),
                 // GLO-239 closes here, not in the screen: presented from the

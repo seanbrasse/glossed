@@ -31,6 +31,7 @@ public struct OwnProfileView: View {
     private let onOpenLook: ((UUID) -> Void)?
     private let onOpenCollection: ((UUID) -> Void)?
     private let onOpenRoutine: ((UUID) -> Void)?
+    private let onOpenWantToTry: (() -> Void)?
     private let photoStore: ProfilePhotoStore?
     private let settingsStore: SettingsStore?
     private let handleStore: HandleStore?
@@ -65,6 +66,8 @@ public struct OwnProfileView: View {
         // (GLO-272 — the click-in).
         onOpenCollection: ((UUID) -> Void)? = nil,
         onOpenRoutine: ((UUID) -> Void)? = nil,
+        onOpenWantToTry: (() -> Void)? = nil,
+        wantToTryStore: WantToTryStore? = nil,
         // Absent, the avatar is the seeded initial and carries no edit badge
         // (GLO-272's pfp door).
         photoStore: ProfilePhotoStore? = nil,
@@ -75,7 +78,8 @@ public struct OwnProfileView: View {
         _tabs = State(
             wrappedValue: ProfileTabsModel(
                 looks: looksStore, collections: collectionsStore,
-                routines: routinesStore, shelf: shelfStore, scopes: scopesStore
+                routines: routinesStore, shelf: shelfStore, scopes: scopesStore,
+                wantToTry: wantToTryStore
             )
         )
         self.suggestionsStore = suggestionsStore
@@ -87,6 +91,7 @@ public struct OwnProfileView: View {
         self.onOpenLook = onOpenLook
         self.onOpenCollection = onOpenCollection
         self.onOpenRoutine = onOpenRoutine
+        self.onOpenWantToTry = onOpenWantToTry
         self.photoStore = photoStore
         self.settingsStore = settingsStore
         self.handleStore = handleStore
@@ -115,7 +120,8 @@ public struct OwnProfileView: View {
                                     ? nil : { editingIdentity = $0 },
                                 onOpenLook: onOpenLook,
                                 onOpenCollection: onOpenCollection,
-                                onOpenRoutine: onOpenRoutine
+                                onOpenRoutine: onOpenRoutine,
+                                onOpenWantToTry: onOpenWantToTry
                             )
                         }
                         SuggestedPeopleCard(store: suggestionsStore) { viewing = $0 }

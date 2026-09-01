@@ -1,6 +1,7 @@
 import Collections
 import DataKit
 import DesignSystem
+import Profile
 import Routines
 import SwiftUI
 
@@ -15,12 +16,19 @@ import SwiftUI
 enum OpenOwnItem: Identifiable {
     case collection(UUID)
     case routine(UUID)
+    /// The default want-to-try collection (batch 2) — virtual, so it has no
+    /// row id; a fixed identity keeps the cover machinery uniform.
+    case wantToTry
 
     var id: UUID {
         switch self {
         case let .collection(id), let .routine(id): id
+        case .wantToTry: Self.wantToTryID
         }
     }
+
+    /// Fixed and arbitrary — the case is a singleton screen, not a row.
+    private static let wantToTryID = UUID(uuidString: "77A17771-0000-4000-8000-000000000001") ?? UUID()
 }
 
 extension AppShell {
@@ -45,8 +53,32 @@ extension AppShell {
                     onClose: { openOwnItem = nil },
                     onDeleted: { openOwnItem = nil }
                 )
+            case .wantToTry:
+                WantToTryDetailView(
+                    store: Self.wantToTryStore(client: client, imageBase: session.imageBase),
+                    onClose: { openOwnItem = nil }
+                )
             }
         }
+    }
+
+    /// The default collection's read: shelf rows at `want_to_try`, catalog
+    /// images composed from the app's own `imageBase` (GLO-74 — features
+    /// never guess at it).
+    static func wantToTryStore(client: GlossedClient, imageBase: URL?) -> WantToTryStore {
+        let shelf = ShelfRepository(client: client)
+        return WantToTryStore(entries: {
+            try await shelf.shelf(status: .wantToTry).map { row in
+                WantToTryEntry(
+                    id: row.userItemID,
+                    brand: row.brandName,
+                    name: row.productName,
+                    imageURL: row.catalogImageKey.flatMap { key in
+                        imageBase?.appending(path: key)
+                    }
+                )
+            }
+        })
     }
 
     /// One routine, shaped for the detail screen: `mine()` (drafts and all —

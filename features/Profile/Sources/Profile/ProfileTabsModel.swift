@@ -20,35 +20,48 @@ public final class ProfileTabsModel {
     public var isEditing = false
     public var renaming: RenameTarget?
     public private(set) var looks: [ProfileLook] = []
-    public private(set) var collections: [ProfileCollection] = []
-    public private(set) var routines: [MyRoutine] = []
+    public internal(set) var collections: [ProfileCollection] = []
+    public internal(set) var routines: [MyRoutine] = []
     /// Each routine's linked collections (0052), keyed by routine id. Loaded
     /// with the routines; missing key = no links = no chips.
     public private(set) var routineLinks: [UUID: [LinkedItem]] = [:]
     public private(set) var shelf: [ProfileShelfEntry] = []
+    /// The default want-to-try collection's contents (batch 2) — loaded with
+    /// the tabs so the card leads the collections grid without its own
+    /// spinner. Nil store → no card, the seam rule.
+    public private(set) var wantToTry: [WantToTryEntry] = []
     public private(set) var scopes: PrivacyScopes?
     public private(set) var isLoading = true
-    public private(set) var isSavingRename = false
-    public private(set) var errorMessage: String?
+    public internal(set) var isSavingRename = false
+    /// Setter internal, not private: `ProfileTabsRename.swift` is the same
+    /// type split across files (the ceiling), and `private` is file-scoped.
+    public internal(set) var errorMessage: String?
 
-    private let looksStore: ProfileLooksStore?
-    private let collectionsStore: ProfileCollectionsStore?
-    private let routinesStore: ProfileRoutinesStore?
-    private let shelfStore: ProfileShelfStore?
+    let looksStore: ProfileLooksStore?
+    let collectionsStore: ProfileCollectionsStore?
+    let routinesStore: ProfileRoutinesStore?
+    let shelfStore: ProfileShelfStore?
     private let scopesStore: ProfileScopesStore?
+    private let wantToTryStore: WantToTryStore?
 
     public init(
         looks: ProfileLooksStore? = nil,
         collections: ProfileCollectionsStore? = nil,
         routines: ProfileRoutinesStore? = nil,
         shelf: ProfileShelfStore? = nil,
-        scopes: ProfileScopesStore? = nil
+        scopes: ProfileScopesStore? = nil,
+        wantToTry: WantToTryStore? = nil
     ) {
         looksStore = looks
         collectionsStore = collections
         routinesStore = routines
         shelfStore = shelf
         scopesStore = scopes
+        wantToTryStore = wantToTry
+    }
+
+    public var hasWantToTry: Bool {
+        wantToTryStore != nil
     }
 
     /// Only the tabs that have a seam behind them, in Sean's order.
@@ -105,6 +118,7 @@ public final class ProfileTabsModel {
             routineLinks = await (try? links(routines.map(\.routineID))) ?? [:]
         }
         await read(shelfStore?.mine, "shelf") { self.shelf = $0 }
+        await read(wantToTryStore?.entries, "want to try") { self.wantToTry = $0 }
         // The profile opens on looks; if that seam was never wired, open on the
         // first one that was rather than on a blank pane.
         if !available(tab), let first = tabs.first {
@@ -221,78 +235,6 @@ public final class ProfileTabsModel {
         isEditing.toggle()
         if !isEditing {
             renaming = nil
-        }
-    }
-
-    /// Guarded on the TARGET's writer, not on the tab now showing — the same
-    /// rule `saveRename` follows, and for the same reason: a tab switched
-    /// under an open sheet must not decide what a rename means. `canRename`
-    /// is the *button's* gate, and emptiness is not a reason to refuse a
-    /// target that was handed over.
-    public func beginRename(_ target: RenameTarget) {
-        guard isEditing, renameWrite(for: target.tabForKind) != nil else { return }
-        errorMessage = nil
-        renaming = target
-    }
-
-    private func renameWrite(for tab: ProfileTab) -> (@Sendable (UUID, String) async throws -> Void)? {
-        switch tab {
-        case .routines: routinesStore?.rename
-        case .collections: collectionsStore?.rename
-        case .looks, .shelf: nil
-        }
-    }
-
-    /// Writes the new title, then updates the row in place.
-    ///
-    /// In place rather than by reloading: the write returned, so the stored
-    /// title is the trimmed string that was sent, and a reload would flash a
-    /// spinner over a list that is already correct. The trim is done here as
-    /// well as in the repository so the two cannot disagree about what landed.
-    ///
-    /// A blank title is refused before the round trip, in the repository's own
-    /// words — `routines.title` is `not null` but has no length check, and a
-    /// routine with a blank name is unaddressable in a list.
-    public func saveRename() async {
-        guard let target = renaming, let write = renameWrite(for: target.tabForKind) else { return }
-        let trimmed = target.value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            errorMessage = "give it a name."
-            return
-        }
-        isSavingRename = true
-        defer { isSavingRename = false }
-        errorMessage = nil
-        do {
-            try await write(target.id, trimmed)
-            apply(trimmed, to: target)
-            renaming = nil
-        } catch {
-            // The sheet stays open with what was typed. A rename that closes
-            // on failure loses the words and tells you it worked.
-            errorMessage = (error as? GlossedError)?.userMessage ?? "that didn't save. try again."
-        }
-    }
-
-    private func apply(_ title: String, to target: RenameTarget) {
-        switch target.kind {
-        case .routine:
-            routines = routines.map {
-                guard $0.routineID == target.id else { return $0 }
-                return MyRoutine(
-                    routineID: $0.routineID, title: title, slot: $0.slot,
-                    visibility: $0.visibility,
-                    startedOn: $0.startedOn, createdAt: $0.createdAt, steps: $0.steps
-                )
-            }
-        case .collection:
-            collections = collections.map {
-                guard $0.id == target.id else { return $0 }
-                return ProfileCollection(
-                    id: $0.id, title: title, tint: $0.tint,
-                    itemN: $0.itemN, visibility: $0.visibility
-                )
-            }
         }
     }
 }
