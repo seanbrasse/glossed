@@ -128,6 +128,25 @@ public struct CollectionEditView: View {
                     RoundedRectangle(cornerRadius: Tokens.Radius.md)
                         .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.hair)
                 )
+            Text("DESCRIPTION").eyebrow()
+                .padding(.top, Tokens.Space.s2)
+            TextField("what this collection is", text: $model.description, axis: .vertical)
+                .font(Typography.display(Typography.Size.small))
+                .foregroundStyle(Tokens.Ink.primary)
+                .lineLimit(2 ... 4)
+                .padding(Tokens.Space.s3)
+                .background(RoundedRectangle(cornerRadius: Tokens.Radius.md).fill(Tokens.Ground.card))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Tokens.Radius.md)
+                        .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.hair)
+                )
+                .onChange(of: model.description) { _, text in
+                    // The schema bounds it at 500 — refuse at the keyboard,
+                    // not as a 23514 (the note cap's rule).
+                    if text.count > 500 {
+                        model.description = String(text.prefix(500))
+                    }
+                }
         }
     }
 

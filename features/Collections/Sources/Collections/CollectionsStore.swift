@@ -10,6 +10,9 @@ public struct CollectionSummary: Identifiable, Equatable, Sendable {
     /// people. It carries no cohort because there is no cohort: nothing here
     /// is evidence, so nothing here wears evidence chrome.
     public let itemN: Int
+    /// The owner's words on what this collection is (0054, batch 2). Nil is
+    /// "never said" — the detail simply omits the line.
+    public let description: String?
     /// Carried since the edit screen (GLO-272) — a scope a screen now
     /// CONTROLS. This struct deliberately omitted it before that, and the
     /// old reason still binds the copy: report it only where a control can
@@ -18,12 +21,13 @@ public struct CollectionSummary: Identifiable, Equatable, Sendable {
 
     public init(
         id: UUID, title: String, tint: CollectionTint?, itemN: Int,
-        visibility: PrivacyScope = .onlyYou
+        description: String? = nil, visibility: PrivacyScope = .onlyYou
     ) {
         self.id = id
         self.title = title
         self.tint = tint
         self.itemN = itemN
+        self.description = description
         self.visibility = visibility
     }
 }
@@ -75,6 +79,8 @@ public struct CollectionsStore: Sendable {
     /// `remove` is the soft delete — the grouping retracts, the items stay
     /// on the shelf.
     public var setVisibility: @Sendable (_ collectionID: UUID, _ scope: PrivacyScope) async throws -> Void
+    /// Nil CLEARS (the repository encodes an explicit null).
+    public var setDescription: @Sendable (_ collectionID: UUID, _ text: String?) async throws -> Void
     public var remove: @Sendable (_ collectionID: UUID) async throws -> Void
 
     public init(
@@ -86,6 +92,7 @@ public struct CollectionsStore: Sendable {
         addItem: @escaping @Sendable (UUID, UUID, Int) async throws -> Void,
         removeItem: @escaping @Sendable (UUID, UUID) async throws -> Void,
         setVisibility: @escaping @Sendable (UUID, PrivacyScope) async throws -> Void = { _, _ in },
+        setDescription: @escaping @Sendable (UUID, String?) async throws -> Void = { _, _ in },
         remove: @escaping @Sendable (UUID) async throws -> Void = { _ in }
     ) {
         self.mine = mine
@@ -96,6 +103,7 @@ public struct CollectionsStore: Sendable {
         self.addItem = addItem
         self.removeItem = removeItem
         self.setVisibility = setVisibility
+        self.setDescription = setDescription
         self.remove = remove
     }
 
@@ -122,6 +130,7 @@ public struct CollectionsStore: Sendable {
                         title: $0.title,
                         tint: CollectionTint.parse($0.coverTint?.rawValue),
                         itemN: $0.itemN,
+                        description: $0.description,
                         visibility: $0.visibility
                     )
                 }
@@ -155,6 +164,7 @@ public struct CollectionsStore: Sendable {
             addItem: { try await collections.addItem(collectionID: $0, itemID: $1, position: $2) },
             removeItem: { try await collections.removeItem(collectionID: $0, itemID: $1) },
             setVisibility: { try await collections.setVisibility(collectionID: $0, to: $1) },
+            setDescription: { try await collections.setDescription(collectionID: $0, to: $1) },
             remove: { try await collections.remove(collectionID: $0) }
         )
     }
