@@ -104,9 +104,17 @@ struct ProfilePhotoViewer: View {
 
     private func uploadPickedItem() async {
         guard let picked else { return }
-        self.picked = nil
-        guard let data = try? await picked.loadTransferable(type: Data.self) else { return }
+        guard let data = try? await picked.loadTransferable(type: Data.self) else {
+            self.picked = nil
+            return
+        }
         await upload(data)
+        // Cleared LAST, deliberately: this task rides `.task(id: picked)`,
+        // so clearing the id first CANCELS the task mid-upload — every
+        // in-flight request dies -999 and the failure line lies about the
+        // photo. Found on the first live-R2 drive; the composer's picker
+        // always cleared at the end for exactly this reason.
+        self.picked = nil
     }
 
     private func upload(_ data: Data) async {
