@@ -41,6 +41,7 @@ private func recordingStore(
         addItem: { _, _, position in try recorder.record("add@\(position)") },
         removeItem: { _, _ in try recorder.record("remove") },
         setVisibility: { _, _ in try recorder.record("visibility") },
+        setDescription: { _, text in try recorder.record("description(\(text ?? "nil"))") },
         remove: { _ in try recorder.record("delete") }
     )
 }
@@ -54,7 +55,9 @@ private func makeModel(
 ) -> CollectionEditModel {
     CollectionEditModel(
         collectionID: UUID(),
-        baseline: CollectionEditModel.Baseline(title: title, visibility: visibility, items: items),
+        baseline: CollectionEditModel.Baseline(
+            title: title, description: nil, visibility: visibility, items: items
+        ),
         store: store
     )
 }
@@ -114,6 +117,22 @@ private func makeModel(
     let model = makeModel(store: recordingStore(Recorder()))
     let offer = await model.addables()
     #expect(offer.map(\.id) == [mist.id], "held items are not offered twice")
+}
+
+@MainActor
+@Test func theDescriptionStagesTrimsAndClearsAsNull() async {
+    let recorder = Recorder()
+    let model = makeModel(store: recordingStore(recorder))
+    model.description = "   "
+    #expect(!model.isDirty, "whitespace-only against an empty baseline is not a change")
+    model.description = "everything that survived a repurchase decision"
+    #expect(model.isDirty)
+    _ = await model.save()
+    #expect(recorder.writes == ["description(everything that survived a repurchase decision)"])
+    model.description = ""
+    #expect(model.isDirty, "emptying a SET description is a change")
+    _ = await model.save()
+    #expect(recorder.writes.last == "description(nil)", "clearing sends nil, which encodes as null")
 }
 
 @MainActor

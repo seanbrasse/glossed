@@ -10,11 +10,15 @@ import Foundation
 public final class CollectionEditModel {
     public struct Baseline: Equatable, Sendable {
         public var title: String
+        public var description: String
         public var visibility: PrivacyScope
         public var items: [CollectionItem]
 
-        public init(title: String, visibility: PrivacyScope, items: [CollectionItem]) {
+        public init(
+            title: String, description: String?, visibility: PrivacyScope, items: [CollectionItem]
+        ) {
             self.title = title
+            self.description = description ?? ""
             self.visibility = visibility
             self.items = items
         }
@@ -29,6 +33,7 @@ public final class CollectionEditModel {
 
     public private(set) var baseline: Baseline
     public var title: String
+    public var description: String
     public var visibility: PrivacyScope
     public var items: [CollectionItem]
     public private(set) var phase = Phase.editing
@@ -40,6 +45,7 @@ public final class CollectionEditModel {
         self.collectionID = collectionID
         self.baseline = baseline
         title = baseline.title
+        description = baseline.description
         visibility = baseline.visibility
         items = baseline.items
         self.store = store
@@ -50,12 +56,17 @@ public final class CollectionEditModel {
     /// refused is worse than staying disarmed.
     public var isDirty: Bool {
         (trimmedTitle != baseline.title && !trimmedTitle.isEmpty)
+            || trimmedDescription != baseline.description
             || visibility != baseline.visibility
             || items.map(\.id) != baseline.items.map(\.id)
     }
 
     private var trimmedTitle: String {
         title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var trimmedDescription: String {
+        description.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Diff-only, content before reach — the look model's order and its
@@ -69,6 +80,14 @@ public final class CollectionEditModel {
             if trimmedTitle != baseline.title, !trimmedTitle.isEmpty {
                 try await store.rename(collectionID, trimmedTitle)
                 baseline.title = trimmedTitle
+            }
+            if trimmedDescription != baseline.description {
+                // Emptied SENDS nil — clearing clears (the repository
+                // encodes the null).
+                try await store.setDescription(
+                    collectionID, trimmedDescription.isEmpty ? nil : trimmedDescription
+                )
+                baseline.description = trimmedDescription
             }
             let baseIDs = Set(baseline.items.map(\.id))
             let nowIDs = Set(items.map(\.id))

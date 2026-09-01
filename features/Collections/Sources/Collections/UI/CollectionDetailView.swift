@@ -64,7 +64,8 @@ public struct CollectionDetailView: View {
                     model: CollectionEditModel(
                         collectionID: collectionID,
                         baseline: CollectionEditModel.Baseline(
-                            title: summary.title, visibility: summary.visibility, items: items
+                            title: summary.title, description: summary.description,
+                            visibility: summary.visibility, items: items
                         ),
                         store: store
                     ),
@@ -96,6 +97,12 @@ public struct CollectionDetailView: View {
                         + " · \(summary.visibility.label)"
                 )
                 .meta()
+                if let description = summary.description {
+                    Text(description)
+                        .font(Typography.display(Typography.Size.small))
+                        .foregroundStyle(Tokens.Ink.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             if items.isEmpty {
                 Text("nothing in here yet — edit to add from your shelf.").meta()
