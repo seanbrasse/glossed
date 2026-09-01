@@ -1,6 +1,6 @@
 # GLOSSED — docs
 
-**Resuming work?** Start with [`HANDOFF.md`](HANDOFF.md) — current state, next tickets, and the traps.
+**Resuming work?** Paste [`NEXT-SESSION.md`](NEXT-SESSION.md) — what to start on, what is blocked on a human, and the tooling that fails silently. [`HANDOFF.md`](HANDOFF.md) is the full reference behind it: current state, next tickets, and the traps.
 
 **Building a screen?** [`DESIGN.md`](DESIGN.md) is where the design kit lives and how to open it. The kit decides layout, order and copy; the primitives only decide how things look.
 

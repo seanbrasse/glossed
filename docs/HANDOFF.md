@@ -3,6 +3,10 @@
 Where Phase 1 stands, what to do next, and what the last three sessions learned.
 Read `docs/README.md` first for the design; this file is only about state.
 
+**Starting a session?** [`docs/NEXT-SESSION.md`](NEXT-SESSION.md) is the short,
+pasteable version — what to start on, what is blocked on a human, and the rule
+that cost the most last time. This file is the reference it points at.
+
 ## Session 18 at a glance (Sept 1)
 
 **6 PRs merged** (#468, #429, #470, #432, #471, #472 — counted, each watched to
@@ -429,7 +433,8 @@ reachable, assert, revert.
 
 Unchanged: branches `feat/GLO-<n>-desc` (also `fix/`, `docs/`, `test/`), ≤5
 files/400 lines (`size-override` + reason when the shape demands it), squash
-merges, one migration PR at a time, drive-then-psql on everything, two lanes
+merges, **one migration NUMBER at a time — including numbers held by branches
+with no PR yet** (session 18 broke this; §0), drive-then-psql on everything, two lanes
 coordinating by direct message with file-level ownership announced before
 touching.
 
@@ -564,7 +569,7 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | Workshop accumulation: FitPromptCard, sheet 6-row/5.5, GLO-87 icons, bay-upright overlap, GLO-100's two questions, concealer-anchor, new wear-ins, essence→toner | §1 |
 | Fit-at-log's matched-barcode door: no prompt, no event (no category on a bare variant lookup), and not drivable without a camera | [GLO-16](https://linear.app/glossed/issue/GLO-16) |
 | ~~`core/Media` has never existed~~ — **stale, corrected Aug 31.** It exists, with `PhotoPreparer.swift`, `PresignedUploader.swift` and 8 passing tests. Re-scope or close | [GLO-148](https://linear.app/glossed/issue/GLO-148) |
-| Hosted Supabase has the schema and zero reference rows — no category tree, no chip vocabulary | [GLO-158](https://linear.app/glossed/issue/GLO-158) |
+| Hosted Supabase: schema is **current through 0056** (session 18), but still essentially empty — measured Sept 1: **22 categories, 0 products, 0 profiles, 0 auth users**. The 202-leaf tree is not there (it rides the un-opened branch, §0) | [GLO-158](https://linear.app/glossed/issue/GLO-158) |
 | Typeless storefronts (missha, murad, tatcha, supergoop at ~0 despite the tree) — feeds/Beauty-API bucket, not tree-gated | GLO-99 finding |
 | OBF foreign names (category crawl only — brand mode sidesteps); krave maps 0 | [GLO-84](https://linear.app/glossed/issue/GLO-84) / [GLO-79](https://linear.app/glossed/issue/GLO-79) |
 | `glossed.app` domain is TAKEN — tech/02's share-URL plan needs a new domain (glossed.beauty was $1.99 at check) | GLO-89 finding |
@@ -583,8 +588,8 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | **Session 17:** profile grid can hold a stale tile after an edit under the cover until its next load (same as post-composer saves) | GLO-272 comments, #448 body |
 | **Session 17:** pfp reads are OWN-ONLY by construction; rendering anyone else's face owes the minors ruling (said in-code at the read branch) | #454 |
 | **Session 17:** R2 orphan reaping (re-shoots, deleted looks, pfp swaps all orphan old objects) is a standing server-side job nobody owns | 0053/0054 comments |
-| **Session 17:** the "something went wrong." toast on the profile is local-only and predates the batch — it tracks local edge-runtime/feed flakiness, never reproduced with functions served | #446 body |
-| **Session 17:** want-to-try leaf slugs vs the shelf's `want_to_try` status: the default collection renders STATUS; the new `body`/`device` etc. leaves are catalog vocabulary. Unrelated systems that share words — do not merge them | 0055, WantToTryStore |
+| ~~**Session 17:** the "something went wrong." toast on the profile is local-only … local edge-runtime/feed flakiness~~ — **FALSE, disproved session 18.** It was [GLO-274](https://linear.app/glossed/issue/GLO-274): `PrivacyRepository.scopes()` selecting two columns 0053 had dropped. Fixed in [#472](https://github.com/seanbrasse/glossed/pull/472). **Worth the shape, not just the fact — a real schema/code disagreement was written off as "local flakiness" for a full session because it only reproduced against a database that was actually current** | #446 → #472 |
+| **Session 17:** want-to-try leaf slugs vs the shelf's `want_to_try` status: the default collection renders STATUS; the new `body`/`device` etc. leaves are catalog vocabulary. Unrelated systems that share words — do not merge them | the category-tree migration (**was** "0055"; that number is the age floor now — §0), `WantToTryStore` |
 
 ## 7. Blocked on a human, not on code
 
@@ -638,6 +643,18 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 ## 8. What went wrong, so you don't repeat it
 
 ### Session 18 (Sept 1) — append-only, newest first
+
+**I wrote this handoff from memory instead of invoking the skill that exists for
+it, and the skill caught two gaps.** `session-handoff` was installed the whole
+time. Writing the document first and running the skill afterwards surfaced (a) no
+next-agent *prompt* — the skill is explicit that the reference and the
+instruction are different documents — and (b) no drift pass over the sections the
+session did not touch, which is where the §6 toast correction came from.
+
+The shape, because it is not about this one skill: **an available procedure you
+approximate from memory will pass its own review.** The document looked complete
+because I was grading it against my own plan. Check for a skill or checklist
+before producing the artifact, not after.
 
 **I took a migration slot the previous handoff had warned me about.** Its §0 said
 in as many words that `feat/GLO-272-category-tree` held migration 0055. I read
