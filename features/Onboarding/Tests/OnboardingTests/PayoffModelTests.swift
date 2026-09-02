@@ -66,42 +66,6 @@ private let anchored = PayoffModel.Anchor(brand: "fenty beauty", shadeCode: "240
     #expect(model.phase == .neutral)
 }
 
-// ── the example shelf ──────────────────────────────────────────────────────
-
-private func pick(_ name: String, n: Int?) -> PayoffModel.ShelfPick {
-    PayoffModel.ShelfPick(id: UUID(), brand: "brand", name: name, categorySlug: "mascara", nUsers: n)
-}
-
-@MainActor
-@Test func theShelfLoadsBesideTheClaimAndIsAnExampleUnlessEveryTileHasItsN() async {
-    let model = PayoffModel(anchor: nil, sampleShelf: { [pick("one", n: 12), pick("two", n: nil)] })
-    model.load()
-    await model.shelfTask?.value
-    #expect(model.shelf.count == 2)
-    #expect(!model.shelfIsRanked, "one tile without an n makes the whole shelf an example")
-    #expect(PayoffModel.shelfEyebrow(isRanked: model.shelfIsRanked) == "A SHELF, FOR EXAMPLE")
-
-    let ranked = PayoffModel(anchor: nil, sampleShelf: { [pick("one", n: 12), pick("two", n: 3)] })
-    ranked.load()
-    await ranked.shelfTask?.value
-    #expect(ranked.shelfIsRanked)
-    #expect(PayoffModel.shelfEyebrow(isRanked: true) == "WHAT PEOPLE ARE LOGGING")
-}
-
-@MainActor
-@Test func aFailedShelfReadIsAnEmptyShelfNotAnError() async {
-    let model = PayoffModel(anchor: nil, sampleShelf: { throw URLError(.timedOut) })
-    model.load()
-    await model.shelfTask?.value
-    #expect(model.shelf.isEmpty)
-    #expect(!model.shelfIsRanked)
-}
-
-@Test func aTilesLineIsItsNOrNothing() {
-    #expect(PayoffModel.shelfLine(pick("one", n: 12)) == "12 rank it")
-    #expect(PayoffModel.shelfLine(pick("one", n: nil)) == nil)
-}
-
 // ── the words ──────────────────────────────────────────────────────────────
 
 @Test func theWordsCarryTheirNumbersAndNames() {

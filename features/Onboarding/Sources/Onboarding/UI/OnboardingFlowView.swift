@@ -13,12 +13,14 @@ import SwiftUI
 /// Stated divergence: the tour draws over the REAL shell, and the shell is
 /// the app layer's. So the tour stop is rendered by whatever the host passes
 /// as `tour:` — this view owns when it runs, not what it covers.
-public struct OnboardingFlowView<Tour: View>: View {
+public struct OnboardingFlowView<Tour: View, Shelf: View>: View {
     @State private var flow: OnboardingFlowModel
     private let anchorCatalog: [ShadeAnchorPicker.BrandEntry]
     private let payoff: (@Sendable (UUID) async throws -> PayoffEvidence)?
-    /// The payoff's example shelf. Nil shows the words alone.
-    private let sampleShelf: (@Sendable () async throws -> [PayoffModel.ShelfPick])?
+    /// The payoff's example shelf — the shelf's own bay, which is another
+    /// feature's view, so the app draws it and hands it in (the same seam
+    /// as `tour:`, for the same reason). `EmptyView` shows the words alone.
+    private let exampleShelf: () -> Shelf
     private let shelfStarterCount: Int
     /// Absent, the handle step accepts anything and claims nothing — the same
     /// nil-means-unwired rule every other seam here follows. The app fills it.
@@ -34,7 +36,7 @@ public struct OnboardingFlowView<Tour: View>: View {
         flow: OnboardingFlowModel,
         anchorCatalog: [ShadeAnchorPicker.BrandEntry],
         payoff: (@Sendable (UUID) async throws -> PayoffEvidence)? = nil,
-        sampleShelf: (@Sendable () async throws -> [PayoffModel.ShelfPick])? = nil,
+        @ViewBuilder exampleShelf: @escaping () -> Shelf = { EmptyView() },
         shelfStarterCount: Int = 0,
         handleStore: OnbHandleStore? = nil,
         onScan: (() -> Void)? = nil,
@@ -46,7 +48,7 @@ public struct OnboardingFlowView<Tour: View>: View {
         _flow = State(initialValue: flow)
         self.anchorCatalog = anchorCatalog
         self.payoff = payoff
-        self.sampleShelf = sampleShelf
+        self.exampleShelf = exampleShelf
         self.shelfStarterCount = shelfStarterCount
         self.handleStore = handleStore
         self.onScan = onScan
@@ -86,7 +88,8 @@ public struct OnboardingFlowView<Tour: View>: View {
             // The anchor comes from the quiz or not at all — see
             // `OnboardingFlowModel.payoffAnchor`.
             OnbPayoffView(
-                model: PayoffModel(anchor: flow.payoffAnchor, payoff: payoff, sampleShelf: sampleShelf),
+                model: PayoffModel(anchor: flow.payoffAnchor, payoff: payoff),
+                exampleShelf: exampleShelf,
                 onBack: { flow.payoffBacked() },
                 onContinue: { flow.payoffContinued() }
             )

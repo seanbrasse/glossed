@@ -50,67 +50,24 @@ public final class PayoffModel {
         }
     }
 
-    /// One product on the example shelf. `nUsers` is the number of people
-    /// who rank it — present when the pick came from the leaderboard, nil
-    /// when it is a catalog stand-in. The screen's eyebrow reads off that:
-    /// a shelf where every tile carries its n is "what people are logging";
-    /// one where any tile does not is "a shelf, for example". A count is a
-    /// claim and a claim carries its n; a stand-in claims nothing.
-    public struct ShelfPick: Equatable, Sendable, Identifiable {
-        public let id: UUID
-        public let brand: String
-        public let name: String
-        public let categorySlug: String
-        public let imageURL: URL?
-        public let nUsers: Int?
-
-        public init(
-            id: UUID, brand: String, name: String, categorySlug: String,
-            imageURL: URL? = nil, nUsers: Int? = nil
-        ) {
-            self.id = id
-            self.brand = brand
-            self.name = name
-            self.categorySlug = categorySlug
-            self.imageURL = imageURL
-            self.nUsers = nUsers
-        }
-    }
-
     public private(set) var phase: Phase = .loading
     public let anchor: Anchor?
-    /// The example shelf (Sean, Sep 2: *"show an example shelf full of
-    /// popular products and be like build your shelf"*). Empty until the
-    /// seam answers; empty forever if it fails or was never wired — the
-    /// screen then shows the words alone, which is still a true screen.
-    public private(set) var shelf: [ShelfPick] = []
 
     private let payoff: (@Sendable (UUID) async throws -> PayoffEvidence)?
-    private let sampleShelf: (@Sendable () async throws -> [ShelfPick])?
     private let tracker: Tracker?
     var loadTask: Task<Void, Never>?
-    var shelfTask: Task<Void, Never>?
 
     public init(
         anchor: Anchor?,
         payoff: (@Sendable (UUID) async throws -> PayoffEvidence)? = nil,
-        sampleShelf: (@Sendable () async throws -> [ShelfPick])? = nil,
         tracker: Tracker? = nil
     ) {
         self.anchor = anchor
         self.payoff = payoff
-        self.sampleShelf = sampleShelf
         self.tracker = tracker
     }
 
-    /// Every tile carries its n, so the shelf may be called what people are
-    /// logging. Any tile without one makes the whole shelf an example.
-    public var shelfIsRanked: Bool {
-        !shelf.isEmpty && shelf.allSatisfy { $0.nUsers != nil }
-    }
-
     public func load() {
-        loadShelf()
         loadTask?.cancel()
         guard let payoff, let variantID = anchor?.variantID else {
             resolve(.neutral, evidence: nil)
@@ -126,16 +83,6 @@ public final class PayoffModel {
             } else {
                 resolve(.neutral, evidence: evidence)
             }
-        }
-    }
-
-    private func loadShelf() {
-        shelfTask?.cancel()
-        guard let sampleShelf else { return }
-        shelfTask = Task {
-            let picks = await (try? sampleShelf()) ?? []
-            guard !Task.isCancelled else { return }
-            shelf = picks
         }
     }
 
@@ -171,16 +118,5 @@ public final class PayoffModel {
     /// The kit's footer, with the anchor's own words in it.
     public nonisolated static func footerLine(_ anchor: Anchor) -> String {
         "no tone bands, no averages — these are people in \(anchor.brand) \(anchor.shadeCode)"
-    }
-
-    /// The example shelf's eyebrow: a claim when every tile has its n, a
-    /// labelled example otherwise.
-    public nonisolated static func shelfEyebrow(isRanked: Bool) -> String {
-        isRanked ? "WHAT PEOPLE ARE LOGGING" : "A SHELF, FOR EXAMPLE"
-    }
-
-    /// Under a tile: its n, or nothing. Never a made-up number.
-    public nonisolated static func shelfLine(_ pick: ShelfPick) -> String? {
-        pick.nUsers.map { "\($0) rank it" }
     }
 }

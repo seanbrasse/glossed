@@ -51,11 +51,10 @@ extension AppShell {
                 // anchor that did not resolve hands nil and the screen says it
                 // has nothing yet, which is true.
                 payoff: { try await AggregatesRepository(client: client).payoff(variantID: $0) },
-                // The example shelf (Sean, Sep 2). Leaderboard rows carry
-                // their n; a catalog stand-in carries none, and the screen
-                // labels the whole shelf an example when any tile lacks one.
-                sampleShelf: { [imageBase = session.imageBase] in
-                    try await AppShell.sampleShelf(client: client, imageBase: imageBase)
+                // The example shelf (Sean, Sep 2): the shelf's own bay, drawn
+                // from the app layer because it crosses two features.
+                exampleShelf: {
+                    OnboardingExampleShelf(client: client, imageBase: session.imageBase)
                 },
                 shelfStarterCount: session.shelfItemCount,
                 // Sean, Aug 31: "Users shouldn't make it through onboarding
@@ -108,49 +107,6 @@ extension AppShell {
 
     /// Onboarding is over. The app owns every destination — the flow hands one
     /// back and routes nothing itself.
-    /// Six categories a shelf usually has one of, the leaderboard's top row
-    /// for each where it has one, the catalog's first hit where it does not.
-    /// Every read here is anon-readable — `categories`, `leaderboard` and
-    /// `search_catalog` are all granted to `anon` — because this screen is
-    /// shown BEFORE an account exists. A category with neither is skipped
-    /// rather than invented.
-    static func sampleShelf(client: GlossedClient, imageBase: URL?) async throws -> [PayoffModel.ShelfPick] {
-        let catalog = CatalogRepository(client: client)
-        let aggregates = AggregatesRepository(client: client)
-        let categories = try await catalog.categories(domain: nil)
-        var picks: [PayoffModel.ShelfPick] = []
-        for slug in ["foundation", "mascara", "blush", "moisturizer", "serum", "lipstick"] {
-            guard let category = categories.first(where: { $0.slug == slug }) else { continue }
-            let ranked = await (try? aggregates.leaderboard(categoryID: category.id, limit: 1))?.first
-            if let row = ranked, row.isRankable {
-                picks.append(shelfPick(row.hit, nUsers: row.nUsers, imageBase: imageBase))
-            } else if let hit = await (try? catalog.search(slug, limit: 5))?.first(where: Self.readsAsAProduct) {
-                picks.append(shelfPick(hit, nUsers: nil, imageBase: imageBase))
-            }
-        }
-        return picks
-    }
-
-    /// The Shopify fill left some products named after a creator's handle
-    /// ("@itsmaureenkelly highlight reel…"). Real products, but not what a
-    /// first screen should put in a stranger's hands as an example shelf.
-    private static func readsAsAProduct(_ hit: CatalogHit) -> Bool {
-        !hit.name.contains("@")
-    }
-
-    private static func shelfPick(_ hit: CatalogHit, nUsers: Int?, imageBase: URL?) -> PayoffModel.ShelfPick {
-        PayoffModel.ShelfPick(
-            id: hit.id,
-            brand: hit.brandName,
-            name: hit.name,
-            categorySlug: hit.categorySlug,
-            // The shelf's composition rule (GLO-83): nil base or nil key
-            // degrades to the drawn mock, never a broken image.
-            imageURL: hit.catalogImageKey.flatMap { key in imageBase?.appending(path: key) },
-            nUsers: nUsers
-        )
-    }
-
     func finishOnboarding(_ exit: OnboardingFlowModel.Exit) {
         switch exit {
         case .discover:
