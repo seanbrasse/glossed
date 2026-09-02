@@ -412,6 +412,10 @@ export function defaultSlot(ctx: StylistContext, domain: Domain = "skincare"): S
 /// keep them all; a comparison needs two things on the shelf; nothing is
 /// offered twice.
 export function chipsFor(ctx: StylistContext, preferred: readonly string[]): string[] {
+  // An empty shelf can build no routine, compare nothing and dress no look;
+  // the two chips that still answer are the ones that reach past the shelf
+  // (try-next reads the cohort) or say plainly what to do (missing).
+  if (ctx.shelf.length === 0) return ["what should i try next", "what's missing for my skin"];
   const kept = new Set(ctx.routines.map((r) => r.slot));
   const open = (["am", "pm", "weekly"] as const).filter((s) => !kept.has(s));
   const out: string[] = [];
@@ -606,6 +610,7 @@ export function missingCategories(ctx: StylistContext): string[] {
 
 function planMissing(intent: Intent, input: PlanInput): Planned {
   const { ctx } = input;
+  if (ctx.shelf.length === 0) return done(intent, emptyShelfReply(input));
   const missing = missingCategories(ctx).slice(0, 3);
   const concernWord = ctx.profile.concerns.length > 0
     ? ctx.profile.concerns.join(", ")
@@ -667,6 +672,27 @@ function planMissing(intent: Intent, input: PlanInput): Planned {
       );
     },
   };
+}
+
+/// "What am i missing" with nothing logged. Sean, Sep 2, on his empty
+/// shelf: the set-difference answer ("your shelf has no cleanser or sun. no
+/// receipts yet for cleanser or sun.") was *"correct technically but also
+/// pretty bad"* — it read as if he owned everything but two things. With
+/// nothing on the shelf, everything is missing, and the honest answer is to
+/// say so and name the way in. The basics are named as where most shelves
+/// start, not as gaps; no leaderboard is fetched for a shelf that cannot be
+/// compared to anything yet.
+export function emptyShelfReply(input: PlanInput): Reply {
+  const { ctx } = input;
+  const basics = BASICS.map((slug) => input.categories.find((c) => c.slug === slug)?.label ?? slug);
+  return reply(
+    "nothing on your shelf yet, so i can't say what's missing — log what you own " +
+      `from the + and ask me again. most shelves start with ${joinWords(basics)}.`,
+    [],
+    chipsFor(ctx, ["what should i try next"]),
+    ["shelf"],
+    ["plan_missing"],
+  );
 }
 
 export function cohortScope(category: CategoryRef, input: PlanInput): "all" | "yours" {
