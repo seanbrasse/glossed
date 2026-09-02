@@ -5,56 +5,51 @@ import SwiftUI
 // The four kinds of card the profile's grid draws, and the edit affordance
 // they share (GLO-261).
 
-/// One look. **A caption tile, not a photograph**, and the reason is in
-/// `ProfileLook`: nothing in this app resolves a `look_photos.r2_key` back to
-/// a readable URL, so there is no image to draw. The tile says how many photos
-/// the look has and whether it is published, which is true; a tile pointed at
-/// a guessed bucket would be a broken image with a caption under it.
+/// One look — **the photo is the tile.** Sean's Sept 1 direction: no card
+/// around it; the first photo fills a square, and the caption, count and
+/// status sit under it as plain text. The container is the grid cell.
 ///
 /// A look post is attributed content, never a claim (GLO-196) — no n, no
 /// cohort, no evidence chrome. The only count is this post's own photos.
+/// A look with no readable photo yet (presign down, or a draft with none)
+/// draws a milk square in the photo's place, so the grid keeps its rhythm.
 struct LookTile: View {
     let look: ProfileLook
 
     var body: some View {
-        GlossedCard(padding: Tokens.Space.s3) {
-            VStack(alignment: .leading, spacing: Tokens.Space.s2) {
-                if let url = look.previewURL {
-                    preview(url)
-                }
-                VStack(alignment: .leading, spacing: Tokens.Space.s1) {
-                    Spacer(minLength: 0)
-                    Text(look.caption ?? "no caption")
-                        .font(Typography.display(Typography.Size.small))
-                        .foregroundStyle(look.caption == nil ? Tokens.Ink.faint : Tokens.Ink.primary)
-                        .lineLimit(look.previewURL == nil ? 3 : 1)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(ProfileCardCopy.lookLine(photoN: look.photoN, isPublished: look.isPublished))
-                        .meta()
-                }
-                .frame(
-                    maxWidth: .infinity,
-                    minHeight: look.previewURL == nil ? 96 : 0,
-                    alignment: .bottomLeading
-                )
+        VStack(alignment: .leading, spacing: Tokens.Space.s2) {
+            photo
+            VStack(alignment: .leading, spacing: 2) {
+                Text(look.caption ?? "no caption")
+                    .font(Typography.display(Typography.Size.small))
+                    .foregroundStyle(look.caption == nil ? Tokens.Ink.faint : Tokens.Ink.primary)
+                    .lineLimit(1)
+                Text(ProfileCardCopy.lookLine(photoN: look.photoN, isPublished: look.isPublished))
+                    .meta()
             }
+            .padding(.horizontal, Tokens.Space.s1)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// The first photo, square, with the count dots riding its corner. Sized
     /// by the clear base and overlaid (GLO-252's remedy) so a portrait shot
     /// crops instead of growing the tile.
-    private func preview(_ url: URL) -> some View {
+    private var photo: some View {
         Color.clear
             .aspectRatio(1, contentMode: .fit)
             .overlay {
-                AsyncImage(url: url) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
+                if let url = look.previewURL {
+                    AsyncImage(url: url) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Rectangle().fill(Tokens.Ground.milk)
+                    }
+                } else {
                     Rectangle().fill(Tokens.Ground.milk)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.md))
+            .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.lg))
             .overlay(alignment: .bottomTrailing) {
                 if look.photoN > 1 {
                     photoDots
