@@ -1,4 +1,4 @@
-# Session handoff — Sept 2 2026 (session 19: the product photos came back, the tabs stopped remounting, and the category tree finally has a PR)
+# Session handoff — Sept 2 2026 (session 21: Sean drove onboarding on his phone and eleven PRs answered him; the stylist stack is still open)
 
 Where Phase 1 stands, what to do next, and what the last three sessions learned.
 Read `docs/README.md` first for the design; this file is only about state.
@@ -7,10 +7,77 @@ Read `docs/README.md` first for the design; this file is only about state.
 pasteable version — what to start on, what is blocked on a human, and the rule
 that cost the most last time. This file is the reference it points at.
 
+## Session 21 at a glance (Sept 2, afternoon → evening — Sean's notes from his phone)
+
+**Eleven PRs opened, zero merged, no grant given** — #500–#510 on top of session
+20's #495–#499 and the stylist stack #491–#494, so **twenty PRs are open**.
+Sean drove onboarding on his phone and sent three rounds of notes; every note
+is one PR. **The lot is on his phone** (15:45, local branch
+`phone/sep-2-onboarding` = #499 + #500–#509 + #491–#497, merged clean; binary
+mtime, `applesignin` entitlement and `GlossedDevSignIn=0` checked before
+install). That branch is not a PR and is not pushed.
+
+**Linear refused every new issue** ("exceeded the free issue limit") — three
+tries across the afternoon. The ten ticket bodies are three comments on
+[GLO-108](https://linear.app/glossed/issue/GLO-108) (first-run friction); the
+saves feature is a comment on [GLO-224](https://linear.app/glossed/issue/GLO-224);
+branches carry `GLO-108` (`GLO-248` for the hair images, which existed).
+
+| Sean said | What was built | PR |
+|---|---|---|
+| "buttons feel hard to press" | a `.plain` button hit-tests its label's opaque content and the tile was drawn *outside* the label. `TextLinkButtonStyle` (44pt) + `contentShape`. Driven: a corner tap toggles the card | **#500** |
+| "signing out should immediately take the user back to the signin page" | `signedOut()` kept `phase == .ready`, so the tabs stayed up with an empty `you` tab. Keeps the session-less client, flips `needsOnboarding`. Driven | **#501** |
+| "we should be able to go back throughout onboarding" | quiz step 1 → hook (answers kept), payoff → the quiz's last question. Two tests. On #500 | **#502** |
+| "pick their skin tone and undertone … ideally not picking their foundation" | quiz is domains → tone (always) → hair (if haircare). **Undertone is not asked** — self-report is unreliable, the app learns it from fit answers on the undertone axis (research and sources in the PR). The payoff's anchor seam stays, unset. On #502 | **#503** |
+| "a weird flash when navigating to the profile tab" | recorded at 20 fps and counted: four cuts in ~0.85 s on first entry, two frames on second. `ProfileSkeleton` + fade; look photo fades in. Before counted, after not recorded | **#504** |
+| "hair type needs images … in claude design matching our design language" | twelve SVG strands from one script, `Hair.xcassets`, canvas at <https://claude.ai/code/artifact/08666e0a-f089-4d12-ad36-04619babd901>; selected = the swatch's own border in cherry at 55%. PRD §06's 4-series review gate stands. On #500, `size-override` | **#505** |
+| "I don't get what this screen is for … show an example shelf … make it an actual shelf like the one we build in app … only products we have images for" | the payoff is `ShelfBayView` handed in from the app (the tour's seam — features never import features) with twelve curated, image-bearing picks in three bays; searches concurrent, nonisolated; no label over it (Sean); door: **create your account**. On #503, `size-override` | **#506** |
+| "two ways in · nothing else feels like a threat … stop that language around the whole app" | the account screen's eyebrow/title/aside, its last line, the tour's "no ads, no bots, no gatekeeping", the sign-out "you'll need your email", the handle rule's tail. The hook's four nos stay | **#507** |
+| "if a user already has an account, they can skip entering their birthday" | `AccountStore.hasProfile` after Apple on the signup path → lands like login. Needs a real Apple ID to drive. On #506 | **#508** |
+| "explain rules for a good handle … char minimum, error states … it says that's already on your shelf and claim it gets disabled" | `handles` is one row per user; his second walk hit the unique violation in DataKit's shelf words. The step reads `myHandle()` first and carries on; rules line, 3-char minimum, cherry error lines, server refusals translated. Six tests. On #508 | **#509** |
+| "users can save other people's looks/collections/routines … a place in our profile … the stylist should reference saved things" | **spec only** — `tech/03` §1a: private pointers, never a feed event, weak taste signal, rendered through `can_view`; a `saved` tab = routines · products · collections · looks (Sean's order; want-to-try moves in); `reference_saved` for the stylist. SAV-1–8 on GLO-224; SAV-2 needs the slot after STY-8 | **#510** |
+| (found while building) | a `.task` on a zero-size view never runs; a `View`'s static helper called from a task group trips the main-actor assertion; a new package asset catalog does not reach `Glossed.app` on an incremental build; three "successful" builds were void | §8 |
+
+**Tests, run, on the branch named:** Onboarding **78** (#509), Profile **106**
+(#504), DesignSystem **54** (#505). No function tests were run this session.
+
+**Merge order when Sean grants it:** #500 → #502 → #503 → #506 → #508 → #509 is
+one stack — retarget each to `main` before deleting the merged base (the rule
+that closed #480); #505 rides on #500; #501, #504, #507, #510 go straight to
+`main`. #507 and #509 both rewrite `OnbHandleView`'s rule line — take #509's
+switch where they meet (the phone branch already did).
+
+**Sean's to decide:** whether the payoff should draw from the leaderboard
+once it has rows (today the twelve picks are chosen, not measured); Linear —
+upgrade or keep filing on umbrella tickets; and whether "no stars, ever" on
+the tour's first slide counts as the language he wants gone (kept — it
+describes the mechanic, not a sign-up option).
+
+## Session 20 at a glance (Sept 2, daytime)
+
+**Zero PRs merged, five open at handoff** — #495 (this handoff), #496, #497, #498,
+#499 — all green except the iOS job on #499, which was queued when this was
+written (macOS runners ran 20+ minutes behind all afternoon). Sean gave no
+merge grant this session; nothing was merged. One session, one lane.
+
+| What | Where |
+|---|---|
+| **The stylist is rules first, model last.** Sean: *"as little AI as possible — searching, filtering, looking at data and making comparisons."* `plan.ts` answers a routine, the gaps, try-next, compare, about-an-item and a look-for-tonight from the shelf and the cohort RPCs with **zero model calls**; `model.ts` (the original tool loop) runs only for a free-form question, and only when a key exists — without one the person gets the honest menu, not a 503. Driven live as maya, no key: morning routine → save → *open it* → edit → on the profile | **#496**, `08-stylist.md` §4 |
+| **The key exists, locally.** Sean signed in to the console in his real Chrome (the app's browser pane is invisible to him); I created `glossed-stylist-local`, a *personal* (identity-linked) key, expires **Oct 2 2026**. It is refused with `400 anthropic-workspace-id is required` unless the workspace id rides on every request — `ANTHROPIC_WORKSPACE_ID` sits beside it in `supabase/functions/.env` and #496 sends it. **No hosted secret** | §0, §7 |
+| **Sonnet 5 runs the fallback** — a nine-question, three-model bake-off (`scripts/stylist_bakeoff.ts`): Sonnet answered everything with receipts at 0.3–1.4¢ and 3–12 s; Opus was better at 3× the cost; Haiku 4.5 refused a layering question as "a dermatologist question", asked for facts already in its context, and invented a cleanser's strength. `STYLIST_MODEL` in the env overrides without a deploy | #496, `08-stylist.md` §3 |
+| **The lexicon** — how people phrase beauty asks (slang, occasions, category synonyms, slot/domain cues, the medical list), written offline, matched at zero tokens; `lexicon_test.ts` is a 60-row corpus every row of which routes without a model. *"make my going out look slay tonight"* answers in 62 ms with her makeup in order and her look as a door. The plans are offered to Sonnet as tools, so a phrasing the lexicon misses is interpreted once and answered by the rules. A Haiku→Sonnet router was rejected (08 §4) | #496 |
+| **Chips know what you keep** (Sean: *"what if I already built a pm routine?"*) — a routine chip names a slot you do not keep yet and gives way when you keep them all; "build me a routine" lands on the first slot the shelf can fill; starter chips are generic | #496, #497 |
+| **The phone makes its own account** — `GLOSSED_DEV_SIGN_IN=0` baked into the bundle skips the maya sign-in, a kept dev session is signed out, and a launch with no session goes to FLOW 1 → Sign in with Apple. The local stack's Apple provider is on. **The project had no entitlements file**, so no earlier device build could ever have shown a working Apple button; declared now, and it needed Sean's Apple ID in Xcode to sign. Installed and launched on his iPhone at 14:23, and **it worked end to end at 14:25**: Apple signup (`auth.users` provider `apple`), a profile (`seantest`, birth month set), the handle `seantest` claimed, then a sign-out from settings at 14:29 — the login path (Apple again → straight to discover) is the one thing not yet driven | **#499**, GLO-23 thread, §0 |
+| **The app is light-only now** — dark mode had turned the composer's text white on white on Sean's phone | #499 |
+| **Two live bugs found by reading the phone, not the code:** the model's answer lost every paragraph before its last tool call (the loop kept only the final response's text), and a plan tool plus the model's own artifact drew the same card twice | #496 |
+
 ## Session 19 at a glance (Sept 1 → 2)
 
-**14 PRs merged** (#479, #476, #477, #478, #402, #483, #430, #431, #481, #482,
-then #485, #486, #487, #488 — counted, in that order, each watched to green under Sean's *"review and merge on
+**15 PRs merged and 4 open at handoff.** Merged: #479, #476, #477, #478, #402,
+#483, #430, #431, #481, #482, #485, #486, #487, #488, #490 — counted, in that
+order; open and merging as CI goes green: #491, #492, #493, #494 (the Stylist —
+#494 is stacked on #492 + #493 and must be rebased onto `main` after they
+squash). All each watched to green under Sean's *"review and merge on
 your own"* grant given Sept 1 evening). **Zero PRs open at handoff.** `main` is
 at the close-of-session docs commit; the three PRs that predated this session
 (#402, #430, #431) were reviewed, two of them fixed for a schema they predated,
@@ -28,6 +95,7 @@ and merged with the rest.
 | **Sean's "updated products list" came through as a TAXONOMY, not products** — 0057 inserts categories only; the raw list is nowhere in the repo. Sean asked whether the new categories can be filled from Shopify: yes, in two steps — see §1 | GLO-272 comment, §1, §7 |
 | **A wedged edge runtime hangs the `you` tab for ~2 minutes**; Docker here is **Colima**; the daemon wedged on one container and only `limactl stop --force` under Colima's `LIMA_HOME` got it back | §0, §8 |
 | **GitHub CLOSES a stacked PR when its base branch is deleted** — it does not retarget. #480 died that way when #478 merged with `--delete-branch`; reopened as #483 | §8 |
+| **The Stylist shipped behind a flag** — Sean's Sept 1 ask, built the same night as `tech/03` §7 pulled forward: `docs/tech/08-stylist.md` (spec, 14 use cases, the rules), edge function `stylist` (prefetch under the caller's JWT, `claude-opus-5` tool loop, eight tools, artifact ids validated, 11 tests), `features/Stylist` (thread, routine/product/look/collection cards, chips, composer, 10 tests), the glyph + `stylist_query` event, and the fourth tab behind `StylistFlag` (DEBUG on). Driven with the demo stylist — **no `ANTHROPIC_API_KEY` exists on any stack**, so the live path answers 503 until Sean adds one | #490 #491 #492 #493 #494, GLO-224 thread, §7 |
 | **After the drive, Sean's four notes, all landed the same night:** the look tile is the photo (#485), fit a photo to the frame before upload — pinch, drag, crop (#486), the tab capsule centred and the dots gone (#487), and step 1 of the Shopify fill (#488) | GLO-272, GLO-266 |
 
 ## Session 18 at a glance (Sept 1)
@@ -108,6 +176,48 @@ not estimated. Highlights, in rough order of how much they matter:
 ---
 
 ## 0. Read this first
+
+### A device build signs without the capability it needs, and says nothing
+
+`xcodebuild` for a phone succeeded all session while producing an app whose
+entitlements carried no `com.apple.developer.applesignin` — the project had no
+entitlements block, so the wildcard profile signed it happily and the Apple
+sheet could only ever fail at tap time. **Check the built app, not the exit
+code:** `codesign -d --entitlements :- <app>` and `ls -la <app>/Glossed` (a
+"successful" build that failed at signing leaves the previous binary in place —
+I reinstalled a stale binary twice before noticing the mtime). Declared in
+#499 via `entitlements:` in `project.yml`; signing it needs an Apple developer
+account in Xcode › Settings › Accounts, which Sean added Sept 2 14:20. And
+`CODE_SIGN_ENTITLEMENTS=""` on the command line does **not** remove an
+xcodegen-declared block — the interim build had to drop the block from
+`project.yml`, generate, build, and restore.
+
+### iOS keeps keychain items across an uninstall
+
+A device that ever ran a dev build holds maya's session in the keychain, and
+`devicectl uninstall` does not clear it — the first "fresh" install booted
+straight into maya's tabs. `AppSession.readyWithoutAccount` now signs the seeded
+dev user out when dev sign-in is off; any other session is honoured.
+
+### The stylist's key is a personal key, and the app is light-only
+
+- A console key created today is **identity-linked**; the API refuses it with
+  `anthropic-workspace-id is required`. `model.ts` sends the header from
+  `ANTHROPIC_WORKSPACE_ID` (next to the key in `supabase/functions/.env`, both
+  gitignored, neither on hosted). The workspace id is on the console's
+  Workspaces page.
+- `UIUserInterfaceStyle: Light` is in the plist: dark mode turned the
+  composer's text white on white on the phone, and the simulator never showed
+  it because it was in light mode.
+
+### A stacked PR's `project.yml` carries the stack's packages
+
+#499 (base `main`) failed CI with *Spec validation error: Invalid local package
+"Stylist"* because I copied the integration branch's `project.yml` whole; the
+Stylist package only exists on the #493 stack. A main-based PR gets `main`'s
+`project.yml` plus its own additions, and `xcodegen generate --spec` from a
+worktree of that branch proves it before pushing.
+
 
 ### The catalog images live in the `storage` schema, and a `db reset` drops it
 
@@ -400,7 +510,9 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Thing | State |
 |---|---|
-| **Nothing is open.** All ten of session 19's PRs merged; `gh pr list` is empty | — |
+| **Twenty PRs open, none merged, no grant given.** Two stacks and a spread: the stylist's #491 ← #496, #492 + #493 ← #494 ← #497, #498; the phone's #499; session 21's #500 ← #502 ← #503 ← #506 ← #508 ← #509, #500 ← #505, and #501 #504 #507 #510 on `main`; #495 is this handoff. **Sean merges.** Retarget every stacked PR to `main` before its base branch is deleted — GitHub closes it otherwise (#480). Session 21's rows are in its "at a glance" table above | GLO-224, GLO-23, GLO-108 threads |
+| **The first real account exists** — Sean's, made on his phone at 14:25 (Apple → birthday → name → handle `seantest`), then signed out from settings. **He then walked "create an account" again with the same Apple ID and was asked the birthday and a handle he already had** — #508 and #509 answer that; neither is driven with a real Apple ID yet (only he can). Still not driven: logging a product as him. The local stack must be up with `supabase functions serve` running and the Mac awake on the same Wi-Fi (`http://Seans-MacBook-Pro.local:54321`) | GLO-23 thread |
+| **Friends' phones = TestFlight**, which needs a Release boot path (the account path was moved out of `#if DEBUG` on Sept 2 — see §6 for whether it reached #499), a **hosted backend with the catalog and the functions deployed** (hosted has 0 products; promotion needs the DB URL or a CLI login), and an App Store Connect record | GLO-50, §7 |
 | **Filling the new categories from Shopify** (Sean's ask, Sept 1) | **Step 1 done — #488** (rules in `TYPE_RULES`, backfill in `scripts/reclassify_new_groups.sql`, 168 products moved on local, 0 ladders touched). Step 2 (leaves) still needs slot **0058** |
 | **Sean's product list** | Still not in the repo — ask where it is before building on "the new products" |
 | Local drive data | The `session 19 drive` collection was soft-deleted after the GLO-278 drive; nadia is now seeded on every reset |
@@ -474,32 +586,35 @@ the right to delete the preview. This deliberately reverses **GLO-190**.
 
 ## 2. What exists
 
-**Every package, `swift test`, run at handoff — 914 passing, no failures across
-all 18.** Re-run this session, not carried forward. Seven packages failed the
-first sweep on stale `.build` caches and passed after `rm -rf .build`; the counts
-below are from the passing run (§8 has the trap — the error names a DataKit file
-the failing package does not touch).
+**Session 19 ran seven suites, not eighteen.** Run this session, on `main` or
+on the branch that landed: `core/DataKit` 134, `features/Profile` 106,
+`features/Collections` 17, `core/Tracking` 16, `features/Looks` 91,
+`features/Stylist` 10, and the `stylist` function's 11 `deno test`s. Every other
+count below is **carried from session 18's full sweep** (914 across 18 packages)
+and was not re-run — treat those as approximate. A red package is a stale
+`.build` cache until proven otherwise (§8).
 
 | Package | Tests | State |
 |---|---|---|
-| `core/DataKit` | **133** | The frozen core. **Four openings spent**: routines/collections/looks (Aug 30), the shelf's scoping fix (#422), `signInWithApple(idToken:nonce:)` (#471), and the GLO-274 privacy read (#472). The last derives its select list from `CodingKeys` so a dropped column cannot silently break it again |
-| `core/DesignSystem` | **54** | `KitIcons` carries the drawer's five glyphs + a pencil |
+| `core/DataKit` | **134** | The frozen core. **Four openings spent**: routines/collections/looks (Aug 30), the shelf's scoping fix (#422), `signInWithApple(idToken:nonce:)` (#471), and the GLO-274 privacy read (#472). The last derives its select list from `CodingKeys` so a dropped column cannot silently break it again |
+| `core/DesignSystem` | **54** (s18) | `KitIcons` carries the drawer's five glyphs + a pencil; `StylistIcon` in its own file (the ceiling); `FloatingNav.Glyph.stylist` |
 | `core/Media` | **8** | **It exists** — `PhotoPreparer`, `PresignedUploader`. GLO-148 says it never has; that is stale |
-| `core/Tracking` | **15** | The event queue |
+| `core/Tracking` | **16** | The event queue; `stylist_query` carries tool names and a bool, never the words |
 | `features/AddLadder` | **120** | The biggest suite in the repo |
 | `features/Browse` | **14** | |
 | `features/Collections` | **17** | Composer + store. **Wired to the drawer and the profile `+` as of #426** |
 | `features/Discover` | **35** | The stream. Category eyebrow live as of #425 |
 | `features/Import` | **12** | Screen + model; **no live `ImportParsing` conformance exists** — GLO-19 |
 | `features/Leaderboard` | **16** | |
-| `features/Looks` | **86** | Composer, reorder, media deck; reachable from the drawer's fifth door |
+| `features/Looks` | **91** | Composer, reorder, media deck; reachable from the drawer's fifth door |
 | `features/Onboarding` | **69** | FLOW 1 **mounts in the real shell** as of #429; name+handle ships (#432); **Sign in with Apple is real** (#471) — `AppleNonce`, `AppleSignInController`, and one seam covering sheet + server call so the model stays testable. Phone OTP still stubbed |
 | `features/Privacy` | **18** | |
 | `features/ProductPage` | **22** | |
-| `features/Profile` | **101** | The redesign, complete and wired (#403–#411, #424) |
+| `features/Profile` | **106** | The redesign, complete and wired (#403–#411, #424); reloads in place on a `reloadKey` (#478); the look tile is the photo (#485) |
 | `features/Ranking` | **41** | The face-off. **Reachable as of #423** — it was not before, whatever the last handoff said |
 | `features/Routines` | **15** | Composer only; the profile's routines tab reads through `ProfileRoutinesStore` |
-| `features/Shelf` | **138** | |
+| `features/Shelf` | **138** (s18) | |
+| `features/Stylist` | **10** | **New (#493).** Wire types for the `stylist` function, a store of closures with `.live` and `.demo`, the thread model, and the routine / product / look / collection cards. Reachable via the fourth tab **only behind `StylistFlag`** (#494, DEBUG on) |
 
 **A red package here is a stale cache until proven otherwise.** `features/Shelf`
 reported `error: fatalError — cannot find type 'LogDraft' in scope` during this
@@ -507,16 +622,24 @@ sweep. `LogDraft` had moved to `ShelfModels.swift` in #422 and Shelf's `.build`
 still held the pre-split DataKit module. `rm -rf .build` and it is 138 green.
 §8 already carried this shape; it cost ten minutes anyway.
 
-**The sentence that is true about all of it:** *a merged feature is not a
-reachable one.* This session merged a category eyebrow that renders nothing, an
+**Two sentences are true about all of it.** *A merged feature is not a
+reachable one* — and, since session 19, *a reachable feature may be behind a
+flag*: the stylist tab exists on every DEBUG build and on no release build
+until Sean flips `StylistFlag`, and its live path is a `503` on every stack
+until an `ANTHROPIC_API_KEY` exists. What was driven was the demo stylist.
+
+*A merged feature is not a reachable one.* This session merged a category eyebrow that renders nothing, an
 onboarding flow with no caller, a collections package with no adapter, and a
 face-off that was built in GLO-17 and had never once rendered in the app. **Before
 building anything new, check whether the thing it depends on is wired** —
 `grep -rn "import <Package>" app/` is the two-second version.
 
-**Local stack:** migration head `20260830000048`, `products` = **3,206**,
-`variants` = 9,019, `brands` = 497. Catalog snapshot store at `~/.glossed/catalog`
-(5 generations). **60 GB free** — see §8 on the night the disk hit zero.
+**Local stack (Sept 2):** repo migration head **0057** (the category tree);
+`products` = **3,206** (168 re-filed into the ten new groups by #488), 13,877
+catalog image rows registered against the storage volume (#479). Catalog
+snapshot store at `~/.glossed/catalog`, newest generation taken after the
+backfill. The local ledger does not match the repo's filenames (§0) — probe
+objects, not versions.
 
 **Canon simulator changed.** The old UDID in previous handoffs is **dead** — the
 device set was rebuilt when the disk filled. It is now **iPhone 16 Pro,
@@ -554,7 +677,21 @@ with no PR yet** (session 18 broke this; §0), drive-then-psql on everything, tw
 coordinating by direct message with file-level ownership announced before
 touching.
 
-**The loop that worked, and produced six merged fixes in one stretch:**
+**Session 19's loop, under Sean's "review and merge on your own" grant (given
+Sept 1 evening — per-session, not standing):**
+
+1. one PR per concern, ≤5 files or `size-override` with the reason written
+   (tests count as files — #478 went red on exactly this);
+2. a background chain per PR: poll `gh pr checks` until nothing is
+   in-progress, refuse on any `FAILURE`, `gh pr merge --squash --delete-branch`;
+3. **for a stack, retarget the next PR to `main` BEFORE deleting the merged
+   branch** — GitHub closes a PR whose base vanishes (#480 → reopened as #483);
+   then rebase the next one so its diff is its own again;
+4. for a PR older than the last migration, re-run CI before trusting the
+   check — #430 and #431 were green against a base 0053 had since changed;
+5. after the last merge, lint and build `main` itself, because `main` runs no CI.
+
+**Session 17's loop, which produced six merged fixes in one stretch:**
 
 1. **Pick a state, not a feature.** Open `docs/ux-state-sweep.md`, take an
    undriven cell. A state is small enough to finish and specific enough that
@@ -641,6 +778,11 @@ pass, verbatim:
 4. `psql` after every driven write,
 5. **verify before filing — and before dismissing** (§0).
 
+**A stand-in that announces itself is a legitimate drive of the UI, not of the
+feature.** The stylist was driven with `STYLIST_DEMO=1` — every canned line
+begins "demo ·" — which proves the tab, the cards, the save, the doors and the
+chips, and nothing about the model's answers. Say which half a drive proved.
+
 What it actually costs and where it fails: about an hour for a full pass. Its
 failure modes are all silent — a drive proves nothing about events unless
 functions are served (§0); a pgTAP red proves nothing unless the DB is at the
@@ -673,6 +815,14 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 
 | Thread | Where |
 |---|---|
+| **Stylist:** Sonnet's two quirks seen in the bake-off — a stiff "not something i can answer from your data… quick answer anyway" preamble on a general question, and "well-regarded" said of catalog rows with no evidence. Prompt work if they recur in real use | #496 comment |
+| **Stylist:** the lexicon grows from misses — a real phrasing that lands on `open` but had a shape is a `lexicon.ts` row, then a `lexicon_test.ts` row. The function logs `intent` per turn; watch the `open` share | `08-stylist.md` §4 |
+| **Stylist:** the first request after a `supabase functions serve` restart logs `stylist prefetch failed` and answers 502; the second succeeds. Runtime cold start, seen three times, not diagnosed | #496 comment |
+| **Phone:** the Release boot path (account path outside `#if DEBUG`, dev sign-in never in Release) was compiled locally for the simulator in Release at handoff — check #499's last commit for it; if absent, the change is on the integration branch `claude/routine-styling-recommendations-26398e` in `AppSession.swift` | #499 |
+| **Stylist:** product rows are not doors — opening a product page needs a `CatalogHit` the block does not carry (STY-12); the row's image area draws nothing without a catalog key (the mock silhouette does not render at 56pt) | GLO-224 thread, `08-stylist.md` §5 |
+| **Stylist:** streaming needs a third method on `GlossedClient` (frozen core); v1 is turn-at-a-time with a `thinking…` line | STY-11 |
+| **Stylist:** no transcript table by decision (08 §3) — the thread dies with the tab; persisting it is a `domain.md` §6 retention decision | 08 §3 |
+| **Stylist:** the TS tool schemas in `tools.ts` and the Swift wire types in `StylistWire.swift` are kept in step by hand; no test crosses the boundary | STY-4 |
 | The sweep is 34 cells in; the named cells are done and what remains is two axes — Dynamic Type everywhere but the shelf, and the ladder's remaining transitions | [GLO-110](https://linear.app/glossed/issue/GLO-110) / [docs/ux-state-sweep.md](docs/ux-state-sweep.md) |
 | Import's `screenshot of a haul` promises text extraction that does not exist, and the editor has no visible placeholder while carrying an accessibility one | [GLO-178](https://linear.app/glossed/issue/GLO-178) → [GLO-19](https://linear.app/glossed/issue/GLO-19) |
 | The shelf is unusable at accessibility text sizes; three candidate fixes written, none picked | [GLO-172](https://linear.app/glossed/issue/GLO-172) |
@@ -699,6 +849,12 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | The scoped ConfidenceMeter in G.Leaderboard has no defined live data source — deferred, not decorated | GLO-20 / §1 |
 | Save/wishlist (+0.5) needs the want_to_try-as-intent ruling before code | tech/07 §2 / §1 |
 | Un-dismiss management UI (the row is deletable by construction; no surface offers it yet) | [GLO-181](https://linear.app/glossed/issue/GLO-181) note |
+| **Session 21:** the payoff's twelve picks are curated in `OnboardingExampleShelf.shelves` (brand + name prefix, image required). When the leaderboard has rows, draw from it instead — the loader already skips an unmatched pick rather than substituting | #506, `OnboardingExampleShelf.swift` |
+| **Session 21:** the quiz no longer sets the anchor, so `OnboardingFlowModel.payoffAnchor`, `resolveVariant`, `anchorCatalog` and `AppSession.anchorVariants` are live plumbing nothing feeds. Feed them from the shelf starter or delete them — a change to the flow, the app and the debug catalog, not to the quiz | #503 comment in `OnboardingModel.swift` |
+| **Session 21:** undertone is learned, not asked. A self-reported undertone row in Tune needs a `profiles` column (migration) and a DataKit opening; not filed as a ticket (cap) | #503 body |
+| **Session 21:** phone OTP's `verifyCode()` is still the GLO-23 stub, so #508's existing-account check runs for Apple only. The same `hasProfile` call belongs after a real code verify | #508 |
+| **Session 21:** #504's after-recording. The before is counted in the PR; nobody has recorded the after at 20 fps | #504 |
+| **Session 21:** the hair strands' 4-series (4a–4c) have not been reviewed by anyone with that hair — PRD §06's gate, still open; GLO-52 (photos) stays open as its home | #505, GLO-52 |
 | **Session 17:** GLO-279 — the profile's rename-in-place machinery is dead code (edit-profile button removed; edit screens own renames). Pure deletion | [GLO-279](https://linear.app/glossed/issue/GLO-279) |
 | **Session 17:** the collection COMPOSER takes no description (create-then-edit); Sean may want it at creation | GLO-272 comments |
 | **Session 17:** profile grid can hold a stale tile after an edit under the cover until its next load (same as post-composer saves) | GLO-272 comments, #448 body |
@@ -734,10 +890,15 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 
 | Blocked thing | On what | Who |
 |---|---|---|
+| **Hosted secrets for the stylist** | `ANTHROPIC_API_KEY` + `ANTHROPIC_WORKSPACE_ID` exist locally only (`supabase/functions/.env`); the hosted project has neither, nor the function deployed. Only the free-form question needs them now | Sean |
+| **TestFlight for friends** | Needs the catalog promoted to hosted (DB URL or CLI login), the functions deployed with their secrets (R2, Anthropic), an App Store Connect record, export compliance. The Release boot path is the only code half | Sean |
+| **Minors and the stylist** | No ruling; v1 answers adults only (`isAdult` in `tools.ts`, `403 not_yet`). 13–17 see *"the stylist is for adults for now"* | Sean |
+| **The stylist's refusal copy** (medical classifier, STY-7), **its budget table** (STY-8, a migration slot), **the kit frame** (STY-10, `/design-login`) | Each named in 08 §5 | Sean |
 | **Where is the product list?** | Sean's "comprehensive product listing" (Sept 1) reached the repo only as 0057's category rows. No file in `docs/`, `scripts/`, `supabase/seed*`, no `.csv`/`.json`. If it named branded products, they are not in the catalog and nothing can make them searchable until the list itself is in hand | Sean |
 | **Promoting the catalog to hosted** | Hosted has 0 products / 0 images / 0 buckets. `scripts/db.ts` targets local unless `GLOSSED_DB_URL` is set; the image step needs a Mac. Needs `supabase login` or the hosted DB URL — same blocker as the migration ledger | Sean |
 | A DataKit opening for `RankingRepository.positions()` | One line, latent, no caller. Wait for a caller or a grant | Sean |
-| Any **new** Linear issue | Workspace at the free issue cap. **Updates to existing issues work** (verified session 18); only creates fail. Upgrade or archive | Sean |
+| Any **new** Linear issue | Workspace at the free issue cap — **still true Sept 2 evening, three refusals in session 21.** Comments and updates work. Session 21 filed on GLO-108 (onboarding) and GLO-224 (saves). Upgrade or archive | Sean |
+| **SAV-2's migration** (saves — `tech/03` §1a) and the DataKit opening for `SavesRepository` (SAV-3) | The slot queue is STY-8 then SAV-2; both wait on Sean. The spec is on #510 | Sean |
 | R2 token rotation | Cloudflare's R2 dashboard writes recovering (active incident Sept 1); then mint a bucket-scoped token and swap `.env` | Sean / Cloudflare |
 | Leaf-level ranking question | The 0055 tree ranks at the top level BY DESIGN. If Sean ever wants "rank your lipsticks" as its own ladder, that is a product decision + a re-point of `products.category_id` consumers — ask, don't drift into it | Sean |
 | [GLO-262](https://linear.app/glossed/issue/GLO-262) profile views | **Which of three shapes, or none.** Aggregate-only, identified-and-visible, or identified-owner-only. It is a privacy decision before a schema one — an identified viewer log would be **the first surveillance surface in the app**. Recommendation on the ticket: aggregate-only or not in V1 | Sean |
@@ -760,6 +921,80 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | Save/wishlist mapping | Whether `want_to_try` IS tech/07's +0.5 save signal | Sean |
 
 ## 8. What went wrong, so you don't repeat it
+
+### Session 21 (Sept 2, afternoon) — append-only, newest first
+
+- **I built the phone without the stylist and called it done.** The first phone build merged #499 and the day's PRs; the stylist lives on #491–#497, still open, so it vanished from Sean's phone and he noticed. *A phone build is the union of every open stack, not the day's work.* `phone/sep-2-onboarding` now has all of it; check `git log --merges` on that branch against `gh pr list` before installing.
+- **I wrote "A SHELF, FOR EXAMPLE" as an honesty label and Sean read it as clutter.** The claim rule (every count carries its n) was already satisfied by showing no counts at all; the eyebrow was me defending a decision on screen. When the honest version shows nothing, show nothing.
+- **`strings Glossed.app/Glossed` always reads 0 in a Debug build.** The app's code is in `Glossed.app/Glossed.debug.dylib` (~40 MB); the executable is a 92 KB stub. The mtime check still works on either; the proof-by-string only works on the dylib.
+- **Eleven PRs is a lot for one grant.** They are small and each answers one note, but the stack is six deep and the phone branch needed one conflict resolved by hand (`OnbHandleView`, #507 vs #509). Two of Sean's notes could have been one PR (#508 + #509 share a cause). Fewer, slightly larger PRs would have been easier to merge.
+
+- **Three "successful" builds were void.** A python edit's assertion failed, the `;`-chained `make run` ran anyway, the next edit depended on the first, the third hit a compile error, and a `grep "error:|BUILD|EXIT" | head` showed an old `BUILD SUCCEEDED`. I drove a 15:25 binary for twenty minutes. Chain with `&&`, grep ` error: ` on the whole log, and compare the binary's mtime to the build's start before installing — the same rule as the device build's entitlement check.
+- **A `.task` on a zero-size view never runs.** `VStack { if false { … } }` has no size and SwiftUI never appears it. Reserve height while loading.
+- **A `View`'s static helper is main-actor isolated.** Calling it from a `withTaskGroup` child crashes with `dispatch_assert_queue_fail`. Mark the loader and everything it calls `nonisolated`.
+- **`grep -v "///"` before an exact-string edit is how the edit misses.** Three of today's scripted edits asserted on text I had read with doc comments stripped. Anchor on a line that survives, or read the raw file.
+
+- **A package's new asset catalog compiled, and the app still had no images.** `DesignSystem_DesignSystem.bundle/Assets.car` was in Products; the copy of that bundle *inside* `Glossed.app` was dated Aug 31 and had no `Assets.car`. Xcode's incremental copy of a package resource bundle does not add a file that was not there the first time. The log said `No image named 'hair-4c' found in asset catalog`, which reads as a wrong name. `rm -rf Products/…/Glossed.app/DesignSystem_DesignSystem.bundle` then `make run`.
+- **Linear's free issue limit is a hard 400.** Five `save_issue` calls in a row refused. Comments still post — the six bodies went onto GLO-108. Try creating first next time; Sean may have upgraded.
+- **The "weird flash" was countable.** `xcrun simctl io … recordVideo`, `ffmpeg -vf fps=20`, a PIL frame-diff, and a contact sheet of the changed frames: four cuts in 17 frames on first entry, two frames on the second. The fix followed from the count, not from a guess — same as GLO-256 and GLO-241.
+- **The browser pane cannot look at a published canvas.** It is not signed in to claude.ai and cannot open `file://`. A `python3 -m http.server` in the scratchpad serves the seeded page, but the read-only canvas opens at far zoom and its frames refuse synthetic clicks (CSS-scaled). Serve the artboard's own `.dc.html` beside its images instead — that renders as plain HTML.
+
+### Session 20 (Sept 2, daytime) — append-only, newest first
+
+**Two "successful" phone builds were signing failures, and I reinstalled the
+stale binary both times.** The harness reported exit 0 because my pipeline's
+last command was `grep`; the app dir still held the 13:56 binary. Sean's phone
+therefore ran a build with dev sign-in off and no Apple entitlement — it signed
+maya out and parked him at an Apple button that could not work. *Shape: after a
+device build, check `ls -la <app>/<binary>` against the clock and `codesign -d
+--entitlements :-` before `devicectl install`; and end a pipeline on the command
+whose status you want, not on a filter.*
+
+**`CODE_SIGN_ENTITLEMENTS=""` on the command line does not remove an xcodegen
+entitlements block.** Automatic signing still read the capability and failed on
+the wildcard profile. The interim build needed the block removed from
+`project.yml`, `make generate`, the build, then the block restored.
+
+**I copied the integration branch's `project.yml` into a main-based PR.** It
+carried `- package: Stylist`, which does not exist on `main`; CI failed at
+*Generate project*. *Shape: a PR cut from `main` gets `main`'s file plus the
+diff, and `xcodegen generate --spec` in that worktree proves it before pushing.*
+
+**Moving code to a new file crossed `private`.** `resolveAnchorVariant` read
+`anchorVariants`, a `private var`; in its own file that is invisible, and Swift's
+error named the *static* method of the same name instead — a misleading message
+on a mundane cause. `private(set)` and a distinct name (`loadAnchorVariants`)
+fixed it. *Shape: before extracting for the 300-line ceiling, grep the moved
+code for every `private` it touches.*
+
+**`echo "$json" | jq` in zsh corrupts `\n`.** zsh's `echo` interprets escapes,
+so a reply containing a newline produced a jq "control character" error that
+read like a server bug. `printf '%s'` or `-o file`. Cost fifteen minutes and a
+false alarm.
+
+**The Bash cwd persisted after a `cd supabase/functions/stylist && python3 …`.**
+Every relative path in the next command missed ("no such file", "No target files
+found") and I read it as tooling breakage. *Shape: the harness keeps the cwd; use
+absolute paths or `(cd … && …)`, never a bare `cd`.* The previous handoff said
+exactly this and I did it anyway.
+
+**The model's answer was being thrown away before its last tool call.** In the
+original loop, `text = textOf(response.content)` on every iteration — an answer
+given before `suggest_chips` and closed after it showed as its coda alone
+("that's the whole answer — a beat, not a rule."). Found by typing on the phone,
+not by any test. *Shape: a loop that overwrites where it should append is
+invisible until a model does two things in one turn; keep a list.*
+
+**A plan tool and the model's own artifact tool drew the same card twice**
+(`build_routine` then `propose_routine`; `look_for_tonight` then
+`reference_look`). Deduplicated server-side by identity, not by prompt — a
+prompt line ("do not repeat what the card shows") was already there and Sonnet
+ignored it once in three.
+
+**The bake-off's first run scored Haiku's cost with no cache hits** because the
+system + context block is under Haiku's 2048-token cache minimum, so its
+per-turn cost (~0.7¢) is not comparable to Sonnet's cached turns. The ruling did
+not turn on cost, but the table should say so, and now does here.
 
 ### Session 19 (Sept 1 → 2) — append-only, newest first
 
@@ -795,6 +1030,20 @@ line that was not in the file. `docker cp` the TSV in and `\copy` from a path.
 leaves the old version file behind and both claim one object name. The reconcile
 keeps the newest by mtime — an `ON CONFLICT DO UPDATE` over all of them dies with
 *cannot affect row a second time*.
+
+**The stylist's glyph pushed `KitIcons.swift` to 338 lines and CI caught it,
+not me.** The 300-line ceiling is per file; adding 50 lines to a 288-line file
+is over it, and `swiftlint` on the package said so only after the PR was open.
+Moved the icon to its own file. *Shape: `wc -l` the file you are adding to
+before you add to it — the ceiling has bitten three sessions now.*
+
+**The stylist was driven with a canned store, and every screenshot says so.**
+No `ANTHROPIC_API_KEY` exists anywhere, so the live path could not be driven.
+Rather than claim it, `STYLIST_DEMO=1` swaps in a stylist whose every line
+starts "demo ·" — the tab, the cards, the save, the doors and the chips are
+proven; the model's answers are not. *Shape: when the real thing cannot be
+driven, drive a stand-in that announces itself in every frame, and say which
+half is proven.*
 
 **GitHub closes a stacked PR when its base branch is deleted — it does not
 retarget it.** `gh pr merge 478 --delete-branch` closed #480 (base: #478's
