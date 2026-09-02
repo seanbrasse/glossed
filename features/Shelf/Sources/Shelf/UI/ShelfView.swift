@@ -30,6 +30,10 @@ public struct ShelfView: View {
     /// a pick's name or with nothing. Handed up because the ladder is a
     /// feature. Nil in fixtures — see `addProduct(_:)`.
     let onAddProduct: ((String) -> Void)?
+    /// The item sheet's evidence, built by the app from the item (GLO-108).
+    /// Nil in fixtures; withheld for a row with no variant, which has no
+    /// page to draw from — the same fact `onOpenProduct` is withheld on.
+    let productDetails: ((ShelfItem) -> AnyView)?
     /// Handed up to `app/`: a feature cannot import a feature, so the shelf
     /// reports the tap and the app owns the crossing (GLO-151).
     private let onOpenProduct: ((ShelfItem) -> Void)?
@@ -50,7 +54,8 @@ public struct ShelfView: View {
         onOpenProduct: ((ShelfItem) -> Void)? = nil,
         onRank: ((ShelfItem) -> Void)? = nil,
         onImport: (() -> Void)? = nil,
-        onAddProduct: ((String) -> Void)? = nil
+        onAddProduct: ((String) -> Void)? = nil,
+        productDetails: ((ShelfItem) -> AnyView)? = nil
     ) {
         _model = State(initialValue: model)
         _isSearchOpen = State(initialValue: startsSearching)
@@ -60,6 +65,7 @@ public struct ShelfView: View {
         self.onRank = onRank
         self.onImport = onImport
         self.onAddProduct = onAddProduct
+        self.productDetails = productDetails
     }
 
     public var body: some View {
@@ -80,6 +86,9 @@ public struct ShelfView: View {
                         // No variant, no page to build (GLO-151).
                         onOpenProduct: onOpenProduct.flatMap { open in
                             item.variantID == nil ? nil : { open(item) }
+                        },
+                        details: productDetails.flatMap { build in
+                            item.variantID == nil ? nil : build(item)
                         },
                         onRemove: model.supportsRemoval ? { model.removeOpenItem() } : nil,
                         isRemoving: model.isRemoving,

@@ -1,5 +1,6 @@
 import DataKit
 import DesignSystem
+import ProductPage
 import Shelf
 import SwiftUI
 
@@ -30,6 +31,22 @@ extension AppShell {
                     ladderSeed = seed
                     ladderTrip = UUID()
                     ladderOpen = true
+                },
+                // The item sheet's lower half: the product page's evidence in
+                // place, behind "swipe up for more" (GLO-108). No user item
+                // id on purpose — the sheet keeps its own fit control.
+                productDetails: session.client.map { client in
+                    { item in
+                        AnyView(ProductDetailsView(model: ProductPageModel(
+                            product: ProductPageItem(
+                                variantID: item.variantID ?? UUID(),
+                                brand: item.brand, name: item.name,
+                                categoryLabel: item.categoryLabel, variant: item.variant,
+                                isAnchor: item.isAnchorCategory
+                            ),
+                            aggregates: AggregatesRepository(client: client)
+                        )).id(item.id))
+                    }
                 }
             )
             .id(ObjectIdentifier(model))
