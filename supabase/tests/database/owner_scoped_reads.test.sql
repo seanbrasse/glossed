@@ -29,7 +29,7 @@
 -- here depends on, or disturbs, seeded state.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(16);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -81,6 +81,27 @@ insert into looks (id, user_id, caption, state, posted_at, visibility) values
     ('05c07ed0-0000-0000-0000-0000000000a2', '05c07ed0-0000-0000-0000-000000000001',
      'a published look', 'public', now(), 'public');
 
+-- ── the same owner's ladder, routine, and look photo — the five child tables ─
+--
+-- GLO-258's remaining five: `rank_positions`, `routine_steps`, `collection_items`
+-- (covered where `CollectionsRepository.items()` was fixed, #430), `look_photos`,
+-- `look_tags`. Every one of them carries the same `*_own` + public pair, keyed
+-- through its parent's visibility. The rankings scope above is `public`, the
+-- routine and look below are `public` on their own rows (0053).
+insert into rank_positions (user_id, category_id, scope_key, user_item_id, position) values
+    ('05c07ed0-0000-0000-0000-000000000001', '05c07ed0-0000-0000-0000-0000000000c1',
+     'default', '05c07ed0-0000-0000-0000-0000000000f1', 1);
+insert into routines (id, user_id, title, slot, cadence, visibility) values
+    ('05c07ed0-0000-0000-0000-0000000000a4', '05c07ed0-0000-0000-0000-000000000001',
+     'a public routine', 'am', 'daily', 'public');
+insert into routine_steps (routine_id, user_item_id, position) values
+    ('05c07ed0-0000-0000-0000-0000000000a4', '05c07ed0-0000-0000-0000-0000000000f1', 0);
+insert into look_photos (id, look_id, r2_key, position) values
+    ('05c07ed0-0000-0000-0000-0000000000a5', '05c07ed0-0000-0000-0000-0000000000a2',
+     'looks/05c07ed0-0000-0000-0000-000000000001/scoped.jpg', 0);
+insert into look_tags (id, look_photo_id, x, y) values
+    ('05c07ed0-0000-0000-0000-0000000000a6', '05c07ed0-0000-0000-0000-0000000000a5', 0.5, 0.5);
+
 -- ── the viewer. Not a follower, not blocked: a stranger with an account. ────
 select test_as('05c07ed0-0000-0000-0000-000000000002');
 
@@ -123,6 +144,54 @@ select ok(not exists(select 1 from looks
                       where id = '05c07ed0-0000-0000-0000-0000000000a2'
                         and user_id = (select auth.uid())),
     'looks with user_id pinned returns nothing');
+
+-- 9–10. rank_positions — the one of the five with its OWN user_id column, and
+-- the one read that is still unpinned: `RankingRepository.positions()` filters
+-- on `category_id` + `scope_key` only. Against a category where any public
+-- ranker has a ladder, that read returns THEIR positions interleaved with
+-- yours — two rows claiming position 1. `face_offs` is `read_own` only, so
+-- `scored_face_offs` (security_invoker over it) does not share the defect.
+select ok(exists(select 1 from rank_positions
+                  where category_id = '05c07ed0-0000-0000-0000-0000000000c1'
+                    and scope_key = 'default'),
+    'UNFILTERED read of rank_positions by category returns the owner''s public ladder — the exact shape RankingRepository.positions() issues');
+select ok(not exists(select 1 from rank_positions
+                      where category_id = '05c07ed0-0000-0000-0000-0000000000c1'
+                        and scope_key = 'default'
+                        and user_id = (select auth.uid())),
+    'rank_positions with user_id pinned returns nothing');
+
+-- 11–16. The four child tables with NO user_id column: routine_steps,
+-- look_photos, look_tags (collection_items is 9–10 of #430). Their `*_own`
+-- policies reach the owner through the parent, and so must the read: the pin
+-- is the PARENT id list, already scoped by `user_id`, which is what
+-- `RoutinesRepository.mine()` and `LooksRepository.mine()` do. A read handed a
+-- parent id from anywhere else inherits nothing.
+select ok(exists(select 1 from routine_steps
+                  where routine_id = '05c07ed0-0000-0000-0000-0000000000a4'),
+    'UNFILTERED read of routine_steps by routine returns the owner''s public routine''s steps');
+select ok(not exists(select 1 from routine_steps
+                      where routine_id in (select id from routines
+                                            where user_id = (select auth.uid()))),
+    'routine_steps keyed to routines pinned on user_id returns nothing — the parent list is the scope');
+
+select ok(exists(select 1 from look_photos
+                  where look_id = '05c07ed0-0000-0000-0000-0000000000a2'),
+    'UNFILTERED read of look_photos by look returns the owner''s public look''s photo');
+select ok(not exists(select 1 from look_photos
+                      where look_id in (select id from looks
+                                         where user_id = (select auth.uid()))),
+    'look_photos keyed to looks pinned on user_id returns nothing');
+
+select ok(exists(select 1 from look_tags
+                  where look_photo_id = '05c07ed0-0000-0000-0000-0000000000a5'),
+    'UNFILTERED read of look_tags by photo returns the spot on the owner''s public photo');
+select ok(not exists(select 1 from look_tags
+                      where look_photo_id in (
+                            select id from look_photos
+                             where look_id in (select id from looks
+                                                where user_id = (select auth.uid())))),
+    'look_tags keyed through photos and looks pinned on user_id returns nothing');
 
 select * from finish();
 rollback;
