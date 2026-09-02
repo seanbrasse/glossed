@@ -1,6 +1,7 @@
 import AddLadder
 import DataKit
 import DesignSystem
+import ProductPage
 import SwiftUI
 
 // The add-ladder's presentation, extracted for the reason `AppShellDrawer`
@@ -30,6 +31,18 @@ extension AppShell {
                 // with its basis and n (GLO-108, Sean's "suggestions for the
                 // user to click on without searching").
                 suggestions: AggregatesRepository(client: client),
+                // Below the shade pick, the product's own evidence — the same
+                // view its page draws (GLO-108, Sean's "swipe up for more").
+                productDetails: { hit, variant in
+                    AnyView(ProductDetailsView(model: ProductPageModel(
+                        product: ProductPageItem(
+                            variantID: variant.id, brand: hit.brandName, name: hit.name,
+                            categoryLabel: hit.categorySlug, variant: variant.pickLabel,
+                            isAnchor: session.anchorCategoryIDs.contains(hit.categoryID)
+                        ),
+                        aggregates: AggregatesRepository(client: client)
+                    )))
+                },
                 query: ladderSeed,
                 onClose: {
                     ladderOpen = false

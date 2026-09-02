@@ -71,6 +71,8 @@ public struct LadderFlowView: View {
     /// The row that landed, once per flow — richer than `onShelfChanged`
     /// because the host's next question (fit) is about *this* row.
     private let onLogged: (LoggedShelfItem) -> Void
+    /// The shade sheet's lower half — see `VariantPickSheet.details`.
+    private let productDetails: ((CatalogHit, Variant) -> AnyView)?
 
     public init(
         catalog: any LadderCatalog,
@@ -78,6 +80,7 @@ public struct LadderFlowView: View {
         tracker: Tracker? = nil,
         fill: (any BarcodeFilling)? = nil,
         suggestions: (any LadderSuggesting)? = nil,
+        productDetails: ((CatalogHit, Variant) -> AnyView)? = nil,
         query: String = "",
         onClose: @escaping () -> Void = {},
         onShelfChanged: @escaping () -> Void = {},
@@ -87,6 +90,7 @@ public struct LadderFlowView: View {
         self.shelf = shelf
         self.tracker = tracker
         self.fill = fill
+        self.productDetails = productDetails
         self.onClose = onClose
         self.onShelfChanged = onShelfChanged
         self.onLogged = onLogged
@@ -114,6 +118,7 @@ public struct LadderFlowView: View {
                     // fresh sheet with a fresh load, never recycled state.
                     VariantPickSheet(
                         model: VariantPickModel(hit: hit, catalog: catalog),
+                        details: productDetails,
                         onConfirm: { variantID in pickedVariant(variantID) },
                         onCancel: { cancelVariantPick() }
                     )

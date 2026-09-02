@@ -34,16 +34,9 @@ public struct ProductPageView: View {
                     .foregroundStyle(Tokens.Semantic.accentText)
                     .underline()
                 hero
-                evidenceCard
-                // Anchor *and* answerable (GLO-165). The control shipped
-                // visible whenever the category was an anchor, so on a page
-                // with no shelf row behind it the answer moved on screen and
-                // was never written — a fake write, which is what GLO-72 and
-                // GLO-151 exist to prevent. `canCaptureFit` was already on the
-                // model and already tested; the view simply never read it.
-                if model.product.isAnchor, model.canCaptureFit {
-                    fitBlock
-                }
+                // The evidence and the fit answer, shared with the sheets that
+                // show a product before or beside its page (GLO-108).
+                ProductDetailsView(model: model)
                 actions
             }
             // 110pt of bottom room: the floating nav sits over this screen.
@@ -51,13 +44,6 @@ public struct ProductPageView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Tokens.Ground.milk)
-        .task {
-            // The saved answer is read alongside the evidence, not after it:
-            // the meter's baseline and the control's state are two halves of
-            // the same claim about the same user (GLO-47).
-            model.loadFit()
-            await model.load()
-        }
     }
 
     /// The object is the biggest thing on the page and it is tilted — this is
@@ -100,88 +86,6 @@ public struct ProductPageView: View {
 
     /// The receipts. Mint because it is the page's good news, and the one place
     /// a count about other people appears.
-    private var evidenceCard: some View {
-        GlossedCard(tint: .mint, padding: 14) {
-            VStack(alignment: .leading, spacing: 8) {
-                shadeClaim
-                // The frame puts a scattered `ChipGroup` here — attribute and
-                // experience chips with their counts, a dislike sitting in the
-                // same group as the likes. Nothing reads aggregate chips yet, so
-                // the group is absent rather than invented: a chip with no count
-                // behind it is exactly the claim this card exists to make
-                // impossible. GLO-68.
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var shadeClaim: some View {
-        switch model.shadeClaim {
-        case let .backed(n):
-            EvidenceLine(n: n, label: "people in your shade rated it", tone: .ink)
-        case .notEnoughYet:
-            // Incompleteness as a promise, not an apology (PRD §06). It says
-            // what will change it, which "not enough data" does not.
-            Text("not enough reports in your shade yet — this fills in as people log theirs").meta()
-        case .unavailable:
-            // Never "not enough yet": we did not ask, so we know nothing.
-            Text(model.failure?.userMessage ?? "couldn't check the reports just now").meta()
-        }
-    }
-
-    /// Its own pop card, because answering it is the one thing this page wants
-    /// from you — fit is captured at log time, not rating time (PRD §05), and
-    /// this is the second chance to give it.
-    private var fitBlock: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            FitControl(
-                selection: Binding(
-                    get: { model.fit },
-                    set: { model.fitChanged(to: $0) }
-                )
-            )
-            Divider()
-                .overlay(Tokens.Ground.line)
-                .padding(.top, 12)
-            ConfidenceMeter(have: anchorsHeld, need: 5)
-                .padding(.top, 10)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Tokens.Ground.card)
-        .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.lg))
-        .overlay(
-            RoundedRectangle(cornerRadius: Tokens.Radius.lg)
-                .strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.std)
-        )
-        .background(
-            RoundedRectangle(cornerRadius: Tokens.Radius.lg)
-                .fill(Tokens.Ink.primary)
-                .offset(x: Tokens.Shadow.md, y: Tokens.Shadow.md)
-        )
-    }
-
-    /// The meter moves the moment you answer, which is the payoff for
-    /// answering — the kit is explicit that it must not wait for a reload.
-    ///
-    /// The baseline is `withFitCount` from the same RPC that supplies the n
-    /// above, so the two halves of this page agree about the same user.
-    ///
-    /// The answer persists now (GLO-47's second half). It used to go nowhere,
-    /// and the reason given here was that the write "needs a `user_item_id`,
-    /// and this page is opened from a variant" — true when it was written and
-    /// false since #213, which made the page reachable from the shelf, where
-    /// the row's id *is* the `user_item_id`.
-    private var anchorsHeld: Int {
-        (model.anchorsWithFit ?? 0) + (model.fit.isEmpty ? 0 : 1)
-    }
-
-    /// The frame's two buttons — and only the ones that lead somewhere.
-    ///
-    /// `rank it` places this product among the ones you already have, so a page
-    /// reached without owning it has nothing to place (GLO-241). The board does
-    /// not need you to own anything, so it is always here, and takes the whole
-    /// row when it is alone rather than sitting half-width beside a gap.
     private var actions: some View {
         HStack(spacing: 10) {
             if model.canRank {

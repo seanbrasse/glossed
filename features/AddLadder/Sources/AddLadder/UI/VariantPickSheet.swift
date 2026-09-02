@@ -14,28 +14,59 @@ import SwiftUI
 /// `pickedVariant(_:)` — and the flow host's existing matched-log machinery
 /// does the write, spinner, retry and close.
 public struct VariantPickSheet: View {
-    @State private var model: VariantPickModel
+    @State var model: VariantPickModel
     private let onConfirm: (UUID) -> Void
-    private let onCancel: () -> Void
+    let onCancel: () -> Void
+    /// What the sheet shows below the pick for the chosen variant — the
+    /// product's own evidence, handed in by the app because the page that
+    /// draws it is another feature (GLO-108). Nil: the sheet ends at the
+    /// confirm, as it did.
+    private let details: ((CatalogHit, Variant) -> AnyView)?
+    /// The sheet's content height, so a short sheet stays short and a tall
+    /// one scrolls inside `maxSheetShare` of the screen.
+    @State private var contentHeight: CGFloat = 0
+    static let maxSheetShare: CGFloat = 0.88
 
     public init(
         model: VariantPickModel,
+        details: ((CatalogHit, Variant) -> AnyView)? = nil,
         onConfirm: @escaping (UUID) -> Void,
         onCancel: @escaping () -> Void
     ) {
         _model = State(initialValue: model)
+        self.details = details
         self.onConfirm = onConfirm
         self.onCancel = onCancel
     }
 
     public var body: some View {
-        ZStack(alignment: .bottom) {
-            scrim
-            sheet
+        GeometryReader { geo in
+            ZStack(alignment: .bottom) {
+                scrim
+                boundedSheet(available: geo.size.height * Self.maxSheetShare)
+            }
         }
         .ignoresSafeArea()
         .accessibilityAddTraits(.isModal)
         .task { await model.load() }
+    }
+
+    /// The sheet scrolls once it is taller than the screen allows — which
+    /// is what the details below the pick are for (Sean, Sep 2: *"we should
+    /// be able to scroll the popup when adding a product up to see more
+    /// details"*). Until the first measure it takes the room it needs.
+    private func boundedSheet(available: CGFloat) -> some View {
+        ScrollView {
+            sheet
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(key: PickSheetHeightKey.self, value: geo.size.height)
+                    }
+                )
+        }
+        .frame(height: contentHeight > 0 ? min(contentHeight, available) : nil)
+        .onPreferenceChange(PickSheetHeightKey.self) { contentHeight = $0 }
+        .scrollBounceBehavior(.basedOnSize)
     }
 
     private var scrim: some View {
@@ -51,6 +82,7 @@ public struct VariantPickSheet: View {
             VStack(alignment: .leading, spacing: 0) {
                 header
                 pickSection
+                moreSection
             }
             // Home-indicator clearance on top of the sheet's own padding —
             // same fix as the item sheet, for the same reason.
@@ -128,69 +160,28 @@ public struct VariantPickSheet: View {
         }
     }
 
-    private enum PickState {
-        case loading
-        case failed(GlossedError)
-        case empty
-        case options
-    }
-
-    private var state: PickState {
-        if model.isLoading {
-            .loading
-        } else if let failure = model.failure {
-            .failed(failure)
-        } else if model.isEmpty {
-            .empty
-        } else {
-            .options
-        }
-    }
-
-    private var loading: some View {
-        HStack(spacing: Tokens.Space.s3) {
-            ProgressView()
-            Text("finding the shades & sizes…").meta()
-        }
-        .frame(maxWidth: .infinity, minHeight: 88)
-    }
-
-    /// A failure is not evidence about the catalog — say it failed and keep
-    /// the retry, never an empty state (same rule as the search rung).
-    private func retry(_ failure: GlossedError) -> some View {
-        VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-            Text(failure.userMessage).meta()
-            Button("try again") {
-                Task { await model.load() }
+    /// Below the pick: the product's evidence, the same view its page shows,
+    /// behind a hint rather than a full-page button (Sean: *"tell the user
+    /// to swipe up for more details"*). A claim needs a subject and the shade
+    /// cohort is per variant, so until one is picked the line says so.
+    @ViewBuilder private var moreSection: some View {
+        if let details, case .options = state {
+            Divider()
+                .overlay(Tokens.Ground.lineOnCard)
+                .padding(.vertical, Tokens.Space.s4)
+            Text("swipe up for more ↑").meta()
+                .padding(.bottom, Tokens.Space.s3)
+            if let variant = model.confirmed {
+                details(model.hit, variant)
+                    // A different variant is a fresh load, never recycled.
+                    .id(variant.id)
+            } else {
+                Text("pick a shade or size to see how it fits your shade").meta()
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .buttonStyle(.glossed(.secondary, size: .sm))
         }
-        .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
     }
 
-    /// A real state: ~a handful of catalog rows have no variants filled in.
-    /// The way onward is the rung behind this sheet — its "none of these"
-    /// still stands — so the sheet only has to say why it cannot proceed.
-    private var empty: some View {
-        VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-            Text("no shades or sizes on file for this one yet — scanning the barcode adds yours exactly.")
-                .meta()
-            Button("back") { onCancel() }
-                .buttonStyle(.glossed(.secondary, size: .sm))
-        }
-        .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
-    }
-
-    /// Up to six rows sit inline and the sheet stays compact. More than six
-    /// scroll inside a capped viewport that ends on a half row — the cut row
-    /// is the scroll affordance. Without the cap a 40-shade foundation grew
-    /// the sheet past the screen and took the header, the close and the
-    /// confirm with it: a pick that could be started but never finished
-    /// (GLO-88). Numbers are workshop-able; the shape is not optional.
-    /// Internal rather than private, and paired with `scrolls(variantCount:)`
-    /// below, because GLO-88's fix was enforced by two constants that nothing
-    /// asserted (GLO-168). A shape described only in a comment is a shape one
-    /// edit away from being gone.
     static let inlineRowLimit = 6
     static let scrollViewportHeight: CGFloat =
         5.5 * Tokens.hitTarget + 5 * Tokens.Space.s2
@@ -251,5 +242,12 @@ public struct VariantPickSheet: View {
         .buttonStyle(.glossed(block: true))
         .disabled(!model.canConfirm)
         .padding(.top, Tokens.Space.s5)
+    }
+}
+
+private struct PickSheetHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }

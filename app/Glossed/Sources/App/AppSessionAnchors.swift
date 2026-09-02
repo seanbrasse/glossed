@@ -5,6 +5,14 @@ import Foundation
 // when the phone's account path landed (Sept 2) — a mechanical move.
 
 extension AppSession {
+    /// The `is_anchor` categories, by id. Failure is empty, not fatal: a
+    /// surface then treats every product as non-anchor and asks no shade
+    /// question, which under-claims rather than invents.
+    static func loadAnchorCategoryIDs(_ catalog: CatalogRepository) async -> Set<UUID> {
+        guard let categories = try? await catalog.categories() else { return [] }
+        return Set(categories.filter(\.isAnchor).map(\.id))
+    }
+
     /// Every foundation variant the local catalog carries, keyed the way the
     /// picker names one. Failure is empty, not fatal: an unresolvable anchor
     /// makes the payoff say it has nothing to show, which is true, rather than
