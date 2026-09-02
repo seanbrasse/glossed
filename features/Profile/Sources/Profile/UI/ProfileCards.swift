@@ -32,9 +32,10 @@ struct LookTile: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// The first photo, square, with the count dots riding its corner. Sized
-    /// by the clear base and overlaid (GLO-252's remedy) so a portrait shot
-    /// crops instead of growing the tile.
+    /// The first photo, square. Sized by the clear base and overlaid
+    /// (GLO-252's remedy) so a portrait shot crops instead of growing the
+    /// tile. No count dots on it (Sean, Sept 1): the line under the photo
+    /// already says how many.
     private var photo: some View {
         Color.clear
             .aspectRatio(1, contentMode: .fit)
@@ -50,28 +51,6 @@ struct LookTile: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.lg))
-            .overlay(alignment: .bottomTrailing) {
-                if look.photoN > 1 {
-                    photoDots
-                }
-            }
-    }
-
-    /// One dot per photo, capping out at three (Sean's ruling) — a count
-    /// mark, not a pager: the tile does not page, so the dots do not select.
-    private static let dotDiameter: CGFloat = 5
-
-    private var photoDots: some View {
-        HStack(spacing: Tokens.Space.s1) {
-            ForEach(0 ..< min(look.photoN, 3), id: \.self) { _ in
-                Circle()
-                    .fill(Tokens.Ground.milk)
-                    .frame(width: Self.dotDiameter, height: Self.dotDiameter)
-            }
-        }
-        .padding(Tokens.Space.s2)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 }
 
