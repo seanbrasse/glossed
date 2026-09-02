@@ -48,6 +48,9 @@ export interface ShelfItem {
   readonly status: string;
   readonly rank_position: number | null;
   readonly ranked_in_category: number;
+  /// The catalog's one line on what it does — the planner's "about" answer.
+  readonly benefit_line?: string | null;
+  readonly catalog_image_key?: string | null;
 }
 
 export interface RoutineSummary {
@@ -110,6 +113,10 @@ export type Block =
       readonly ranked_in_category: number | null;
       readonly n_face_offs: number | null;
       readonly catalog_image_key: string | null;
+      /// Whose receipt this is, and its n — "face-offs by people who wear
+      /// your shade" · 12. Null when the row's evidence is the shelf's own.
+      readonly basis_label: string | null;
+      readonly basis_n: number | null;
     }[];
   }
   | {
@@ -166,6 +173,8 @@ export function systemPrompt(): string {
     "You are the stylist inside glossed, a beauty journal that ranks. You talk with one",
     "person about their skin, hair, makeup and fragrance, and about what is on their",
     "shelf. You are warm, brief and specific. Lowercase, plain words, no exclamation marks.",
+    "You are reached only for questions the app's own rules could not answer from data;",
+    "keep to the question asked, and lean on the tools for anything with a shape.",
     "",
     "WHAT YOU KNOW. The <context> block holds what the app knows about this person:",
     "their fit answers and stated facts, the products they own with how they ranked",
@@ -480,7 +489,9 @@ export function validateArtifact(
           rank_position: shelf?.rank_position ?? null,
           ranked_in_category: shelf?.ranked_in_category ?? null,
           n_face_offs: hit?.n_face_offs ?? null,
-          catalog_image_key: hit?.catalog_image_key ?? null,
+          catalog_image_key: shelf?.catalog_image_key ?? hit?.catalog_image_key ?? null,
+          basis_label: null,
+          basis_n: null,
         });
       }
       if (products.length === 0) {
