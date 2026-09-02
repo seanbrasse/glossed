@@ -128,6 +128,7 @@ app · features/Stylist ──POST /functions/v1/stylist (JWT)──▶ Edge Fun
 | STY-6 | `stylist_query` analytics event (`tools_used`, `answered`) | `core/Tracking` or feature | — |
 | STY-7 | medical-claim response classifier (second pass) | function | Sean's ruling on refusal copy |
 | STY-8 | per-user daily budget | migration **0058+** | migration slot |
+| STY-9 | saved things (`tech/03` §1a, SAV-6): `saves` in the prefetch with owner + shelf overlap, `reference_saved(kind, id)` validated against it, the never-edit / never-mention-to-others rule in the prompt, tests | `supabase/functions/stylist/{tools.ts,data.ts,tools_test.ts}` | SAV-2's migration |
 | STY-9 | minors ruling | docs | Sean |
 | STY-10 | `G.Stylist` frame in the kit | `screens.jsx`, `screen-map.html` | `/design-login` (interactive) — the canvas for now: the Stylist Tab artifact |
 | STY-11 | streaming replies | `GlossedClient` | DataKit opening |
