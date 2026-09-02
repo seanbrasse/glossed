@@ -61,6 +61,11 @@ public enum Event: Sendable, Equatable {
     case recTapped(slot: RecSlot, productID: UUID)
     case recDismissed(slot: RecSlot, productID: UUID, reason: String?)
 
+    /// The stylist (tech/06 §2): which tools fed the answer and whether there
+    /// was one. Never the query, never the reply — both can carry skin and
+    /// hair facts, and props are the analytics stream.
+    case stylistQuery(toolsUsed: [String], answered: Bool)
+
     // Failure + safety surfaces
     case errorShown(code: String, supportReference: String)
     case restrictedActionBlocked(surface: String, action: String)
@@ -113,6 +118,7 @@ public extension Event {
         case .recImpression: "rec_impression"
         case .recTapped: "rec_tapped"
         case .recDismissed: "rec_dismissed"
+        case .stylistQuery: "stylist_query"
         case .errorShown: "error_shown"
         case .restrictedActionBlocked: "restricted_action_blocked"
         }
@@ -182,6 +188,8 @@ public extension Event {
                 "product_id": .id(productID),
                 "reason": .optional(reason)
             ].compacted()
+        case let .stylistQuery(toolsUsed, answered):
+            ["tools_used": .string(toolsUsed.sorted().joined(separator: ",")), "answered": .bool(answered)]
         case let .errorShown(code, supportReference):
             ["code": .string(code), "support_ref": .string(supportReference)]
         case let .restrictedActionBlocked(surface, action):

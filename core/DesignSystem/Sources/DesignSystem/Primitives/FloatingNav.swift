@@ -11,7 +11,7 @@ public struct FloatingNav<TabID: Hashable>: View {
     /// What a tab draws — the kit's three marks. `avatar` carries the
     /// signed-in name; the shell supplies it.
     public enum Glyph {
-        case discover, shelf
+        case discover, stylist, shelf
         case avatar(name: String)
     }
 
@@ -102,6 +102,8 @@ public struct FloatingNav<TabID: Hashable>: View {
         switch glyph {
         case .discover:
             SparklesIcon()
+        case .stylist:
+            StylistIcon()
         case .shelf:
             ShelfIcon()
         case let .avatar(name):
