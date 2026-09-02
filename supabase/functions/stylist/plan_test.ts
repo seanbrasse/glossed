@@ -330,3 +330,27 @@ Deno.test("a routine ask with no slot lands on the slot the person does not keep
   const j = detectIntent("build me a morning routine", input);
   assertEquals(j.kind === "routine" ? j.slot : null, "am", "a named slot always wins");
 });
+
+Deno.test("an empty shelf is told so and pointed at the +, not handed two basics as gaps", () => {
+  // Sean, Sep 2: "correct technically but also pretty bad" — the
+  // set-difference read as if he owned everything except cleanser and sun.
+  const bare: PlanInput = { ...input, ctx: { ...ctx, shelf: [] } };
+  const planned = planTurn("what am i missing", bare);
+  assertEquals(planned.fetches, []);
+  const r = planned.finish([]);
+  assert(r.text.startsWith("nothing on your shelf yet"));
+  assert(r.text.includes("from the +"));
+  assertEquals(r.blocks, []);
+  assertEquals(r.chips, ["what should i try next", "what's missing for my skin"]);
+});
+
+Deno.test("an empty shelf offers no routine or look chip — they would build nothing", () => {
+  assertEquals(
+    chipsFor({ ...ctx, shelf: [] }, [
+      "build my am routine",
+      "compare what i own",
+      "a look for tonight",
+    ]),
+    ["what should i try next", "what's missing for my skin"],
+  );
+});
