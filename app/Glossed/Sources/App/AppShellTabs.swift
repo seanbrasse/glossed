@@ -58,7 +58,7 @@ extension AppShell {
     var tabs: some View {
         ZStack(alignment: .bottom) {
             Color.clear
-                .overlay { activeScreen.clearingFloatingNav() }
+                .overlay { tabPager }
             if !itemSheetOpen {
                 FloatingNav(
                     tabs: [
@@ -137,14 +137,35 @@ extension AppShell {
         profileReloadTrip = UUID()
     }
 
-    @ViewBuilder var activeScreen: some View {
-        switch tab {
-        case .shelf:
-            shelfTab
-        case .discover:
-            discoverTab
-        case .you:
-            youTab
+    /// The three screens live in a `TabView` with its bar hidden — the
+    /// floating nav stays the only nav — so a screen survives leaving it.
+    ///
+    /// This was a `switch` on `tab`, which is not a tab container: SwiftUI
+    /// treats the three branches as three different views, so every switch
+    /// **unmounted** the old screen and **mounted** the new one from
+    /// nothing. Every `@State` gone, every scroll position gone, every
+    /// `.task` cancelled and re-run — discover redrew its skeletons and the
+    /// profile ran its serial reads behind a spinner on every single tap.
+    /// That is the whole of Sean's "glitches when swapping tabs" (GLO-256's
+    /// flash was one symptom of it; #478 widened the column that flashed).
+    /// A `TabView` keeps each tab's view alive once shown, so a return is a
+    /// return — and loads run once, which is what `.task` always meant.
+    ///
+    /// The bar is hidden per tab rather than on the container: on iOS 17
+    /// `.toolbar(.hidden, for: .tabBar)` is honoured from inside the tab.
+    /// Each tab still clears the floating nav, as `activeScreen` did.
+    var tabPager: some View {
+        TabView(selection: $tab) {
+            tabPage(discoverTab, .discover)
+            tabPage(shelfTab, .shelf)
+            tabPage(youTab, .you)
         }
+    }
+
+    private func tabPage(_ screen: some View, _ id: ShellTab) -> some View {
+        screen
+            .clearingFloatingNav()
+            .toolbar(.hidden, for: .tabBar)
+            .tag(id)
     }
 }
