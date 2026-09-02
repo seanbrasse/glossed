@@ -108,7 +108,9 @@ public struct OwnProfileView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Tokens.Space.s6) {
                 if model.isLoading {
-                    ProgressView().padding(.top, Tokens.Space.s8)
+                    // Its shape first, then a fade — see `ProfileSkeleton`.
+                    ProfileSkeleton()
+                        .transition(.opacity)
                 } else {
                     header
                     if model.needsHandle {
@@ -138,6 +140,7 @@ public struct OwnProfileView: View {
             // Full width while loading too: a lone `ProgressView` is 60pt
             // wide, and that column was GLO-256's flash on every entry here.
             .frame(maxWidth: .infinity, alignment: .leading)
+            .animation(.easeOut(duration: Tokens.Motion.med), value: model.isLoading)
         }
         .background(Tokens.Ground.milk)
         .task(id: reloadKey) { await model.load() }
