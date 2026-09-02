@@ -616,6 +616,28 @@ export const FALLBACK_CHIPS = [
   "what should i try next",
 ] as const;
 
+/// One card per thing: a plan tool and the model's own artifact tool can
+/// both draw the same routine or look in one turn (seen with Sonnet 5 —
+/// build_routine then propose_routine, look_for_tonight then
+/// reference_look). The first stays; a later twin is dropped.
+export function dedupeBlocks(blocks: readonly Block[]): Block[] {
+  const seen = new Set<string>();
+  const out: Block[] = [];
+  for (const b of blocks) {
+    const key = b.type === "routine_draft"
+      ? `routine:${b.slot}:${b.steps.map((s) => s.user_item_id).join(",")}`
+      : b.type === "product_list"
+      ? `products:${b.products.map((p) => p.product_id).join(",")}`
+      : b.type === "look_ref"
+      ? `look:${b.look_id}`
+      : `collection:${b.collection_id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(b);
+  }
+  return out;
+}
+
 export function assembleReply(
   text: string,
   blocks: readonly Block[],
@@ -627,9 +649,10 @@ export function assembleReply(
   // says so, but every model capitalised a sentence somewhere in the
   // bake-off — so the reply is normalised here, where it cannot drift.
   const trimmed = text.trim().toLowerCase();
+  const unique = dedupeBlocks(blocks);
   return {
-    text: trimmed.length > 0 || blocks.length > 0 ? trimmed : NO_ANSWER_TEXT,
-    blocks,
+    text: trimmed.length > 0 || unique.length > 0 ? trimmed : NO_ANSWER_TEXT,
+    blocks: unique,
     chips: chips.length > 0 ? chips : [...FALLBACK_CHIPS],
     grounded_in: [...new Set([...contextKeys, ...toolsUsed.filter((t) => DATA_TOOLS.has(t))])],
     tools_used: [...new Set(toolsUsed)],

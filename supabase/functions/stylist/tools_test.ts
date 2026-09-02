@@ -205,6 +205,23 @@ Deno.test("chips are lowercased, deduplicated, capped, and an over-long one is d
   assertEquals(v.ok ? v.chips : [], ["build my pm routine", "a", "b"]);
 });
 
+Deno.test("a card drawn twice in one turn is shown once", () => {
+  const routine = validateArtifact(
+    "propose_routine",
+    {
+      title: "morning",
+      slot: "am",
+      steps: [{ user_item_id: ITEM }],
+    },
+    ctx,
+    new Map(),
+  );
+  const look = validateArtifact("reference_look", { look_id: LOOK }, ctx, new Map());
+  assert(routine.ok && routine.block && look.ok && look.block);
+  const r = assembleReply("x", [routine.block, look.block, routine.block, look.block], [], [], []);
+  assertEquals(r.blocks.map((b) => b.type), ["routine_draft", "look_ref"]);
+});
+
 Deno.test("a reply is lowercased, and a turn without chips gets the fallback row", () => {
   const r = assembleReply("Yes — Skip It. SPF matters more.", [], [], ["model"], ["shelf"]);
   assertEquals(r.text, "yes — skip it. spf matters more.");
