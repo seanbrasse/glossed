@@ -80,10 +80,18 @@ is not saved, a product is not added to want-to-try, until the user does it.
   is a `domain.md` §6 retention decision, not a default.
 - **Minors (13–17)**: no ruling exists. v1 shows the tab only to adults
   (`is_minor_user` false); the tab reads *"not yet"* for a minor. Sean decides.
-- **Spend**: per-turn caps (`MAX_TOOL_CALLS`, `max_tokens`, transcript
-  trimmed to the last 12 messages), `effort: "low"` on `claude-opus-5`, the
-  frozen system prompt + context block cached. A per-user daily budget needs a
-  table — follow-up, with the flag.
+- **Spend**: the shaped asks cost no model call at all (§4). The free-form
+  fallback runs `claude-sonnet-5` at `effort: "low"` — the Sept 2 bake-off
+  (`scripts/stylist_bakeoff.ts`: nine open questions, maya's context, three
+  models): Sonnet 5 answered every one on the beauty half with its receipts
+  at ~0.3–1.4¢ and 3–12 s a turn, a third of Opus 5's cost (0.8–3.8¢, 5–19 s)
+  and half its latency; Haiku 4.5 (~0.7¢, 2–4 s) refused a layering question
+  as "a dermatologist question", asked for facts already in `<context>`,
+  invented a cleanser's strength and never reached for a tool. `STYLIST_MODEL`
+  in the env switches without a deploy. Per-turn caps (`MAX_TOOL_CALLS`,
+  `max_tokens`, transcript trimmed to the last 12 messages), the frozen system
+  prompt + context block cached. A per-user daily budget needs a table —
+  follow-up, with the flag.
 - **Behind a flag.** `StylistFlag` (DEBUG builds on; release off until Sean
   flips it). The tab does not render when the flag is off.
 
@@ -107,7 +115,7 @@ app · features/Stylist ──POST /functions/v1/stylist (JWT)──▶ Edge Fun
                                                               │      compare   = own ranks in a category
                                                               │      about     = the catalog's line + the rank
                                                               │ 4. only `open` (no rule matched) AND a key → model.ts
-                                                              │      claude-opus-5 tool loop, artifact ids validated
+                                                              │      Sonnet 5 tool loop (STYLIST_MODEL), ids validated
                                                               └ 5. one JSON reply; nothing stored
 ```
 
