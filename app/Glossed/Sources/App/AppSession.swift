@@ -67,17 +67,36 @@ final class AppSession {
     /// anchor question asks for a foundation and nothing else uses this.
     private var anchorVariants: [String: UUID] = [:]
 
-    /// Clears everything a signed-in session held (GLO-213).
+    /// Clears everything a signed-in session held (GLO-213) and hands the
+    /// screen to FLOW 1's hook — the sign-in screen — on the next frame.
+    ///
+    /// Sean, Sep 2: *"Signing out should immediately take the user back to
+    /// the signin page."* It did not. This used to nil the client and stop,
+    /// which left `phase == .ready` and `needsOnboarding == false`, so the
+    /// shell went on rendering the tabs: the `you` tab is `if let client`
+    /// and drew nothing, and discover kept its stale model. Signed out, as
+    /// far as the screen could tell, meant "the profile went blank".
+    ///
+    /// **The client stays.** `client.signOut()` already ended the Supabase
+    /// session; what is left is a `GlossedClient` with no user, which is
+    /// exactly what the hook's Apple and phone doors sign in through — the
+    /// same thing `readyWithoutAccount` hands the flow on a device with the
+    /// dev sign-in off (#499). Nil would make the hook unmountable
+    /// (`onboardingFlow` is `if let client` too).
     ///
     /// Deliberately does NOT call `boot()`. The debug build signs in as
     /// maya automatically, so re-booting would put the user straight back
     /// where they were and make sign out look broken — a tap that appears to
     /// do nothing is worse than no button.
     func signedOut() {
-        client = nil
+        // Whatever queued under the old user goes out before the tracker
+        // is dropped; a post after sign-out would be unauthenticated anyway.
+        flushTracker()
         tracker = nil
         shelfModel = nil
-        imageBase = nil
+        discoverModel = nil
+        shelfItemCount = 0
+        needsOnboarding = true
     }
 
     func boot() async {
@@ -264,6 +283,12 @@ final class AppSession {
     func onboardingFinished() async {
         guard let client else { return }
         needsOnboarding = await (try? ProfileRepository(client: client).own()) == nil
+        // Signing out drops the tracker with the user it was posting for; a
+        // sign-in through the hook is the one path back that does not pass
+        // through `boot()`, so the tracker is rebuilt here for the new user.
+        if tracker == nil {
+            tracker = Tracker(poster: TrackIngestPoster(client: client))
+        }
         await reloadShelf()
     }
 }
