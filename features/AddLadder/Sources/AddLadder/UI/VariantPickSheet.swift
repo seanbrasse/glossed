@@ -109,7 +109,8 @@ public struct VariantPickSheet: View {
             Divider()
                 .overlay(Tokens.Ground.lineOnCard)
                 .padding(.vertical, Tokens.Space.s4)
-            Text("which one is yours").eyebrow()
+            // A sole variant is stated, not asked about (`isSole`).
+            Text(model.isSole ? "on file" : "which one is yours").eyebrow()
             switch state {
             case .loading:
                 loading
@@ -214,7 +215,7 @@ public struct VariantPickSheet: View {
             optionRows
         }
         if model.variants.count == 1 {
-            Text("the only one we have on file — check it's yours")
+            Text("the only one on file — it goes on your shelf as this")
                 .meta()
                 // Wrap, don't truncate (GLO-146). Without this the line
                 // rendered as "check it's you…" — the sheet's whole job is
@@ -232,7 +233,8 @@ public struct VariantPickSheet: View {
             ForEach(model.variants) { variant in
                 VariantOptionRow(
                     variant: variant,
-                    isSelected: variant.id == model.selectedVariantID
+                    isSelected: variant.id == model.selectedVariantID,
+                    marker: model.isSole ? nil : "yours"
                 ) {
                     model.select(variant.id)
                 }

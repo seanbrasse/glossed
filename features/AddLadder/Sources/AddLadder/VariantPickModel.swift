@@ -80,6 +80,14 @@ public final class VariantPickModel {
         }
     }
 
+    /// One variant on file is a confirmation, not a choice. Sean, Sep 2:
+    /// *"the which one is yours screen is confusing when one size is the
+    /// only option, and why does it say yours??"* The sheet asks no question
+    /// and marks nothing "yours" when there is nothing to choose between.
+    public var isSole: Bool {
+        hasLoaded && variants.count == 1
+    }
+
     public func select(_ variantID: UUID) {
         guard variants.contains(where: { $0.id == variantID }) else { return }
         selectedVariantID = variantID

@@ -7,6 +7,9 @@ import SwiftUI
 struct VariantOptionRow: View {
     let variant: Variant
     let isSelected: Bool
+    /// The word beside a selected row — `yours` among several, nothing when
+    /// the row is the only one (a sole option is not a choice, GLO-108).
+    var marker: String? = "yours"
     let select: () -> Void
 
     var body: some View {
@@ -17,8 +20,8 @@ struct VariantOptionRow: View {
                     .font(Typography.mono(13))
                     .foregroundStyle(Tokens.Ink.primary)
                 Spacer(minLength: 0)
-                if isSelected {
-                    Text("yours")
+                if isSelected, let marker {
+                    Text(marker)
                         .font(Typography.mono(11))
                         .foregroundStyle(Tokens.Cherry.deep)
                 }
