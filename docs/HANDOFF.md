@@ -9,8 +9,12 @@ that cost the most last time. This file is the reference it points at.
 
 ## Session 21 at a glance (Sept 2, afternoon — Sean's six qualms with onboarding)
 
-**Six PRs open, none merged, no grant given** — #500, #501, #502, #503, #504,
-#505. Sean drove onboarding on his phone and sent six notes; each is one PR.
+**Eight PRs open, none merged, no grant given** — #500–#507. Sean drove
+onboarding on his phone and sent six notes, then two more; each is one PR.
+**The lot is on his phone** (15:17, `phone/sep-2-onboarding` = #499 + all
+eight, merged clean; binary mtime and `applesignin` entitlement checked
+before install, `GlossedDevSignIn=0` in the plist). That branch is local
+only — it is not a PR.
 **Linear refused every new issue** ("exceeded the free issue limit"), so the
 six ticket bodies are one comment on GLO-108 (the first-run friction ticket)
 and the branches carry `GLO-108` (`GLO-248` for the hair images, which existed).
@@ -23,10 +27,14 @@ and the branches carry `GLO-108` (`GLO-248` for the hair images, which existed).
 | **Skin tone, not foundation** — the quiz is domains → tone (always) → hair (if haircare); the foundation question is gone from onboarding (Sean: "we don't want users to not find their product and get a distaste"). **Undertone is not asked**: self-report is unreliable (the vein test fails olive skin), the app learns it from fit answers on the undertone axis, and evidence wins. The payoff's anchor seam stays, unset → neutral path. Stacked on #502 | **#503** |
 | **The profile-tab flash, recorded and counted** — first entry was four cuts over ~0.85 s (bare page + spinner, header, caption, photo); a second entry cross-faded in two frames. `ProfileSkeleton` + a fade; the look photo fades over its placeholder | **#504** |
 | **Hair-type strands** — twelve SVGs in the kit's line language from one script, `Hair.xcassets` in DesignSystem, the canvas for review at <https://claude.ai/code/artifact/08666e0a-f089-4d12-ad36-04619babd901>. PRD §06's 4-series review gate stands. Stacked on #500, `size-override` (25 generated files) | **#505** |
+| **The payoff shows an example shelf** — "build your shelf", a hand aside saying what a shelf is, six tiles (leaderboard row with its n, else a catalog stand-in), eyebrow "a shelf, for example" unless every tile has its n; door: **create your account**. Every read anon-granted. Stacked on #503 | **#506** |
+| **The nos are gone everywhere but the hook** — "two ways in · nothing else" ("feels like a threat"), "no email, no password, no third social", the tour's "no ads, no bots, no gatekeeping", the sign-out "you'll need your email". The account screen now says "create your account" | **#507** |
 | **A new package resource does not reach `Glossed.app` on an incremental build** — the bundle copy inside Products/Glossed.app was dated Aug 31 while the fresh one had the catalog; the app said `No image named 'hair-4c'`. `rm -rf` the bundle copy and rebuild | §8 |
 
-**Not driven:** #503's tone-first quiz end to end on a device, #504's after
-recording (the before is counted in the PR). **Sean's to decide:** whether the
+**Not driven:** #504's after recording (the before is counted in the PR);
+Sean is driving the rest on his phone. **Merge order when he grants it:**
+#500 → #502 → #503 → #506 (a stack; retarget each before deleting the merged
+base), #505 (on #500), and #501, #504, #507 straight to `main`. **Sean's to decide:** whether the
 payoff screen should show a tone-band cohort now that no anchor reaches it,
 and whether to upgrade Linear or keep filing on umbrella tickets.
 

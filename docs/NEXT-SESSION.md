@@ -21,8 +21,9 @@ next PR to `main` BEFORE deleting the merged branch.*
 ## Start here
 
 **Since this was written (Sept 2, afternoon):** Sean's six onboarding notes
-became #500–#505 — all open, none merged, no grant. Read "Session 21 at a
-glance" in the handoff. The stack is #500 ← #502 ← #503 and #500 ← #505;
+became #500–#507 — all open, none merged, no grant, and all on his phone
+as `phone/sep-2-onboarding` (local branch, not a PR). Read "Session 21 at a
+glance" in the handoff. The stack is #500 ← #502 ← #503 ← #506 and #500 ← #505;
 retarget before deleting a merged base. Linear is at its free issue limit;
 the tickets are a comment on GLO-108.
 
