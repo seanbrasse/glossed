@@ -1,4 +1,4 @@
-# Session handoff — Sept 2 2026 (session 20: the stylist went rules-first, got a key and a lexicon, and the phone got its own account path)
+# Session handoff — Sept 2 2026 (session 21: Sean drove onboarding on his phone and eleven PRs answered him; the stylist stack is still open)
 
 Where Phase 1 stands, what to do next, and what the last three sessions learned.
 Read `docs/README.md` first for the design; this file is only about state.
@@ -7,48 +7,51 @@ Read `docs/README.md` first for the design; this file is only about state.
 pasteable version — what to start on, what is blocked on a human, and the rule
 that cost the most last time. This file is the reference it points at.
 
-## Session 21 at a glance (Sept 2, afternoon — Sean's six qualms with onboarding)
+## Session 21 at a glance (Sept 2, afternoon → evening — Sean's notes from his phone)
 
-**Ten PRs open, none merged, no grant given** — #500–#509. Sean drove
-onboarding on his phone and sent six notes, then two, then three; each is
-one PR.
-**The lot is on his phone** (15:45, `phone/sep-2-onboarding` = #499 + all
-ten + the stylist stack #491–#497, merged clean; binary mtime and
-`applesignin` entitlement checked before install, `GlossedDevSignIn=0` in
-the plist). That branch is local only — it is not a PR. **The first phone
-build of the afternoon left the stylist out** — it took #499 and the day's
-PRs and nothing else; Sean noticed. A phone build is the union of every
-open stack, not just the day's. In a Debug build the app's code is
-`Glossed.app/Glossed.debug.dylib`; `Glossed.app/Glossed` is a 92 KB stub,
-so `strings` it for proof, not the executable.
-**Linear refused every new issue** ("exceeded the free issue limit"), so the
-six ticket bodies are one comment on GLO-108 (the first-run friction ticket)
-and the branches carry `GLO-108` (`GLO-248` for the hair images, which existed).
+**Eleven PRs opened, zero merged, no grant given** — #500–#510 on top of session
+20's #495–#499 and the stylist stack #491–#494, so **twenty PRs are open**.
+Sean drove onboarding on his phone and sent three rounds of notes; every note
+is one PR. **The lot is on his phone** (15:45, local branch
+`phone/sep-2-onboarding` = #499 + #500–#509 + #491–#497, merged clean; binary
+mtime, `applesignin` entitlement and `GlossedDevSignIn=0` checked before
+install). That branch is not a PR and is not pushed.
 
-| What | Where |
-|---|---|
-| **"Buttons feel hard to press"** — a `.plain` button hit-tests its label's opaque content; the domain tile was drawn on the button *outside* the label, so the target was the word, and the mono links were bare 12pt text. `TextLinkButtonStyle` (44pt target) + `contentShape` on the tiles and hair cells. Driven: a tap on the card's corner whitespace toggles it | **#500** |
-| **Sign out lands on the hook at once** — `signedOut()` nil'd the client and left `phase == .ready`, so the tabs stayed up with an empty `you` tab. Now it keeps the session-less client (what the hook's doors sign in through), drops the per-user models, flips `needsOnboarding`. Driven on the simulator | **#501** |
-| **Back everywhere** — quiz step 1 → hook (answers kept), payoff → the quiz's *last* question. Two flow edges, two tests. Stacked on #500 | **#502** |
-| **Skin tone, not foundation** — the quiz is domains → tone (always) → hair (if haircare); the foundation question is gone from onboarding (Sean: "we don't want users to not find their product and get a distaste"). **Undertone is not asked**: self-report is unreliable (the vein test fails olive skin), the app learns it from fit answers on the undertone axis, and evidence wins. The payoff's anchor seam stays, unset → neutral path. Stacked on #502 | **#503** |
-| **The profile-tab flash, recorded and counted** — first entry was four cuts over ~0.85 s (bare page + spinner, header, caption, photo); a second entry cross-faded in two frames. `ProfileSkeleton` + a fade; the look photo fades over its placeholder | **#504** |
-| **Hair-type strands** — twelve SVGs in the kit's line language from one script, `Hair.xcassets` in DesignSystem, the canvas for review at <https://claude.ai/code/artifact/08666e0a-f089-4d12-ad36-04619babd901>. PRD §06's 4-series review gate stands. Stacked on #500, `size-override` (25 generated files) | **#505** |
-| **The payoff shows an example shelf** — "build your shelf", a hand aside saying what a shelf is, six tiles (leaderboard row with its n, else a catalog stand-in), eyebrow "a shelf, for example" unless every tile has its n; door: **create your account**. Every read anon-granted. Stacked on #503 | **#506** |
-| **The nos are gone everywhere but the hook** — "two ways in · nothing else" ("feels like a threat"), "no email, no password, no third social", the tour's "no ads, no bots, no gatekeeping", the sign-out "you'll need your email". The account screen now says "create your account" | **#507** |
-| **#506 rebuilt as the real shelf** — `ShelfBayView` handed in from the app layer (the tour's seam) with twelve curated, image-bearing picks across makeup, skincare, hair · scent; searches concurrent and off the main actor; no label over it | **#506** |
-| **An existing account skips the birthday** — Apple on the signup path asks `hasProfile`; a returning account lands like login (no birthday, name or handle). This is the walk Sean hit on his phone | **#508** |
-| **The handle step's rules and its bug** — "that's already on your shelf" was `handles`' one-row-per-user unique violation in DataKit's shelf words; the step now reads `myHandle()` first and carries on. Rules line, 3-char minimum, cherry error lines, server refusals translated. Six tests | **#509** |
-| **Two SwiftUI hazards, each cost a build**: a zero-size stack never runs its `.task`; a `View`'s static helper called from a task group trips the main-actor assertion (SIGTRAP). Both in `OnboardingExampleShelf`'s comments | §8 |
-| **A new package resource does not reach `Glossed.app` on an incremental build** — the bundle copy inside Products/Glossed.app was dated Aug 31 while the fresh one had the catalog; the app said `No image named 'hair-4c'`. `rm -rf` the bundle copy and rebuild | §8 |
+**Linear refused every new issue** ("exceeded the free issue limit") — three
+tries across the afternoon. The ten ticket bodies are three comments on
+[GLO-108](https://linear.app/glossed/issue/GLO-108) (first-run friction); the
+saves feature is a comment on [GLO-224](https://linear.app/glossed/issue/GLO-224);
+branches carry `GLO-108` (`GLO-248` for the hair images, which existed).
 
-**Not driven:** #504's after recording (the before is counted in the PR);
-#508 needs a real Apple ID (Sean's phone). **Merge order when he grants it:**
-#500 → #502 → #503 → #506 → #508 → #509 (a stack; retarget each before
-deleting the merged base), #505 (on #500), and #501, #504, #507 straight to
-`main`. #507 and #509 both touch `OnbHandleView`'s rule line — take #509's
-switch when they meet. **Sean's to decide:** whether the
-payoff screen should show a tone-band cohort now that no anchor reaches it,
-and whether to upgrade Linear or keep filing on umbrella tickets.
+| Sean said | What was built | PR |
+|---|---|---|
+| "buttons feel hard to press" | a `.plain` button hit-tests its label's opaque content and the tile was drawn *outside* the label. `TextLinkButtonStyle` (44pt) + `contentShape`. Driven: a corner tap toggles the card | **#500** |
+| "signing out should immediately take the user back to the signin page" | `signedOut()` kept `phase == .ready`, so the tabs stayed up with an empty `you` tab. Keeps the session-less client, flips `needsOnboarding`. Driven | **#501** |
+| "we should be able to go back throughout onboarding" | quiz step 1 → hook (answers kept), payoff → the quiz's last question. Two tests. On #500 | **#502** |
+| "pick their skin tone and undertone … ideally not picking their foundation" | quiz is domains → tone (always) → hair (if haircare). **Undertone is not asked** — self-report is unreliable, the app learns it from fit answers on the undertone axis (research and sources in the PR). The payoff's anchor seam stays, unset. On #502 | **#503** |
+| "a weird flash when navigating to the profile tab" | recorded at 20 fps and counted: four cuts in ~0.85 s on first entry, two frames on second. `ProfileSkeleton` + fade; look photo fades in. Before counted, after not recorded | **#504** |
+| "hair type needs images … in claude design matching our design language" | twelve SVG strands from one script, `Hair.xcassets`, canvas at <https://claude.ai/code/artifact/08666e0a-f089-4d12-ad36-04619babd901>; selected = the swatch's own border in cherry at 55%. PRD §06's 4-series review gate stands. On #500, `size-override` | **#505** |
+| "I don't get what this screen is for … show an example shelf … make it an actual shelf like the one we build in app … only products we have images for" | the payoff is `ShelfBayView` handed in from the app (the tour's seam — features never import features) with twelve curated, image-bearing picks in three bays; searches concurrent, nonisolated; no label over it (Sean); door: **create your account**. On #503, `size-override` | **#506** |
+| "two ways in · nothing else feels like a threat … stop that language around the whole app" | the account screen's eyebrow/title/aside, its last line, the tour's "no ads, no bots, no gatekeeping", the sign-out "you'll need your email", the handle rule's tail. The hook's four nos stay | **#507** |
+| "if a user already has an account, they can skip entering their birthday" | `AccountStore.hasProfile` after Apple on the signup path → lands like login. Needs a real Apple ID to drive. On #506 | **#508** |
+| "explain rules for a good handle … char minimum, error states … it says that's already on your shelf and claim it gets disabled" | `handles` is one row per user; his second walk hit the unique violation in DataKit's shelf words. The step reads `myHandle()` first and carries on; rules line, 3-char minimum, cherry error lines, server refusals translated. Six tests. On #508 | **#509** |
+| "users can save other people's looks/collections/routines … a place in our profile … the stylist should reference saved things" | **spec only** — `tech/03` §1a: private pointers, never a feed event, weak taste signal, rendered through `can_view`; a `saved` tab = routines · products · collections · looks (Sean's order; want-to-try moves in); `reference_saved` for the stylist. SAV-1–8 on GLO-224; SAV-2 needs the slot after STY-8 | **#510** |
+| (found while building) | a `.task` on a zero-size view never runs; a `View`'s static helper called from a task group trips the main-actor assertion; a new package asset catalog does not reach `Glossed.app` on an incremental build; three "successful" builds were void | §8 |
+
+**Tests, run, on the branch named:** Onboarding **78** (#509), Profile **106**
+(#504), DesignSystem **54** (#505). No function tests were run this session.
+
+**Merge order when Sean grants it:** #500 → #502 → #503 → #506 → #508 → #509 is
+one stack — retarget each to `main` before deleting the merged base (the rule
+that closed #480); #505 rides on #500; #501, #504, #507, #510 go straight to
+`main`. #507 and #509 both rewrite `OnbHandleView`'s rule line — take #509's
+switch where they meet (the phone branch already did).
+
+**Sean's to decide:** whether the payoff should draw from the leaderboard
+once it has rows (today the twelve picks are chosen, not measured); Linear —
+upgrade or keep filing on umbrella tickets; and whether "no stars, ever" on
+the tour's first slide counts as the language he wants gone (kept — it
+describes the mechanic, not a sign-up option).
 
 ## Session 20 at a glance (Sept 2, daytime)
 
@@ -507,8 +510,8 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Thing | State |
 |---|---|
-| **Five PRs open, none merged, no grant given.** #496 (function: rules first, lexicon, Sonnet 5, plan tools; base #491), #497 (routine card, *open it*, profile trip, generic starter chips; base #494), #498 (`08-stylist.md` §3–4; base `main`), #499 (the phone's own account, the Apple entitlement, light-only; base `main`), #495 (this handoff). **Retarget #496 to `main` before #491's branch is deleted, and #497 before #494's** — the rule that closed #480 | GLO-224, GLO-23 threads |
-| **The first real account exists** — Sean's, made on his phone at 14:25 (Apple → birthday → name → handle `seantest`), then signed out from settings. Not yet driven: signing back in (the `.login` path skips the quiz and lands on discover) and logging a product as him. The local stack must be up with `supabase functions serve` running and the Mac awake on the same Wi-Fi (`http://Seans-MacBook-Pro.local:54321`) | GLO-23 thread |
+| **Twenty PRs open, none merged, no grant given.** Two stacks and a spread: the stylist's #491 ← #496, #492 + #493 ← #494 ← #497, #498; the phone's #499; session 21's #500 ← #502 ← #503 ← #506 ← #508 ← #509, #500 ← #505, and #501 #504 #507 #510 on `main`; #495 is this handoff. **Sean merges.** Retarget every stacked PR to `main` before its base branch is deleted — GitHub closes it otherwise (#480). Session 21's rows are in its "at a glance" table above | GLO-224, GLO-23, GLO-108 threads |
+| **The first real account exists** — Sean's, made on his phone at 14:25 (Apple → birthday → name → handle `seantest`), then signed out from settings. **He then walked "create an account" again with the same Apple ID and was asked the birthday and a handle he already had** — #508 and #509 answer that; neither is driven with a real Apple ID yet (only he can). Still not driven: logging a product as him. The local stack must be up with `supabase functions serve` running and the Mac awake on the same Wi-Fi (`http://Seans-MacBook-Pro.local:54321`) | GLO-23 thread |
 | **Friends' phones = TestFlight**, which needs a Release boot path (the account path was moved out of `#if DEBUG` on Sept 2 — see §6 for whether it reached #499), a **hosted backend with the catalog and the functions deployed** (hosted has 0 products; promotion needs the DB URL or a CLI login), and an App Store Connect record | GLO-50, §7 |
 | **Filling the new categories from Shopify** (Sean's ask, Sept 1) | **Step 1 done — #488** (rules in `TYPE_RULES`, backfill in `scripts/reclassify_new_groups.sql`, 168 products moved on local, 0 ladders touched). Step 2 (leaves) still needs slot **0058** |
 | **Sean's product list** | Still not in the repo — ask where it is before building on "the new products" |
@@ -846,6 +849,12 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | The scoped ConfidenceMeter in G.Leaderboard has no defined live data source — deferred, not decorated | GLO-20 / §1 |
 | Save/wishlist (+0.5) needs the want_to_try-as-intent ruling before code | tech/07 §2 / §1 |
 | Un-dismiss management UI (the row is deletable by construction; no surface offers it yet) | [GLO-181](https://linear.app/glossed/issue/GLO-181) note |
+| **Session 21:** the payoff's twelve picks are curated in `OnboardingExampleShelf.shelves` (brand + name prefix, image required). When the leaderboard has rows, draw from it instead — the loader already skips an unmatched pick rather than substituting | #506, `OnboardingExampleShelf.swift` |
+| **Session 21:** the quiz no longer sets the anchor, so `OnboardingFlowModel.payoffAnchor`, `resolveVariant`, `anchorCatalog` and `AppSession.anchorVariants` are live plumbing nothing feeds. Feed them from the shelf starter or delete them — a change to the flow, the app and the debug catalog, not to the quiz | #503 comment in `OnboardingModel.swift` |
+| **Session 21:** undertone is learned, not asked. A self-reported undertone row in Tune needs a `profiles` column (migration) and a DataKit opening; not filed as a ticket (cap) | #503 body |
+| **Session 21:** phone OTP's `verifyCode()` is still the GLO-23 stub, so #508's existing-account check runs for Apple only. The same `hasProfile` call belongs after a real code verify | #508 |
+| **Session 21:** #504's after-recording. The before is counted in the PR; nobody has recorded the after at 20 fps | #504 |
+| **Session 21:** the hair strands' 4-series (4a–4c) have not been reviewed by anyone with that hair — PRD §06's gate, still open; GLO-52 (photos) stays open as its home | #505, GLO-52 |
 | **Session 17:** GLO-279 — the profile's rename-in-place machinery is dead code (edit-profile button removed; edit screens own renames). Pure deletion | [GLO-279](https://linear.app/glossed/issue/GLO-279) |
 | **Session 17:** the collection COMPOSER takes no description (create-then-edit); Sean may want it at creation | GLO-272 comments |
 | **Session 17:** profile grid can hold a stale tile after an edit under the cover until its next load (same as post-composer saves) | GLO-272 comments, #448 body |
@@ -888,7 +897,8 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | **Where is the product list?** | Sean's "comprehensive product listing" (Sept 1) reached the repo only as 0057's category rows. No file in `docs/`, `scripts/`, `supabase/seed*`, no `.csv`/`.json`. If it named branded products, they are not in the catalog and nothing can make them searchable until the list itself is in hand | Sean |
 | **Promoting the catalog to hosted** | Hosted has 0 products / 0 images / 0 buckets. `scripts/db.ts` targets local unless `GLOSSED_DB_URL` is set; the image step needs a Mac. Needs `supabase login` or the hosted DB URL — same blocker as the migration ledger | Sean |
 | A DataKit opening for `RankingRepository.positions()` | One line, latent, no caller. Wait for a caller or a grant | Sean |
-| Any **new** Linear issue | Workspace at the free issue cap. **Updates to existing issues work** (verified session 18); only creates fail. Upgrade or archive | Sean |
+| Any **new** Linear issue | Workspace at the free issue cap — **still true Sept 2 evening, three refusals in session 21.** Comments and updates work. Session 21 filed on GLO-108 (onboarding) and GLO-224 (saves). Upgrade or archive | Sean |
+| **SAV-2's migration** (saves — `tech/03` §1a) and the DataKit opening for `SavesRepository` (SAV-3) | The slot queue is STY-8 then SAV-2; both wait on Sean. The spec is on #510 | Sean |
 | R2 token rotation | Cloudflare's R2 dashboard writes recovering (active incident Sept 1); then mint a bucket-scoped token and swap `.env` | Sean / Cloudflare |
 | Leaf-level ranking question | The 0055 tree ranks at the top level BY DESIGN. If Sean ever wants "rank your lipsticks" as its own ladder, that is a product decision + a re-point of `products.category_id` consumers — ask, don't drift into it | Sean |
 | [GLO-262](https://linear.app/glossed/issue/GLO-262) profile views | **Which of three shapes, or none.** Aggregate-only, identified-and-visible, or identified-owner-only. It is a privacy decision before a schema one — an identified viewer log would be **the first surveillance surface in the app**. Recommendation on the ticket: aggregate-only or not in V1 | Sean |
@@ -913,6 +923,11 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 ## 8. What went wrong, so you don't repeat it
 
 ### Session 21 (Sept 2, afternoon) — append-only, newest first
+
+- **I built the phone without the stylist and called it done.** The first phone build merged #499 and the day's PRs; the stylist lives on #491–#497, still open, so it vanished from Sean's phone and he noticed. *A phone build is the union of every open stack, not the day's work.* `phone/sep-2-onboarding` now has all of it; check `git log --merges` on that branch against `gh pr list` before installing.
+- **I wrote "A SHELF, FOR EXAMPLE" as an honesty label and Sean read it as clutter.** The claim rule (every count carries its n) was already satisfied by showing no counts at all; the eyebrow was me defending a decision on screen. When the honest version shows nothing, show nothing.
+- **`strings Glossed.app/Glossed` always reads 0 in a Debug build.** The app's code is in `Glossed.app/Glossed.debug.dylib` (~40 MB); the executable is a 92 KB stub. The mtime check still works on either; the proof-by-string only works on the dylib.
+- **Eleven PRs is a lot for one grant.** They are small and each answers one note, but the stack is six deep and the phone branch needed one conflict resolved by hand (`OnbHandleView`, #507 vs #509). Two of Sean's notes could have been one PR (#508 + #509 share a cause). Fewer, slightly larger PRs would have been easier to merge.
 
 - **Three "successful" builds were void.** A python edit's assertion failed, the `;`-chained `make run` ran anyway, the next edit depended on the first, the third hit a compile error, and a `grep "error:|BUILD|EXIT" | head` showed an old `BUILD SUCCEEDED`. I drove a 15:25 binary for twenty minutes. Chain with `&&`, grep ` error: ` on the whole log, and compare the binary's mtime to the build's start before installing — the same rule as the device build's entitlement check.
 - **A `.task` on a zero-size view never runs.** `VStack { if false { … } }` has no size and SwiftUI never appears it. Reserve height while loading.
