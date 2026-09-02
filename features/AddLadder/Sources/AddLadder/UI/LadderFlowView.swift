@@ -98,6 +98,15 @@ public struct LadderFlowView: View {
             .onChange(of: currentLadder) { _, ladder in
                 react(to: ladder)
             }
+            // The shade sheet is an overlay, not a `.sheet`, so the search
+            // field underneath keeps focus and the keyboard stays up over the
+            // sheet (Sean, Sep 2: "the keyboard doesn't go away when adding
+            // a product, it's stuck"). A pick ends the typing; say so.
+            .onChange(of: pickedHit) { _, hit in
+                if hit != nil {
+                    endEditing()
+                }
+            }
             .overlay {
                 if let hit = pickedHit {
                     // Identity pinned to the pick: a different product is a
