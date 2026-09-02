@@ -11,15 +11,24 @@ import SwiftUI
 /// and the three recommendation rows (no rec source exists before an
 /// account; `discover_for_user` resolves auth.uid). The claim IS the payoff
 /// until those have real data behind them.
-public struct OnbPayoffView: View {
+public struct OnbPayoffView<Shelf: View>: View {
     @State private var model: PayoffModel
     /// Back to the quiz's last question. Nil hides the link — the debug
     /// catalog mounts this screen alone and has no quiz to return to.
+    /// The example shelf, drawn by the app (it is `Shelf`'s bay view, and
+    /// features never import features). `EmptyView` shows the words alone.
+    private let exampleShelf: () -> Shelf
     private let onBack: (() -> Void)?
     private let onContinue: () -> Void
 
-    public init(model: PayoffModel, onBack: (() -> Void)? = nil, onContinue: @escaping () -> Void) {
+    public init(
+        model: PayoffModel,
+        @ViewBuilder exampleShelf: @escaping () -> Shelf,
+        onBack: (() -> Void)? = nil,
+        onContinue: @escaping () -> Void
+    ) {
         _model = State(initialValue: model)
+        self.exampleShelf = exampleShelf
         self.onBack = onBack
         self.onContinue = onContinue
     }
@@ -68,19 +77,26 @@ public struct OnbPayoffView: View {
             .padding(.top, Tokens.Space.s2)
     }
 
-    /// PRD §06·6's fallback: swatches-and-say-nothing. No counts, no
-    /// "match", nothing that reads as a claim — the words explain what will
-    /// exist, not what does. (Copy is not in the kit — workshop candidate.)
+    /// Sean, Sep 2: *"I also don't get what this screen is for … show an
+    /// example shelf full of popular products and be like build your
+    /// shelf"* — and then: *"make it an actual shelf like the one we build
+    /// in app, with the shelf UI."* The neutral path used to be PRD §06·6's
+    /// say-nothing fallback, a headline over 800pt of milk. Now it says
+    /// what a shelf IS and shows one, drawn by the shelf's own bay view,
+    /// which the app hands in (`OnboardingExampleShelf`).
     @ViewBuilder
     private var neutralBlock: some View {
         Text("YOUR SHELF, NEXT").eyebrow()
-        Text("let\u{2019}s get your\nshelf built")
+        Text("build your\nshelf")
             .font(Typography.display(31))
             .tracking(-0.62)
             .foregroundStyle(Tokens.Ink.primary)
             .padding(.top, 12)
-        Text("as people with your exact products log how they fit, your matches show up here — with the receipts")
-            .meta()
+        Text("every product you own, ranked by which one you actually reach for")
+            .handAside()
+            .rotationEffect(.degrees(-1))
+        exampleShelf()
+            .padding(.top, Tokens.Space.s3)
     }
 
     private var loadingBlock: some View {
@@ -100,7 +116,9 @@ public struct OnbPayoffView: View {
 
     private var footer: some View {
         VStack(spacing: Tokens.Space.s2) {
-            Button("save my shelf", action: onContinue)
+            // "create your account", not "save my shelf" (Sean, Sep 2): the
+            // door says what is behind it.
+            Button("create your account", action: onContinue)
                 .buttonStyle(.glossed(block: true))
             if case .backed = model.phase, let anchor = model.anchor {
                 Text(PayoffModel.footerLine(anchor))
@@ -109,5 +127,13 @@ public struct OnbPayoffView: View {
             }
         }
         .padding(.top, Tokens.Space.s3)
+    }
+}
+
+public extension OnbPayoffView where Shelf == EmptyView {
+    /// The words alone — the debug catalog's mount, which has no app layer
+    /// to draw a shelf.
+    init(model: PayoffModel, onBack: (() -> Void)? = nil, onContinue: @escaping () -> Void) {
+        self.init(model: model, exampleShelf: { EmptyView() }, onBack: onBack, onContinue: onContinue)
     }
 }

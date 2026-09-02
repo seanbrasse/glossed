@@ -51,6 +51,11 @@ extension AppShell {
                 // anchor that did not resolve hands nil and the screen says it
                 // has nothing yet, which is true.
                 payoff: { try await AggregatesRepository(client: client).payoff(variantID: $0) },
+                // The example shelf (Sean, Sep 2): the shelf's own bay, drawn
+                // from the app layer because it crosses two features.
+                exampleShelf: {
+                    OnboardingExampleShelf(client: client, imageBase: session.imageBase)
+                },
                 shelfStarterCount: session.shelfItemCount,
                 // Sean, Aug 31: "Users shouldn't make it through onboarding
                 // without a username/handle." Same two calls `HandleClaimView`
