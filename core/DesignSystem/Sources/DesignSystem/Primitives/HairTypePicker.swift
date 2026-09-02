@@ -35,28 +35,43 @@ public struct HairTypePicker: View {
         let isOn = selection == pattern
         return Button { selection = pattern } label: {
             VStack(spacing: 4) {
-                // Placeholder for the reference photo. Per the PRD these must be
-                // real images reviewed by people with those hair types — many
-                // circulating curl charts underrepresent 4c and tighter.
+                // The strand for this pattern (GLO-248): ink strokes on the
+                // tile's own milk, drawn rather than photographed — Sean's
+                // call, Sep 2, and the same hand as `ProductMock`. Twelve
+                // generated from one script (`Resources/hair-strands.py`) so
+                // they share one stroke-weight ramp and get tighter every
+                // row. PRD §06's trust note still stands over the 4-series:
+                // people with 4a–4c hair review those three before they are
+                // treated as settled — the drawings are a starting point.
                 RoundedRectangle(cornerRadius: Tokens.Radius.md)
                     .fill(Tokens.Ground.milk)
-                    .frame(height: 54)
+                    .frame(height: 64)
+                    .overlay(
+                        Image("hair-\(pattern)", bundle: .module)
+                            .resizable()
+                            .scaledToFit()
+                            .padding(2)
+                            .accessibilityHidden(true)
+                    )
+                    // The chosen strand is the one whose frame turned pink
+                    // (Sean, Sep 2): the swatch's own border, cherry at half
+                    // strength and a step thicker. Nothing else moves — no
+                    // fill behind the code, no ink ring around the cell — so
+                    // twelve tiles stay one quiet grid with one pop.
                     .overlay(
                         RoundedRectangle(cornerRadius: Tokens.Radius.md)
-                            .strokeBorder(Tokens.Ground.line, lineWidth: Tokens.Border.hair)
+                            .strokeBorder(
+                                isOn ? Tokens.Cherry.base.opacity(0.55) : Tokens.Ground.line,
+                                lineWidth: isOn ? Tokens.Border.std : Tokens.Border.hair
+                            )
                     )
+                    .animation(Tokens.Motion.pop(), value: isOn)
                 Text(pattern).font(Typography.mono(11, bold: isOn))
             }
             .padding(4)
-            .background(isOn ? Tokens.Cherry.soft : .clear)
-            .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: Tokens.Radius.md)
-                    .strokeBorder(isOn ? Tokens.Ink.primary : .clear, lineWidth: Tokens.Border.std)
-            )
-            // The unselected cell's background is `.clear`, and a plain
-            // button does not hit-test clear pixels — the target was the
-            // swatch and the code, with a dead gap between and around them.
+            // A plain button does not hit-test clear pixels — the target was
+            // the swatch and the code, with a dead gap between and around
+            // them.
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
