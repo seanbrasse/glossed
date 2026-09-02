@@ -67,13 +67,18 @@ create table saves (
 -- since-private thing returns nothing for it — the client renders the gap.
 ```
 
-**On the profile:** a fourth tab, `saved`, beside looks · collections ·
-routines, scope mark `only you` and no other scope possible. Four groups, in
-this order: **want to try** (the existing default collection, moved here from
-the collections tab where it leads today), **looks**, **collections**,
-**routines** — each row attributed to its owner's handle, opening the owner's
-thing through the shell's existing doors (`openLook`, a public collection, a
-public routine). Empty state: *"things you save from other people land here."*
+**On the profile** (Sean, Sep 2: *"to try should be moved into the saved
+tab. Saved tab should have saved routines, products, collections, and
+looks"*): a fourth tab, `saved`, beside looks · collections · routines, scope
+mark `only you` and no other scope possible. Four groups, in Sean's order:
+**routines**, **products** (the existing want-to-try default collection,
+moved here from the collections tab where it leads today — a saved product IS
+a want-to-try item, and the collections tab stops carrying it), **collections**,
+**looks** — the three saved-from-others groups each attributed to their
+owner's handle, opening the owner's thing through the shell's existing doors
+(`openLook`, a public collection, a public routine). Empty state: *"things you
+save land here — products to try, and other people's routines, collections
+and looks."*
 The save affordance is the kit's `SaveIcon` on the three stranger surfaces
 (look post, public collection, public routine), toggling; no save on your own.
 
@@ -97,7 +102,7 @@ with the user and with the target; add it to `domain.md` §6's list.
 | SAV-1 | this section | — |
 | SAV-2 | migration: `save_kind`, `saves`, `save_thing()`, RLS, pgTAP four-test template | the migration slot, after STY-8 |
 | SAV-3 | DataKit `SavesRepository` (list, save, unsave) | a frozen-core opening |
-| SAV-4 | profile `saved` tab: four groups, attribution, gap row, empty state; want-to-try moves in | SAV-3 |
+| SAV-4 | profile `saved` tab: routines · products · collections · looks, attribution, gap row, empty state; want-to-try moves in and leaves the collections tab (Sean's ruling) | SAV-3 |
 | SAV-5 | `SaveIcon` on look post, public collection, public routine | SAV-3 |
 | SAV-6 | stylist: `saves` in the prefetch, `reference_saved` tool, attribution rule in the prompt, tests | SAV-2 |
 | SAV-7 | taste: saves as the +0.5 reserved signal in `affinity_for_user()` | migration, after SAV-2 |
