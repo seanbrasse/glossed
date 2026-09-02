@@ -52,7 +52,7 @@ public struct OnbHandleView: View {
         }
         .padding(.init(top: 18, leading: 22, bottom: 22, trailing: 22))
         .background(Tokens.Ground.milk)
-        .task { model.suggest() }
+        .task { model.start(onClaimed: onClaimed) }
     }
 
     /// What the field can say. Availability is the server's answer, so the
@@ -61,17 +61,21 @@ public struct OnbHandleView: View {
     @ViewBuilder private var verdictLine: some View {
         switch model.verdict {
         case .empty:
-            Text("letters, numbers, dots and underscores.").meta()
-        case .malformed:
-            Text("letters, numbers, dots and underscores — nothing else.").meta()
+            Text(OnbHandleModel.rules).meta()
+        case .tooShort:
+            Text("at least \(OnbHandleModel.minimumLength) characters.").meta(color: Tokens.Cherry.deep)
+        case let .malformed(problem):
+            Text(problem).meta(color: Tokens.Cherry.deep)
         case .checking:
             Text("checking…").meta()
         case .taken:
-            Text("taken. try another.").meta()
+            Text("taken. try another.").meta(color: Tokens.Cherry.deep)
         case .available:
             Badge("available", tone: .mint)
+        case let .alreadyYours(handle):
+            Text("you\u{2019}re @\(handle) already \u{2014} carrying on.").meta()
         case let .failed(message):
-            Text(message).meta()
+            Text(message).meta(color: Tokens.Cherry.deep)
         }
     }
 

@@ -63,7 +63,9 @@ extension AppShell {
                 // entrances.
                 handleStore: OnbHandleStore(
                     isAvailable: { try await SocialRepository(client: client).handleAvailable($0) },
-                    claim: { try await SocialRepository(client: client).claimHandle($0) }
+                    claim: { try await SocialRepository(client: client).claimHandle($0) },
+                    // An account with a handle carries on with it (Sep 2).
+                    existing: { try await SocialRepository(client: client).myHandle() }
                 ),
                 // The three doors `OnbBuildView` offers, wired to what the app
                 // actually has. `import` is the notice the drawer gives, for
