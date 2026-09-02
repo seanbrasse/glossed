@@ -317,6 +317,14 @@ Deno.test("chips are smart about what the person already keeps", () => {
 
 Deno.test("a routine ask with no slot lands on the slot the person does not keep", () => {
   assertEquals(defaultSlot(ctx), "pm", "the fixture keeps a morning routine");
+  const both = { ...ctx, routines: [ctx.routines[0], { ...ctx.routines[0], slot: "pm" }] };
+  assertEquals(
+    defaultSlot(both),
+    "weekly",
+    "the one slot left, even if the shelf cannot fill it yet",
+  );
+  const weekly = planTurn("weekly routine", { ...input, ctx: both }).finish([]);
+  assert(weekly.text.startsWith("nothing on your shelf fits a weekly skincare"), weekly.text);
   const i = detectIntent("build me a routine", input);
   assertEquals(i.kind === "routine" ? i.slot : null, "pm");
   const j = detectIntent("build me a morning routine", input);

@@ -398,9 +398,12 @@ function reply(
 /// The slot a routine ask lands on when the words name none: the first the
 /// person does not keep yet (morning, then night, then weekly), so "build
 /// me a routine" is never the one they already have.
-export function defaultSlot(ctx: StylistContext): Slot {
+export function defaultSlot(ctx: StylistContext, domain: Domain = "skincare"): Slot {
   const kept = new Set(ctx.routines.map((r) => r.slot));
-  return (["am", "pm", "weekly"] as const).find((s) => !kept.has(s)) ?? "am";
+  const open = (["am", "pm", "weekly"] as const).filter((s) => !kept.has(s));
+  // A slot the shelf can actually fill comes first: a weekly needs an
+  // exfoliant, a mask or a treatment, and most shelves have none.
+  return open.find((s) => buildRoutine(s, domain, ctx) !== null) ?? open[0] ?? "am";
 }
 
 /// Chips the person can actually use (Sean, Sept 2: "what if I already
@@ -502,9 +505,17 @@ function buildRoutineReply(slot: Slot, domain: Domain, ctx: StylistContext): Rep
   const word = SLOT_WORD[slot];
   const domainWord = domain === "haircare" ? "hair" : domain;
   if (!block) {
+    const wants = (ORDER[domain][slot] ?? ORDER[domain].am ?? []).map((slug) =>
+      ctx.shelf.find((s) => s.category_slug === slug)?.category_label ?? slug
+    );
+    const owned = ctx.shelf.some((s) => s.domain === domain);
     return reply(
-      `nothing ${domainWord} on your shelf yet, so there's no ${word} to build. ` +
-        "log a product and i'll start from it.",
+      owned
+        ? `nothing on your shelf fits a ${word} ${domainWord} — that's ${
+          joinWords(wants.slice(0, 3))
+        }. log one and i'll build it.`
+        : `nothing ${domainWord} on your shelf yet, so there's no ${word} to build. ` +
+          "log a product and i'll start from it.",
       [],
       chipsFor(ctx, ["what should i try next", "what's missing for my skin"]),
       ["shelf"],
