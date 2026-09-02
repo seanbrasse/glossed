@@ -14,3 +14,19 @@ export function resolveSecretKey(env: (name: string) => string | undefined): str
   if (legacy) return legacy;
   throw new Error("no service credential in the environment");
 }
+
+/// The PUBLISHABLE key, for a client that runs as the CALLER: paired with the
+/// request's own Authorization header it makes RLS the sandbox, so a read of
+/// `user_shelf_items` cannot return anyone else's shelf whatever the request
+/// asked for. Same resolution as storage_presign's copy — the platform injects
+/// it under two names depending on the key scheme.
+export function resolvePublishableKey(env: (name: string) => string | undefined): string {
+  const legacy = env("SUPABASE_ANON_KEY");
+  if (legacy) return legacy;
+  const map = env("SUPABASE_PUBLISHABLE_KEYS");
+  if (map) {
+    const named = (JSON.parse(map) as Record<string, string>)["default"];
+    if (named) return env(named) ?? named;
+  }
+  throw new Error("no publishable key in the function environment");
+}
