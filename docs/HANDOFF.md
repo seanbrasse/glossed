@@ -9,8 +9,9 @@ that cost the most last time. This file is the reference it points at.
 
 ## Session 21 at a glance (Sept 2, afternoon — Sean's six qualms with onboarding)
 
-**Eight PRs open, none merged, no grant given** — #500–#507. Sean drove
-onboarding on his phone and sent six notes, then two more; each is one PR.
+**Ten PRs open, none merged, no grant given** — #500–#509. Sean drove
+onboarding on his phone and sent six notes, then two, then three; each is
+one PR.
 **The lot is on his phone** (15:17, `phone/sep-2-onboarding` = #499 + all
 eight, merged clean; binary mtime and `applesignin` entitlement checked
 before install, `GlossedDevSignIn=0` in the plist). That branch is local
@@ -29,12 +30,18 @@ and the branches carry `GLO-108` (`GLO-248` for the hair images, which existed).
 | **Hair-type strands** — twelve SVGs in the kit's line language from one script, `Hair.xcassets` in DesignSystem, the canvas for review at <https://claude.ai/code/artifact/08666e0a-f089-4d12-ad36-04619babd901>. PRD §06's 4-series review gate stands. Stacked on #500, `size-override` (25 generated files) | **#505** |
 | **The payoff shows an example shelf** — "build your shelf", a hand aside saying what a shelf is, six tiles (leaderboard row with its n, else a catalog stand-in), eyebrow "a shelf, for example" unless every tile has its n; door: **create your account**. Every read anon-granted. Stacked on #503 | **#506** |
 | **The nos are gone everywhere but the hook** — "two ways in · nothing else" ("feels like a threat"), "no email, no password, no third social", the tour's "no ads, no bots, no gatekeeping", the sign-out "you'll need your email". The account screen now says "create your account" | **#507** |
+| **#506 rebuilt as the real shelf** — `ShelfBayView` handed in from the app layer (the tour's seam) with twelve curated, image-bearing picks across makeup, skincare, hair · scent; searches concurrent and off the main actor; no label over it | **#506** |
+| **An existing account skips the birthday** — Apple on the signup path asks `hasProfile`; a returning account lands like login (no birthday, name or handle). This is the walk Sean hit on his phone | **#508** |
+| **The handle step's rules and its bug** — "that's already on your shelf" was `handles`' one-row-per-user unique violation in DataKit's shelf words; the step now reads `myHandle()` first and carries on. Rules line, 3-char minimum, cherry error lines, server refusals translated. Six tests | **#509** |
+| **Two SwiftUI hazards, each cost a build**: a zero-size stack never runs its `.task`; a `View`'s static helper called from a task group trips the main-actor assertion (SIGTRAP). Both in `OnboardingExampleShelf`'s comments | §8 |
 | **A new package resource does not reach `Glossed.app` on an incremental build** — the bundle copy inside Products/Glossed.app was dated Aug 31 while the fresh one had the catalog; the app said `No image named 'hair-4c'`. `rm -rf` the bundle copy and rebuild | §8 |
 
 **Not driven:** #504's after recording (the before is counted in the PR);
-Sean is driving the rest on his phone. **Merge order when he grants it:**
-#500 → #502 → #503 → #506 (a stack; retarget each before deleting the merged
-base), #505 (on #500), and #501, #504, #507 straight to `main`. **Sean's to decide:** whether the
+#508 needs a real Apple ID (Sean's phone). **Merge order when he grants it:**
+#500 → #502 → #503 → #506 → #508 → #509 (a stack; retarget each before
+deleting the merged base), #505 (on #500), and #501, #504, #507 straight to
+`main`. #507 and #509 both touch `OnbHandleView`'s rule line — take #509's
+switch when they meet. **Sean's to decide:** whether the
 payoff screen should show a tone-band cohort now that no anchor reaches it,
 and whether to upgrade Linear or keep filing on umbrella tickets.
 
@@ -901,6 +908,11 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 ## 8. What went wrong, so you don't repeat it
 
 ### Session 21 (Sept 2, afternoon) — append-only, newest first
+
+- **Three "successful" builds were void.** A python edit's assertion failed, the `;`-chained `make run` ran anyway, the next edit depended on the first, the third hit a compile error, and a `grep "error:|BUILD|EXIT" | head` showed an old `BUILD SUCCEEDED`. I drove a 15:25 binary for twenty minutes. Chain with `&&`, grep ` error: ` on the whole log, and compare the binary's mtime to the build's start before installing — the same rule as the device build's entitlement check.
+- **A `.task` on a zero-size view never runs.** `VStack { if false { … } }` has no size and SwiftUI never appears it. Reserve height while loading.
+- **A `View`'s static helper is main-actor isolated.** Calling it from a `withTaskGroup` child crashes with `dispatch_assert_queue_fail`. Mark the loader and everything it calls `nonisolated`.
+- **`grep -v "///"` before an exact-string edit is how the edit misses.** Three of today's scripted edits asserted on text I had read with doc comments stripped. Anchor on a line that survives, or read the raw file.
 
 - **A package's new asset catalog compiled, and the app still had no images.** `DesignSystem_DesignSystem.bundle/Assets.car` was in Products; the copy of that bundle *inside* `Glossed.app` was dated Aug 31 and had no `Assets.car`. Xcode's incremental copy of a package resource bundle does not add a file that was not there the first time. The log said `No image named 'hair-4c' found in asset catalog`, which reads as a wrong name. `rm -rf Products/…/Glossed.app/DesignSystem_DesignSystem.bundle` then `make run`.
 - **Linear's free issue limit is a hard 400.** Five `save_issue` calls in a row refused. Comments still post — the six bodies went onto GLO-108. Try creating first next time; Sean may have upgraded.
