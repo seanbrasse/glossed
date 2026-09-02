@@ -696,7 +696,7 @@ function aboutItemReply(userItemID: string, ctx: StylistContext): Reply {
     r.steps.some((s) => s.user_item_id === item.user_item_id)
   );
   if (inRoutines.length > 0) {
-    lines.push(`it's in ${joinWords(inRoutines.map((r) => `"${r.title}"`))}.`);
+    lines.push(`it's in ${joinWords(inRoutines.map((r) => `"${r.title}"`), "and")}.`);
   }
   return reply(
     lines.join(" "),
@@ -749,7 +749,7 @@ function productRow(
   };
 }
 
-function joinWords(words: readonly string[]): string {
+function joinWords(words: readonly string[], conjunction = "or"): string {
   if (words.length <= 1) return words[0] ?? "";
-  return `${words.slice(0, -1).join(", ")} or ${words[words.length - 1]}`;
+  return `${words.slice(0, -1).join(", ")} ${conjunction} ${words[words.length - 1]}`;
 }

@@ -270,6 +270,19 @@ Deno.test("about an item: the catalog's line, the rank, and the routines it sits
   assert(reply.text.includes("the catalog says: a gentle gel."));
   assert(reply.text.includes("haven't ranked it yet"));
   assert(reply.text.includes('"morning glass skin"'));
+  const two = planTurn("tell me about pineapple refresh", {
+    ...withLine,
+    ctx: {
+      ...withLine.ctx,
+      routines: [...ctx.routines, {
+        id: ids(2),
+        title: "night",
+        slot: "pm",
+        steps: ctx.routines[0].steps,
+      }],
+    },
+  }).finish([]);
+  assert(two.text.includes('it\'s in "morning glass skin" and "night".'), two.text);
   assertEquals(reply.blocks.length, 1);
 });
 
