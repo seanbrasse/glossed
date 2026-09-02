@@ -2,14 +2,17 @@ import DataKit
 import DesignSystem
 import SwiftUI
 
-/// `G.OnbQuiz` — the reordered quiz: what you buy → the anchor → the two
-/// conditional branches. One question per screen, a progress bar that
-/// grows when a branch joins, and every step backs up one.
+/// `G.OnbQuiz` — what you buy → your skin tone → hair, only if you buy
+/// haircare. One question per screen, a progress bar that grows when the
+/// branch joins, and every step backs up one.
+///
+/// The frame's second question was the foundation; it is not asked here
+/// since Sep 2 — `OnboardingModel`'s type comment carries the ruling.
 public struct OnbQuizView: View {
     @State private var model: OnboardingModel
-    /// The anchor step's brands, supplied by the app (the picker renders
-    /// whatever it is handed; an empty catalog renders the no-foundation
-    /// path alone rather than an empty wall of pills).
+    /// The anchor step's brands. The step is gone; the parameter stays so
+    /// the app and the debug catalog keep compiling until the flow's anchor
+    /// seam is removed or re-fed (the follow-up named in the model).
     private let anchorCatalog: [ShadeAnchorPicker.BrandEntry]
     /// Back off the first question. Nil hides the link there — a caller
     /// with nowhere to send the user (the debug catalog) shows no door.
@@ -96,8 +99,6 @@ public struct OnbQuizView: View {
         switch model.step {
         case .domains:
             domainsGrid
-        case .anchor:
-            anchorStep
         case .hair:
             HairTypePicker(
                 selection: Binding(get: { model.hairPattern }, set: { model.hairPattern = $0 })
@@ -167,35 +168,6 @@ public struct OnbQuizView: View {
         .accessibilityAddTraits(on ? [.isSelected] : [])
     }
 
-    // MARK: - anchor
-
-    private var anchorStep: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            if !anchorCatalog.isEmpty {
-                ShadeAnchorPicker(
-                    catalog: anchorCatalog,
-                    toneBand: model.toneIndex.map { $0 + 1 },
-                    selection: Binding(get: { model.anchor }, set: { model.anchor = $0 })
-                )
-            }
-            Button("i don\u{2019}t wear any foundation →") { model.setNoFoundation() }
-                .buttonStyle(.textLink)
-            if model.noFoundation {
-                Text("no problem — we\u{2019}ll ask for your tone band instead, and sharpen it as you rank")
-                    .meta()
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, Tokens.Space.s3)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Tokens.Support.butterSoft)
-                    .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.md))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Tokens.Radius.md)
-                            .strokeBorder(Tokens.Ground.line, lineWidth: Tokens.Border.hair)
-                    )
-            }
-        }
-    }
-
     // MARK: - tone
 
     private var toneStep: some View {
@@ -205,7 +177,7 @@ public struct OnbQuizView: View {
                     toneSwatch(index: index, hex: hex)
                 }
             }
-            Text("a starting point — matches sharpen as we learn which products you love").meta()
+            Text("a starting point — your foundation, once it\u{2019}s on your shelf, sets the exact shade").meta()
         }
     }
 
@@ -243,7 +215,7 @@ public struct OnbQuizView: View {
                 }
             }
             .buttonStyle(.glossed(block: true))
-            Text("skin type, concerns and brands come after you\u{2019}re in")
+            Text("foundation, skin type and concerns come after you\u{2019}re in")
                 .meta()
                 .frame(maxWidth: .infinity)
         }
