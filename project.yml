@@ -36,8 +36,6 @@ packages:
     path: features/Privacy
   Profile:
     path: features/Profile
-  Stylist:
-    path: features/Stylist
   Browse:
     path: features/Browse
   Leaderboard:
@@ -67,12 +65,19 @@ targets:
       - package: Looks
       - package: Privacy
       - package: Profile
-      - package: Stylist
       - package: Browse
       - package: Leaderboard
       - package: Onboarding
       - package: Routines
       - package: Collections
+    # Sign in with Apple is a capability, and a capability is an entitlement
+    # the profile must carry — the App ID has it (GLO-23) but a build without
+    # this block signed as if it did not, and the Apple sheet failed on the
+    # phone. XcodeGen writes the file from these properties.
+    entitlements:
+      path: app/Glossed/Glossed.entitlements
+      properties:
+        com.apple.developer.applesignin: [Default]
     # An explicit Info.plist rather than GENERATE_INFOPLIST_FILE, because
     # `NSAppTransportSecurity` is a dictionary and the generated-plist build
     # settings (`INFOPLIST_KEY_*`) only carry scalars. Every key that used to
@@ -112,6 +117,11 @@ targets:
         # what keeps the simulator's env-var path (see `make run`) primary.
         GlossedSupabaseURL: $(GLOSSED_SUPABASE_URL)
         GlossedSupabasePublishableKey: $(GLOSSED_SUPABASE_PUBLISHABLE_KEY)
+        # "0" turns the dev sign-in off, so a phone makes its own account.
+        GlossedDevSignIn: $(GLOSSED_DEV_SIGN_IN)
+        # The design is one palette on milk; the system's dark mode turned the
+        # composer's text white on a white field (seen on Sean's phone, Sept 2).
+        UIUserInterfaceStyle: Light
     settings:
       base:
         # `com.glossed.app` is registered to another Apple Developer account
@@ -128,6 +138,7 @@ targets:
 
         GLOSSED_SUPABASE_URL: ""
         GLOSSED_SUPABASE_PUBLISHABLE_KEY: ""
+        GLOSSED_DEV_SIGN_IN: ""
 
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 0.1.0
