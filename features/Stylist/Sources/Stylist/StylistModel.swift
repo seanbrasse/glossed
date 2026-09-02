@@ -47,12 +47,14 @@ public final class StylistModel {
 
     /// The first open's chips — what the stylist can do, phrased as what the
     /// person would say. Replaced by the stylist's own after the first turn.
+    /// Generic on purpose: the server knows which routines the person keeps
+    /// and answers "build me a routine" with the slot they don't have yet.
     public static let starterChips = [
-        "build my am routine",
-        "build my pm routine",
-        "what's missing for my skin",
-        "do my products clash?",
-        "what should I try next"
+        "build me a routine",
+        "what am i missing",
+        "what should i try next",
+        "a look for tonight",
+        "compare what i own"
     ]
 
     public private(set) var messages: [Message] = []
