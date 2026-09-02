@@ -100,36 +100,36 @@ final class AppSession {
     }
 
     func boot() async {
-        #if DEBUG
-            do {
-                var environment = ProcessInfo.processInfo.environment
-                // Three sources, most specific first: the launch environment,
-                // then the bundle, then the simulator's loopback.
-                //
-                // **The bundle rung exists because a phone has no launch
-                // environment.** `make run` hands the simulator both values
-                // via `SIMCTL_CHILD_*`, which works precisely because we are
-                // the ones launching it. Tapping an icon on a device launches
-                // with nothing, and `SUPABASE_PUBLISHABLE_KEY` has no default
-                // at all — so a device build read only from the environment
-                // would boot once from our `devicectl` launch and then say
-                // "the app isn't set up correctly" every time thereafter.
-                // Reading the bundle makes the installed app self-sufficient.
-                for key in ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY"] {
-                    guard environment[key] == nil else { continue }
-                    let bundleKey = key == "SUPABASE_URL"
-                        ? "GlossedSupabaseURL"
-                        : "GlossedSupabasePublishableKey"
-                    // Bound first so the condition stays on one line: a wrapped
-                    // two-clause `if let` puts swiftformat (brace on its own
-                    // line) and swiftlint's `opening_brace` (same line) in
-                    // direct conflict, and there is no spelling of it both
-                    // accept.
-                    let baked = Bundle.main.object(forInfoDictionaryKey: bundleKey) as? String
-                    if let baked, !baked.isEmpty {
-                        environment[key] = baked
-                    }
+        do {
+            var environment = ProcessInfo.processInfo.environment
+            // Three sources, most specific first: the launch environment,
+            // then the bundle, then the simulator's loopback.
+            //
+            // **The bundle rung exists because a phone has no launch
+            // environment.** `make run` hands the simulator both values
+            // via `SIMCTL_CHILD_*`, which works precisely because we are
+            // the ones launching it. Tapping an icon on a device launches
+            // with nothing, and `SUPABASE_PUBLISHABLE_KEY` has no default
+            // at all — so a device build read only from the environment
+            // would boot once from our `devicectl` launch and then say
+            // "the app isn't set up correctly" every time thereafter.
+            // Reading the bundle makes the installed app self-sufficient.
+            for key in ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY"] {
+                guard environment[key] == nil else { continue }
+                let bundleKey = key == "SUPABASE_URL"
+                    ? "GlossedSupabaseURL"
+                    : "GlossedSupabasePublishableKey"
+                // Bound first so the condition stays on one line: a wrapped
+                // two-clause `if let` puts swiftformat (brace on its own
+                // line) and swiftlint's `opening_brace` (same line) in
+                // direct conflict, and there is no spelling of it both
+                // accept.
+                let baked = Bundle.main.object(forInfoDictionaryKey: bundleKey) as? String
+                if let baked, !baked.isEmpty {
+                    environment[key] = baked
                 }
+            }
+            #if DEBUG
                 if environment["SUPABASE_URL"] == nil {
                     // The simulator's loopback into `supabase start`. Local
                     // only — the hosted URL is deliberately not here to reach,
@@ -137,63 +137,61 @@ final class AppSession {
                     // because a simulator shares the Mac's network stack.
                     environment["SUPABASE_URL"] = "http://127.0.0.1:54321"
                 }
-                let config = try GlossedConfig.validated(from: environment)
-                let booted = GlossedClient(config: config)
-                // The dev sign-in is the simulator's convenience, not the
-                // phone's. A device build passes `GLOSSED_DEV_SIGN_IN=0`
-                // (baked into the bundle like the keys), and then a launch
-                // with no persisted session goes to FLOW 1 to make an
-                // account with Sign in with Apple — the real path, on the
-                // real stack, for Sean to test as a new user (Sept 2).
-                if Self.devSignInIsOff(environment) {
-                    if await readyWithoutAccount(booted, config: config) {
-                        return
-                    }
-                } else {
-                    try await booted.signIn(email: "maya@local.test", password: "password")
+            #endif
+            let config = try GlossedConfig.validated(from: environment)
+            let booted = GlossedClient(config: config)
+            // The dev sign-in is the simulator's convenience, not the
+            // phone's. A device build passes `GLOSSED_DEV_SIGN_IN=0`
+            // (baked into the bundle like the keys), and then a launch
+            // with no persisted session goes to FLOW 1 to make an
+            // account with Sign in with Apple — the real path, on the
+            // real stack, for Sean to test as a new user (Sept 2).
+            if Self.devSignInIsOff(environment) {
+                if await readyWithoutAccount(booted, config: config) {
+                    return
                 }
-                // **`signIn` returning is not proof the session can be READ
-                // back**, and the difference is not academic — it cost a
-                // session. `supabase-swift` persists the session to the
-                // Keychain, and an UNSIGNED build has no keychain access, so
-                // the sign-in succeeded and the very next `auth.session`
-                // threw. Every live read came back `notAuthenticated`,
-                // `reloadShelf()` swallowed it on its `try?`, and three built
-                // tabs rendered their "not built yet" placeholder over a
-                // working app.
-                //
-                // Reproduced by `codesign -d --entitlements`: an app built
-                // with `CODE_SIGNING_ALLOWED=NO` — CI's flag, and the one a
-                // reader copies out of `ci.yml` — is not signed at all. That
-                // flag is correct for CI, which only ever builds. It is wrong
-                // for anything you intend to launch.
-                //
-                // So `.ready` now means "a read works", not "a request
-                // returned". Failing here is loud and names the cause;
-                // failing later was silent and named the wrong ticket.
-                _ = try await booted.requireUserID()
-                client = booted
-                // Before the shelf, because the shell decides between FLOW 1
-                // and the tabs on it and a wrong first frame is a flash of the
-                // wrong app.
-                needsOnboarding = try await Self.needsOnboarding(
-                    ProfileRepository(client: booted), environment: environment
-                )
-                anchorVariants = await Self.loadAnchorVariants(CatalogRepository(client: booted))
-                tracker = Tracker(poster: TrackIngestPoster(client: booted))
-                imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
-                await reloadShelf()
-                phase = .ready
-            } catch let error as GlossedError {
-                phase = .failed("\(error.code.rawValue): \(error.debugDetail ?? error.userMessage)")
-            } catch {
-                phase = .failed(String(describing: error))
+            } else {
+                #if DEBUG
+                    try await booted.signIn(email: "maya@local.test", password: "password")
+                #endif
             }
-        #else
-            // No release sign-in path exists yet, and pretending otherwise
-            // would be worse: onboarding is GLO-18, providers are GLO-23.
-            phase = .failed("no sign-in path in release builds yet — GLO-18/GLO-23")
-        #endif
+            // **`signIn` returning is not proof the session can be READ
+            // back**, and the difference is not academic — it cost a
+            // session. `supabase-swift` persists the session to the
+            // Keychain, and an UNSIGNED build has no keychain access, so
+            // the sign-in succeeded and the very next `auth.session`
+            // threw. Every live read came back `notAuthenticated`,
+            // `reloadShelf()` swallowed it on its `try?`, and three built
+            // tabs rendered their "not built yet" placeholder over a
+            // working app.
+            //
+            // Reproduced by `codesign -d --entitlements`: an app built
+            // with `CODE_SIGNING_ALLOWED=NO` — CI's flag, and the one a
+            // reader copies out of `ci.yml` — is not signed at all. That
+            // flag is correct for CI, which only ever builds. It is wrong
+            // for anything you intend to launch.
+            //
+            // So `.ready` now means "a read works", not "a request
+            // returned". Failing here is loud and names the cause;
+            // failing later was silent and named the wrong ticket.
+            _ = try await booted.requireUserID()
+            client = booted
+            // Before the shelf, because the shell decides between FLOW 1
+            // and the tabs on it and a wrong first frame is a flash of the
+            // wrong app.
+            needsOnboarding = try await Self.needsOnboarding(
+                ProfileRepository(client: booted), environment: environment
+            )
+            anchorVariants = await Self.loadAnchorVariants(CatalogRepository(client: booted))
+            tracker = Tracker(poster: TrackIngestPoster(client: booted))
+            imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
+            await reloadShelf()
+            phase = .ready
+        } catch let error as GlossedError {
+            phase = .failed("\(error.code.rawValue): \(error.debugDetail ?? error.userMessage)")
+        } catch {
+            phase = .failed(String(describing: error))
+        }
     }
 
     /// One read of `user_shelf_items`, rebuilt into a fresh model. Failure
@@ -274,10 +272,17 @@ final class AppSession {
 
     /// `GLOSSED_DEV_SIGN_IN=0` in the launch environment or, for a phone
     /// that launches with none, `GlossedDevSignIn` in the bundle.
+    /// A release build has no dev sign-in at all: the person's own account
+    /// or FLOW 1, which is what a TestFlight build needs to boot (GLO-50).
     private static func devSignInIsOff(_ environment: [String: String]) -> Bool {
-        let fromEnvironment = environment["GLOSSED_DEV_SIGN_IN"]
-        let fromBundle = Bundle.main.object(forInfoDictionaryKey: "GlossedDevSignIn") as? String
-        return (fromEnvironment ?? fromBundle) == "0"
+        #if DEBUG
+            let fromEnvironment = environment["GLOSSED_DEV_SIGN_IN"]
+            let fromBundle = Bundle.main.object(forInfoDictionaryKey: "GlossedDevSignIn") as? String
+            return (fromEnvironment ?? fromBundle) == "0"
+        #else
+            _ = environment
+            return true
+        #endif
     }
 
     private static func needsOnboarding(
