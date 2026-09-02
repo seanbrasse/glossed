@@ -79,6 +79,29 @@ struct VariantPickModelTests {
         #expect(model.confirmed?.id == only.id)
     }
 
+    @Test func aSoleVariantIsStatedNotAskedAbout() async throws {
+        // Sean, Sep 2: "confusing when one size is the only option, and why
+        // does it say yours??" — `isSole` is what the sheet reads to drop
+        // the question and the marker. Before the load it is not yet known.
+        let productID = UUID()
+        let sole = try VariantPickModel(
+            hit: hit(name: "travel spray"),
+            catalog: FakeVariantListing(variants: [variant(productID: productID)])
+        )
+        #expect(!sole.isSole, "unknown until the list arrives")
+        await sole.load()
+        #expect(sole.isSole)
+
+        let two = try VariantPickModel(
+            hit: hit(name: "foundation"),
+            catalog: FakeVariantListing(variants: [
+                variant(productID: productID, shade: "1c"), variant(productID: productID, shade: "2n")
+            ])
+        )
+        await two.load()
+        #expect(!two.isSole)
+    }
+
     @Test func selectingKeepsToTheListedVariants() async throws {
         let picked = try hit(name: "soft pinch liquid blush")
         let shades = try ["220", "240"].map {
