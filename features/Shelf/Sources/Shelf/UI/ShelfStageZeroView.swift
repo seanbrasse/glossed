@@ -15,11 +15,19 @@ struct ShelfStageZeroView: View {
     let picks: [StageZeroPick]
     let isLoading: Bool
     let onAdd: (StageZeroPick) -> Void
-    let onScanOrSearch: () -> Void
+    /// Opens the add-ladder. Named for the room it opens, not the rungs
+    /// inside it — "scan or search" read as a search field to Sean.
+    let onAddProduct: () -> Void
     let onImport: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s4) {
+            // The shelf, bare. Sean, Sep 2: "Empty shelf should also show an
+            // empty shelf state with a singular empty shelf." It leads: the
+            // screen is called your shelf, and this is it, before anything
+            // stands on it.
+            ShelfBayView.bare
+                .accessibilityLabel("an empty shelf")
             Text("NOTHING LOGGED YET · STAGE 0")
                 .eyebrow(color: Tokens.Cherry.deep)
             Text("an empty shelf still knows your shade — start from these three")
@@ -32,7 +40,7 @@ struct ShelfStageZeroView: View {
             picksSection
 
             HStack(spacing: Tokens.Space.s3) {
-                Button("scan or search", action: onScanOrSearch)
+                Button("add a product", action: onAddProduct)
                     .buttonStyle(.glossed(.primary, block: true))
                 Button("import a list", action: onImport)
                     .buttonStyle(.glossed(.secondary))

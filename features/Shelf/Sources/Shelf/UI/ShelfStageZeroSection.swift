@@ -17,6 +17,20 @@ extension ShelfView {
     /// Fetched once when the cold-start screen appears. No store — fixtures,
     /// previews, the screen catalog — leaves the picks empty, and the view
     /// says it has none rather than spinning forever.
+    /// The empty shelf's door is the add-ladder, not the shelf's own find
+    /// field: that field searches what you own, and on an empty shelf it
+    /// found nothing and could not (Sean, Sep 2: "why is there a search if
+    /// we have no items? … empty state should allow users to add a product").
+    /// A pick seeds the ladder with its name. Fixtures and previews hand up
+    /// no door, and keep the field so a tap still does something visible.
+    func addProduct(_ seed: String) {
+        if let onAddProduct {
+            onAddProduct(seed)
+        } else {
+            openSearch()
+        }
+    }
+
     func loadStageZero() async {
         guard let stageZero, stageZeroPicks.isEmpty, !stageZeroLoading else { return }
         stageZeroLoading = true
@@ -37,8 +51,8 @@ extension ShelfView {
                 ShelfStageZeroView(
                     picks: stageZeroPicks,
                     isLoading: stageZeroLoading,
-                    onAdd: { _ in openSearch() },
-                    onScanOrSearch: openSearch,
+                    onAdd: { pick in addProduct("\(pick.brand) \(pick.name)") },
+                    onAddProduct: { addProduct("") },
                     onImport: { onImport?() }
                 )
                 .padding(.top, 6)

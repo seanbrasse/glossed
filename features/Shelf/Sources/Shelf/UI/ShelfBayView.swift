@@ -20,9 +20,26 @@ public struct ShelfBayView: View {
     /// visibly.
     @State private var shelfWidth: CGFloat = 0
 
+    /// Draws `ShelfBay.bare` and nothing else — the empty shelf's own shelf.
+    private let isBare: Bool
+
     public init(sections: [ShelfSection], onTap: @escaping (ShelfItem) -> Void = { _ in }) {
         self.sections = sections
         self.onTap = onTap
+        isBare = false
+    }
+
+    private init(bare: Bool) {
+        sections = []
+        onTap = { _ in }
+        isBare = bare
+    }
+
+    /// One plank between the uprights, holding nothing and saying nothing:
+    /// the drawing the empty shelf keeps, so "your shelf" is still a shelf
+    /// before the first thing lands on it (GLO-108, Sean's Sep 2 note).
+    public static var bare: ShelfBayView {
+        ShelfBayView(bare: true)
     }
 
     public var body: some View {
@@ -45,6 +62,9 @@ public struct ShelfBayView: View {
     /// than in the model — `ShelfModel` decides *which* items and in what order,
     /// which is the part that should be testable without a layout.
     private var bays: [ShelfBay] {
+        if isBare {
+            return [.bare]
+        }
         guard shelfWidth > 0 else { return [] }
         return ShelfBay.bays(from: sections, fittingWidth: shelfWidth - Frame.bayHorizontalPadding * 2)
     }
@@ -165,7 +185,13 @@ public struct ShelfBayView: View {
             ground
             Color.clear.frame(height: Frame.gapBetweenBays)
         }
-        .overlay(alignment: .topLeading) { label(bay.label) }
+        .overlay(alignment: .topLeading) {
+            // A bare bay has no label to hang; an empty pill would still
+            // draw its milk ground on the plank.
+            if !bay.label.isEmpty {
+                label(bay.label)
+            }
+        }
     }
 
     /// A hard 2pt line-coloured edge under the shelf rather than a blur — the

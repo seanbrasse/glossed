@@ -146,6 +146,12 @@ public struct ShelfSection: Sendable, Equatable {
 /// rather than letting a row scroll sideways, because a shelf you have to
 /// scroll horizontally stops reading as a shelf.
 public struct ShelfBay: Identifiable, Sendable, Equatable {
+    /// The one bay an empty shelf draws (GLO-108). Sean, Sep 2: *"Empty shelf
+    /// should also show an empty shelf state with a singular empty shelf."*
+    /// No label: `bays(from:)` refuses an empty labelled bay because a bay
+    /// labelled "blush" claims you own blushes — a bare plank claims nothing.
+    public static let bare = ShelfBay(id: "bare", label: "", items: [])
+
     /// The gap between two objects standing on the same shelf, from the kit.
     public static let itemGap: CGFloat = 10
 

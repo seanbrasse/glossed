@@ -102,3 +102,40 @@ struct ShelfEmptyStateTests {
         }
     }
 }
+
+/// Sean, Sep 2: "Why is there a search if we have no items? … There should be
+/// no filters unless there's more than one item logged."
+@MainActor
+struct ShelfControlGateTests {
+    @Test func anEmptyShelfShowsNoControls() {
+        let live = model([section(.makeup, [])])
+        #expect(live.loggedItemCount == 0)
+        #expect(!live.showsControls)
+    }
+
+    @Test func oneItemIsNotAListSoStillNoControls() {
+        let live = model([section(.makeup, [item("blush", .makeup)])])
+        #expect(live.loggedItemCount == 1)
+        #expect(!live.showsControls)
+    }
+
+    @Test func twoItemsAcrossDomainsEarnTheControls() {
+        let live = model([
+            section(.makeup, [item("blush", .makeup)]),
+            section(.skincare, [item("serum", .skincare)])
+        ])
+        #expect(live.loggedItemCount == 2)
+        #expect(live.showsControls)
+    }
+
+    @Test func theGateCountsWhatIsLoggedNotWhatTheFilterShows() {
+        // Both items sit in makeup and the filter shows only skincare: the
+        // list is empty on screen, and the controls are the way back.
+        let live = model(
+            [section(.makeup, [item("blush", .makeup), item("gloss", .makeup)])],
+            domains: [.skincare]
+        )
+        #expect(live.shownItemCount == 0)
+        #expect(live.showsControls)
+    }
+}

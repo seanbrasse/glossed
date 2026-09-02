@@ -65,6 +65,9 @@ struct AppShell: View {
     /// "add a product" resumes the first trip — stale query, stale rung, and
     /// a reused log idempotency key across two distinct intentions (GLO-96).
     @State var ladderTrip = UUID()
+    /// What the ladder's search rung opens with — a pick's name from the
+    /// empty shelf, or nothing. Cleared when the ladder closes.
+    @State var ladderSeed = ""
     /// One line the shell owes you once the drawer has closed: a door that is
     /// not built yet naming its ticket, or a door that ran saying what it did.
     /// The second case arrived with GLO-254 — a composer that dismisses itself

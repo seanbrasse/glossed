@@ -26,6 +26,10 @@ public struct ShelfView: View {
     /// than pretending to load forever.
     let stageZero: ShelfStageZeroStore?
     let onImport: (() -> Void)?
+    /// The empty shelf's way in (GLO-108): opens the add-ladder, seeded with
+    /// a pick's name or with nothing. Handed up because the ladder is a
+    /// feature. Nil in fixtures — see `addProduct(_:)`.
+    let onAddProduct: ((String) -> Void)?
     /// Handed up to `app/`: a feature cannot import a feature, so the shelf
     /// reports the tap and the app owns the crossing (GLO-151).
     private let onOpenProduct: ((ShelfItem) -> Void)?
@@ -45,7 +49,8 @@ public struct ShelfView: View {
         onTapItem: @escaping (ShelfItem) -> Void = { _ in },
         onOpenProduct: ((ShelfItem) -> Void)? = nil,
         onRank: ((ShelfItem) -> Void)? = nil,
-        onImport: (() -> Void)? = nil
+        onImport: (() -> Void)? = nil,
+        onAddProduct: ((String) -> Void)? = nil
     ) {
         _model = State(initialValue: model)
         _isSearchOpen = State(initialValue: startsSearching)
@@ -54,6 +59,7 @@ public struct ShelfView: View {
         self.onOpenProduct = onOpenProduct
         self.onRank = onRank
         self.onImport = onImport
+        self.onAddProduct = onAddProduct
     }
 
     public var body: some View {
@@ -105,14 +111,18 @@ public struct ShelfView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 heading
-                domainFilter
-                if model.showsFragranceNote {
-                    Text("fragrance ranks by face-off only — no shade or skin axis, and we don't invent one")
-                        .meta()
-                }
-                controls
-                if isSearchOpen {
-                    searchField
+                // No chrome over an empty or one-item shelf: the controls
+                // describe a list (`ShelfModel.showsControls`, Sean, Sep 2).
+                if model.showsControls {
+                    domainFilter
+                    if model.showsFragranceNote {
+                        Text("fragrance ranks by face-off only — no shade or skin axis, and we don't invent one")
+                            .meta()
+                    }
+                    controls
+                    if isSearchOpen {
+                        searchField
+                    }
                 }
                 emptySection
                 if presentsAsList {
@@ -255,43 +265,5 @@ public struct ShelfView: View {
                 .offset(x: Tokens.Shadow.sm, y: Tokens.Shadow.sm)
         )
         .fixedSize()
-    }
-
-    var sortPills: some View {
-        HStack(spacing: 6) {
-            ForEach(ShelfSort.allCases, id: \.self) { option in
-                Button { model.sort = option } label: {
-                    Text(option.rawValue)
-                        .font(Typography.mono(10.5))
-                        .kerning(10.5 * 0.06)
-                        // A fourth control on the row must not squeeze
-                        // "favorite" into "favor ite" — pills keep their
-                        // words (GLO-100's toggle made the row tight).
-                        .fixedSize()
-                        .foregroundStyle(Tokens.Ink.primary)
-                        .padding(.vertical, 5)
-                        .padding(.horizontal, 11)
-                        .background(model.sort == option ? Tokens.Cherry.soft : Tokens.Ground.card)
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule().strokeBorder(
-                                model.sort == option ? Tokens.Ink.primary : Tokens.Ground.line,
-                                lineWidth: model.sort == option ? Tokens.Border.std : Tokens.Border.hair
-                            )
-                        )
-                        .background(
-                            // The selected pill is the only one that lifts. Two
-                            // raised pills in a row of three read as neither.
-                            Capsule()
-                                .fill(model.sort == option ? Tokens.Ink.primary : .clear)
-                                .offset(x: Tokens.Shadow.sm, y: Tokens.Shadow.sm)
-                        )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("sort by \(option.rawValue)")
-                .accessibilityAddTraits(model.sort == option ? [.isSelected] : [])
-            }
-            Spacer(minLength: 0)
-        }
     }
 }

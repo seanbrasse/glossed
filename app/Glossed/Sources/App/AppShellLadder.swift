@@ -26,7 +26,11 @@ extension AppShell {
                 // fails closed (no key, exhausted budget, unreachable all
                 // answer "nothing to add"), so wiring it is unconditional.
                 fill: BarcodeFillService(client: client),
-                onClose: { ladderOpen = false },
+                query: ladderSeed,
+                onClose: {
+                    ladderOpen = false
+                    ladderSeed = ""
+                },
                 onShelfChanged: { session.refreshShelf() },
                 onLogged: { pendingLog = $0 }
             )
