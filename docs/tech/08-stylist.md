@@ -89,32 +89,63 @@ is not saved, a product is not added to want-to-try, until the user does it.
 
 ## 4. Architecture
 
+*Revised Sept 2 (Sean: "as little AI as possible — searching, filtering,
+looking at data and making comparisons"). The model is the fallback, not the
+engine.*
+
 ```
 app · features/Stylist ──POST /functions/v1/stylist (JWT)──▶ Edge Function `stylist`
    transcript (text only)                                     │ 1. auth.getUser
-   ◀── {text, blocks, chips, grounded_in} ───────────────────  │ 2. prefetch context under the caller's JWT
-                                                              │    (RLS is the sandbox — user_shelf_items, routines, …)
-                                                              │ 3. claude-opus-5, tools:
-                                                              │      search_catalog · query_affinity · crosswalk
-                                                              │      propose_routine · show_products · reference_look
-                                                              │      reference_collection · suggest_chips
-                                                              │ 4. artifact tools validate ids against the prefetch
+   ◀── {text, blocks, chips, grounded_in} ───────────────────  │ 2. prefetch under the caller's JWT (data.ts)
+                                                              │    profile · shelf (+benefit_line) · routines ·
+                                                              │    collections · looks · categories · shade anchor
+                                                              │ 3. plan.ts — rules, no model:
+                                                              │      intent from the words (medical first)
+                                                              │      routine   = shelf in category order, one gap
+                                                              │      missing   = concern's wants − shelf → leaderboard
+                                                              │      try next  = discover + crosswalk, merged, with n
+                                                              │      compare   = own ranks in a category
+                                                              │      about     = the catalog's line + the rank
+                                                              │ 4. only `open` (no rule matched) AND a key → model.ts
+                                                              │      claude-opus-5 tool loop, artifact ids validated
                                                               └ 5. one JSON reply; nothing stored
 ```
 
+- **Rules first.** `plan.ts` is pure and tested: it reads the words and the
+  context, names the fetches it wants (`leaderboard`, `discover_for_user`,
+  `crosswalk_for_user`) and finishes from their rows with templated copy.
+  A routine, a gap list, a comparison and a "try next" cost **zero model
+  calls**. `tools_used` says which path answered (`plan_routine`,
+  `leaderboard`, … or `model`), so the analytics event can count it.
+- **Cohorts are the app's, not the model's.** `leaderboard(p_scope = 'yours')`
+  resolves the caller's cohort server-side (shade anchor for makeup, hair
+  pattern for haircare) and falls back to everyone silently — so the planner
+  decides the *label* from what it knows (`cohortScope`) and every product row
+  carries `basis_label` + `basis_n`: *"face-offs by people with 3b hair · 12"*.
+  The app renders that through `EvidenceLine`; a zero-n basis ("a wander, no
+  evidence") is shown as its words, never a count.
+- **Without a key the stylist still works.** A free-form question gets the
+  honest menu (`OPEN_WITHOUT_MODEL`), not a 503. With a key, only that
+  question reaches `model.ts`, which keeps the original loop: prefetch as
+  cached system text, eight tools, ids validated, `MAX_TOOL_CALLS`.
 - **Turn-at-a-time, no streaming.** Streaming needs a third method on
   `GlossedClient` (frozen core). `invokeEdgeFunctionForData` is the zero-opening
-  path; a "thinking…" state covers the wait. Streaming is a follow-up with a
-  DataKit opening.
+  path; a "thinking…" state covers the wait.
 - **Saving a routine** goes through the existing `RoutinesRepository.saveDraft`
-  (title, slot, steps with notes). Cadence is not in `RoutineDraft` yet —
-  the stylist's card says the slot only.
+  (title, slot, steps with notes). The save mints the id; the card keeps it and
+  offers *open it* — the shell's `openOwnItem = .routine(id)`, the same detail
+  → edit door the profile uses — and tells the shell (`onRoutineSaved`) so the
+  profile reloads in place (GLO-278's trip, from a tab instead of a cover).
+  Cadence is not in `RoutineDraft` yet — the card says the slot only.
 - **Opening a look or collection** uses the shell's existing doors
   (`openLook`, `openOwnItem`) — the app owns every crossing, features never
   import features.
-- The function's pure half (`tools.ts`: prompt, tool schemas, context
-  rendering, artifact validation, caps) is unit-tested with `deno test`; the
-  transport half (`index.ts`) is not imported by tests, per `_shared/credentials.ts`.
+- The function's pure halves (`tools.ts`, `plan.ts`) are unit-tested with
+  `deno test`; `data.ts`, `model.ts` and `index.ts` are not imported by tests,
+  per `_shared/credentials.ts`.
+- **Not yet in the rules:** ingredient clashes (no INCI table — the stylist
+  says so), fit-based foundation picks (use case 11), repurchase (12). Each
+  is a planner intent when its data exists.
 
 ## 5. Tickets (the workspace is at its issue cap — tracked as a comment thread on GLO-224 until it is lifted)
 
