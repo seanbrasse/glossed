@@ -36,6 +36,7 @@ public struct OwnProfileView: View {
     private let settingsStore: SettingsStore?
     private let handleStore: HandleStore?
     private let onSignedOut: () -> Void
+    private let reloadKey: AnyHashable
 
     private let suggestionsStore: ViewedProfileStore
     private let safetyStore: SafetyActionsStore
@@ -73,7 +74,11 @@ public struct OwnProfileView: View {
         photoStore: ProfilePhotoStore? = nil,
         // Absent, `onClaimHandle` is handed up as before — and GLO-239 stays
         // open. See `claimSheet`.
-        handleStore: HandleStore? = nil
+        handleStore: HandleStore? = nil,
+        // A new value re-runs both loads in place — the shell changes it when
+        // a composer or editor closes (GLO-278). Constant by default, so a
+        // parent re-evaluating its body is not a reload.
+        reloadKey: AnyHashable = 0
     ) {
         _tabs = State(
             wrappedValue: ProfileTabsModel(
@@ -92,6 +97,7 @@ public struct OwnProfileView: View {
         self.onOpenCollection = onOpenCollection
         self.onOpenRoutine = onOpenRoutine
         self.onOpenWantToTry = onOpenWantToTry
+        self.reloadKey = reloadKey
         self.photoStore = photoStore
         self.settingsStore = settingsStore
         self.handleStore = handleStore
@@ -129,10 +135,19 @@ public struct OwnProfileView: View {
                 }
             }
             .padding(Tokens.Space.s5)
+            // Full width while loading too: a lone `ProgressView` is 60pt
+            // wide, and that column was GLO-256's flash on every entry here.
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(Tokens.Ground.milk)
-        .task { await model.load() }
-        .task { await tabs.load() }
+        .task(id: reloadKey) { await model.load() }
+        .task(id: reloadKey) { await tabs.load() }
+        // The error copy has said "pull to try again" since the tabs landed.
+        .refreshable {
+            async let identity: Void = model.load()
+            async let contents: Void = tabs.load()
+            _ = await (identity, contents)
+        }
         .renameSheet(model: tabs)
         .overlay(alignment: .bottom) {
             if let message = model.errorMessage ?? tabs.errorMessage {

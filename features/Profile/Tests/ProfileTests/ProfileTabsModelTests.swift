@@ -171,3 +171,53 @@ private func scopesStore(
     // GLO-189: no copy may imply a look is reviewed or promise an audience.
     #expect(ProfileComposable.allCases.map(\.label) == ["a look", "a collection", "a routine"])
 }
+
+@MainActor
+@Test func aProfileWhoseOnlyContentIsWantToTryIsNotEmpty() async {
+    // Want-to-try renders on the collections tab as the default collection,
+    // so four saved products are content — not `nothing here yet`.
+    let model = ProfileTabsModel(
+        looks: ProfileLooksStore(mine: { [] }),
+        collections: ProfileCollectionsStore(mine: { [] }),
+        wantToTry: WantToTryStore(entries: {
+            [WantToTryEntry(id: UUID(), brand: "glossier", name: "balm dotcom", imageURL: nil)]
+        })
+    )
+    await model.load()
+    #expect(!model.isEmpty)
+}
+
+@MainActor
+@Test func aReloadRefreshesInPlaceAndClearsAnOldMessage() async {
+    // GLO-278: a save elsewhere re-runs the load. The second run must not
+    // swap a correct list for a spinner, and a toast from a read that has
+    // since recovered must not outlive the recovery.
+    let attempts = Counter()
+    let model = ProfileTabsModel(
+        collections: ProfileCollectionsStore(mine: {
+            if await attempts.next() == 1 {
+                throw GlossedError(.offline, userMessage: "you're offline.")
+            }
+            return [collection(title: "holy grails only")]
+        })
+    )
+    await model.load()
+    #expect(model.errorMessage != nil)
+    #expect(model.collections.isEmpty)
+
+    var sawSpinner = false
+    let reload = Task { await model.load() }
+    sawSpinner = model.isLoading
+    await reload.value
+    #expect(!sawSpinner)
+    #expect(model.errorMessage == nil)
+    #expect(model.collections.map(\.title) == ["holy grails only"])
+}
+
+private actor Counter {
+    private var n = 0
+    func next() -> Int {
+        n += 1
+        return n
+    }
+}
