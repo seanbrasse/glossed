@@ -26,14 +26,20 @@ Three more, each of which cost real time in session 19:
 
 ## Start here
 
-0. **Give the stylist a key and drive the live path.** Put `ANTHROPIC_API_KEY`
-   in `supabase/functions/.env`, restart `supabase functions serve`, `make run`
-   (no `STYLIST_DEMO`), and ask *build me a morning routine from what I own*.
-   **Done looks like:** a routine card whose steps are all maya's `user_items`,
-   chips of three or fewer, and `grounded_in` naming the context — then the
-   same on hosted with the secret set. `docs/tech/08-stylist.md` §5 is the
-   ticket list; STY-7 (medical classifier) is the next build.
-
+0. **The stylist is rules first, model last — and works without a key.**
+   Sean, Sept 2: *"as little AI as possible — searching, filtering, looking at
+   data and making comparisons."* Three PRs open on top of the stack: **#496**
+   (`plan.ts` — routine / missing / try next / compare / about from the shelf
+   and the cohort RPCs, zero model calls; `model.ts` only for a free-form
+   question when a key exists; base #491), **#497** (the routine card wears the
+   detail's shape, a save offers *open it* and trips the profile reload; base
+   #494), **#498** (`08-stylist.md` §4; base `main`). **Retarget #496 and #497
+   to `main` BEFORE their base branches are deleted.** Driven live as maya with
+   no key: morning routine → save → open it → edit → on the profile. The key
+   now only unlocks the free-form path; the console tab was opened for Sean to
+   sign in and none was created. Next builds: STY-7 (refusal copy is Sean's),
+   ingredient clashes once an INCI table exists, use cases 11 and 12 as planner
+   intents.
 
 1. **Step 1 of the Shopify fill is done (#488).** The rules and the backfill
    are in; `make db-reset` restores the catalog from the snapshot, which was
@@ -50,7 +56,7 @@ Three more, each of which cost real time in session 19:
 
 ## Route around these — they are blocked on Sean, not on code
 
-- **`ANTHROPIC_API_KEY`** — the stylist is a `503` without it, on every stack.
+- **`ANTHROPIC_API_KEY`** — only the free-form question needs it now (#496); every shaped ask answers without one.
 - **The stylist's rulings** — minors (v1 adults only), refusal copy, the
   budget migration, `/design-login` for the kit frame. 08 §5 names each.
 - **The product list itself** — Sean's Sept 1 listing reached the repo only as 0057's category rows; ask where it is before building on "the new products".
