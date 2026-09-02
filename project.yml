@@ -36,6 +36,8 @@ packages:
     path: features/Privacy
   Profile:
     path: features/Profile
+  Stylist:
+    path: features/Stylist
   Browse:
     path: features/Browse
   Leaderboard:
@@ -65,6 +67,7 @@ targets:
       - package: Looks
       - package: Privacy
       - package: Profile
+      - package: Stylist
       - package: Browse
       - package: Leaderboard
       - package: Onboarding
