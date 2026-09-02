@@ -112,6 +112,8 @@ targets:
         # what keeps the simulator's env-var path (see `make run`) primary.
         GlossedSupabaseURL: $(GLOSSED_SUPABASE_URL)
         GlossedSupabasePublishableKey: $(GLOSSED_SUPABASE_PUBLISHABLE_KEY)
+        # "0" turns the dev sign-in off, so a phone makes its own account.
+        GlossedDevSignIn: $(GLOSSED_DEV_SIGN_IN)
     settings:
       base:
         # `com.glossed.app` is registered to another Apple Developer account
@@ -128,6 +130,7 @@ targets:
 
         GLOSSED_SUPABASE_URL: ""
         GLOSSED_SUPABASE_PUBLISHABLE_KEY: ""
+        GLOSSED_DEV_SIGN_IN: ""
 
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 0.1.0

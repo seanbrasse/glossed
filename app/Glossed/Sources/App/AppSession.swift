@@ -139,7 +139,25 @@ final class AppSession {
                 }
                 let config = try GlossedConfig.validated(from: environment)
                 let booted = GlossedClient(config: config)
-                try await booted.signIn(email: "maya@local.test", password: "password")
+                // The dev sign-in is the simulator's convenience, not the
+                // phone's. A device build passes `GLOSSED_DEV_SIGN_IN=0`
+                // (baked into the bundle like the keys), and then a launch
+                // with no persisted session goes to FLOW 1 to make an
+                // account with Sign in with Apple — the real path, on the
+                // real stack, for Sean to test as a new user (Sept 2).
+                if Self.devSignInIsOff(environment) {
+                    if await (try? booted.requireUserID()) == nil {
+                        client = booted
+                        needsOnboarding = true
+                        anchorVariants = await Self.anchorVariants(CatalogRepository(client: booted))
+                        tracker = Tracker(poster: TrackIngestPoster(client: booted))
+                        imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
+                        phase = .ready
+                        return
+                    }
+                } else {
+                    try await booted.signIn(email: "maya@local.test", password: "password")
+                }
                 // **`signIn` returning is not proof the session can be READ
                 // back**, and the difference is not academic — it cost a
                 // session. `supabase-swift` persists the session to the
@@ -238,6 +256,14 @@ final class AppSession {
     /// Nil profile means the quiz was never answered. The env override exists
     /// because both seeded accounts already have a profiles row (GLO-182), so
     /// without it the flow is unreachable in every drive this project makes.
+    /// `GLOSSED_DEV_SIGN_IN=0` in the launch environment or, for a phone
+    /// that launches with none, `GlossedDevSignIn` in the bundle.
+    private static func devSignInIsOff(_ environment: [String: String]) -> Bool {
+        let fromEnvironment = environment["GLOSSED_DEV_SIGN_IN"]
+        let fromBundle = Bundle.main.object(forInfoDictionaryKey: "GlossedDevSignIn") as? String
+        return (fromEnvironment ?? fromBundle) == "0"
+    }
+
     private static func needsOnboarding(
         _ profiles: ProfileRepository, environment: [String: String]
     ) async throws -> Bool {
