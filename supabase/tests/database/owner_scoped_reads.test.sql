@@ -29,7 +29,7 @@
 -- here depends on, or disturbs, seeded state.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(18);
 
 create or replace function test_as(uid uuid) returns void language plpgsql as $$
 begin
@@ -84,7 +84,7 @@ insert into looks (id, user_id, caption, state, posted_at, visibility) values
 -- ── the same owner's ladder, routine, and look photo — the five child tables ─
 --
 -- GLO-258's remaining five: `rank_positions`, `routine_steps`, `collection_items`
--- (covered where `CollectionsRepository.items()` was fixed, #430), `look_photos`,
+-- (17–18, with `CollectionsRepository.items()`'s fix), `look_photos`,
 -- `look_tags`. Every one of them carries the same `*_own` + public pair, keyed
 -- through its parent's visibility. The rankings scope above is `public`, the
 -- routine and look below are `public` on their own rows (0053).
@@ -101,6 +101,34 @@ insert into look_photos (id, look_id, r2_key, position) values
      'looks/05c07ed0-0000-0000-0000-000000000001/scoped.jpg', 0);
 insert into look_tags (id, look_photo_id, x, y) values
     ('05c07ed0-0000-0000-0000-0000000000a6', '05c07ed0-0000-0000-0000-0000000000a5', 0.5, 0.5);
+
+-- ── a SECOND owner, private in every surface, with one public collection ───
+--
+-- Separate from the first on purpose. Assertions 17–18 are about bounded
+-- disclosure — a public collection revealing its own members — and against an
+-- owner whose shelf is already `public` they would pass through the shelf
+-- scope instead and prove nothing about collections at all.
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+                        raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+                        confirmation_token, recovery_token, email_change_token_new,
+                        email_change_token_current, email_change, phone_change, phone_change_token,
+                        reauthentication_token)
+values
+    ('05c07ed0-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+     'scoped-collector@test.local', '', now(), '{}', '{}', now(), now(), '', '', '', '', '', '', '', '');
+insert into profiles (user_id, birth_year_month, domains) values
+    ('05c07ed0-0000-0000-0000-000000000003', '1989-03', '{makeup}');
+-- every surface shut. The ONLY thing public about this user is the collection.
+insert into privacy_scopes (user_id, shelf, rankings) values
+    ('05c07ed0-0000-0000-0000-000000000003', 'only_you', 'only_you');
+insert into user_items (id, user_id, variant_id, status, client_id) values
+    ('05c07ed0-0000-0000-0000-0000000000f3', '05c07ed0-0000-0000-0000-000000000003',
+     '05c07ed0-0000-0000-0000-0000000000e1', 'own', '05c07ed0-0000-0000-0000-0000000000f3');
+insert into collections (id, user_id, title, visibility) values
+    ('05c07ed0-0000-0000-0000-0000000000a3', '05c07ed0-0000-0000-0000-000000000003',
+     'a public collection, a private shelf', 'public');
+insert into collection_items (collection_id, user_item_id, position) values
+    ('05c07ed0-0000-0000-0000-0000000000a3', '05c07ed0-0000-0000-0000-0000000000f3', 0);
 
 -- ── the viewer. Not a follower, not blocked: a stranger with an account. ────
 select test_as('05c07ed0-0000-0000-0000-000000000002');
@@ -192,6 +220,30 @@ select ok(not exists(select 1 from look_tags
                              where look_id in (select id from looks
                                                 where user_id = (select auth.uid())))),
     'look_tags keyed through photos and looks pinned on user_id returns nothing');
+
+-- 17–18. `collection_items` → `user_shelf_items`, the two-read shape
+-- `CollectionsRepository.items()` uses. This one is subtler than the rest and
+-- is why it survived: the owner's SHELF scope is `only_you` throughout, so
+-- nothing here is leaking a shelf. `collection_items_public` admits the
+-- membership rows of a PUBLIC collection, and `item_is_published()` then
+-- admits exactly those items — 0021 calls that "the BOUNDED disclosure" and
+-- means it.
+--
+-- The database is right. What was wrong was a comment claiming the second read
+-- "answers only for YOUR shelf" because the view is `security_invoker`, which
+-- is the inverse of what `security_invoker` does. `items()` is owner-side, so
+-- it now pins `user_id` and the claim is enforced rather than asserted.
+select ok(exists(select 1 from user_shelf_items
+                  where user_item_id in (
+                            select user_item_id from collection_items
+                             where collection_id = '05c07ed0-0000-0000-0000-0000000000a3')),
+    'the members of a PUBLIC collection are readable even though the owner''s shelf scope is only_you — bounded disclosure, working as designed');
+select ok(not exists(select 1 from user_shelf_items
+                      where user_id = (select auth.uid())
+                        and user_item_id in (
+                                select user_item_id from collection_items
+                                 where collection_id = '05c07ed0-0000-0000-0000-0000000000a3')),
+    'the same read with user_id pinned returns nothing — what makes items() owner-side (GLO-258)');
 
 select * from finish();
 rollback;
