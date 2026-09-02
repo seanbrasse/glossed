@@ -33,8 +33,10 @@ public final class TourModel {
         Slide(
             tab: "discover",
             title: "why we\u{2019}re here",
-            story: "no ads, no bots, no gatekeeping. every claim shows its n, "
-                + "and your shade is yours to say."
+            // The hook's eyebrow already said what this app is not; the tour
+            // says what it is (Sean, Sep 2: that language stays on the
+            // sign-up page and nowhere else).
+            story: "every claim shows its n, and your shade is yours to say."
         )
     ]
 

@@ -12,9 +12,13 @@ extension OnbAccountView {
     // MARK: - method
 
     @ViewBuilder var methodStage: some View {
-        Text("TWO WAYS IN · NOTHING ELSE").eyebrow()
-        title("save your", "shelf")
-        Text("no email, no password, no third social \u{273F}")
+        // Sean, Sep 2: "two ways in · nothing else" reads as a threat, and
+        // "no email, no password, no third social" makes the user think
+        // about the sign-up options instead of their shelf. The one place
+        // the app says what it is NOT is the hook's eyebrow; nowhere else.
+        Text("PICK ONE").eyebrow()
+        title("create your", "account")
+        Text("a couple of taps and your shelf is yours \u{273F}")
             .handAside()
             .rotationEffect(.degrees(-1))
     }
