@@ -23,7 +23,14 @@ extension AppShell {
                 // defaulted `{}` and the primary action on every item did
                 // nothing at all (GLO-240).
                 onRank: { rankingItem = $0 },
-                onImport: { drawerOpen = true }
+                onImport: { drawerOpen = true },
+                // The empty shelf's door (GLO-108): straight into the ladder,
+                // seeded with a pick's name when a pick was tapped.
+                onAddProduct: { seed in
+                    ladderSeed = seed
+                    ladderTrip = UUID()
+                    ladderOpen = true
+                }
             )
             .id(ObjectIdentifier(model))
         } else {

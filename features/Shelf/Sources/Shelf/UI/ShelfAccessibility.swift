@@ -63,4 +63,44 @@ extension ShelfView {
     // Find-what-I-own (GLO-73), folded into the controls row so search reads
     // as one more way to narrow the same list — beside sort, not above the
     // shelf. No kit frame exists for it; workshop at review.
+
+    /// Moved from `ShelfView.swift` at the 300-line ceiling (GLO-108's empty
+    /// state gate took it to 305) — a mechanical move, beside the row it sits in.
+    var sortPills: some View {
+        HStack(spacing: 6) {
+            ForEach(ShelfSort.allCases, id: \.self) { option in
+                Button { model.sort = option } label: {
+                    Text(option.rawValue)
+                        .font(Typography.mono(10.5))
+                        .kerning(10.5 * 0.06)
+                        // A fourth control on the row must not squeeze
+                        // "favorite" into "favor ite" — pills keep their
+                        // words (GLO-100's toggle made the row tight).
+                        .fixedSize()
+                        .foregroundStyle(Tokens.Ink.primary)
+                        .padding(.vertical, 5)
+                        .padding(.horizontal, 11)
+                        .background(model.sort == option ? Tokens.Cherry.soft : Tokens.Ground.card)
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule().strokeBorder(
+                                model.sort == option ? Tokens.Ink.primary : Tokens.Ground.line,
+                                lineWidth: model.sort == option ? Tokens.Border.std : Tokens.Border.hair
+                            )
+                        )
+                        .background(
+                            // The selected pill is the only one that lifts. Two
+                            // raised pills in a row of three read as neither.
+                            Capsule()
+                                .fill(model.sort == option ? Tokens.Ink.primary : .clear)
+                                .offset(x: Tokens.Shadow.sm, y: Tokens.Shadow.sm)
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("sort by \(option.rawValue)")
+                .accessibilityAddTraits(model.sort == option ? [.isSelected] : [])
+            }
+            Spacer(minLength: 0)
+        }
+    }
 }
