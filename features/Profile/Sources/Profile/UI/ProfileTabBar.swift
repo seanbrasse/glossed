@@ -27,24 +27,34 @@ struct ProfileTabBar: View {
     let mark: (ProfileTab) -> ProfileScopeMark?
     @Binding var selection: ProfileTab
 
+    /// Centred when it fits (Sean, Sept 1), a scroller only when it does not —
+    /// three tabs fit every phone; accessibility sizes are what the scroller
+    /// is for.
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 3) {
-                ForEach(tabs, id: \.self) { segment($0) }
+        ViewThatFits(in: .horizontal) {
+            capsule.frame(maxWidth: .infinity)
+            ScrollView(.horizontal, showsIndicators: false) {
+                capsule
             }
-            .padding(3)
-            .background(Tokens.Ground.card)
-            .clipShape(Capsule())
-            .overlay(Capsule().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.std))
-            .background(
-                Capsule().fill(Tokens.Ink.primary)
-                    .offset(x: Tokens.Shadow.sm, y: Tokens.Shadow.sm)
-            )
-            // The shadow sits outside the capsule; without room for it the
-            // scroller clips the offset copy against its own edge.
-            .padding(.trailing, Tokens.Shadow.sm)
-            .padding(.bottom, Tokens.Shadow.sm)
         }
+    }
+
+    private var capsule: some View {
+        HStack(spacing: 3) {
+            ForEach(tabs, id: \.self) { segment($0) }
+        }
+        .padding(3)
+        .background(Tokens.Ground.card)
+        .clipShape(Capsule())
+        .overlay(Capsule().strokeBorder(Tokens.Ink.primary, lineWidth: Tokens.Border.std))
+        .background(
+            Capsule().fill(Tokens.Ink.primary)
+                .offset(x: Tokens.Shadow.sm, y: Tokens.Shadow.sm)
+        )
+        // The shadow sits outside the capsule; without room for it the
+        // scroller clips the offset copy against its own edge.
+        .padding(.trailing, Tokens.Shadow.sm)
+        .padding(.bottom, Tokens.Shadow.sm)
     }
 
     private func segment(_ tab: ProfileTab) -> some View {
