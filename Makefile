@@ -53,11 +53,24 @@ lint:
 format:
 	swiftformat .
 
-test: generate
-	xcodebuild test -project Glossed.xcodeproj -scheme Glossed \
-	  -destination 'platform=iOS Simulator,name=iPhone 17' | xcbeautify || \
-	xcodebuild test -project Glossed.xcodeproj -scheme Glossed \
-	  -destination 'platform=iOS Simulator,name=iPhone 17'
+# The tests live in the local SPM packages, so SwiftPM is what runs them. The
+# app target has no XCTest bundle, which is why the generated `Glossed` scheme
+# has an empty test action — `xcodebuild test -scheme Glossed` only ever
+# answered "not currently configured for the test action", so this ran zero
+# tests for as long as it pointed there.
+#
+# This is the same loop as the "Package tests" step of the `build · test (iOS)`
+# job in .github/workflows/ci.yml, so a green `make test` and a green CI mean
+# the same thing. CI additionally does `xcodebuild build -scheme Glossed` to
+# compile app/ — that is a build check, not a test, and Xcode covers it locally.
+test:
+	@set -e; \
+	for pkg in core/*/Package.swift features/*/Package.swift; do \
+	  [ -e "$$pkg" ] || continue; \
+	  dir=$$(dirname "$$pkg"); \
+	  echo "==> swift test $$dir"; \
+	  (cd "$$dir" && swift test); \
+	done
 
 # GLO-223 — Sean's ruling: user data is expendable at this stage, the catalog is
 # not. The catalog is NOT in seed.sql; it is ~22,600 rows the seven import
