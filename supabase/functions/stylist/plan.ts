@@ -196,7 +196,7 @@ export function detectIntent(text: string, input: PlanInput): Intent {
     return { kind: "look", look_id: detectLook(t, input.ctx.looks) };
   }
   if (hasAny(t, MISSING_WORDS)) return { kind: "missing" };
-  if (hasAny(t, ROUTINE_WORDS)) return { kind: "routine", ...routineShape(t) };
+  if (hasAny(t, ROUTINE_WORDS)) return { kind: "routine", ...routineShape(t, input.ctx) };
   if (hasAny(t, COMPARE_WORDS)) {
     return { kind: "compare", category_slug: detectCategory(t, input.categories) };
   }
@@ -261,8 +261,8 @@ function domainOf(t: string): Domain | null {
   return best?.domain ?? null;
 }
 
-function routineShape(t: string): { slot: Slot; domain: Domain } {
-  let slot: Slot = "am";
+function routineShape(t: string, ctx: StylistContext): { slot: Slot; domain: Domain } {
+  let slot: Slot = defaultSlot(ctx);
   let length = 0;
   for (const s of SLOTS) {
     const m = longestMatch(t, SLOT_WORDS[s]);
@@ -395,10 +395,40 @@ function reply(
   };
 }
 
-/// Chips the shelf can actually answer — never propose a comparison to
-/// someone who owns one thing.
-function chipsFor(ctx: StylistContext, preferred: readonly string[]): string[] {
-  const out = preferred.filter((c) => c !== "compare what i own" || ctx.shelf.length > 1);
+/// The slot a routine ask lands on when the words name none: the first the
+/// person does not keep yet (morning, then night, then weekly), so "build
+/// me a routine" is never the one they already have.
+export function defaultSlot(ctx: StylistContext): Slot {
+  const kept = new Set(ctx.routines.map((r) => r.slot));
+  return (["am", "pm", "weekly"] as const).find((s) => !kept.has(s)) ?? "am";
+}
+
+/// Chips the person can actually use (Sean, Sept 2: "what if I already
+/// built a pm routine? chips need to be less specific or smarter"): a
+/// routine chip names a slot they do not keep yet, or gives way when they
+/// keep them all; a comparison needs two things on the shelf; nothing is
+/// offered twice.
+export function chipsFor(ctx: StylistContext, preferred: readonly string[]): string[] {
+  const kept = new Set(ctx.routines.map((r) => r.slot));
+  const open = (["am", "pm", "weekly"] as const).filter((s) => !kept.has(s));
+  const out: string[] = [];
+  for (const chip of preferred) {
+    let c: string | null = chip;
+    const m = /^build my (am|pm|weekly|night skincare) routine$/.exec(chip);
+    if (m) {
+      const asked = m[1] === "night skincare" ? "pm" : m[1];
+      const slot = kept.has(asked) ? open[0] ?? null : asked;
+      c = slot ? `build my ${slot} routine` : "a look for tonight";
+    }
+    if (c === "compare what i own" && ctx.shelf.length < 2) c = null;
+    if (c && !out.includes(c)) out.push(c);
+  }
+  for (
+    const extra of ["what's missing for my skin", "what should i try next", "a look for tonight"]
+  ) {
+    if (out.length >= MAX_CHIPS) break;
+    if (!out.includes(extra)) out.push(extra);
+  }
   return out.slice(0, MAX_CHIPS);
 }
 

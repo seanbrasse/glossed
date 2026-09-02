@@ -2,7 +2,9 @@ import { assert, assertEquals } from "jsr:@std/assert@1";
 import {
   buildRoutine,
   type CategoryRef,
+  chipsFor,
   cohortScope,
+  defaultSlot,
   detectIntent,
   type FetchResult,
   missingCategories,
@@ -295,4 +297,28 @@ Deno.test("clash, medical, greeting and open answer from rules alone and never c
   }
   assertEquals(planTurn("what's the weather", input).finish([]).text, OPEN_WITHOUT_MODEL);
   assert(planTurn("I have a rash", input).finish([]).text.includes("dermatologist"));
+});
+
+Deno.test("chips are smart about what the person already keeps", () => {
+  // ctx keeps an am routine: the am chip becomes pm, and nothing repeats
+  assertEquals(
+    chipsFor(ctx, ["build my am routine", "build my pm routine", "what should i try next"]),
+    ["build my pm routine", "what should i try next", "what's missing for my skin"],
+  );
+  const all = {
+    ...ctx,
+    routines: (["am", "pm", "weekly"] as const).map((slot) => ({ ...ctx.routines[0], slot })),
+  };
+  assertEquals(chipsFor(all, ["build my am routine"])[0], "a look for tonight");
+  assert(
+    !chipsFor({ ...ctx, shelf: [shelf[0]] }, ["compare what i own"]).includes("compare what i own"),
+  );
+});
+
+Deno.test("a routine ask with no slot lands on the slot the person does not keep", () => {
+  assertEquals(defaultSlot(ctx), "pm", "the fixture keeps a morning routine");
+  const i = detectIntent("build me a routine", input);
+  assertEquals(i.kind === "routine" ? i.slot : null, "pm");
+  const j = detectIntent("build me a morning routine", input);
+  assertEquals(j.kind === "routine" ? j.slot : null, "am", "a named slot always wins");
 });
