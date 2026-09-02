@@ -32,7 +32,7 @@ struct ProfileTabsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s3) {
-            if model.tabs.count > 1 {
+            if model.showsTabStrip {
                 ProfileTabBar(
                     tabs: model.tabs, mark: model.mark(for:), selection: $model.tab
                 )
@@ -107,7 +107,7 @@ struct ProfileTabsSection: View {
     private var looks: some View {
         // Two columns rather than Instagram's three: with no photograph to
         // draw, a third column leaves a caption about eleven characters wide.
-        grid(model.looks, empty: "no looks yet", says: emptyLine(.look)) { look in
+        grid(model.looks, empty: "nothing here yet", says: emptyLine(.look)) { look in
             if let onOpenLook {
                 Button {
                     onOpenLook(look.id)
@@ -128,7 +128,7 @@ struct ProfileTabsSection: View {
         if model.hasWantToTry {
             wantToTryLead
         }
-        grid(model.collections, empty: "no collections yet", says: emptyLine(.collection)) { collection in
+        grid(model.collections, empty: "nothing here yet", says: emptyLine(.collection)) { collection in
             CollectionCard(collection: collection)
                 .renameTarget(editing: model.isEditing, label: collection.title) {
                     model.beginRename(
@@ -164,7 +164,7 @@ struct ProfileTabsSection: View {
 
     private var shelf: some View {
         grid(
-            model.shelf, empty: "nothing on your shelf yet",
+            model.shelf, empty: "nothing here yet",
             says: "log something you own and it lands here."
         ) { ShelfTile(entry: $0) }
     }
@@ -173,7 +173,7 @@ struct ProfileTabsSection: View {
     /// steps, and two of those side by side wrap every step line.
     @ViewBuilder private var routines: some View {
         if model.routines.isEmpty {
-            emptyPane("no routines yet", emptyLine(.routine))
+            emptyPane("nothing here yet", emptyLine(.routine))
         } else {
             VStack(alignment: .leading, spacing: Tokens.Space.s3) {
                 ForEach(model.routines) { routine in

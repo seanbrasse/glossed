@@ -205,6 +205,18 @@ public final class ProfileTabsModel {
         looks.isEmpty && collections.isEmpty && routines.isEmpty && shelf.isEmpty && wantToTry.isEmpty
     }
 
+    /// Whether the tab strip renders at all. Sean, Sep 2: *"We shouldn't have
+    /// the looks/collections/routines section once we have the nothing here
+    /// yet card. Also once we add one of these, then we should have the
+    /// toggle, with nothing here yet for the other things."* So: no strip
+    /// while the whole profile is empty (the one card already names the
+    /// three tabs), and the strip with per-tab empty panes the moment any
+    /// tab has content. Loading hides it too — a strip over a skeleton is a
+    /// strip that may vanish a beat later.
+    public var showsTabStrip: Bool {
+        tabs.count > 1 && !isLoading && !isEmpty
+    }
+
     private func note(_ error: Error, fallback: String) {
         guard errorMessage == nil else { return }
         errorMessage = (error as? GlossedError)?.userMessage ?? fallback

@@ -79,6 +79,10 @@ struct ProfileTabBar: View {
             .frame(minHeight: 40)
             .background(on ? Tokens.Ink.primary : Color.clear)
             .clipShape(Capsule())
+            // An unselected tab's background is clear, and a `.plain` button
+            // hit-tests its label's opaque content — without this the tap
+            // had to land on the letters (#500's shape, Sean's "hard to press").
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .animation(Tokens.Motion.pop(), value: on)
