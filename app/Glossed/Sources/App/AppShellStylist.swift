@@ -25,12 +25,20 @@ extension AppShell {
     @ViewBuilder var stylistTab: some View {
         if let client = session.client {
             StylistView(
-                model: StylistModel(store: stylistStore(client: client)),
+                model: StylistModel(
+                    store: stylistStore(client: client),
+                    // A routine saved from the chat is on the profile the
+                    // next time it is looked at — the same trip a closing
+                    // composer makes (GLO-278), from a tab instead of a cover.
+                    onRoutineSaved: { _ in profileMayHaveChanged() }
+                ),
                 imageURL: { key in session.imageBase?.appending(path: key) },
                 // The doors are the shell's: a look opens as the post, a
-                // collection as its editor — the same covers the profile uses.
+                // collection as its editor, a saved routine as its detail
+                // with the edit button — the same covers the profile uses.
                 onOpenLook: { openLook = OpenLook(id: $0) },
-                onOpenCollection: { openOwnItem = .collection($0) }
+                onOpenCollection: { openOwnItem = .collection($0) },
+                onOpenRoutine: { openOwnItem = .routine($0) }
             )
         } else {
             unreadableTab(

@@ -59,16 +59,22 @@ public final class StylistModel {
     public private(set) var chips: [String] = StylistModel.starterChips
     public private(set) var phase: Phase = .idle
     public private(set) var errorMessage: String?
-    /// Routine cards that were saved this session, so the button says so.
-    public private(set) var savedRoutines: Set<RoutineDraftBlock> = []
+    /// Routine cards saved this session, each with the id the save minted —
+    /// the card says so, and offers the door onto the routine it now is.
+    public private(set) var savedRoutines: [RoutineDraftBlock: UUID] = [:]
     public private(set) var savingRoutine: RoutineDraftBlock?
     public var draft = ""
 
     private let store: StylistStore?
+    /// The app's hook for a save that landed: the profile shows routines,
+    /// and it must reload for the new one (GLO-278's shape, from a tab
+    /// instead of a cover).
+    private let onRoutineSaved: ((UUID) -> Void)?
     private(set) var sendTask: Task<Void, Never>?
 
-    public init(store: StylistStore? = nil) {
+    public init(store: StylistStore? = nil, onRoutineSaved: ((UUID) -> Void)? = nil) {
         self.store = store
+        self.onRoutineSaved = onRoutineSaved
     }
 
     public var canSend: Bool {
@@ -123,13 +129,14 @@ public final class StylistModel {
     }
 
     public func save(routine: RoutineDraftBlock) {
-        guard let save = store?.saveRoutine, savingRoutine == nil, !savedRoutines.contains(routine) else { return }
+        guard let save = store?.saveRoutine, savingRoutine == nil, savedRoutines[routine] == nil else { return }
         savingRoutine = routine
         errorMessage = nil
         Task { [weak self] in
             do {
-                _ = try await save(routine)
-                self?.savedRoutines.insert(routine)
+                let id = try await save(routine)
+                self?.savedRoutines[routine] = id
+                self?.onRoutineSaved?(id)
             } catch {
                 self?.errorMessage = (error as? GlossedError)?.userMessage ?? "couldn't save that routine."
             }

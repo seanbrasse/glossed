@@ -99,21 +99,45 @@ private func routine() -> RoutineDraftBlock {
     #expect(!noSeam.canSaveRoutines)
 
     let saves = Attempts()
+    let minted = UUID()
     var store = StylistStore(send: { _ in reply("x") })
     store.saveRoutine = { _ in
         _ = await saves.next()
-        return UUID()
+        return minted
     }
-    let model = StylistModel(store: store)
+    let told = Told()
+    let model = StylistModel(store: store, onRoutineSaved: { told.ids.append($0) })
     let draft = routine()
     model.save(routine: draft)
     #expect(model.savingRoutine == draft)
     for _ in 0 ..< 50 where model.savingRoutine != nil {
         await Task.yield()
     }
-    #expect(model.savedRoutines.contains(draft))
+    #expect(model.savedRoutines[draft] == minted, "the card keeps the id the save minted — its door")
+    #expect(told.ids == [minted], "the app is told once, with the id, so the profile reloads")
     model.save(routine: draft)
     #expect(await saves.count == 1, "a saved routine is not saved twice")
+}
+
+@MainActor
+@Test func aFailedSaveTellsNobodyAndLeavesTheCardSaveable() async {
+    var store = StylistStore(send: { _ in reply("x") })
+    store.saveRoutine = { _ in throw GlossedError(.invalidInput, userMessage: "offline") }
+    let told = Told()
+    let model = StylistModel(store: store, onRoutineSaved: { told.ids.append($0) })
+    let draft = routine()
+    model.save(routine: draft)
+    for _ in 0 ..< 50 where model.savingRoutine != nil {
+        await Task.yield()
+    }
+    #expect(model.savedRoutines[draft] == nil)
+    #expect(told.ids.isEmpty)
+    #expect(model.errorMessage == "offline")
+}
+
+@MainActor
+private final class Told {
+    var ids: [UUID] = []
 }
 
 @MainActor
