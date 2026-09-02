@@ -27,17 +27,27 @@ public struct AccountStore: Sendable {
     /// whereas an Apple button that silently signs nobody in is the
     /// dead-affordance defect (GLO-151). Nil means "not wired".
     public var signInWithApple: (@Sendable () async throws -> Void)?
+    /// Does the account that just signed in already have a profile? Asked
+    /// right after Apple answers on the SIGNUP path (Sean, Sep 2: *"if a user
+    /// already has an account, they can skip entering their birthday"*).
+    /// Apple returns the same user for the same Apple ID, so "create an
+    /// account" with an account is a login that came in the other door —
+    /// and login asks nothing. Default false: a store without the seam
+    /// treats everyone as new, which is what every fixture expects.
+    public var hasProfile: @Sendable () async throws -> Bool
     public var finish: @Sendable (_ draft: ProfileDraft) async throws -> Void
 
     public init(
         sendCode: @escaping @Sendable (String) async throws -> Void = { _ in },
         verifyCode: @escaping @Sendable (String, String) async throws -> Void = { _, _ in },
         signInWithApple: (@Sendable () async throws -> Void)? = nil,
+        hasProfile: @escaping @Sendable () async throws -> Bool = { false },
         finish: @escaping @Sendable (ProfileDraft) async throws -> Void
     ) {
         self.sendCode = sendCode
         self.verifyCode = verifyCode
         self.signInWithApple = signInWithApple
+        self.hasProfile = hasProfile
         self.finish = finish
     }
 
@@ -49,6 +59,9 @@ public struct AccountStore: Sendable {
     ) -> AccountStore {
         AccountStore(
             signInWithApple: signInWithApple,
+            // `profiles.own()` is the same fact `AppSession.needsOnboarding`
+            // reads — a row exists once the account step has written one.
+            hasProfile: { try await profiles.own() != nil },
             finish: { try await profiles.saveProfile($0) }
         )
     }

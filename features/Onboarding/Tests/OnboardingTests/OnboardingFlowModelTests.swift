@@ -60,6 +60,45 @@ import Testing
 }
 
 @MainActor
+@Test func aSignupThatTurnsOutToBeAReturningAccountLandsLikeLogin() async throws {
+    // Sean, Sep 2: "if a user already has an account, they can skip entering
+    // their birthday." Apple returns the same user for the same Apple ID, so
+    // the signup door with an existing profile is a login.
+    let store = AccountStore(
+        signInWithApple: {},
+        hasProfile: { true },
+        finish: { _ in Issue.record("the batch write must not run for an existing account") }
+    )
+    let flow = OnboardingFlowModel(store: store)
+    flow.createAccount()
+    flow.quizFinished()
+    flow.payoffContinued()
+    let account = try #require(flow.account)
+    account.signInWithApple(onDone: {})
+    await account.createTask?.value
+    #expect(account.accountExists)
+    #expect(account.isAuthenticated)
+    #expect(account.stage == .method, "no birthday stage for an account that has one")
+    flow.accountFinished()
+    #expect(flow.exit == .discover)
+    #expect(flow.stop != .handle)
+}
+
+@MainActor
+@Test func aGenuinelyNewAppleSignupStillWalksToTheBirthday() async throws {
+    let store = AccountStore(signInWithApple: {}, hasProfile: { false }, finish: { _ in })
+    let flow = OnboardingFlowModel(store: store)
+    flow.createAccount()
+    flow.quizFinished()
+    flow.payoffContinued()
+    let account = try #require(flow.account)
+    account.signInWithApple(onDone: {})
+    await account.createTask?.value
+    #expect(!account.accountExists)
+    #expect(account.stage == .birthday)
+}
+
+@MainActor
 @Test func theShelfStarterNeverHandsStraightToTheWelcome() {
     // The regression this file exists for. "two frames, AFTER the shelf
     // exists: the face-off, then why we're here" — so the tour cannot be
