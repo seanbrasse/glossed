@@ -30,6 +30,12 @@ public struct ShelfItemSheet: View {
     /// Optional now, like `onRemove` and `onStatusChange`, so a caller that
     /// cannot open the page cannot accidentally offer it.
     private let onOpenProduct: (() -> Void)?
+    /// The product's own evidence, shown in place below the actions behind a
+    /// `swipe up for more` hint — Sean, Sep 2: *"this is what the full page
+    /// button should be replaced with (tell the user to swipe up for more
+    /// details)"*. Handed in by the app: the view that draws it belongs to
+    /// another feature. When present, the `full page` button is not offered.
+    private let details: AnyView?
     /// How many people wear this exact shade — the anchor section's evidence
     /// line. Nil omits the line: an absent aggregate is not a claim of zero,
     /// and nothing reads `agg_variant_stats` for the sheet yet (GLO-63 family).
@@ -65,6 +71,7 @@ public struct ShelfItemSheet: View {
         onClose: @escaping () -> Void,
         onRank: (() -> Void)? = nil,
         onOpenProduct: (() -> Void)? = nil,
+        details: AnyView? = nil,
         onRemove: (() -> Void)? = nil,
         isRemoving: Bool = false,
         removeFailure: String? = nil,
@@ -81,6 +88,7 @@ public struct ShelfItemSheet: View {
         self.onClose = onClose
         self.onRank = onRank
         self.onOpenProduct = onOpenProduct
+        self.details = details
         self.onRemove = onRemove
         self.isRemoving = isRemoving
         self.removeFailure = removeFailure
@@ -117,7 +125,7 @@ public struct ShelfItemSheet: View {
     /// fail on it: the bug this replaces was a button wired to an empty
     /// default, which no test could see and no screenshot could show.
     var showsFullPage: Bool {
-        onOpenProduct != nil
+        onOpenProduct != nil && details == nil
     }
 
     public var body: some View {
@@ -184,6 +192,9 @@ public struct ShelfItemSheet: View {
                 ShelfChipsSection(model: chips)
             }
             actions
+            if let details {
+                moreSection(details)
+            }
             if let onStatusChange, liveStatus.isTried {
                 ShelfTriedDetail(
                     status: liveStatus,
@@ -249,6 +260,16 @@ public struct ShelfItemSheet: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("close")
+    }
+
+    /// The evidence the page would show, here instead — the sheet already
+    /// scrolls (GLO-160), so the door is a hint, not a button.
+    private func moreSection(_ details: AnyView) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("swipe up for more ↑").meta()
+            details
+        }
+        .padding(.top, 16)
     }
 
     /// "rank it" is the primary action on every item, which is the product's

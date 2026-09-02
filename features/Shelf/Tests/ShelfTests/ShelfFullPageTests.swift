@@ -42,6 +42,21 @@ struct ShelfFullPageTests {
         #expect(sheet(variantID: UUID(), onOpenProduct: {}).showsFullPage)
     }
 
+    @Test func detailsInPlaceReplaceTheFullPageButton() {
+        // Sean, Sep 2: the evidence lives on the sheet behind "swipe up for
+        // more", so a sheet that has it does not also offer a page.
+        let item = ShelfItem(
+            id: UUID(), brand: "round lab", name: "birch sun cushion",
+            categorySlug: "sunscreen", categoryLabel: "sunscreen",
+            domain: .skincare, packaging: .compact, variantID: UUID()
+        )
+        let withDetails = ShelfItemSheet(
+            item: item, rankedInCategory: 0, onClose: {},
+            onOpenProduct: {}, details: AnyView(Text("evidence"))
+        )
+        #expect(!withDetails.showsFullPage)
+    }
+
     @Test func anItemWithNoVariantHasNoPageToOpen() {
         // The page is built from a variant, so an item without one has
         // nothing to show. `ShelfView` withholds the handler in that case,
