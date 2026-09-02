@@ -172,3 +172,11 @@ actor CapturingPoster: EventPosting {
     #expect(payload["name"] as? String == "shelf_viewed")
     #expect((payload["props"] as? [String: Any])?.isEmpty == true)
 }
+
+@Test func theStylistEventCarriesToolsAndAnOutcomeAndNothingSaid() {
+    let event = Event.stylistQuery(toolsUsed: ["search_catalog", "propose_routine", "search_catalog"], answered: true)
+    #expect(event.name == "stylist_query")
+    #expect(event.props["tools_used"] == .string("propose_routine,search_catalog,search_catalog"))
+    #expect(event.props["answered"] == .bool(true))
+    #expect(event.props.count == 2, "no query text, no reply text — ever")
+}
