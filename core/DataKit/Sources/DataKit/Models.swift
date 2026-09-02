@@ -75,6 +75,10 @@ public struct Category: Codable, Sendable, Identifiable, Hashable {
     public let domain: Domain
     public let slug: String
     public let label: String
+    /// Nil for a top-level (rankable) category; set for a LEAF product type
+    /// (0057's tree). Products rank at the top level; leaves are the
+    /// fine-grained vocabulary under them.
+    public let parentID: UUID?
     /// Days before this category can be ranked — 0 means immediately.
     public let wearInDays: Int
     /// Anchor categories are meant to match skin, so their shade is evidence.
@@ -83,6 +87,7 @@ public struct Category: Codable, Sendable, Identifiable, Hashable {
 
     enum CodingKeys: String, CodingKey {
         case id, domain, slug, label
+        case parentID = "parent_id"
         case wearInDays = "wear_in_days"
         case isAnchor = "is_anchor"
         case rankUnlockMin = "rank_unlock_min"
