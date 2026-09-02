@@ -35,12 +35,24 @@ public struct HairTypePicker: View {
         let isOn = selection == pattern
         return Button { selection = pattern } label: {
             VStack(spacing: 4) {
-                // Placeholder for the reference photo. Per the PRD these must be
-                // real images reviewed by people with those hair types — many
-                // circulating curl charts underrepresent 4c and tighter.
+                // The strand for this pattern (GLO-248): ink strokes on the
+                // tile's own milk, drawn rather than photographed — Sean's
+                // call, Sep 2, and the same hand as `ProductMock`. Twelve
+                // generated from one script (`Resources/hair-strands.py`) so
+                // they share one stroke-weight ramp and get tighter every
+                // row. PRD §06's trust note still stands over the 4-series:
+                // people with 4a–4c hair review those three before they are
+                // treated as settled — the drawings are a starting point.
                 RoundedRectangle(cornerRadius: Tokens.Radius.md)
                     .fill(Tokens.Ground.milk)
-                    .frame(height: 54)
+                    .frame(height: 64)
+                    .overlay(
+                        Image("hair-\(pattern)", bundle: .module)
+                            .resizable()
+                            .scaledToFit()
+                            .padding(2)
+                            .accessibilityHidden(true)
+                    )
                     .overlay(
                         RoundedRectangle(cornerRadius: Tokens.Radius.md)
                             .strokeBorder(Tokens.Ground.line, lineWidth: Tokens.Border.hair)
