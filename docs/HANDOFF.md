@@ -7,6 +7,29 @@ Read `docs/README.md` first for the design; this file is only about state.
 pasteable version — what to start on, what is blocked on a human, and the rule
 that cost the most last time. This file is the reference it points at.
 
+## Session 21 at a glance (Sept 2, afternoon — Sean's six qualms with onboarding)
+
+**Six PRs open, none merged, no grant given** — #500, #501, #502, #503, #504,
+#505. Sean drove onboarding on his phone and sent six notes; each is one PR.
+**Linear refused every new issue** ("exceeded the free issue limit"), so the
+six ticket bodies are one comment on GLO-108 (the first-run friction ticket)
+and the branches carry `GLO-108` (`GLO-248` for the hair images, which existed).
+
+| What | Where |
+|---|---|
+| **"Buttons feel hard to press"** — a `.plain` button hit-tests its label's opaque content; the domain tile was drawn on the button *outside* the label, so the target was the word, and the mono links were bare 12pt text. `TextLinkButtonStyle` (44pt target) + `contentShape` on the tiles and hair cells. Driven: a tap on the card's corner whitespace toggles it | **#500** |
+| **Sign out lands on the hook at once** — `signedOut()` nil'd the client and left `phase == .ready`, so the tabs stayed up with an empty `you` tab. Now it keeps the session-less client (what the hook's doors sign in through), drops the per-user models, flips `needsOnboarding`. Driven on the simulator | **#501** |
+| **Back everywhere** — quiz step 1 → hook (answers kept), payoff → the quiz's *last* question. Two flow edges, two tests. Stacked on #500 | **#502** |
+| **Skin tone, not foundation** — the quiz is domains → tone (always) → hair (if haircare); the foundation question is gone from onboarding (Sean: "we don't want users to not find their product and get a distaste"). **Undertone is not asked**: self-report is unreliable (the vein test fails olive skin), the app learns it from fit answers on the undertone axis, and evidence wins. The payoff's anchor seam stays, unset → neutral path. Stacked on #502 | **#503** |
+| **The profile-tab flash, recorded and counted** — first entry was four cuts over ~0.85 s (bare page + spinner, header, caption, photo); a second entry cross-faded in two frames. `ProfileSkeleton` + a fade; the look photo fades over its placeholder | **#504** |
+| **Hair-type strands** — twelve SVGs in the kit's line language from one script, `Hair.xcassets` in DesignSystem, the canvas for review at <https://claude.ai/code/artifact/08666e0a-f089-4d12-ad36-04619babd901>. PRD §06's 4-series review gate stands. Stacked on #500, `size-override` (25 generated files) | **#505** |
+| **A new package resource does not reach `Glossed.app` on an incremental build** — the bundle copy inside Products/Glossed.app was dated Aug 31 while the fresh one had the catalog; the app said `No image named 'hair-4c'`. `rm -rf` the bundle copy and rebuild | §8 |
+
+**Not driven:** #503's tone-first quiz end to end on a device, #504's after
+recording (the before is counted in the PR). **Sean's to decide:** whether the
+payoff screen should show a tone-band cohort now that no anchor reaches it,
+and whether to upgrade Linear or keep filing on umbrella tickets.
+
 ## Session 20 at a glance (Sept 2, daytime)
 
 **Zero PRs merged, five open at handoff** — #495 (this handoff), #496, #497, #498,
@@ -868,6 +891,13 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | Save/wishlist mapping | Whether `want_to_try` IS tech/07's +0.5 save signal | Sean |
 
 ## 8. What went wrong, so you don't repeat it
+
+### Session 21 (Sept 2, afternoon) — append-only, newest first
+
+- **A package's new asset catalog compiled, and the app still had no images.** `DesignSystem_DesignSystem.bundle/Assets.car` was in Products; the copy of that bundle *inside* `Glossed.app` was dated Aug 31 and had no `Assets.car`. Xcode's incremental copy of a package resource bundle does not add a file that was not there the first time. The log said `No image named 'hair-4c' found in asset catalog`, which reads as a wrong name. `rm -rf Products/…/Glossed.app/DesignSystem_DesignSystem.bundle` then `make run`.
+- **Linear's free issue limit is a hard 400.** Five `save_issue` calls in a row refused. Comments still post — the six bodies went onto GLO-108. Try creating first next time; Sean may have upgraded.
+- **The "weird flash" was countable.** `xcrun simctl io … recordVideo`, `ffmpeg -vf fps=20`, a PIL frame-diff, and a contact sheet of the changed frames: four cuts in 17 frames on first entry, two frames on the second. The fix followed from the count, not from a guess — same as GLO-256 and GLO-241.
+- **The browser pane cannot look at a published canvas.** It is not signed in to claude.ai and cannot open `file://`. A `python3 -m http.server` in the scratchpad serves the seeded page, but the read-only canvas opens at far zoom and its frames refuse synthetic clicks (CSS-scaled). Serve the artboard's own `.dc.html` beside its images instead — that renders as plain HTML.
 
 ### Session 20 (Sept 2, daytime) — append-only, newest first
 

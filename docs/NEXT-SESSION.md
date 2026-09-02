@@ -20,6 +20,13 @@ next PR to `main` BEFORE deleting the merged branch.*
 
 ## Start here
 
+**Since this was written (Sept 2, afternoon):** Sean's six onboarding notes
+became #500–#505 — all open, none merged, no grant. Read "Session 21 at a
+glance" in the handoff. The stack is #500 ← #502 ← #503 and #500 ← #505;
+retarget before deleting a merged base. Linear is at its free issue limit;
+the tickets are a comment on GLO-108.
+
+
 0. **Sean's account exists on the local stack** (Sept 2 14:25: Apple signup,
    profile `seantest`, handle `seantest`, then a sign-out from settings). Not
    yet driven: signing back in — the `.login` path should skip the quiz and
