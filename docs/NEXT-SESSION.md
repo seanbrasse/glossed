@@ -21,16 +21,10 @@ and `make db-reset` does it for you.
 
 ## Start here
 
-1. **Fill the new categories from Shopify — step 1, no migration.** Ten of
-   0057's top-level groups hold 0 products while ~170 Shopify products in the
-   catalog belong in them (the table in `HANDOFF.md` §1). Add the ten groups to
-   `TYPE_RULES` in `scripts/shopify_import.ts` (order matters), and reclassify
-   the existing rows with the same regexes in SQL — the importer's insert is
-   `on conflict do nothing`, so a re-run alone changes nothing. Check
-   `rank_positions` for affected items first: moving a product moves its
-   ladder. **Done looks like:** `select slug, count(*)` per top-level category
-   shows lipcare ≈ 83, tools ≈ 37, exfoliant ≈ 25, body ≈ 20, and the shelf
-   still renders every seeded item in a category.
+1. **Step 1 of the Shopify fill is done (#488).** The rules and the backfill
+   are in; `make db-reset` restores the catalog from the snapshot, which was
+   taken AFTER the backfill, so nothing to re-run locally. Hosted has no
+   catalog yet.
 2. **Step 2 needs migration 0058** — `products.leaf_id` plus a
    `product_type → leaf` map (1,277 of 2,202 Shopify types match a leaf label),
    and `search_catalog`'s `attrs` folding in the leaf slug. Ask for the slot.
@@ -82,8 +76,8 @@ and `make db-reset` does it for you.
 
 ## State at handoff, verified not recalled
 
-**Zero PRs open.** Ten merged in session 19 (#479 #476 #477 #478 #402 #483
-#430 #431 #481 #482), `main` verified after the last one: swiftformat and
+**Zero PRs open.** Fourteen merged in session 19 (#479 #476 #477 #478 #402 #483
+#430 #431 #481 #482 #485 #486 #487 #488), `main` verified after the last one: swiftformat and
 swiftlint clean, `xcodebuild build` for the simulator green, `swift test` green
 in `core/DataKit`, `features/Profile`, `features/Collections`; the other 15
 packages were not run. GLO-278, GLO-267, GLO-264 moved to Done. Local catalog: 3,206 products, 13,877

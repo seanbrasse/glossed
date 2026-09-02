@@ -9,8 +9,8 @@ that cost the most last time. This file is the reference it points at.
 
 ## Session 19 at a glance (Sept 1 → 2)
 
-**10 PRs merged** (#479, #476, #477, #478, #402, #483, #430, #431, #481, #482 —
-counted, in that order, each watched to green under Sean's *"review and merge on
+**14 PRs merged** (#479, #476, #477, #478, #402, #483, #430, #431, #481, #482,
+then #485, #486, #487, #488 — counted, in that order, each watched to green under Sean's *"review and merge on
 your own"* grant given Sept 1 evening). **Zero PRs open at handoff.** `main` is
 at the close-of-session docs commit; the three PRs that predated this session
 (#402, #430, #431) were reviewed, two of them fixed for a schema they predated,
@@ -28,6 +28,7 @@ and merged with the rest.
 | **Sean's "updated products list" came through as a TAXONOMY, not products** — 0057 inserts categories only; the raw list is nowhere in the repo. Sean asked whether the new categories can be filled from Shopify: yes, in two steps — see §1 | GLO-272 comment, §1, §7 |
 | **A wedged edge runtime hangs the `you` tab for ~2 minutes**; Docker here is **Colima**; the daemon wedged on one container and only `limactl stop --force` under Colima's `LIMA_HOME` got it back | §0, §8 |
 | **GitHub CLOSES a stacked PR when its base branch is deleted** — it does not retarget. #480 died that way when #478 merged with `--delete-branch`; reopened as #483 | §8 |
+| **After the drive, Sean's four notes, all landed the same night:** the look tile is the photo (#485), fit a photo to the frame before upload — pinch, drag, crop (#486), the tab capsule centred and the dots gone (#487), and step 1 of the Shopify fill (#488) | GLO-272, GLO-266 |
 
 ## Session 18 at a glance (Sept 1)
 
@@ -400,11 +401,11 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 | Thing | State |
 |---|---|
 | **Nothing is open.** All ten of session 19's PRs merged; `gh pr list` is empty | — |
-| **Filling the new categories from Shopify** (Sean's ask, Sept 1) | Not started; measured, see the next table. Step 1 needs no migration; step 2 needs slot **0058** |
+| **Filling the new categories from Shopify** (Sean's ask, Sept 1) | **Step 1 done — #488** (rules in `TYPE_RULES`, backfill in `scripts/reclassify_new_groups.sql`, 168 products moved on local, 0 ladders touched). Step 2 (leaves) still needs slot **0058** |
 | **Sean's product list** | Still not in the repo — ask where it is before building on "the new products" |
 | Local drive data | The `session 19 drive` collection was soft-deleted after the GLO-278 drive; nadia is now seeded on every reset |
 
-### Filling the new categories from Shopify — measured Sept 1, not started
+### Filling the new categories from Shopify — step 1 landed Sept 1 (#488), step 2 open
 
 The importer's `TYPE_RULES` (`scripts/shopify_import.ts`) map a storefront's
 `product_type` to a **top-level** category and know nothing about the ten
@@ -420,13 +421,15 @@ already contains products that belong there:
 | primer · lashes · device | 3 · 3 · 2 | mascara, serum, lip |
 | setting · scalp · haircolor | 0 in the current storefronts | — |
 
-**Step 1, no migration:** add rules for the ten groups to `TYPE_RULES` (order
-matters — `lip balm` must win before `lip`, `body serum` before `serum`, `brush`
-before `blush`), and re-point `category_id` for the ~170 existing rows with the
-same regexes in SQL. The importer's product insert is `on conflict do nothing`,
-so a re-run does **not** reclassify; the SQL pass is the reclassification.
-Moving a product moves its ladder — check `rank_positions` for the affected
-`user_items` before running it against a database with drives on it.
+**Step 1 — done (#488).** `TYPE_RULES` carries the ten groups first, in a
+stated order (primer before lip, device before tools, lip care before body
+before exfoliant), and `scripts/reclassify_new_groups.sql` is the same ten
+patterns as Postgres regexes — the backfill, because the importer's insert is
+`on conflict do nothing` and a re-run never moves a filed row. Run once on
+local: 168 moved (lipcare 87, tools 37, body 20, exfoliant 13, setting 5,
+primer 3, lashes 2, device 1); a second run moves nothing. **The TS rules and
+the SQL CASE are kept in step by hand** — no test proves it. Hosted still has
+0 products, so nothing to run there until the catalog is promoted.
 
 **Step 2, one migration (0058):** a `products.leaf_id` (nullable, must point at
 a row with `parent_id set`) and a `product_type → leaf slug` map. Measured:
