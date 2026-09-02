@@ -1,4 +1,4 @@
-# Session handoff — Sept 2 2026 (session 22: twenty-one PRs merged under a grant, main rebuilt to Sean's phone, and a rebase that quietly dropped a package)
+# Session handoff — Sept 2 2026 (session 22: thirty-one PRs merged under a grant, two rounds of Sean's phone notes answered, main on his phone)
 
 Where Phase 1 stands, what to do next, and what the last three sessions learned.
 Read `docs/README.md` first for the design; this file is only about state.
@@ -48,6 +48,46 @@ twenty-one branches deleted after merge.
 **Still only Sean can answer:** #508 (Apple through "create an account" as an
 existing account → discover, nothing re-asked) and #509 (the handle step
 carrying on with `@seantest`), and one product logged as him. Ask.
+
+## Session 22, continued (Sept 2, evening — two more rounds of notes, nine more PRs)
+
+After the merge, Sean sent four screenshots and two rounds of notes from
+`main` on his phone. Every note became a PR, each driven on the simulator
+before pushing, each merged under the same grant. **`main` at handoff is
+`fe0f658`, thirty-one PRs merged this session, zero open, and his phone runs
+it** (19:26 build; mtime, `applesignin`, `GlossedDevSignIn=0` and the two
+proof strings checked before `devicectl install`).
+
+| Sean said | What was built | PR |
+|---|---|---|
+| "Clicking the nav sometimes doesn't feel really responsive" | a `.plain` button hit-tests its label's opaque content; an inactive tab's background is clear, so only the glyph's strokes answered. `contentShape(Capsule())` — #500's shape | **#513** |
+| "The empty state here feels repetitive … once we add one of these, then we should have the toggle" | `ProfileTabsModel.showsTabStrip`: no strip while empty or loading; the strip plus per-tab `nothing here yet` panes once any tab has content. The strip's segments take their whole capsule too | **#517** |
+| "Why is there a search if we have no items? … no filters unless there's more than one item logged … allow users to add a product" + "a singular empty shelf" | `ShelfModel.showsControls` (logged > 1) gates every control; `ShelfBayView.bare` draws one unlabelled plank; the primary reads **add a product** and opens the ladder through a new seam (its old target was the shelf's own find field, which searches what you *own*); a pick seeds the ladder | **#514** |
+| "the keyboard doesn't go away when adding a product" | the shade sheet is an overlay, so the field kept focus; a pick resigns the responder chain | **#515** |
+| "suggestions for the user to click on without searching" | `LadderSuggesting` — the discover feed under `START FROM THESE`, each row with its basis and n; the wander kept and labelled (on local data it is the whole feed) | **#516** |
+| (seen while driving) the nav's avatar read *m* beside a profile that read *s* | it was hard-coded to `maya`; `AppSession.avatarName` by the profile's rule, refreshed at boot, after onboarding, after a handle claim | **#518** |
+| "which one is yours … confusing when one size is the only option, and why does it say yours??" | `VariantPickModel.isSole`: stated, not asked — `on file`, no marker | **#519** |
+| "scroll the popup … to see more details … this is what the full page button should be replaced with (tell the user to swipe up)" | `ProductDetailsView` split out of the product page; the shade sheet bounds to 88% and scrolls, `swipe up for more ↑`, the evidence for the picked variant; non-anchors say "no shade axis"; the session loads `is_anchor` ids at boot | **#520** |
+| (same note) | the shelf's item sheet — where the button lived — shows the same details in place; `full page` withdrawn when they are present | **#521** |
+
+**Not built, and said so on GLO-108:** commonly selected chips (no aggregate
+read in the frozen core — GLO-68/GLO-227), a description ("what it is" — no
+column), saved things on the ladder (saves are a spec). Each is data or
+core, not view.
+
+**Verified on `main` at handoff:** lint clean; Onboarding 78, Profile 108,
+DesignSystem 54, Stylist 11, Tracking 16, Shelf 144, AddLadder 125,
+ProductPage 22; FLOW 1, the nav, both empty states (as juli), the ladder's
+suggestions, the keyboard, both sheets — driven. **Sean's phone confirmed
+#509** (his profile shows `@seantest`) and holds two logged items; **#508 is
+still unreported.**
+
+**How the empty states were driven:** `juli@local.test` is the seeded
+account with nothing; the dev sign-in is hard-coded to maya, so a throwaway
+union branch swapped the email (never pushed), and her profile needed a
+temporary `handles` row (inserted through `docker exec … psql`, deleted
+after) to get past the claim gate. The debug catalog has no empty-shelf or
+empty-profile fixture — worth adding.
 
 ## Session 21 at a glance (Sept 2, afternoon → evening — Sean's notes from his phone)
 
@@ -552,7 +592,7 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Thing | State |
 |---|---|
-| **Zero PRs open.** Twenty-one merged in session 22 (#491–#511) under Sean's grant — see "Session 22 at a glance". The grant was per-session; the next one is not implied. `main` = `4ef961e`, lint-clean, simulator-built, five packages and the stylist function green, FLOW 1 driven | GLO-224, GLO-23, GLO-108 threads |
+| **Zero PRs open.** Thirty-one merged in session 22 (#491–#521) under Sean's grant — see the two "Session 22" blocks. The grant was per-session. `main` = `fe0f658`, lint-clean, eight packages green, driven on the simulator, on Sean's phone | GLO-224, GLO-23, GLO-108 threads |
 | **The first real account exists** — Sean's, made on his phone at 14:25 (Apple → birthday → name → handle `seantest`), then signed out from settings. **He then walked "create an account" again with the same Apple ID and was asked the birthday and a handle he already had** — #508 and #509 answer that; neither is driven with a real Apple ID yet (only he can). Still not driven: logging a product as him. The local stack must be up with `supabase functions serve` running and the Mac awake on the same Wi-Fi (`http://Seans-MacBook-Pro.local:54321`) | GLO-23 thread |
 | **Friends' phones = TestFlight**, which needs a Release boot path (the account path was moved out of `#if DEBUG` on Sept 2 — see §6 for whether it reached #499), a **hosted backend with the catalog and the functions deployed** (hosted has 0 products; promotion needs the DB URL or a CLI login), and an App Store Connect record | GLO-50, §7 |
 | **Filling the new categories from Shopify** (Sean's ask, Sept 1) | **Step 1 done — #488** (rules in `TYPE_RULES`, backfill in `scripts/reclassify_new_groups.sql`, 168 products moved on local, 0 ladders touched). Step 2 (leaves) still needs slot **0058** |
@@ -985,6 +1025,26 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 
 ### Session 22 (Sept 2, evening) — append-only, newest first
 
+- **A view built inside a closure loaded a model the screen never showed.**
+  The app seam `(hit, variant) -> AnyView` built a fresh `ProductPageModel`
+  on every render, so the `.task` ran on the first model and the card
+  rendered the newest one, forever "couldn't check the reports". The view
+  now owns its model as `@State(initialValue:)` and hosts reset it with
+  `.id(...)`. *Shape: a closure seam hands you a value each call; anything
+  with a lifecycle behind it must be state on the receiving side.*
+- **An edit-script anchor that is a substring of its deeper-indented twin.**
+  `"        anchorVariants = …"` matched twice: once itself, once inside the
+  twelve-space line. The assertion failed, the chain kept going, the amend
+  landed without the edit, and the union build compiled the wrong tree.
+  Anchor on `^` with a regex, and end the chain on the script's exit code.
+- **A `git rebase --onto` with the wrong old base replays the base itself.**
+  Restacking H after amending G, I passed the *amended* G as the old base;
+  H's parent was the pre-amend G, so git tried to replay it and conflicted
+  — while a background build ran on the conflicted tree. Record the old tip
+  *before* amending, and never start a build on a tree mid-rebase.
+- **Doc comments hide anchors.** A block read with `grep -v "///"` does not
+  exist in the file. Two scripts asserted on it (ShelfBayView's init, the
+  stage-zero view); the second landed a commit with one file of four.
 - **A rebase dropped a package and every gate stayed green.** #499's branch
   history held an "add `Stylist` to `project.yml`" commit and, later, the
   session-20 CI fix that removed it. Rebasing onto a `main` that already had
