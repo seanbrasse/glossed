@@ -22,6 +22,12 @@ struct ShelfStageZeroView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s4) {
+            // The shelf, bare. Sean, Sep 2: "Empty shelf should also show an
+            // empty shelf state with a singular empty shelf." It leads: the
+            // screen is called your shelf, and this is it, before anything
+            // stands on it.
+            ShelfBayView.bare
+                .accessibilityLabel("an empty shelf")
             Text("NOTHING LOGGED YET · STAGE 0")
                 .eyebrow(color: Tokens.Cherry.deep)
             Text("an empty shelf still knows your shade — start from these three")

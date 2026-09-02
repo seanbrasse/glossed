@@ -195,3 +195,11 @@ private let uprightInset: CGFloat = 14
         #expect(offsets == offsets.sorted())
     }
 }
+
+@Test func theBareBayHoldsNothingAndClaimsNothing() {
+    // Sean, Sep 2: the empty shelf still draws one shelf. It has no label
+    // precisely because `anEmptyCategoryGetsNoGroundLineAtAll` is right —
+    // a labelled empty bay is a claim, a bare plank is not.
+    #expect(ShelfBay.bare.items.isEmpty)
+    #expect(ShelfBay.bare.label.isEmpty)
+}
