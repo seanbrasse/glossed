@@ -9,20 +9,25 @@ that cost the most last time. This file is the reference it points at.
 
 ## Session 19 at a glance (Sept 1 → 2)
 
-**0 PRs merged, 6 opened** — Sean was away, so nothing was merged and every
-change waits as a PR. `main` is still at `9be4ede`. Three of the six are a
-**stack** (#478 → #480 → #481) and must merge in that order.
+**10 PRs merged** (#479, #476, #477, #478, #402, #483, #430, #431, #481, #482 —
+counted, in that order, each watched to green under Sean's *"review and merge on
+your own"* grant given Sept 1 evening). **Zero PRs open at handoff.** `main` is
+at the close-of-session docs commit; the three PRs that predated this session
+(#402, #430, #431) were reviewed, two of them fixed for a schema they predated,
+and merged with the rest.
 
 | What | Where |
 |---|---|
-| **Why the product photos vanished (Aug 31 ~11:39 UTC): a `db reset` drops the `storage` schema.** 3,206 products and 7,625 `variant_images` came back from the snapshot; **1.9 GB of cutouts were still on the storage volume**; but `storage.buckets` and `storage.objects` were empty, so Storage said *"Bucket not found"* for files it was standing on. `ProductImage` swallows a failed load into its floor by design, so nothing errored. **Local repaired** (13,877 rows registered, GETs `200 image/png`, cutouts back on the shelf in the simulator) | **#479**, GLO-223, §0 |
-| **The tab "glitches" are one bug: the shell's `switch` on `tab` is not a tab container.** Every switch unmounted the old screen and mounted the new one from nothing — state, scroll, and every `.task` gone. GLO-256's flash was one symptom. A `TabView` with its bar hidden per tab; driven: the shelf came back instantly with its cutouts **while the Docker daemon was being restarted underneath**, and a 163-frame `recordVideo` shows every switch as a cross-dissolve of two laid-out screens (frames on the ticket) | **#481**, GLO-256 |
-| **The profile reloads when a composer or editor closes** (GLO-278 — five covers, zero `onDismiss`), reloads *in place*, pulls to refresh, clears a stale toast, and its loading column is full width (the 60pt column GLO-256 recorded, at its source). Driven: a collection saved from `+` was on the tab the moment the composer closed | **#478 → #480**, GLO-278 |
-| **The category tree has its PR**: renumbered `0055 → 0057` on the branch, both commits, `size-override`, 8 pgTAP + DataKit 134 green, CI green | **#476**, GLO-272 |
-| **GLO-258's last five tables are in the suite** — 8 → 16 asserts. One latent finding: `RankingRepository.positions()` is unpinned (category + scope only) and has **no caller** yet | **#477**, GLO-258 |
-| **Sean's "updated products list" came through as a TAXONOMY, not products** — 0057 inserts categories only; zero `products` rows; the raw list is nowhere in the repo; the 202 leaves add no search reach until products are classified onto them | GLO-272 comment, §7 |
-| **A wedged edge runtime hangs the `you` tab for ~2 minutes** — `ProfileTabsModel.load()` is serial and awaits the tile presign. Docker here is **Colima**, not Docker Desktop; `docker rm/start/inspect` on the wedged container, `colima ssh`, `colima restart` and `colima stop -f` all hung; `limactl stop --force` under Colima's `LIMA_HOME` was the way out | §0, §8 |
-| Hosted, re-measured Sept 1: **0 products, 0 variants, 0 images, 0 buckets, 0 users, 22 categories.** No CLI token still | §7 |
+| **Why the product photos vanished (Aug 31 ~11:39 UTC): a `db reset` drops the `storage` schema.** 3,206 products and 7,625 `variant_images` came back from the snapshot; **1.9 GB of cutouts were still on the storage volume**; but `storage.buckets` and `storage.objects` were empty, so Storage said *"Bucket not found"* for files it was standing on. `ProductImage` swallows a failed load into its floor by design, so nothing errored. Local repaired (13,877 rows registered, GETs `200 image/png`), and the bucket is now declared in `config.toml` with a reconcile script `make db-reset` runs | **#479**, GLO-223, §0 |
+| **The tab "glitches" were one bug: the shell's `switch` on `tab` is not a tab container.** Every switch unmounted the old screen and mounted the new one from nothing. A `TabView` with its bar hidden per tab; recorded — 163 frames, four switches, every one a cross-dissolve of two laid-out screens (frame numbers on the ticket) | **#481**, GLO-256 |
+| **The profile reloads when a composer or editor closes** (GLO-278 — five covers, zero `onDismiss`), in place, pulls to refresh, clears a stale toast, and its loading column is full width. Driven: a collection saved from `+` was on the tab the moment the composer closed | **#478, #483**, GLO-278 → Done |
+| **The category tree landed**: renumbered `0055 → 0057`, both commits, one squash. Next free slot **0058** | **#476**, GLO-272 |
+| **GLO-258's ten tables are all in the suite** — 8 → 18 asserts across #477 and #430. One latent finding left: `RankingRepository.positions()` is unpinned and has no caller | **#477, #430** |
+| **The seed has a public stranger** (nadia) so isolation asserts assert something — #431, rebased and fixed: it inserted two `privacy_scopes` columns 0053 dropped, and two suites counted whole tables | **#431**, GLO-267 → Done |
+| `make test` runs the 18 package suites instead of nothing | **#402**, GLO-264 → Done |
+| **Sean's "updated products list" came through as a TAXONOMY, not products** — 0057 inserts categories only; the raw list is nowhere in the repo. Sean asked whether the new categories can be filled from Shopify: yes, in two steps — see §1 | GLO-272 comment, §1, §7 |
+| **A wedged edge runtime hangs the `you` tab for ~2 minutes**; Docker here is **Colima**; the daemon wedged on one container and only `limactl stop --force` under Colima's `LIMA_HOME` got it back | §0, §8 |
+| **GitHub CLOSES a stacked PR when its base branch is deleted** — it does not retarget. #480 died that way when #478 merged with `--delete-branch`; reopened as #483 | §8 |
 
 ## Session 18 at a glance (Sept 1)
 
@@ -394,24 +399,46 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Thing | State |
 |---|---|
-| **The stack: #478 → #480 → #481** (profile reloads in place → shell tells it → tabs keep their state) | All three open, each builds clean. **Merge in order**, and after each squash re-check the next one's diff size (§0's inflation shape). #481 without #478/#480 would leave the profile never refreshing after a save, because leaving-and-returning was the accidental refresh |
-| **#479** — catalog images survive a reset | Open, CI green. Local already repaired by hand with the same script. **Until it merges, `make db-reset` still loses the image rows** — run `./scripts/catalog_storage.sh reconcile` after |
-| **#476** — the category tree (GLO-272 batch 3) | Open, CI green, `size-override`. Holds migration slot **0057**. Done looks like: merged, `categories()` still ~32 rows when driven |
-| **#477** — GLO-258's last five tables | Open, CI green. Appends to the same file #430 appends to; whichever lands second needs a trivial rebase |
-| **#478 lint went red on the size gate** (6 files, no label) | Label added, reason in the body, job re-run — confirm it is green before merging |
-| **Sean's product list** | Did not land as products (§7). Ask where the list is before building anything on "the new products" |
-| **The category-tree PR — renumber, THEN open** | Branch `feat/GLO-272-category-tree` is pushed with two commits (DataKit guard + the 202-leaf tree + 8-assert pgTAP), green locally. **Its migration collides with `main`'s 0055 — rename it to 0057 first (§0).** Then one PR, both commits, size-override |
-| **#473 is open and green** | `feat/look-tags-and-card-naming` — the collapsible tagged list + name-first link labels. All checks SUCCESS, mergeable CLEAN, one commit behind `main`. Not merged: Sean's merge grants this session were per-batch and this PR came after the last one. `gh pr merge 473 --squash --delete-branch` |
-| **GLO-23 is In Progress, not Done** | Apple sign-in shipped (#471) and the age floor shipped (#470). **Phone OTP is still no-ops** — `AccountStore.sendCode`/`verifyCode` — because Sean deferred Twilio explicitly ("we deal with twilio later"). The ticket stays open on that half |
-| **Hosted needs a CLI token** | `supabase db push` is unavailable; everything this session went through MCP, which stamps ledger versions that do not match repo filenames (§0). One `supabase login` retires the whole problem |
-| **Local pgTAP baseline moved** | `make db-test` locally now fails `shelf_view` #14 (old dev-data cutout) AND `suggested_people` (this session restored dev handle `maya` for drives — the fixture collides). Both local-only; CI's fresh DB is the arbiter. Do not "fix" the tests |
-| **Linear's cap blocks CREATES, not updates** | Session 17 recorded `save_issue` as "refused workspace-wide"; that is too strong. **Updating an existing issue works** — GLO-274 was moved to Done this session. The cap is on issue *count*, so a new issue is what fails. Batches 2–3 stay tracked as comments on [GLO-272](https://linear.app/glossed/issue/GLO-272); keep putting new work there |
-| **Session-16 in-flight rows below are STALE** | The schema lane (0049–0051), look-tagging lane, and #412–#421 all merged during session 17. Left for one cycle per the house rule |
-| **The GLO-261 profile stack** | **DONE.** #408–#411 all merged Aug 31. #410 had to be rebased first: it still descended from the pre-squash commits, which had inflated it from 4 files to 12 — the squash-inflation shape in §0, caught by `git diff --stat` and not by any label |
-| **The app-layer chain** | **DONE.** #423 #424 #425 #426 #427 all merged Aug 31, in that order, each driven on device first. `main` builds, lints clean, and launches signed-in — checked on `main` itself after the last merge, which is the one thing no PR's CI does |
-| **Schema lane — GLO-266, GLO-263, GLO-265** | Holds the **migration slot**. #412, #414–#421 open at this handoff. **Their migrations 0049–0051 are APPLIED to the local database while their files are not on `main`** — so the local DB is three ahead of the repo. A pgTAP suite that touches `routines.cadence` (NOT NULL, no default) passes locally and fails in CI. Probed, not assumed |
-| **Look-tagging UI lane — GLO-266** | Building the tag model + compose interaction against seams. Unknown completion at handoff |
-| **#402** — `make test` runs nothing | Open. `project.yml` declares `schemes: Glossed: test: targets: []`, so `xcodebuild test -scheme Glossed` errors outright. **CI never used `make test`** — it runs `xcodebuild build` plus `swift test` per package |
+| **Nothing is open.** All ten of session 19's PRs merged; `gh pr list` is empty | — |
+| **Filling the new categories from Shopify** (Sean's ask, Sept 1) | Not started; measured, see the next table. Step 1 needs no migration; step 2 needs slot **0058** |
+| **Sean's product list** | Still not in the repo — ask where it is before building on "the new products" |
+| Local drive data | The `session 19 drive` collection was soft-deleted after the GLO-278 drive; nadia is now seeded on every reset |
+
+### Filling the new categories from Shopify — measured Sept 1, not started
+
+The importer's `TYPE_RULES` (`scripts/shopify_import.ts`) map a storefront's
+`product_type` to a **top-level** category and know nothing about the ten
+groups 0057 added, so every one of them holds **0 products** while the catalog
+already contains products that belong there:
+
+| new group | Shopify products that belong (by `product_type`) | where they sit today |
+|---|---|---|
+| lipcare | 83 (`lip balm`, `lip treatment`, `lip mask`, `lip scrub`) | `lip` |
+| tools | 37 (`cheek brush`, `foundation brush`, `eyeshadow brush`…) | blush 18, foundation 8, brow, concealer… |
+| exfoliant | 25 (`exfoliator`, `lip scrub`, `masks & peels`) | treatment 14, mask 9 |
+| body | 20 (`body moisturizer`, `body serum`, `body fragrance mist`) | moisturizer 9, fragrance 6 |
+| primer · lashes · device | 3 · 3 · 2 | mascara, serum, lip |
+| setting · scalp · haircolor | 0 in the current storefronts | — |
+
+**Step 1, no migration:** add rules for the ten groups to `TYPE_RULES` (order
+matters — `lip balm` must win before `lip`, `body serum` before `serum`, `brush`
+before `blush`), and re-point `category_id` for the ~170 existing rows with the
+same regexes in SQL. The importer's product insert is `on conflict do nothing`,
+so a re-run does **not** reclassify; the SQL pass is the reclassification.
+Moving a product moves its ladder — check `rank_positions` for the affected
+`user_items` before running it against a database with drives on it.
+
+**Step 2, one migration (0058):** a `products.leaf_id` (nullable, must point at
+a row with `parent_id set`) and a `product_type → leaf slug` map. Measured:
+**1,277 of 2,202** Shopify products' `product_type` string-matches a leaf label
+(`lip gloss`, `lip liner`, `brow gel`, `sheet mask`…); the rest are top-level
+words (`fragrance`, `mascara`, `blush`) with no finer Shopify type — those are
+correct at the top and stay leafless. Then extend `search_catalog`'s `attrs` to
+include the leaf slug so `snail mucin` finds the serum typed as one.
+
+**What Shopify cannot fill:** setting, scalp, haircolor — none of the 22
+listed storefronts sells them. Those need new storefronts in `STORES`, and each
+one is a `curl`-200 check plus a brand-name entry.
 
 ### The profile was redesigned mid-session — do not build to the old frame
 
@@ -766,10 +793,28 @@ leaves the old version file behind and both claim one object name. The reconcile
 keeps the newest by mtime — an `ON CONFLICT DO UPDATE` over all of them dies with
 *cannot affect row a second time*.
 
+**GitHub closes a stacked PR when its base branch is deleted — it does not
+retarget it.** `gh pr merge 478 --delete-branch` closed #480 (base: #478's
+branch) on the spot, and `gh pr edit --base main` then refused because the PR
+was closed. The merge script had `set -e` and no check on the merge's result, so
+it went on to rebase #481 into a conflict and force-push mid-rebase. Reopened
+the commit as #483. *Shape: when squash-merging a stack, retarget the next PR to
+`main` BEFORE deleting the merged branch — or do not delete it — and check
+`gh pr view --json state` after every merge before acting on the next.*
+
+**Two pre-session PRs were green and would have broken `db reset`.** #430 and
+#431 last ran CI on Aug 31 at 11:46; 0053 dropped `privacy_scopes.routines` /
+`.looks` at 18:37 the same day, and both inserted those columns. A green check
+is a claim about the base it ran against. *Shape: for any PR older than the
+last migration, re-run CI before trusting the check.* #431 also counted public
+looks table-wide in `look_links.test.sql`, which the stranger it seeds then
+broke — the exact "ceremony vs absolute count" shape its own comment names.
+
 **What was NOT done, stated so it is not assumed:** a `make db-reset` round-trip
 with #479; the GLO-278 acceptance for a routine and a look (collections was
 driven: saved from `+`, on the tab immediately, no spinner); the full 18-package
-test run (DataKit 134 and Profile 106 were run; the rest were not touched).
+test run (DataKit, Profile and Collections were run on `main` after the merges;
+the rest were not touched).
 
 ### Session 18 (Sept 1) — append-only, newest first
 
