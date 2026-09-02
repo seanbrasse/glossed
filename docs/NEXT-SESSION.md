@@ -42,7 +42,13 @@ Three more, each of which cost real time in session 19:
    `ANTHROPIC_WORKSPACE_ID`, which a personal key needs on every request
    (`400 anthropic-workspace-id is required` without it — #496 sends it).
    The free-form path was driven: 200 in 8s, a routine card of maya's items.
-   Hosted still has no secret. Next builds: STY-7 (refusal copy is Sean's),
+   Hosted still has no secret. **Later that day:** the fallback runs
+   **Sonnet 5** (bake-off in 08 §3; `STYLIST_MODEL` overrides), and #496
+   grew `lexicon.ts` — how people phrase beauty asks, learned offline,
+   matched at zero tokens — with a 60-row corpus in `lexicon_test.ts`, a
+   `look` intent, and the plans offered to Sonnet as tools. **The pattern:**
+   a real phrasing that lands on `open` but had a shape is a lexicon row,
+   then a corpus row. Never a runtime model. Next builds: STY-7 (refusal copy is Sean's),
    ingredient clashes once an INCI table exists, use cases 11 and 12 as planner
    intents.
 
