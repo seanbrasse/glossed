@@ -1,93 +1,95 @@
 # Next session — paste this
 
-*Written at the close of session 21 (Sept 2 2026, evening). The reference is
+*Written at the close of session 22 (Sept 2 2026, evening). The reference is
 [`docs/HANDOFF.md`](HANDOFF.md); this is only the instruction. If the two
 disagree, the handoff is newer.*
 
 ---
 
-**Read `docs/HANDOFF.md` §0 and "Session 21 at a glance" before you touch
-anything.** Twenty PRs are open, none merged, and they stack six deep.
+**Read `docs/HANDOFF.md` §0 and "Session 22 at a glance" before you touch
+anything.** Zero PRs are open. Twenty-one merged tonight; `main` is `4ef961e`
+and Sean's phone runs it.
 
-**The rule that cost the most this session, as an imperative:** *before you
-drive a build, prove it is the build you think it is — chain edit and build
-with `&&`, grep the whole log for ` error: `, compare the binary's mtime to the
-build's start, and `strings Glossed.app/Glossed.debug.dylib` for a string you
-just added.* Three "successful" simulator builds were void and I debugged a
-stale binary for twenty minutes. And: *a phone build is the union of every open
-stack* — the first one of the day dropped the stylist and Sean noticed.
+**The rule that cost the most this session, as an imperative:** *after
+`git rebase --onto`, read the commits that survived and the diff of any file
+the merged-away base also touched — a history that adds a thing and later
+removes it replays as a removal once the addition is upstream.* #499's rebase
+silently dropped the `Stylist` package from `project.yml`; lint and size
+passed; the phone build's stale-binary guard was the only thing that said no.
+And: *wait for the iOS job, not just lint, on any PR that touches
+`project.yml` or a `Package.swift`.*
 
 ## Start here
 
-1. **Nothing merges until Sean grants it.** When he does, the order is in the
-   handoff: #500 → #502 → #503 → #506 → #508 → #509 as one stack, retargeting
-   each to `main` before its base is deleted; #505 on #500; #501, #504, #507,
-   #510 straight in; then the stylist stack and #499. Squash-merging a stack
-   inflates every PR below it — re-check file lists after each merge.
-2. **Sean's phone has everything** (`phone/sep-2-onboarding`, local, not a PR).
-   What he has not yet been able to try: signing in with Apple through "create
-   an account" as an existing account (#508 — should land on discover with
-   nothing re-asked) and the handle step carrying on with `@seantest` (#509).
-   **Done looks like:** he reports both, and one product logged as him.
-3. **If he sends more onboarding notes,** the shape that worked: one note = one
-   branch off the right base, `GLO-108` in the name, the note quoted in the PR,
-   driven on the simulator with `GLOSSED_ONBOARDING=1` before pushing. Ticket
-   bodies go on GLO-108 as a comment (Linear refuses creates).
-4. **Then the standing chores:** Shopify fill step 2 (slot 0058), `supabase
-   login`, the stylist's lexicon growth from real misses, and the saves spec's
-   SAV-2 when the slot frees.
+1. **Ask Sean what his phone showed** for #508 (Apple through "create an
+   account" as an existing account → discover, nothing re-asked) and #509
+   (the handle step carrying on with `@seantest`), and whether one product
+   logged as him. Only his phone can drive those. **A merge grant is
+   per-session — do not assume tonight's carries.**
+2. **If he sends more onboarding notes,** the shape that worked: one note =
+   one branch off `main`, `GLO-108` in the name, the note quoted in the PR,
+   driven on the simulator with `SIMCTL_CHILD_GLOSSED_ONBOARDING=1` before
+   pushing. Ticket bodies go on GLO-108 as a comment (Linear refuses creates).
+3. **Then the standing chores:** Shopify fill step 2 (slot 0058), `supabase
+   login`, the stylist's lexicon growth from real misses, STY-8 then SAV-2 when
+   the slot frees, and the thirteen packages not re-run tonight (`make test`).
+4. Housekeeping: `phone/sep-2-onboarding` in the main checkout is superseded
+   by `main` and can be deleted.
 
 ## Route around these — blocked on Sean, not on code
 
-- **Any merge.** No grant in session 21.
-- **Any new Linear issue.** Three refusals today. Comment on GLO-108 (onboarding),
-  GLO-224 (stylist, saves) or GLO-23 (the phone's account).
+- **Any merge** without a fresh grant.
+- **Any new Linear issue.** Comment on GLO-108 (onboarding), GLO-224 (stylist,
+  saves) or GLO-23 (the phone's account).
 - **A real Apple ID** for #508/#509 — only Sean's phone can drive them.
-- **Hosted secrets, the catalog promotion, TestFlight** — unchanged from
-  session 20; all his.
+- **Hosted secrets, the catalog promotion, TestFlight** — all his.
 - **The migration slot** — STY-8 then SAV-2 are queued behind it.
-- **The payoff's picks** — curated by me; whether to draw from the leaderboard
-  later, or change the twelve, is his.
+- **The payoff's picks** — whether to draw from the leaderboard later is his.
 
 ## Process
 
 - Branches `feat/GLO-<n>-desc` (`fix/`, `chore/`, `docs/`). PR body follows the
   template including the visual plan. ≤5 files / ≤400 lines or `size-override`
   with a reason; tests count as files.
-- Never merge; never push to `main`; `core/DataKit` and `supabase/migrations/`
-  are frozen absent an in-session opening.
-- **Edit scripts anchor on raw text.** Three of today's scripted edits asserted
-  on text read with `grep -v "///"` and silently missed. Read the raw file.
-- zsh: `$pipestatus`, `printf '%s'` for JSON; `(cd pkg && swift test)`.
+- Never push to `main`; `core/DataKit` and `supabase/migrations/` are frozen
+  absent an in-session opening.
+- **Squashing a stack:** snapshot every branch tip first; `git checkout --detach
+  origin/<branch> && git rebase --onto origin/main <old-base-tip>`, push with
+  `--force-with-lease`, retarget, read the surviving commits, merge, repeat.
+  §3 has the loop.
+- **Edit scripts anchor on raw text.** zsh: `$pipestatus`, `printf '%s'` for
+  JSON; `(cd pkg && swift test)`; `for pair in "a b"` does not word-split —
+  use `${pair%% *}` / `${pair##* }`. Never `source` a `sed` range of a script.
 - The simulator drive: `make run`, then relaunch with
-  `SIMCTL_CHILD_GLOSSED_ONBOARDING=1` to see FLOW 1; the phone:
-  `scratchpad/phone-build.sh`'s shape — build, mtime check, entitlement check,
-  `devicectl install`, launch — is in the handoff §0.
+  `SIMCTL_CHILD_GLOSSED_ONBOARDING=1` to see FLOW 1; the phone: the
+  `phone-build.sh` shape (build, mtime check, entitlement check, `strings` on
+  `Glossed.debug.dylib`, `devicectl install`, launch) is in §0 and §3.
 
 ## Tooling that fails silently
 
-- A `.task` on a zero-size SwiftUI view never runs. Reserve height while loading.
-- A `View`'s static helper called from a `withTaskGroup` child crashes with
-  `dispatch_assert_queue_fail`. Mark the loader and its helpers `nonisolated`.
-- A new package asset catalog does not reach `Glossed.app` on an incremental
-  build: `rm -rf Products/…/Glossed.app/<Package>_<Target>.bundle`, rebuild.
-- Everything session 20 listed: unsigned device builds, the keychain across
-  uninstall, `db reset` emptying storage buckets, the wedged edge runtime, the
-  first stylist request after a `functions serve` restart.
+- **A stale `.swiftmodule` in DerivedData satisfies an import for a package the
+  project no longer links.** The failure arrives at link time as undefined
+  symbols, not at compile time as a missing module.
+- `swift test` has two summary shapes (`Executed N tests` / `Test run with N
+  tests in M suites passed`); a filter for one reads the other as zero.
+- Everything session 21 listed: a `.task` on a zero-size view, a `View`'s
+  static helper in a task group, a package asset catalog on an incremental
+  build, the void builds, the keychain across uninstall, `db reset` emptying
+  storage buckets, the wedged edge runtime.
 
 ## State at handoff, verified not recalled
 
-**Zero merged, twenty open** (#491–#510). Tests run today, on the branch named:
-Onboarding 78 (#509), Profile 106 (#504), DesignSystem 54 (#505). No function
-tests run this session. Local stack up, `supabase functions serve` running from
-the `glo-145-fitsection-gate` worktree with `ANTHROPIC_API_KEY` +
-`ANTHROPIC_WORKSPACE_ID` in its `.env` (this worktree's `.env` has neither —
-the server, not the checkout, is what the phone talks to). Sean's phone: the
-15:45 build, stylist included, confirmed by `strings` on the debug dylib.
-Hosted: unchanged — 0 products, 0 users, no functions, no secrets.
+**Zero open, twenty-one merged** (#491–#511). `main` `4ef961e`: swiftlint and
+swiftformat clean; simulator build green, fresh dylib; Onboarding 78, Profile
+106, DesignSystem 54, Stylist 11, Tracking 16; the stylist function's 97 deno
+tests; FLOW 1 driven from `main` on the simulator (hook → quiz → tone →
+payoff bay with images → *create your account*). The other thirteen packages
+were not re-run. Sean's phone: the 18:00 build of the #511 tree, entitlement
+and dev-sign-in-off proven, launched. Local stack up, `supabase functions
+serve` running (pid from the `glo-145-fitsection-gate` worktree, with the
+stylist key in its `.env`). Hosted: unchanged — 0 products, 0 users, no
+functions, no secrets.
 
-**Driven on the simulator:** the tap targets, sign-out to the hook, the tone
-quiz, the payoff's bay, the hair strands and their selected state, the profile
-skeleton. **Driven by Sean on his phone:** the first two phone builds (his
-notes came from them). **Not driven:** #508 and #509 with a real Apple ID,
-#504's after-recording, the copy sweep on a device.
+**Not driven:** #508 and #509 with a real Apple ID (Sean), #504's
+after-recording, the stylist tab on `main` (built and linked; not opened
+tonight).

@@ -1,4 +1,4 @@
-# Session handoff — Sept 2 2026 (session 21: Sean drove onboarding on his phone and eleven PRs answered him; the stylist stack is still open)
+# Session handoff — Sept 2 2026 (session 22: twenty-one PRs merged under a grant, main rebuilt to Sean's phone, and a rebase that quietly dropped a package)
 
 Where Phase 1 stands, what to do next, and what the last three sessions learned.
 Read `docs/README.md` first for the design; this file is only about state.
@@ -6,6 +6,48 @@ Read `docs/README.md` first for the design; this file is only about state.
 **Starting a session?** [`docs/NEXT-SESSION.md`](NEXT-SESSION.md) is the short,
 pasteable version — what to start on, what is blocked on a human, and the rule
 that cost the most last time. This file is the reference it points at.
+
+## Session 22 at a glance (Sept 2, evening — the merge)
+
+**Twenty-one PRs merged, zero open.** Sean opened with *"You have my permission
+to merge things, also keep an updated version on my phone."* Every PR from
+sessions 19–21 (#491–#510) landed as a squash, plus **#511**, a two-line fix
+for a break the phone build found. `main` at handoff is **`4ef961e`**.
+
+**How the stack went in, and the two things it cost:**
+
+| Order | What | Notes |
+|---|---|---|
+| #500 → #502 → #503 → #506 → #508 → #509 | the onboarding stack, six deep | each dependent **rebased onto `main`** with `git rebase --onto origin/main <old-base-tip>` before its squash, so its diff and the size gate stayed its own (5 files / 73 lines for #502, not the 13 / 1956 shape §0 warns of); the lint job was waited on, the 21-minute iOS job was not |
+| #505 | hair strands, on #500 | same rebase, 28 files under its `size-override` |
+| #501 #504 #510 | straight in | no conflict |
+| #507 | the copy sweep | **conflicted with #509 in `OnbHandleView`** as predicted — #509's `switch` taken, #507's one-line hunk dropped, its other four files intact |
+| #491 #492 #493 #498 | stylist roots | disjoint file sets, merged together |
+| #494 → #497, #496 | stylist dependents | #494's branch *contained* #492 and #493 (base `main`, history merged in); `--onto origin/main <#493 tip>` replayed only its own commit, 6 files |
+| #495 | the session-21 handoff | 431 lines of docs — `size-override` + reason, the job re-run so the record is green |
+| #499 | the phone's account | **two bites.** (1) merging it after #501 put `AppSession.swift` at **311 lines**; the three static account helpers moved to `AppSessionAccount.swift` on the branch (§0's "a limit broken by a merge"). (2) **Its rebase dropped `Stylist` from `project.yml`** — see §8 — and `main` could not link the app for a device. **#511** restored the two lines |
+
+**`main` verified, not recalled:** swiftlint + swiftformat clean; simulator
+build green with a fresh dylib; **Onboarding 78, Profile 106, DesignSystem 54,
+Stylist 11, Tracking 16** (`swift test`), the stylist function's **97** deno
+tests; FLOW 1 driven on the simulator from `main` — hook → the two-step quiz
+(#503) with its back links (#502) → the tone swatches → the payoff's bay of
+products with images (#506) → *create your account*. The other packages were
+not re-run.
+
+**Sean's phone runs `main` + #511** (18:00, `03b2343` = the #511 tree; binary
+mtime after the build's start, `applesignin` entitlement present,
+`GlossedDevSignIn=0`, `strings` on the debug dylib finds *create your account*
+and `GlossedDevSignIn`, `devicectl` installed and launched). The union branch
+`phone/sep-2-onboarding` is superseded and can be deleted.
+
+**Linear:** session-22 comments on GLO-108, GLO-224, GLO-23. No issue moved;
+GLO-108 and GLO-224 are umbrellas with open halves (Twilio; STY-8, SAV-2). All
+twenty-one branches deleted after merge.
+
+**Still only Sean can answer:** #508 (Apple through "create an account" as an
+existing account → discover, nothing re-asked) and #509 (the handle step
+carrying on with `@seantest`), and one product logged as him. Ask.
 
 ## Session 21 at a glance (Sept 2, afternoon → evening — Sean's notes from his phone)
 
@@ -510,7 +552,7 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Thing | State |
 |---|---|
-| **Twenty PRs open, none merged, no grant given.** Two stacks and a spread: the stylist's #491 ← #496, #492 + #493 ← #494 ← #497, #498; the phone's #499; session 21's #500 ← #502 ← #503 ← #506 ← #508 ← #509, #500 ← #505, and #501 #504 #507 #510 on `main`; #495 is this handoff. **Sean merges.** Retarget every stacked PR to `main` before its base branch is deleted — GitHub closes it otherwise (#480). Session 21's rows are in its "at a glance" table above | GLO-224, GLO-23, GLO-108 threads |
+| **Zero PRs open.** Twenty-one merged in session 22 (#491–#511) under Sean's grant — see "Session 22 at a glance". The grant was per-session; the next one is not implied. `main` = `4ef961e`, lint-clean, simulator-built, five packages and the stylist function green, FLOW 1 driven | GLO-224, GLO-23, GLO-108 threads |
 | **The first real account exists** — Sean's, made on his phone at 14:25 (Apple → birthday → name → handle `seantest`), then signed out from settings. **He then walked "create an account" again with the same Apple ID and was asked the birthday and a handle he already had** — #508 and #509 answer that; neither is driven with a real Apple ID yet (only he can). Still not driven: logging a product as him. The local stack must be up with `supabase functions serve` running and the Mac awake on the same Wi-Fi (`http://Seans-MacBook-Pro.local:54321`) | GLO-23 thread |
 | **Friends' phones = TestFlight**, which needs a Release boot path (the account path was moved out of `#if DEBUG` on Sept 2 — see §6 for whether it reached #499), a **hosted backend with the catalog and the functions deployed** (hosted has 0 products; promotion needs the DB URL or a CLI login), and an App Store Connect record | GLO-50, §7 |
 | **Filling the new categories from Shopify** (Sean's ask, Sept 1) | **Step 1 done — #488** (rules in `TYPE_RULES`, backfill in `scripts/reclassify_new_groups.sql`, 168 products moved on local, 0 ladders touched). Step 2 (leaves) still needs slot **0058** |
@@ -676,6 +718,25 @@ merges, **one migration NUMBER at a time — including numbers held by branches
 with no PR yet** (session 18 broke this; §0), drive-then-psql on everything, two lanes
 coordinating by direct message with file-level ownership announced before
 touching.
+
+**Session 22's loop, under Sean's "permission to merge things" (Sept 2
+evening — per-session), which put twenty-one PRs on `main` in ~80 minutes:**
+
+1. **snapshot every PR branch tip first** (`git rev-parse origin/<branch>` into
+   a file) — the old base tips are what every later rebase anchors on;
+2. squash the root; for each dependent, `git checkout --detach origin/<branch>
+   && git rebase --onto origin/main <old-base-tip> && git push
+   --force-with-lease=<branch>:origin/<branch> origin HEAD:refs/heads/<branch>
+   && gh pr edit --base main` — the detached checkout sidesteps "branch is
+   checked out in another worktree";
+3. **read the rebased PR's own commit list before pushing** — a branch whose
+   history *adds then removes* a thing replays as a removal once the addition
+   is upstream (#499, §8);
+4. wait for the one-minute lint job, not the 21-minute iOS job; then verify
+   `main` yourself at the end (lint, simulator build, the touched packages'
+   tests, a drive) because `main` runs no CI — and **build to the phone**,
+   which is the one check that found the dropped package;
+5. delete branches only after everything downstream is merged.
 
 **Session 19's loop, under Sean's "review and merge on your own" grant (given
 Sept 1 evening — per-session, not standing):**
@@ -921,6 +982,36 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | Save/wishlist mapping | Whether `want_to_try` IS tech/07's +0.5 save signal | Sean |
 
 ## 8. What went wrong, so you don't repeat it
+
+### Session 22 (Sept 2, evening) — append-only, newest first
+
+- **A rebase dropped a package and every gate stayed green.** #499's branch
+  history held an "add `Stylist` to `project.yml`" commit and, later, the
+  session-20 CI fix that removed it. Rebasing onto a `main` that already had
+  #494's addition, git skipped the add as "already upstream" and replayed the
+  removal. Lint passed (YAML is not linted), the size gate passed, I merged
+  before the iOS job ran, and `main` could not link the app: the compile was
+  satisfied by a **stale `Stylist.swiftmodule` in DerivedData**, so the failure
+  was `Undefined symbols for architecture arm64`, not "no such module". The
+  phone build's stale-binary guard refused the install; #511 restored two
+  lines. *Shape: after `rebase --onto`, read the commits that survived, and
+  read the diff of any file the merged-away base also touched.*
+- **I sourced a fragment of a script and it ran the script.** A `sed -n
+  '/^wait_lint/,/^}/p'` meant to lift two functions out of `chain.sh` also
+  matched the later `wait_lint 502 && …` lines (no closing `}` after them),
+  so `source <(…)` re-ran the finished chain: a merged PR re-merged
+  (harmless), a merged branch force-pushed to `main`'s tip (harmless, deleted
+  later), and an `exit 1` inside the sourced text killed my own command. Define
+  helpers inline or in their own file; never `source` a range.
+- **Merging with the iOS job queued.** The lint job proves format and size,
+  nothing else. Twenty merges waited on lint only; the one that needed the
+  build job (#499) is the one that broke. The local verification at the end
+  caught it, but a 21-minute wait per PR would have too — and only for one PR.
+  The honest rule: wait for the build job on any PR that touches `project.yml`
+  or a `Package.swift`.
+- **`swift test`'s summary line has two shapes.** XCTest prints `Executed N
+  tests`; swift-testing prints `✔ Test run with N tests in M suites passed`.
+  A filter for one reports the other as zero, twice tonight.
 
 ### Session 21 (Sept 2, afternoon) — append-only, newest first
 
