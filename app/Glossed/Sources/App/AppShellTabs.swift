@@ -89,22 +89,22 @@ extension AppShell {
         .fullScreenCover(isPresented: $ladderOpen, onDismiss: askFitIfAnchor) {
             ladderFlow
         }
-        .fullScreenCover(isPresented: $routineOpen) {
+        .fullScreenCover(isPresented: $routineOpen, onDismiss: profileMayHaveChanged) {
             routineComposer
         }
-        .fullScreenCover(isPresented: $lookOpen) {
+        .fullScreenCover(isPresented: $lookOpen, onDismiss: profileMayHaveChanged) {
             lookComposer
         }
         // These two arrived on main after this extraction was written, and are
         // carried across by the rebase rather than lost: extracting a block is
         // only safe if it takes the block as it stands now.
-        .fullScreenCover(item: $openLook) { open in
+        .fullScreenCover(item: $openLook, onDismiss: profileMayHaveChanged) { open in
             lookPost(open)
         }
-        .fullScreenCover(item: $openOwnItem) { item in
+        .fullScreenCover(item: $openOwnItem, onDismiss: profileMayHaveChanged) { item in
             ownItemDetail(item)
         }
-        .fullScreenCover(isPresented: $collectionOpen) {
+        .fullScreenCover(isPresented: $collectionOpen, onDismiss: profileMayHaveChanged) {
             collectionComposer
         }
         .fullScreenCover(item: $rankingItem) { item in
@@ -128,6 +128,13 @@ extension AppShell {
                 )
             }
         }
+    }
+
+    /// A composer or a card's editor just closed. Whether it saved is not
+    /// knowable from here — a dismissal is a dismissal — so the profile is
+    /// told to reload either way; it does so in place (GLO-278).
+    func profileMayHaveChanged() {
+        profileReloadTrip = UUID()
     }
 
     @ViewBuilder var activeScreen: some View {
