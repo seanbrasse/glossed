@@ -177,7 +177,7 @@ Three tabs + plus drawer. Every screen exists in the kit ([`screens.jsx`, screen
 
 | Feature module | Screens (kit names) |
 |---|---|
-| Onboarding | OnbHook (login reveal), OnbQuiz (domains → anchor → hair/palette branches), OnbPayoff, OnbAccount (method → phone → code → birthday), OnbSignIn (=OnbAccount mode=login), OnbBuild, OnbTour (2 slides), OnbWelcome |
+| Onboarding | OnbHook (login reveal), OnbQuiz (domains → tone palette → hair branch; the anchor question left the quiz Sep 2 — asked where the bottle is, see `OnboardingModel`), OnbPayoff, OnbAccount (method → phone → code → birthday), OnbSignIn (=OnbAccount mode=login), OnbBuild, OnbTour (2 slides), OnbWelcome |
 | Discover | Discover (picked-for-you grid, tune card, leaderboards link, gap card slot — V1 renders the crosswalk card), Leaderboard, Tune |
 | Shelf | Shelf (shelf view w/ real-dimension bays + list view, domain Segmented multi+all, sort, item sheet w/ FitControl), empty = Stage 0 |
 | AddLadder | search → barcode → near matches → create → personal-scope confirm |

@@ -5,15 +5,15 @@ import Testing
 import Tracking
 @testable import Onboarding
 
-// The quiz's state machine, with fixtures on both sides of each branch
-// predicate (the session-12 rule): haircare picked and not, foundation
-// worn and not.
+// The quiz's state machine, with fixtures on both sides of its one branch
+// predicate (the session-12 rule): haircare picked and not.
 
 @MainActor
-@Test func theDefaultFlowIsTwoStepsAndLeadsWithTheAnchorQuestion() {
-    // PRD §06's reorder: no branch answers, no branch steps
+@Test func theDefaultFlowIsTwoStepsAndAsksTheToneAlways() {
+    // Sean, Sep 2: the foundation question leaves the quiz; the tone
+    // palette is no longer a branch behind "i don't wear any foundation".
     let model = OnboardingModel()
-    #expect(model.steps == [.domains, .anchor])
+    #expect(model.steps == [.domains, .tone])
     #expect(model.domains == [.makeup, .skincare]) // the kit's pre-selection
     #expect(model.step == .domains)
 }
@@ -22,34 +22,30 @@ import Tracking
 @Test func pickingHaircareGrowsTheFlowAndUnpickingShrinksIt() {
     let model = OnboardingModel()
     model.toggle(.haircare)
-    #expect(model.steps == [.domains, .anchor, .hair])
+    #expect(model.steps == [.domains, .tone, .hair])
     model.toggle(.haircare)
-    #expect(model.steps == [.domains, .anchor]) // recomputed, never stored
+    #expect(model.steps == [.domains, .tone]) // recomputed, never stored
 }
 
 @MainActor
-@Test func noFoundationAddsTheTonePaletteStep() {
+@Test func noFoundationNoLongerChangesTheStepList() {
+    // The predicate that used to add the tone step is gone: tone is asked
+    // whether or not a foundation is worn, so the answer cannot move a step.
     let model = OnboardingModel()
     model.setNoFoundation()
-    #expect(model.steps == [.domains, .anchor, .tone])
-}
-
-@MainActor
-@Test func bothBranchesTogetherMakeTheFullFourStepFlow() {
-    let model = OnboardingModel()
+    #expect(model.steps == [.domains, .tone])
     model.toggle(.haircare)
-    model.setNoFoundation()
-    #expect(model.steps == [.domains, .anchor, .hair, .tone])
+    #expect(model.steps == [.domains, .tone, .hair])
 }
 
 @MainActor
 @Test func pickingAShadeClearsNoFoundationAndTheReverse() {
-    // the two are exclusive answers to one question
+    // Still exclusive answers to one question — the payoff reads both, even
+    // though no quiz screen asks them any more.
     let model = OnboardingModel()
     model.setNoFoundation()
     model.anchor = ShadeAnchorPicker.Selection(brand: "fenty beauty", shade: "240")
     #expect(!model.noFoundation)
-    #expect(model.steps == [.domains, .anchor]) // the tone step left with it
     model.setNoFoundation()
     #expect(model.anchor == ShadeAnchorPicker.Selection())
     #expect(model.noFoundation)
@@ -81,18 +77,18 @@ import Tracking
     // index past the end of the shrunken list
     let model = OnboardingModel()
     model.toggle(.haircare)
-    _ = model.next() // → anchor
+    _ = model.next() // → tone
     _ = model.next() // → hair
     #expect(model.step == .hair)
     model.toggle(.haircare)
-    #expect(model.step == .anchor) // clamped to the list that remains
+    #expect(model.step == .tone) // clamped to the list that remains
 }
 
 @MainActor
 @Test func nextWalksTheFlowAndSaysWhenItLeaves() {
     let model = OnboardingModel()
-    #expect(model.next()) // domains → anchor
-    #expect(model.step == .anchor)
+    #expect(model.next()) // domains → tone
+    #expect(model.step == .tone)
     #expect(model.isLastStep)
     #expect(!model.next()) // leaving — the caller owns what comes after
 }
@@ -132,14 +128,13 @@ import Tracking
 }
 
 @Test func everyStepHasItsWordsAndTheBranchesNameTheirBranch() {
-    for step in [OnboardingModel.Step.domains, .anchor, .hair, .tone] {
+    for step in [OnboardingModel.Step.domains, .tone, .hair] {
         #expect(OnboardingModel.question(for: step).count == 2)
         #expect(!OnboardingModel.aside(for: step).isEmpty)
     }
     #expect(OnboardingModel.branch(of: .hair) == .hair)
     #expect(OnboardingModel.branch(of: .tone) == .palette)
     #expect(OnboardingModel.branch(of: .domains) == nil)
-    #expect(OnboardingModel.branch(of: .anchor) == nil)
 }
 
 @Test func tenToneSwatchesWeightedTowardTheDeepRange() {
@@ -162,7 +157,7 @@ private actor CapturingPoster: EventPosting {
     let poster = CapturingPoster()
     let tracker = Tracker(poster: poster)
     let model = OnboardingModel(tracker: tracker)
-    _ = model.next() // completes domains, lands on anchor
+    _ = model.next() // completes domains, lands on tone
     model.recordViewed()
     model.recordViewed() // a re-render, not a second impression
     try await Task.sleep(for: .milliseconds(50))

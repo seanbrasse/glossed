@@ -4,26 +4,41 @@ import Foundation
 import Observation
 import Tracking
 
-/// The quiz's state machine (GLO-18, `G.OnbQuiz`): four steps, two of them
-/// conditional branches — hair only if haircare was picked, the tone
-/// palette only if there is no foundation to anchor on. The step list is
-/// recomputed from the answers live, exactly as the kit does it, so picking
-/// haircare mid-flight grows the flow and unpicking it shrinks it.
+/// The quiz's state machine (GLO-18, `G.OnbQuiz`): three steps, one of them
+/// a conditional branch — hair only if haircare was picked. The step list
+/// is recomputed from the answers live, exactly as the kit does it, so
+/// picking haircare mid-flight grows the flow and unpicking it shrinks it.
 ///
-/// The ordering is PRD §06's whole point: the anchor question leads because
-/// "what foundation do you wear?" is the easiest question in the flow and
-/// produces strictly better data than a tone palette. Skin type, concerns
-/// and brands deliberately come after signup.
+/// **The foundation question left the quiz (Sean, Sep 2).** PRD §06 led
+/// with "what foundation do you wear?" because an exact shade beats a tone
+/// band. It does — when the shade is there to pick. GLO-269 records that
+/// the catalog behind that question has 4 shade rows of 9,019, so the
+/// question mostly ended in "not listed", and Sean's ruling names the cost:
+/// *"we don't want users to not find their product and get a distaste for
+/// the app."* So the tone palette is asked always, the foundation is asked
+/// where the bottle is in hand (logging one IS naming the anchor —
+/// `user_shade_anchor` is a view over anchor-category items), and undertone
+/// is not asked at all: self-report is unreliable there (the wrist-vein
+/// test fails olive skin outright), and the app already learns it from fit
+/// answers on the undertone axis, which domain.md says win over any prior.
+/// Skin type, concerns and brands still come after signup.
 @MainActor
 @Observable
 public final class OnboardingModel {
     public enum Step: String, Equatable {
-        case domains, anchor, hair, tone
+        case domains, tone, hair
     }
 
     /// The kit's default: makeup + skincare pre-selected — the two most
     /// shopped halves, not an empty ask.
     public private(set) var domains: [Domain] = [.makeup, .skincare]
+    /// The seam the payoff reads (`OnboardingFlowModel.payoffAnchor`).
+    /// **Nothing in the quiz sets it any more** — the foundation question
+    /// is gone (see the type comment) — so the payoff runs its neutral
+    /// path by construction. Kept rather than ripped out because the flow,
+    /// the app and the debug catalog all hold the other end of this seam,
+    /// and the follow-up that feeds it from the shelf starter (or removes
+    /// it) is a change to those files, not to the quiz.
     public var anchor = ShadeAnchorPicker.Selection() {
         didSet {
             if anchor.shade != nil {
@@ -52,13 +67,11 @@ public final class OnboardingModel {
 
     /// Recomputed from the answers, never stored: a stored list is one
     /// mid-flight domain change away from disagreeing with its predicates.
+    /// Tone is unconditional now; hair is the one branch left.
     public var steps: [Step] {
-        var list: [Step] = [.domains, .anchor]
+        var list: [Step] = [.domains, .tone]
         if domains.contains(.haircare) {
             list.append(.hair)
-        }
-        if noFoundation {
-            list.append(.tone)
         }
         return list
     }
@@ -107,9 +120,9 @@ public final class OnboardingModel {
         domains = Domain.allCases
     }
 
-    /// "i don't wear any foundation" — clears the anchor and adds the tone
-    /// step; picking a shade later clears it back (the two are exclusive
-    /// answers to one question).
+    /// "i don't wear any foundation" — clears the anchor; picking a shade
+    /// later clears it back (the two are exclusive answers to one question).
+    /// No screen asks it since Sep 2; the payoff still honours it.
     public func setNoFoundation() {
         noFoundation = true
         anchor = ShadeAnchorPicker.Selection()
@@ -124,18 +137,16 @@ public final class OnboardingModel {
     public nonisolated static func question(for step: Step) -> [String] {
         switch step {
         case .domains: ["what do", "you buy?"]
-        case .anchor: ["what foundation", "do you wear?"]
-        case .hair: ["what\u{2019}s your", "hair type?"]
         case .tone: ["where\u{2019}s your", "skin tone?"]
+        case .hair: ["what\u{2019}s your", "hair type?"]
         }
     }
 
     public nonisolated static func aside(for step: Step) -> String {
         switch step {
         case .domains: "pick every one you shop for — this sets which halves of the app lead"
-        case .anchor: "your exact shade is the anchor — it beats a tone band every time"
+        case .tone: "closest is close enough — logging your foundation sharpens it later"
         case .hair: "only asked because you buy haircare"
-        case .tone: "closest is close enough — change it any time"
         }
     }
 
@@ -196,13 +207,14 @@ public final class OnboardingModel {
         Task { await tracker.track(.onbStepCompleted(step: step.rawValue, branch: Self.branch(of: step))) }
     }
 
-    /// tech/06's branch vocabulary: the two conditional steps name their
-    /// branch; the two unconditional ones carry none.
+    /// tech/06's branch vocabulary. Tone keeps its `palette` branch name
+    /// even though it is no longer conditional — the event stream's
+    /// vocabulary does not change because the step's predicate did.
     nonisolated static func branch(of step: Step) -> OnboardingBranch? {
         switch step {
         case .hair: .hair
         case .tone: .palette
-        case .domains, .anchor: nil
+        case .domains: nil
         }
     }
 }

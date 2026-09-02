@@ -219,17 +219,19 @@ import Testing
 // ── the branches still belong to the quiz ──────────────────────────────────
 
 @MainActor
-@Test func theFlowCarriesOneQuizWhoseBranchesStayConditional() {
-    // 3b and 3c are the quiz's step list, not stops of their own — which is
-    // why picking haircare mid-flight grows the flow rather than jumping it.
+@Test func theFlowCarriesOneQuizWhoseBranchStaysConditional() {
+    // 3b is the quiz's step list, not a stop of its own — which is why
+    // picking haircare mid-flight grows the flow rather than jumping it.
+    // (3c, the tone palette, stopped being a branch on Sep 2: it is asked
+    // always, and the foundation question that gated it is gone.)
     let flow = OnboardingFlowModel()
-    #expect(flow.quiz.steps == [.domains, .anchor])
+    #expect(flow.quiz.steps == [.domains, .tone])
     flow.quiz.toggle(.haircare)
-    #expect(flow.quiz.steps == [.domains, .anchor, .hair])
-    flow.quiz.setNoFoundation()
-    #expect(flow.quiz.steps == [.domains, .anchor, .hair, .tone])
+    #expect(flow.quiz.steps == [.domains, .tone, .hair])
+    flow.quiz.setNoFoundation() // no longer moves a step
+    #expect(flow.quiz.steps == [.domains, .tone, .hair])
     flow.quiz.toggle(.haircare) // unpicked — the branch goes away again
-    #expect(flow.quiz.steps == [.domains, .anchor, .tone])
+    #expect(flow.quiz.steps == [.domains, .tone])
     #expect(flow.stop == .hook) // none of this moved the flow
 }
 
