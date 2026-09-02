@@ -13,6 +13,8 @@ public struct ComposerView: View {
     @State private var taggingPhotoID: UUID?
     /// Which tile the current drag is over — the strip's only drag state.
     @State private var dropTargetID: UUID?
+    /// The photo being fitted to the frame, while the fit sheet is up.
+    @State private var fittingPhoto: ComposerPhoto?
     private let onPickPhoto: (() -> Void)?
     /// What the tag picker searches. **Optional, and the tagging half is
     /// absent without it** — the composer's own rule, the same one the add
@@ -55,6 +57,16 @@ public struct ComposerView: View {
                 postRow
             }
             .padding(Tokens.Space.s5)
+        }
+        .sheet(item: $fittingPhoto) { photo in
+            LookPhotoFitView(
+                imageData: photo.localData,
+                onDone: { data in
+                    model.replacePhoto(photo.id, with: data)
+                    fittingPhoto = nil
+                },
+                onCancel: { fittingPhoto = nil }
+            )
         }
         .background(Tokens.Ground.milk)
         .task { await model.loadLinkables() }
@@ -143,6 +155,7 @@ public struct ComposerView: View {
         ZStack(alignment: .topTrailing) {
             photoImage(photo)
             removeButton(photo)
+            fitButton(photo)
             if model.photos.count > 1 {
                 ordinal(index)
             }
@@ -209,6 +222,24 @@ public struct ComposerView: View {
         .buttonStyle(.plain)
         .padding(4)
         .accessibilityLabel("remove this photo")
+    }
+
+    /// Opens the fit sheet: zoom and move the photo inside the post's frame
+    /// before it uploads (Sean, Sept 1). Bottom-trailing, opposite the ordinal.
+    private func fitButton(_ photo: ComposerPhoto) -> some View {
+        Button {
+            fittingPhoto = photo
+        } label: {
+            Image(systemName: "crop")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Tokens.Ink.primary)
+                .padding(6)
+                .background(Tokens.Ground.milk, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .padding(4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        .accessibilityLabel("fit this photo to the frame")
     }
 
     /// The order, said out loud, so a reorder has something to confirm it.
