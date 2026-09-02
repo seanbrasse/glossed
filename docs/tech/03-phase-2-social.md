@@ -18,12 +18,97 @@ look_tags(look_id, variant_id, x numeric, y numeric)        -- pin-style, tappab
 - Composer: photos from camera/roll → on-device **SensitiveContentAnalysis** check (entitlement `com.apple.developer.sensitivecontentanalysis.client`; runs in the main app — the framework is unavailable in extensions, so share-extension photo posts route through the app) → EXIF strip → upload → cloud image moderation → public. Prevention over takedown: with one reviewer, prevention is the only model that scales.
 - Tag flow: search-your-shelf picker → drop pin. Tags are Variants (shade is the point).
 
+## 1a. Saves — keeping other people's looks, collections and routines
+
+Sean, Sep 2: *"Users can save other people's looks/collections/routines in
+addition to want to try items. We need a place in our profile for this, and
+our stylist should be able to reference saved things as well."*
+
+`look_saves` (§2) generalises. A **save** is a private pointer from you to
+something someone else published — a look, a collection or a routine — the way
+`want_to_try` is a private pointer to a product you do not own yet. Four things
+are settled by what already exists:
+
+- **Saves are private and never a feed event** (`tech/00` delta 13: *"a feed
+  of saves is a product feed wearing a person's name"*). Same posture as
+  `want_to_try`, which is never published (0021). No counts, no "saved by n".
+- **Saves are a weak taste signal** (`tech/07` §2's reserved row, +0.5). A saved
+  routine contributes its steps' variants' chips weakly; a saved look its tags'.
+  They never rank; they diversify.
+- **A save is a pointer, not a copy.** It renders whatever the owner shows
+  *today*, through `can_view(owner, scope)`. Something that went private, or
+  whose owner blocked you, renders as a quiet "no longer shared" row and is
+  dropped from every count — a save must never become a way to keep reading a
+  thing after its owner stopped sharing it.
+- **"Make it mine" is a draft, not an edit.** Saved things belong to other
+  people. The one action on a saved routine is *use this* → a `RoutineDraft`
+  of your own, attributed ("from @maya's night routine"); on a collection,
+  *add to want to try* per item; on a look, open the tagged products.
+
+```sql
+create type save_kind as enum ('look', 'collection', 'routine');
+create table saves (
+    user_id       uuid not null references auth.users (id) on delete cascade,
+    kind          save_kind not null,
+    look_id       uuid references looks (id) on delete cascade,
+    collection_id uuid references collections (id) on delete cascade,
+    routine_id    uuid references routines (id) on delete cascade,
+    created_at    timestamptz not null default now(),
+    constraint saves_one_target check (
+        (kind = 'look'       and look_id is not null and collection_id is null and routine_id is null) or
+        (kind = 'collection' and collection_id is not null and look_id is null and routine_id is null) or
+        (kind = 'routine'    and routine_id is not null and look_id is null and collection_id is null)),
+    constraint saves_not_own check (true)  -- enforced in save_thing(): you cannot save your own
+);
+-- one row per (user, target): partial unique indexes per kind
+-- RLS: select/insert/delete own rows only; insert goes through save_thing(kind, id),
+-- which checks can_view(owner, scope-for-kind) and owner <> caller at save time.
+-- Reads of the TARGET go through the existing public read paths, so a save of a
+-- since-private thing returns nothing for it — the client renders the gap.
+```
+
+**On the profile:** a fourth tab, `saved`, beside looks · collections ·
+routines, scope mark `only you` and no other scope possible. Four groups, in
+this order: **want to try** (the existing default collection, moved here from
+the collections tab where it leads today), **looks**, **collections**,
+**routines** — each row attributed to its owner's handle, opening the owner's
+thing through the shell's existing doors (`openLook`, a public collection, a
+public routine). Empty state: *"things you save from other people land here."*
+The save affordance is the kit's `SaveIcon` on the three stranger surfaces
+(look post, public collection, public routine), toggling; no save on your own.
+
+**For the stylist** (`tech/08`): the prefetch under the caller's JWT gains
+`saves` — each with its owner's handle and, for routines and collections, the
+overlap with the caller's shelf — and the tool belt gains `reference_saved(kind,
+id)`, validated against the prefetch like `reference_look`. The receipts rule is
+unchanged: *"you saved @maya's night routine — 2 of its 5 steps are on your
+shelf"* is a claim with its n. The stylist may compare, adapt (`propose_routine`
+from a saved one, attributed) and remind; it never edits a saved thing, and it
+never mentions a save to anyone but its owner.
+
+**Minors:** saving is allowed (private, nothing published); what a minor can
+*see* to save is already `can_view`'s problem. **Deletion:** `saves` cascades
+with the user and with the target; add it to `domain.md` §6's list.
+
+**Tickets** (workspace at its issue cap — thread on GLO-224 until lifted):
+
+| # | ticket | needs |
+|---|---|---|
+| SAV-1 | this section | — |
+| SAV-2 | migration: `save_kind`, `saves`, `save_thing()`, RLS, pgTAP four-test template | the migration slot, after STY-8 |
+| SAV-3 | DataKit `SavesRepository` (list, save, unsave) | a frozen-core opening |
+| SAV-4 | profile `saved` tab: four groups, attribution, gap row, empty state; want-to-try moves in | SAV-3 |
+| SAV-5 | `SaveIcon` on look post, public collection, public routine | SAV-3 |
+| SAV-6 | stylist: `saves` in the prefetch, `reference_saved` tool, attribution rule in the prompt, tests | SAV-2 |
+| SAV-7 | taste: saves as the +0.5 reserved signal in `affinity_for_user()` | migration, after SAV-2 |
+| SAV-8 | `save_added` / `save_removed` events (kind only, identifiers only) | — |
+
 ## 2. Feed
 
 - Priority: friends + follows → suggested similar-skin people → products/brands. Cold start leans entirely on suggested people (new users have zero friends).
 - **Implementation: fan-out on read.** At this scale a per-request query beats maintained timelines: `(posts from follows) UNION (posts from suggested cohort) ORDER BY recency + light scoring`, keyset-paginated, cached per user for minutes. No dwell/scroll signals collected — ranking inputs are follows, cohort match, and recency only (the "no engagement optimization" positioning is architectural, not just copy).
 - Feed cards = the kit's Feed frame: poster + reason line ("people in your shade" naming the data, never a twin persona), photo stack, caption, tagged products expander, like/save/share.
-- Likes/saves: `look_likes`, `look_saves` — saves feed the taste profile (weak signal), likes are social only.
+- Likes/saves: `look_likes`; `look_saves` is superseded by `saves` (§1a), which covers looks, collections and routines — saves feed the taste profile (weak signal), likes are social only.
 
 ## 3. Comments
 

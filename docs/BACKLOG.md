@@ -9,6 +9,8 @@ Running log of known-open work and decisions deferred on purpose. Anything here 
 - [ ] **Phase 3 build-ready spec** — same; neighbor-pipeline offline-eval harness design; push-notification infra detail (APNs setup runbook).
 - [ ] **Phase 4** — remains outline-by-design until scale/funding exists.
 
+- [ ] **Saves — keeping other people's looks, collections and routines** (Sean, Sep 2). Spec written: `tech/03` §1a — private pointers, never a feed event, weak taste signal, a `saved` tab on the profile that also becomes want-to-try's home, `SaveIcon` on the three stranger surfaces, and a `reference_saved` tool for the stylist. Eight tickets (SAV-1–8) threaded on GLO-224 while the workspace is at its issue cap; SAV-2 needs the migration slot after STY-8.
+
 ## Open — numbers to tune with real data
 
 - [ ] Onboarding payoff evidence threshold (currently n ≥ 8 for the exact shade — a chosen starting point, not validated). `tech/01` §2.
