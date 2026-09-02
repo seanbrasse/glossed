@@ -6,8 +6,8 @@ disagree, the handoff is newer.*
 
 ---
 
-**Read `docs/HANDOFF.md` §0 and "Session 22 at a glance" before you touch
-anything.** Zero PRs are open. Twenty-one merged tonight; `main` is `4ef961e`
+**Read `docs/HANDOFF.md` §0 and both "Session 22" blocks before you touch
+anything.** Zero PRs are open. Thirty-one merged tonight; `main` is `fe0f658`
 and Sean's phone runs it.
 
 **The rule that cost the most this session, as an imperative:** *after
@@ -21,19 +21,23 @@ And: *wait for the iOS job, not just lint, on any PR that touches
 
 ## Start here
 
-1. **Ask Sean what his phone showed** for #508 (Apple through "create an
-   account" as an existing account → discover, nothing re-asked) and #509
-   (the handle step carrying on with `@seantest`), and whether one product
-   logged as him. Only his phone can drive those. **A merge grant is
+1. **Ask Sean what his phone showed for #508** (Apple through "create an
+   account" as an existing account → discover, nothing re-asked). #509 is
+   confirmed by his screenshot (`@seantest` on his profile) and he has two
+   items logged. Then the new sheets on his phone: the shade sheet's
+   `swipe up for more`, the item sheet without `full page`. **A merge grant is
    per-session — do not assume tonight's carries.**
 2. **If he sends more onboarding notes,** the shape that worked: one note =
    one branch off `main`, `GLO-108` in the name, the note quoted in the PR,
    driven on the simulator with `SIMCTL_CHILD_GLOSSED_ONBOARDING=1` before
    pushing. Ticket bodies go on GLO-108 as a comment (Linear refuses creates).
-3. **Then the standing chores:** Shopify fill step 2 (slot 0058), `supabase
+3. **Two fixtures worth adding** to the debug catalog: an empty shelf and an
+   empty profile (tonight they were driven as juli on a throwaway branch —
+   see the second "Session 22" block).
+4. **Then the standing chores:** Shopify fill step 2 (slot 0058), `supabase
    login`, the stylist's lexicon growth from real misses, STY-8 then SAV-2 when
    the slot frees, and the thirteen packages not re-run tonight (`make test`).
-4. Housekeeping: `phone/sep-2-onboarding` in the main checkout is superseded
+5. Housekeeping: `phone/sep-2-onboarding` in the main checkout is superseded
    by `main` and can be deleted.
 
 ## Route around these — blocked on Sean, not on code
@@ -57,7 +61,9 @@ And: *wait for the iOS job, not just lint, on any PR that touches
   origin/<branch> && git rebase --onto origin/main <old-base-tip>`, push with
   `--force-with-lease`, retarget, read the surviving commits, merge, repeat.
   §3 has the loop.
-- **Edit scripts anchor on raw text.** zsh: `$pipestatus`, `printf '%s'` for
+- **Edit scripts anchor on raw text, with `^`-anchored regexes** — an
+  indented line is a substring of its deeper twin — **and the chain ends on
+  the script's exit code.** zsh: `$pipestatus`, `printf '%s'` for
   JSON; `(cd pkg && swift test)`; `for pair in "a b"` does not word-split —
   use `${pair%% *}` / `${pair##* }`. Never `source` a `sed` range of a script.
 - The simulator drive: `make run`, then relaunch with
@@ -79,17 +85,18 @@ And: *wait for the iOS job, not just lint, on any PR that touches
 
 ## State at handoff, verified not recalled
 
-**Zero open, twenty-one merged** (#491–#511). `main` `4ef961e`: swiftlint and
+**Zero open, thirty-one merged** (#491–#521). `main` `fe0f658`: swiftlint and
 swiftformat clean; simulator build green, fresh dylib; Onboarding 78, Profile
-106, DesignSystem 54, Stylist 11, Tracking 16; the stylist function's 97 deno
+108, DesignSystem 54, Stylist 11, Tracking 16, Shelf 144, AddLadder 125,
+ProductPage 22; the stylist function's 97 deno
 tests; FLOW 1 driven from `main` on the simulator (hook → quiz → tone →
 payoff bay with images → *create your account*). The other thirteen packages
-were not re-run. Sean's phone: the 18:00 build of the #511 tree, entitlement
+were not re-run. Sean's phone: the 19:26 build of `fe0f658`, entitlement
 and dev-sign-in-off proven, launched. Local stack up, `supabase functions
 serve` running (pid from the `glo-145-fitsection-gate` worktree, with the
 stylist key in its `.env`). Hosted: unchanged — 0 products, 0 users, no
 functions, no secrets.
 
-**Not driven:** #508 and #509 with a real Apple ID (Sean), #504's
-after-recording, the stylist tab on `main` (built and linked; not opened
-tonight).
+**Not driven:** #508 with a real Apple ID (Sean), #504's after-recording,
+the stylist tab on `main` (built and linked; not opened tonight), the new
+sheets on a phone.
