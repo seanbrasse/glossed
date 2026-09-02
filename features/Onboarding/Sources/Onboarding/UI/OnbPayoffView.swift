@@ -68,19 +68,76 @@ public struct OnbPayoffView: View {
             .padding(.top, Tokens.Space.s2)
     }
 
-    /// PRD §06·6's fallback: swatches-and-say-nothing. No counts, no
-    /// "match", nothing that reads as a claim — the words explain what will
-    /// exist, not what does. (Copy is not in the kit — workshop candidate.)
+    /// Sean, Sep 2: *"I also don't get what this screen is for … show an
+    /// example shelf full of popular products and be like build your
+    /// shelf."* The neutral path used to be PRD §06·6's say-nothing
+    /// fallback — a headline and a sentence about matches that do not exist
+    /// yet, over 800pt of milk. Now it says what a shelf IS and shows one:
+    /// six products, each with its n when the leaderboard supplied it, or
+    /// labelled as an example when the catalog stood in. The claim rule
+    /// holds either way — see `PayoffModel.shelfEyebrow`.
     @ViewBuilder
     private var neutralBlock: some View {
         Text("YOUR SHELF, NEXT").eyebrow()
-        Text("let\u{2019}s get your\nshelf built")
+        Text("build your\nshelf")
             .font(Typography.display(31))
             .tracking(-0.62)
             .foregroundStyle(Tokens.Ink.primary)
             .padding(.top, 12)
-        Text("as people with your exact products log how they fit, your matches show up here — with the receipts")
-            .meta()
+        Text("every product you own, ranked by which one you actually reach for")
+            .handAside()
+            .rotationEffect(.degrees(-1))
+        if !model.shelf.isEmpty {
+            exampleShelf
+                .padding(.top, Tokens.Space.s3)
+        }
+    }
+
+    /// Three across, two down — the shelf's own bay, at a glance.
+    private var exampleShelf: some View {
+        VStack(alignment: .leading, spacing: Tokens.Space.s2) {
+            Text(PayoffModel.shelfEyebrow(isRanked: model.shelfIsRanked)).eyebrow()
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: Tokens.Space.s2), count: 3),
+                spacing: Tokens.Space.s3
+            ) {
+                ForEach(model.shelf) { pick in
+                    shelfTile(pick)
+                }
+            }
+        }
+        .animation(.easeOut(duration: Tokens.Motion.med), value: model.shelf)
+    }
+
+    private func shelfTile(_ pick: PayoffModel.ShelfPick) -> some View {
+        VStack(alignment: .leading, spacing: Tokens.Space.s1) {
+            Color.clear
+                .aspectRatio(1, contentMode: .fit)
+                .overlay {
+                    ProductImage(
+                        catalog: pick.imageURL,
+                        kind: ProductMock.Kind.usual(forCategory: pick.categorySlug),
+                        tint: Tokens.Cherry.soft,
+                        scale: 0.7
+                    )
+                }
+                .background(Tokens.Ground.card)
+                .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.md))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Tokens.Radius.md)
+                        .strokeBorder(Tokens.Ground.line, lineWidth: Tokens.Border.hair)
+                )
+            Text(pick.brand).meta().lineLimit(1)
+            Text(pick.name)
+                .font(Typography.display(Typography.Size.small, weight: 700))
+                .foregroundStyle(Tokens.Ink.primary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            if let line = PayoffModel.shelfLine(pick) {
+                Text(line).meta()
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var loadingBlock: some View {
@@ -100,7 +157,9 @@ public struct OnbPayoffView: View {
 
     private var footer: some View {
         VStack(spacing: Tokens.Space.s2) {
-            Button("save my shelf", action: onContinue)
+            // "create your account", not "save my shelf" (Sean, Sep 2): the
+            // door says what is behind it.
+            Button("create your account", action: onContinue)
                 .buttonStyle(.glossed(block: true))
             if case .backed = model.phase, let anchor = model.anchor {
                 Text(PayoffModel.footerLine(anchor))

@@ -17,6 +17,8 @@ public struct OnboardingFlowView<Tour: View>: View {
     @State private var flow: OnboardingFlowModel
     private let anchorCatalog: [ShadeAnchorPicker.BrandEntry]
     private let payoff: (@Sendable (UUID) async throws -> PayoffEvidence)?
+    /// The payoff's example shelf. Nil shows the words alone.
+    private let sampleShelf: (@Sendable () async throws -> [PayoffModel.ShelfPick])?
     private let shelfStarterCount: Int
     /// Absent, the handle step accepts anything and claims nothing — the same
     /// nil-means-unwired rule every other seam here follows. The app fills it.
@@ -32,6 +34,7 @@ public struct OnboardingFlowView<Tour: View>: View {
         flow: OnboardingFlowModel,
         anchorCatalog: [ShadeAnchorPicker.BrandEntry],
         payoff: (@Sendable (UUID) async throws -> PayoffEvidence)? = nil,
+        sampleShelf: (@Sendable () async throws -> [PayoffModel.ShelfPick])? = nil,
         shelfStarterCount: Int = 0,
         handleStore: OnbHandleStore? = nil,
         onScan: (() -> Void)? = nil,
@@ -43,6 +46,7 @@ public struct OnboardingFlowView<Tour: View>: View {
         _flow = State(initialValue: flow)
         self.anchorCatalog = anchorCatalog
         self.payoff = payoff
+        self.sampleShelf = sampleShelf
         self.shelfStarterCount = shelfStarterCount
         self.handleStore = handleStore
         self.onScan = onScan
@@ -82,7 +86,7 @@ public struct OnboardingFlowView<Tour: View>: View {
             // The anchor comes from the quiz or not at all — see
             // `OnboardingFlowModel.payoffAnchor`.
             OnbPayoffView(
-                model: PayoffModel(anchor: flow.payoffAnchor, payoff: payoff),
+                model: PayoffModel(anchor: flow.payoffAnchor, payoff: payoff, sampleShelf: sampleShelf),
                 onBack: { flow.payoffBacked() },
                 onContinue: { flow.payoffContinued() }
             )
