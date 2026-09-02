@@ -75,6 +75,17 @@ db-reset:
 	-./scripts/catalog_snapshot.sh save
 	supabase db reset
 	-./scripts/catalog_snapshot.sh load
+	-./scripts/catalog_storage.sh reconcile
+
+# The images are the other half of the catalog (GLO-223): the files survive a
+# reset on the storage volume, the rows that index them do not. `reconcile`
+# recreates the bucket if the config declaration did not, registers every file
+# on the volume, and proves one serves. `count` says whether you need it.
+catalog-images:
+	./scripts/catalog_storage.sh reconcile
+
+catalog-images-count:
+	./scripts/catalog_storage.sh count
 
 catalog-snapshot:
 	./scripts/catalog_snapshot.sh save

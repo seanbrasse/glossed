@@ -116,6 +116,15 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
+# The catalog image bucket — public cutouts written by scripts/catalog_images.ts
+# and read straight by the app (`storage/v1/object/public/catalog/<key>`).
+# Declared here so `supabase start` and `db reset` recreate it: a reset drops the
+# `storage` schema, and for a day every product photo was a placeholder while
+# 1.9 GB of files sat on the volume with no bucket row in front of them
+# (GLO-223). The object rows come back via scripts/catalog_storage.sh.
+[storage.buckets.catalog]
+public = true
+
 # Uncomment to configure local storage buckets
 # [storage.buckets.images]
 # public = false
