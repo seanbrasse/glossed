@@ -245,9 +245,6 @@ final class AppSession {
         Task { await tracker.flush() }
     }
 
-    /// Nil profile means the quiz was never answered. The env override exists
-    /// because both seeded accounts already have a profiles row (GLO-182), so
-    /// without it the flow is unreachable in every drive this project makes.
     /// The phone's boot when no account is signed in: FLOW 1 makes one. A
     /// session the keychain kept from an earlier dev build is maya's, not
     /// the person's — iOS keeps keychain items across an uninstall — so it
@@ -264,34 +261,6 @@ final class AppSession {
         imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
         phase = .ready
         return true
-    }
-
-    /// `seed.sql`'s maya — the dev sign-in's user, and the one account a
-    /// phone must never keep.
-    private static let seededDevUserID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")
-
-    /// `GLOSSED_DEV_SIGN_IN=0` in the launch environment or, for a phone
-    /// that launches with none, `GlossedDevSignIn` in the bundle.
-    /// A release build has no dev sign-in at all: the person's own account
-    /// or FLOW 1, which is what a TestFlight build needs to boot (GLO-50).
-    private static func devSignInIsOff(_ environment: [String: String]) -> Bool {
-        #if DEBUG
-            let fromEnvironment = environment["GLOSSED_DEV_SIGN_IN"]
-            let fromBundle = Bundle.main.object(forInfoDictionaryKey: "GlossedDevSignIn") as? String
-            return (fromEnvironment ?? fromBundle) == "0"
-        #else
-            _ = environment
-            return true
-        #endif
-    }
-
-    private static func needsOnboarding(
-        _ profiles: ProfileRepository, environment: [String: String]
-    ) async throws -> Bool {
-        if environment["GLOSSED_ONBOARDING"] == "1" {
-            return true
-        }
-        return try await profiles.own() == nil
     }
 
     /// Onboarding wrote a profile, so the reason to show it is gone. Re-reads
