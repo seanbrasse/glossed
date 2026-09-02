@@ -90,3 +90,16 @@ private let png = Data([0x89, 0x50, 0x4E, 0x47])
     model.removePhoto(first)
     #expect(model.photos.map(\.position) == [0])
 }
+
+@MainActor
+@Test func fittingAPhotoSwapsItsBytesAndKeepsItsSlot() {
+    let model = ComposerModel(store: store())
+    model.addPhotos([Data([1]), Data([2])])
+    let second = model.photos[1].id
+
+    model.replacePhoto(second, with: Data([9, 9]))
+
+    #expect(model.photos.map(\.localData) == [Data([1]), Data([9, 9])], "the bytes changed in place")
+    #expect(model.photos[1].id == second, "same photo, same id")
+    #expect(model.photos.map(\.position) == [0, 1], "same slot")
+}

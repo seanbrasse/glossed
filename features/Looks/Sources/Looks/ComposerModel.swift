@@ -8,7 +8,9 @@ import Observation
 /// simulator has neither, and the composer must be drivable without them).
 public struct ComposerPhoto: Identifiable, Sendable, Equatable {
     public let id: UUID
-    public let localData: Data
+    /// The bytes that upload. Replaced in place by `replacePhoto` when the
+    /// photo is fitted to the frame; the id and slot survive the swap.
+    public internal(set) var localData: Data
     public var position: Int
 
     public init(id: UUID = UUID(), localData: Data, position: Int) {
@@ -181,6 +183,16 @@ public final class ComposerModel {
     /// survived its photo's removal — leaving coordinates into a photo that no
     /// longer existed. A tag pins to a PHOTO now, so it goes when the photo
     /// does.
+    /// Swaps a photo's bytes for a fitted crop of them, keeping its id and
+    /// slot. Spots on it are dropped: a spot is a coordinate INTO the photo,
+    /// and the photo's coordinates just changed — the tag would point at
+    /// nothing, which is the gap GLO-266 names.
+    public func replacePhoto(_ id: UUID, with data: Data) {
+        guard let index = photos.firstIndex(where: { $0.id == id }) else { return }
+        photos[index].localData = data
+        tagBoard.removeSpots(on: id)
+    }
+
     public func removePhoto(_ id: UUID) {
         photos.removeAll { $0.id == id }
         renumber()
