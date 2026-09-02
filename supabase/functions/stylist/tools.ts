@@ -516,8 +516,12 @@ export function validateArtifact(
       };
     }
     case "suggest_chips": {
+      // A chip over the limit is dropped, not cut: a sliced word on a
+      // tappable button reads as a bug, and the model was told the limit.
       const chips = Array.isArray(input.chips)
-        ? input.chips.map((c) => str(c, 32)).filter((c): c is string => c !== null)
+        ? input.chips.map((c) => str(c, 200)).filter((c): c is string =>
+          c !== null && c.length <= 32
+        )
         : [];
       const unique = [...new Set(chips.map((c) => c.toLowerCase()))].slice(0, MAX_CHIPS);
       if (unique.length === 0) {

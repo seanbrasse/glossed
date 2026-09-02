@@ -179,10 +179,19 @@ Deno.test("looks and collections must be the person's own", () => {
   assert(!validateArtifact("reference_collection", { collection_id: STRANGER }, ctx, new Map()).ok);
 });
 
-Deno.test("chips are lowercased, deduplicated and capped", () => {
+Deno.test("chips are lowercased, deduplicated, capped, and an over-long one is dropped not cut", () => {
   const v = validateArtifact(
     "suggest_chips",
-    { chips: ["Build My PM Routine", "build my pm routine", "a", "b", "c"] },
+    {
+      chips: [
+        "Build My PM Routine",
+        "build my pm routine",
+        "a chip that runs well past the thirty-two character line",
+        "a",
+        "b",
+        "c",
+      ],
+    },
     ctx,
     new Map(),
   );

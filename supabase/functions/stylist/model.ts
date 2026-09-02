@@ -107,7 +107,9 @@ export async function runModelTurn(
   let chips: string[] = [];
   const toolsUsed: string[] = ["model"];
   const searched = new Map<string, CatalogHit>();
-  let text = "";
+  /// Every response's words, in order — the model often answers before it
+  /// calls a tool and adds a line after, and the person should read both.
+  const texts: string[] = [];
   let calls = 0;
 
   const textOf = (content: Anthropic.ContentBlock[]) =>
@@ -125,11 +127,12 @@ export async function runModelTurn(
         messages,
         output_config: { effort: "low" },
       });
-      text = textOf(response.content);
       if (response.stop_reason === "refusal") {
-        text = "";
+        texts.length = 0;
         break;
       }
+      const said = textOf(response.content).trim();
+      if (said) texts.push(said);
       if (response.stop_reason !== "tool_use") break;
 
       const uses = response.content.filter((b): b is Anthropic.ToolUseBlock =>
@@ -189,7 +192,8 @@ export async function runModelTurn(
           tools,
           output_config: { effort: "low" },
         });
-        text = textOf(final.content);
+        const last = textOf(final.content).trim();
+        if (last) texts.push(last);
         break;
       }
     }
@@ -204,7 +208,7 @@ export async function runModelTurn(
 
   return {
     ok: true,
-    reply: assembleReply(text, blocks, chips, toolsUsed, [
+    reply: assembleReply(texts.join("\n\n"), blocks, chips, toolsUsed, [
       "profile",
       "shelf",
       "routines",
