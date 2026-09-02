@@ -62,6 +62,11 @@ public final class AccountModel {
     /// the walk has to be able to SAY it is done — the caller reads this and
     /// lands them.
     public private(set) var isAuthenticated = false
+    /// True when a SIGNUP walk turned out to be a returning account — Apple
+    /// handed back a user who already has a profile. The flow reads it to
+    /// land on discover instead of asking for a birthday, a name and a
+    /// handle the person already gave (Sean, Sep 2).
+    public private(set) var accountExists = false
 
     public let mode: Mode
     /// Internal rather than private so the Apple walk one file over can read
@@ -89,6 +94,15 @@ public final class AccountModel {
         } else {
             stage = .birthday
         }
+    }
+
+    /// Apple answered on the signup path, and the store says this account
+    /// already has a profile: land, the way login lands. Nothing is
+    /// re-asked and nothing is rewritten — the batch write never runs.
+    func landAsExistingAccount() {
+        method = .apple
+        accountExists = true
+        isAuthenticated = true
     }
 
     public func choosePhone() {

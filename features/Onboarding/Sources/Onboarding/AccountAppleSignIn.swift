@@ -38,7 +38,15 @@ public extension AccountModel {
             do {
                 try await handoff()
                 guard let self else { return }
-                chooseApple()
+                // Same Apple ID, same user: "create an account" with an
+                // account is a login through the other door. A failed read
+                // is treated as "new" — the write is idempotent, and
+                // re-asking beats refusing.
+                if mode == .signup, await (try? store?.hasProfile()) == true {
+                    landAsExistingAccount()
+                } else {
+                    chooseApple()
+                }
                 onDone()
             } catch let error as ASAuthorizationError where error.code == .canceled {
                 return

@@ -159,6 +159,11 @@ public final class OnboardingFlowModel {
             // already has a handle; asking again would be the flow re-asking
             // the one thing this path exists not to.
             exit = .discover
+        case .signup where account?.accountExists == true:
+            // Signup that turned out to be a returning account (Sean, Sep 2):
+            // the same rule as login. The profile screen still offers the
+            // claim prompt to anyone whose profile predates handles.
+            exit = .discover
         case .signup:
             stop = .handle
         }
