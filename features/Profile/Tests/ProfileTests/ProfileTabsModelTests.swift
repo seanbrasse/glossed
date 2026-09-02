@@ -167,6 +167,35 @@ private func scopesStore(
     #expect(model.isEmpty)
 }
 
+@MainActor
+@Test func theTabStripHidesWhileTheWholeProfileIsEmpty() async {
+    // Sean, Sep 2: the strip under the one `nothing here yet` card named
+    // the same three things twice. Empty profile: the card alone.
+    let model = ProfileTabsModel(
+        looks: ProfileLooksStore(mine: { [] }),
+        collections: ProfileCollectionsStore(mine: { [] }),
+        routines: ProfileRoutinesStore(mine: { [] })
+    )
+    #expect(!model.showsTabStrip, "loading: no strip over the skeleton")
+    await model.load()
+    #expect(model.isEmpty)
+    #expect(!model.showsTabStrip)
+}
+
+@MainActor
+@Test func theTabStripShowsOnceAnyTabHasContent() async {
+    // "Once we add one of these, then we should have the toggle" — one
+    // routine is enough; the other tabs then render their own empty pane.
+    let model = ProfileTabsModel(
+        looks: ProfileLooksStore(mine: { [] }),
+        collections: ProfileCollectionsStore(mine: { [] }),
+        routines: ProfileRoutinesStore(mine: { [routine()] })
+    )
+    await model.load()
+    #expect(!model.isEmpty)
+    #expect(model.showsTabStrip)
+}
+
 @Test func theComposerCopyNamesTheThingAndStops() {
     // GLO-189: no copy may imply a look is reviewed or promise an audience.
     #expect(ProfileComposable.allCases.map(\.label) == ["a look", "a collection", "a routine"])
