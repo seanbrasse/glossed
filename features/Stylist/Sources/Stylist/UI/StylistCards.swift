@@ -5,89 +5,125 @@ import SwiftUI
 // built from the same primitives — the profile's are internal to it, and
 // features never import features.
 
-/// The one pop moment in the thread: a routine the person can save.
+/// The one pop moment in the thread: a routine the person can save. Its
+/// step rows wear the routine detail's shape (brand eyebrow, name, note)
+/// so the card and the routine it becomes read as the same object.
 struct RoutineDraftCard: View {
     let draft: RoutineDraftBlock
-    let saved: Bool
+    /// The id the save minted, once it has — the card then offers the door.
+    let savedID: UUID?
     let saving: Bool
     let onSave: (() -> Void)?
+    let onOpen: ((UUID) -> Void)?
 
     var body: some View {
         GlossedCard(pop: true) {
             VStack(alignment: .leading, spacing: Tokens.Space.s3) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("\(slotWord) routine · from your shelf").eyebrow()
+                    Text("\(slotWord) · from your shelf").eyebrow()
                     Spacer(minLength: Tokens.Space.s2)
-                    Text("\(draft.steps.count) steps").meta()
+                    Text("\(draft.steps.count) \(draft.steps.count == 1 ? "step" : "steps")").meta()
                 }
-                Text(draft.title)
-                    .font(Typography.display(Typography.Size.h2))
-                    .foregroundStyle(Tokens.Ink.primary)
+                VStack(alignment: .leading, spacing: Tokens.Space.s1) {
+                    Text(draft.title)
+                        .font(Typography.display(Typography.Size.h2))
+                        .foregroundStyle(Tokens.Ink.primary)
+                    if !draft.targets.isEmpty {
+                        Text("for \(draft.targets.joined(separator: ", "))").meta()
+                    }
+                }
                 VStack(alignment: .leading, spacing: Tokens.Space.s2) {
                     ForEach(Array(draft.steps.enumerated()), id: \.offset) { index, step in
                         stepRow(index + 1, step)
                     }
                     if let gap = draft.gap {
-                        gapRow(gap, number: draft.steps.count + 1)
+                        gapRow(gap)
                     }
                 }
-                if !draft.targets.isEmpty {
-                    Text("targets \(draft.targets.joined(separator: ", ")) · built from your shelf, not the catalog")
-                        .meta()
-                }
-                if let onSave {
-                    // Three labels, one button: the transaction is cleared so
-                    // the words swap instead of cross-fading on top of each
-                    // other mid-save (seen in the first drive).
-                    Button(saved ? "saved to your routines" : saving ? "saving…" : "save to my routines") { onSave() }
-                        .buttonStyle(.glossed(saved ? .secondary : .primary, block: true))
-                        .disabled(saved || saving)
-                        .transaction { $0.animation = nil }
-                }
+                footer
             }
         }
     }
 
     private var slotWord: String {
         switch draft.slot {
+        case "am": "morning"
+        case "pm": "night"
         case "wash_day": "wash day"
         default: draft.slot
         }
     }
 
-    private func stepRow(_ number: Int, _ step: RoutineDraftBlock.Step) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Tokens.Space.s3) {
-            Text("\(number)")
-                .font(Typography.mono(Typography.Size.meta, bold: true))
-                .foregroundStyle(Tokens.Cherry.deep)
-                .frame(width: 18, alignment: .leading)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(step.productName)
-                    .font(Typography.control(Typography.Size.body))
-                    .foregroundStyle(Tokens.Ink.primary)
-                Text([step.brandName, step.categoryLabel, step.note].compactMap(\.self).joined(separator: " · ")).meta()
+    /// Three states, one place: the save, the save in flight, and — once
+    /// it landed — where it went and the door onto it. The transaction is
+    /// cleared so the words swap instead of cross-fading (first drive).
+    @ViewBuilder private var footer: some View {
+        if let savedID {
+            HStack(spacing: Tokens.Space.s3) {
+                HStack(spacing: 5) {
+                    Circle().fill(Tokens.Support.mint).frame(width: 5, height: 5)
+                    Text("saved to your routines").meta(color: Tokens.Ink.primary)
+                }
+                Spacer(minLength: 0)
+                if let onOpen {
+                    Button("open it") { onOpen(savedID) }
+                        .buttonStyle(.glossed(.secondary, size: .sm))
+                }
             }
+            .transaction { $0.animation = nil }
+        } else if let onSave {
+            Button(saving ? "saving…" : "save to my routines") { onSave() }
+                .buttonStyle(.glossed(.primary, block: true))
+                .disabled(saving)
+                .transaction { $0.animation = nil }
         }
     }
 
-    private func gapRow(_ gap: RoutineDraftBlock.Gap, number: Int) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Tokens.Space.s3) {
+    private func stepRow(_ number: Int, _ step: RoutineDraftBlock.Step) -> some View {
+        HStack(alignment: .top, spacing: Tokens.Space.s3) {
             Text("\(number)")
                 .font(Typography.mono(Typography.Size.meta, bold: true))
-                .foregroundStyle(Tokens.Ink.faint)
-                .frame(width: 18, alignment: .leading)
+                .foregroundStyle(Tokens.Cherry.deep)
+                .frame(width: 18, alignment: .trailing)
+                .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(gap.categoryLabel) · not on your shelf")
-                    .font(Typography.control(Typography.Size.body))
+                Text("\(step.brandName) · \(step.categoryLabel)").eyebrow()
+                Text(step.productName)
+                    .font(Typography.display(Typography.Size.small))
+                    .foregroundStyle(Tokens.Ink.primary)
+                if let note = step.note, !note.isEmpty {
+                    Text(note)
+                        .font(Typography.control(Typography.Size.small, weight: .regular))
+                        .foregroundStyle(Tokens.Ink.soft)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// The gap is not a step: it wears a `+` where the number would be, and
+    /// faint ink, so a three-step routine never reads as four.
+    private func gapRow(_ gap: RoutineDraftBlock.Gap) -> some View {
+        HStack(alignment: .top, spacing: Tokens.Space.s3) {
+            Text("+")
+                .font(Typography.mono(Typography.Size.meta, bold: true))
+                .foregroundStyle(Tokens.Ink.faint)
+                .frame(width: 18, alignment: .trailing)
+                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("not on your shelf yet").eyebrow(color: Tokens.Ink.faint)
+                Text(gap.categoryLabel)
+                    .font(Typography.display(Typography.Size.small))
                     .foregroundStyle(Tokens.Ink.faint)
                 Text(gap.reason).meta()
             }
+            Spacer(minLength: 0)
         }
     }
 }
 
 /// Products with their evidence. Every row says whose n it carries: the
-/// person's own rank, or the catalog's face-offs — never a star.
+/// person's own rank, a cohort's face-offs, or the catalog's — never a star.
 struct ProductListCard: View {
     let list: ProductListBlock
     let imageURL: ((String) -> URL?)?
@@ -133,12 +169,25 @@ struct ProductListCard: View {
         }
     }
 
+    /// The server names the receipt (`basis_label`, `basis_n`) when the row
+    /// came from a cohort read; the shelf's own rank otherwise; the catalog's
+    /// face-offs as the floor. A zero-n basis is shown as its words — "a
+    /// wander, no evidence" — never as a count.
     @ViewBuilder
     private func evidence(_ product: ProductListBlock.Product) -> some View {
-        if product.onShelf, let rank = product.rankPosition, let of = product.rankedInCategory, of > 0 {
+        if let label = product.basisLabel {
+            if let n = product.basisN, n > 0 {
+                EvidenceLine(n: n, label: label)
+            } else {
+                Text(label).meta()
+            }
+            if product.onShelf {
+                Text("on your shelf").meta()
+            }
+        } else if product.onShelf, let rank = product.rankPosition, let of = product.rankedInCategory, of > 0 {
             Text("on your shelf · #\(rank) of \(of) in \(product.categorySlug)").meta()
         } else if product.onShelf {
-            Text("on your shelf").meta()
+            Text("on your shelf · not ranked yet").meta()
         } else {
             EvidenceLine(n: product.faceOffCount ?? 0, label: "face-offs", empty: "no face-offs yet")
         }

@@ -28,18 +28,18 @@ struct DemoFixtures: Sendable {
         let asked = asked.lowercased()
         if asked.contains("routine") {
             return StylistReply(
-                text: "demo · tight after cleansing reads as a barrier that wants moisture back fast. "
-                    + "here's the morning, with the one gap named.",
-                blocks: [.routine(routine)], chips: ["save it", "what's missing for dryness", "build my pm routine"],
-                groundedIn: ["profile", "shelf"], toolsUsed: ["propose_routine", "suggest_chips"]
+                text: "demo · your morning skincare, from what you own — 3 steps. the one gap is sunscreen.",
+                blocks: [.routine(routine)],
+                chips: ["build my pm routine", "what's missing for my skin", "what should i try next"],
+                groundedIn: ["profile", "shelf", "routines"], toolsUsed: ["plan_routine"]
             )
         }
         if asked.contains("serum") || asked.contains("compare") || asked.contains("try next") {
             return StylistReply(
-                text: "demo · you ranked the ordinary first of your two serums. "
-                    + "people with dry skin who face-off cloud serum keep it too.",
-                blocks: [.products(products)], chips: ["add cloud serum to want to try", "not now"],
-                groundedIn: ["shelf", "search_catalog"], toolsUsed: ["search_catalog", "show_products", "suggest_chips"]
+                text: "demo · you ranked niacinamide 10% + zinc #1 of 2 in serums + actives; "
+                    + "cloud serum is what people who wear your shade reach for next.",
+                blocks: [.products(products)], chips: ["what's missing for my skin", "build my am routine"],
+                groundedIn: ["shelf", "crosswalk"], toolsUsed: ["plan_compare", "crosswalk"]
             )
         }
         if asked.contains("look") {
@@ -84,17 +84,17 @@ struct DemoFixtures: Sendable {
                 ),
                 .init(
                     userItemID: shelfItemID, productName: "niacinamide 10% + zinc", brandName: "the ordinary",
-                    categoryLabel: "serums + actives", note: "wait two minutes before the next step"
+                    categoryLabel: "serums + actives", note: nil
                 ),
                 .init(
                     userItemID: shelfItemID,
                     productName: "you",
                     brandName: "glossier",
                     categoryLabel: "moisturizer",
-                    note: nil
+                    note: "last before the door"
                 )
             ],
-            gap: .init(categoryLabel: "sunscreen", reason: "the one step you own nothing for")
+            gap: .init(categoryLabel: "sun", reason: "the step that protects everything above it")
         )
     }
 
@@ -102,11 +102,13 @@ struct DemoFixtures: Sendable {
         ProductListBlock(reason: "the two serums you own, ranked by you", products: [
             .init(
                 productID: UUID(), name: "niacinamide 10% + zinc", brandName: "the ordinary", categorySlug: "serum",
-                onShelf: true, rankPosition: 1, rankedInCategory: 2, faceOffCount: nil, catalogImageKey: nil
+                onShelf: true, rankPosition: 1, rankedInCategory: 2, faceOffCount: nil, catalogImageKey: nil,
+                basisLabel: nil, basisN: nil
             ),
             .init(
                 productID: UUID(), name: "cloud serum", brandName: "somebrand", categorySlug: "serum",
-                onShelf: false, rankPosition: nil, rankedInCategory: nil, faceOffCount: 12, catalogImageKey: nil
+                onShelf: false, rankPosition: nil, rankedInCategory: nil, faceOffCount: 12, catalogImageKey: nil,
+                basisLabel: "people who wear 230 also wear it", basisN: 12
             )
         ])
     }

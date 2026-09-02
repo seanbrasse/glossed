@@ -12,7 +12,11 @@ private let sample = """
    {"type":"product_list","reason":"two serums","products":[
      {"product_id":"22222222-2222-4222-8222-222222222222","name":"niacinamide 10% + zinc",
       "brand_name":"the ordinary","category_slug":"serum","on_shelf":true,"rank_position":1,
-      "ranked_in_category":2,"n_face_offs":null,"catalog_image_key":null}]},
+      "ranked_in_category":2,"n_face_offs":null,"catalog_image_key":null},
+     {"product_id":"55555555-5555-4555-8555-555555555555","name":"cloud serum",
+      "brand_name":"somebrand","category_slug":"serum","on_shelf":false,"rank_position":null,
+      "ranked_in_category":null,"n_face_offs":12,"catalog_image_key":null,
+      "basis_label":"face-offs by people who wear your shade","basis_n":12}]},
    {"type":"look_ref","look_id":"33333333-3333-4333-8333-333333333333","caption":"golden hour","photo_n":2},
    {"type":"collection_ref","collection_id":"44444444-4444-4444-8444-444444444444",
     "title":"holy grails only","item_n":1},
@@ -33,6 +37,9 @@ private let sample = """
     guard case let .products(list) = reply.blocks[1] else { Issue.record("second block is the list"); return }
     #expect(list.products.first?.onShelf == true)
     #expect(list.products.first?.rankPosition == 1)
+    #expect(list.products.first?.basisLabel == nil, "a row without a basis decodes — the key is optional")
+    #expect(list.products.last?.basisLabel == "face-offs by people who wear your shade")
+    #expect(list.products.last?.basisN == 12)
     guard case let .look(look) = reply.blocks[2] else { Issue.record("third block is the look"); return }
     #expect(look.photoN == 2)
     guard case let .collection(collection) = reply.blocks[3]

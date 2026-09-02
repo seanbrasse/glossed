@@ -80,6 +80,11 @@ public struct ProductListBlock: Codable, Sendable, Equatable, Hashable {
         public let rankedInCategory: Int?
         public let faceOffCount: Int?
         public let catalogImageKey: String?
+        /// Whose receipt the row carries and its n — "face-offs by people
+        /// who wear your shade" · 12 — as the server decided it. Nil when
+        /// the evidence is the shelf's own rank, or the catalog's face-offs.
+        public let basisLabel: String?
+        public let basisN: Int?
 
         enum CodingKeys: String, CodingKey {
             case productID = "product_id"
@@ -91,6 +96,8 @@ public struct ProductListBlock: Codable, Sendable, Equatable, Hashable {
             case rankedInCategory = "ranked_in_category"
             case faceOffCount = "n_face_offs"
             case catalogImageKey = "catalog_image_key"
+            case basisLabel = "basis_label"
+            case basisN = "basis_n"
         }
     }
 

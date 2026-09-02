@@ -9,6 +9,9 @@ public struct StylistView: View {
     private let onOpenLook: ((UUID) -> Void)?
     private let onOpenCollection: ((UUID) -> Void)?
     private let onOpenProduct: ((UUID) -> Void)?
+    /// A saved routine card's door: the routine it became, opened as the
+    /// profile would open it — detail, then edit.
+    private let onOpenRoutine: ((UUID) -> Void)?
     private let imageURL: ((String) -> URL?)?
     private let shelfCount: Int?
 
@@ -18,7 +21,8 @@ public struct StylistView: View {
         imageURL: ((String) -> URL?)? = nil,
         onOpenLook: ((UUID) -> Void)? = nil,
         onOpenCollection: ((UUID) -> Void)? = nil,
-        onOpenProduct: ((UUID) -> Void)? = nil
+        onOpenProduct: ((UUID) -> Void)? = nil,
+        onOpenRoutine: ((UUID) -> Void)? = nil
     ) {
         _model = State(initialValue: model)
         self.shelfCount = shelfCount
@@ -26,6 +30,7 @@ public struct StylistView: View {
         self.onOpenLook = onOpenLook
         self.onOpenCollection = onOpenCollection
         self.onOpenProduct = onOpenProduct
+        self.onOpenRoutine = onOpenRoutine
     }
 
     public var body: some View {
@@ -83,7 +88,8 @@ public struct StylistView: View {
                             imageURL: imageURL,
                             onOpenLook: onOpenLook,
                             onOpenCollection: onOpenCollection,
-                            onOpenProduct: onOpenProduct
+                            onOpenProduct: onOpenProduct,
+                            onOpenRoutine: onOpenRoutine
                         )
                         .id(message.id)
                     }
@@ -189,6 +195,7 @@ struct StylistMessageView: View {
     let onOpenLook: ((UUID) -> Void)?
     let onOpenCollection: ((UUID) -> Void)?
     let onOpenProduct: ((UUID) -> Void)?
+    let onOpenRoutine: ((UUID) -> Void)?
 
     var body: some View {
         switch message.role {
@@ -235,9 +242,10 @@ struct StylistMessageView: View {
         case let .routine(draft):
             RoutineDraftCard(
                 draft: draft,
-                saved: model.savedRoutines.contains(draft),
+                savedID: model.savedRoutines[draft],
                 saving: model.savingRoutine == draft,
-                onSave: model.canSaveRoutines ? { model.save(routine: draft) } : nil
+                onSave: model.canSaveRoutines ? { model.save(routine: draft) } : nil,
+                onOpen: onOpenRoutine
             )
         case let .products(list):
             ProductListCard(list: list, imageURL: imageURL, onOpen: onOpenProduct)
