@@ -1,4 +1,4 @@
-# Session handoff — Sept 1 2026 (session 18: the app runs on Sean's phone, Apple sign-in is real, and hosted finally caught up)
+# Session handoff — Sept 2 2026 (session 19: the product photos came back, the tabs stopped remounting, and the category tree finally has a PR)
 
 Where Phase 1 stands, what to do next, and what the last three sessions learned.
 Read `docs/README.md` first for the design; this file is only about state.
@@ -6,6 +6,23 @@ Read `docs/README.md` first for the design; this file is only about state.
 **Starting a session?** [`docs/NEXT-SESSION.md`](NEXT-SESSION.md) is the short,
 pasteable version — what to start on, what is blocked on a human, and the rule
 that cost the most last time. This file is the reference it points at.
+
+## Session 19 at a glance (Sept 1 → 2)
+
+**0 PRs merged, 6 opened** — Sean was away, so nothing was merged and every
+change waits as a PR. `main` is still at `9be4ede`. Three of the six are a
+**stack** (#478 → #480 → #481) and must merge in that order.
+
+| What | Where |
+|---|---|
+| **Why the product photos vanished (Aug 31 ~11:39 UTC): a `db reset` drops the `storage` schema.** 3,206 products and 7,625 `variant_images` came back from the snapshot; **1.9 GB of cutouts were still on the storage volume**; but `storage.buckets` and `storage.objects` were empty, so Storage said *"Bucket not found"* for files it was standing on. `ProductImage` swallows a failed load into its floor by design, so nothing errored. **Local repaired** (13,877 rows registered, GETs `200 image/png`, cutouts back on the shelf in the simulator) | **#479**, GLO-223, §0 |
+| **The tab "glitches" are one bug: the shell's `switch` on `tab` is not a tab container.** Every switch unmounted the old screen and mounted the new one from nothing — state, scroll, and every `.task` gone. GLO-256's flash was one symptom. A `TabView` with its bar hidden per tab; driven: the shelf came back instantly with its cutouts **while the Docker daemon was being restarted underneath**, and a 163-frame `recordVideo` shows every switch as a cross-dissolve of two laid-out screens (frames on the ticket) | **#481**, GLO-256 |
+| **The profile reloads when a composer or editor closes** (GLO-278 — five covers, zero `onDismiss`), reloads *in place*, pulls to refresh, clears a stale toast, and its loading column is full width (the 60pt column GLO-256 recorded, at its source) | **#478 → #480**, GLO-278 |
+| **The category tree has its PR**: renumbered `0055 → 0057` on the branch, both commits, `size-override`, 8 pgTAP + DataKit 134 green, CI green | **#476**, GLO-272 |
+| **GLO-258's last five tables are in the suite** — 8 → 16 asserts. One latent finding: `RankingRepository.positions()` is unpinned (category + scope only) and has **no caller** yet | **#477**, GLO-258 |
+| **Sean's "updated products list" came through as a TAXONOMY, not products** — 0057 inserts categories only; zero `products` rows; the raw list is nowhere in the repo; the 202 leaves add no search reach until products are classified onto them | GLO-272 comment, §7 |
+| **A wedged edge runtime hangs the `you` tab for ~2 minutes** — `ProfileTabsModel.load()` is serial and awaits the tile presign. Docker here is **Colima**, not Docker Desktop; `docker rm/start/inspect` on the wedged container, `colima ssh`, `colima restart` and `colima stop -f` all hung; `limactl stop --force` under Colima's `LIMA_HOME` was the way out | §0, §8 |
+| Hosted, re-measured Sept 1: **0 products, 0 variants, 0 images, 0 buckets, 0 users, 22 categories.** No CLI token still | §7 |
 
 ## Session 18 at a glance (Sept 1)
 
@@ -86,6 +103,66 @@ not estimated. Highlights, in rough order of how much they matter:
 
 ## 0. Read this first
 
+### The catalog images live in the `storage` schema, and a `db reset` drops it
+
+The GLO-223 snapshot keeps eight public tables. It does not keep
+`storage.buckets` or `storage.objects`, and the `catalog` bucket was only ever
+created imperatively by `scripts/catalog_images.ts`. So after any reset the
+**files** (1.9 GB, `/mnt/stub/stub/catalog/<variant>/cut512.png/<version>` inside
+`supabase_storage_glossed`) survive and the **rows that index them** are gone.
+Storage answers `NoSuchBucket`; `ProductImage` renders its drawn floor; nothing
+errors. Every product photo was a placeholder from Aug 31 ~11:39 UTC until Sept 1
+and nobody noticed for a day — Sean asked *"why aren't we showing the actual
+product photos anymore."*
+
+**#479** (open) declares the bucket in `supabase/config.toml` — the CLI seeds
+declared buckets on `start` **and** `db reset` (read in `supabase/cli`'s
+`reset-local-database.ts`; prune of undeclared buckets defaults to *no*) — and
+adds `scripts/catalog_storage.sh reconcile`, which inventories the volume and
+registers every file as an object row with the `version` the file backend keys
+on. `make db-reset` runs it after the snapshot restore. **Until #479 merges**, run
+it by hand after any reset:
+
+```bash
+./scripts/catalog_storage.sh count      # bucket rows / object rows / files on volume / images without a file
+./scripts/catalog_storage.sh reconcile  # idempotent; proves one GET at the end
+```
+
+Not verified: a full `make db-reset` round-trip with #479 — a reset takes the
+local drive data out from under Sean's phone, and the standing rule is to ask.
+
+### A hung `storage_presign` hangs the whole `you` tab — and Docker here is Colima
+
+`ProfileTabsModel.load()` is serial and the looks read awaits the tile-preview
+presign. When the local edge runtime wedged on Sept 1 (`serving the request…`
+logged, never answered — even `{}` as a body hung, so the worker never booted),
+the profile sat on a spinner until URLSession gave up (~2 min), then rendered
+without previews. Probe before blaming the profile:
+
+```bash
+curl -s -m 10 -X POST http://127.0.0.1:54321/functions/v1/storage_presign \
+  -H "Authorization: Bearer $ANON" -H "apikey: $ANON" -H "Content-Type: application/json" -d '{}'
+# healthy: a 400 in <100ms. Anything else: the runtime is wedged.
+```
+
+Then: **the Docker daemon is Colima** (`docker context show`), not Docker
+Desktop — there is no app to quit. On the wedge, `docker rm -f` / `docker start` /
+`docker inspect` on the edge container hung indefinitely while `docker ps` and
+`docker exec` still worked; `colima ssh` hung; `colima restart` **and**
+`colima stop -f` hung too (both wait on the daemon's graceful stop). What
+actually stopped it:
+
+```bash
+LIMA_HOME=$HOME/.colima/_lima limactl stop --force colima   # colima's own Lima home, not ~/.lima
+colima start
+```
+
+Supabase's containers are `unless-stopped` and the DB volume persists, so the
+stack comes back on its own; then `docker rm -f supabase_edge_runtime_glossed`
+if one is left in `Created`, and `supabase functions serve` again. A follow-up worth making: resolve preview URLs
+*after* the lists render, with a timeout, so a dead presign costs previews and
+not the tab.
+
 ### Photos silently die when `supabase functions serve` is not running
 
 Every photo surface (pfp, look uploads, carousels, tile previews, swaps)
@@ -102,6 +179,9 @@ under Sean's profile API tokens) because Cloudflare's R2 dashboard writes
 were down mid-setup — rotate to bucket-scoped when their dashboard recovers.
 
 ### TWO migrations claim slot 0055, and one of them is mine
+
+**Resolved in session 19:** renamed to `0057` on the branch, PR #476 open and green.
+Next free number is **0058**. Left for one cycle; the shape below still holds.
 
 `main` now carries `20260901000055_an_account_cannot_be_under_13.sql` (#470,
 this session). The un-opened branch `feat/GLO-272-category-tree` carries
@@ -314,6 +394,12 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Thing | State |
 |---|---|
+| **The stack: #478 → #480 → #481** (profile reloads in place → shell tells it → tabs keep their state) | All three open, each builds clean. **Merge in order**, and after each squash re-check the next one's diff size (§0's inflation shape). #481 without #478/#480 would leave the profile never refreshing after a save, because leaving-and-returning was the accidental refresh |
+| **#479** — catalog images survive a reset | Open, CI green. Local already repaired by hand with the same script. **Until it merges, `make db-reset` still loses the image rows** — run `./scripts/catalog_storage.sh reconcile` after |
+| **#476** — the category tree (GLO-272 batch 3) | Open, CI green, `size-override`. Holds migration slot **0057**. Done looks like: merged, `categories()` still ~32 rows when driven |
+| **#477** — GLO-258's last five tables | Open, CI green. Appends to the same file #430 appends to; whichever lands second needs a trivial rebase |
+| **#478 lint went red on the size gate** (6 files, no label) | Label added, reason in the body, job re-run — confirm it is green before merging |
+| **Sean's product list** | Did not land as products (§7). Ask where the list is before building anything on "the new products" |
 | **The category-tree PR — renumber, THEN open** | Branch `feat/GLO-272-category-tree` is pushed with two commits (DataKit guard + the 202-leaf tree + 8-assert pgTAP), green locally. **Its migration collides with `main`'s 0055 — rename it to 0057 first (§0).** Then one PR, both commits, size-override |
 | **#473 is open and green** | `feat/look-tags-and-card-naming` — the collapsible tagged list + name-first link labels. All checks SUCCESS, mergeable CLEAN, one commit behind `main`. Not merged: Sean's merge grants this session were per-batch and this PR came after the last one. `gh pr merge 473 --squash --delete-branch` |
 | **GLO-23 is In Progress, not Done** | Apple sign-in shipped (#471) and the age floor shipped (#470). **Phone OTP is still no-ops** — `AccountStore.sendCode`/`verifyCode` — because Sean deferred Twilio explicitly ("we deal with twilio later"). The ticket stays open on that half |
@@ -348,7 +434,7 @@ the right to delete the preview. This deliberately reverses **GLO-190**.
 |---|---|
 | ~~The app-layer seam for the profile~~ | **Done — #424.** All seven filled; four tabs, their scope marks and the `+` render, driven as maya against a genuinely-public juli |
 | ~~**GLO-260** — the discover eyebrow~~ | **Done — #425.** One argument. The eyebrow (`FRAGRANCE`) renders; the same screenshot on `main` an hour earlier had none |
-| **GLO-258** — five unaudited tables left | The RLS OR leak. **The shelf's two are closed (#422)** — `ShelfRepository.shelf()` and `.items()` both leaked, reproduced against a public owner, and the shipped shelf tab was leaking too. `supabase/tests/database/owner_scoped_reads.test.sql` is the instrument and needs no migration slot; extend it rather than writing a second file |
+| ~~**GLO-258** — five unaudited tables left~~ — **in the suite, #477 (session 19)**; what remains is one unpinned, uncalled read, `RankingRepository.positions()` | The RLS OR leak. **The shelf's two are closed (#422)** — `ShelfRepository.shelf()` and `.items()` both leaked, reproduced against a public owner, and the shipped shelf tab was leaking too. `supabase/tests/database/owner_scoped_reads.test.sql` is the instrument and needs no migration slot; extend it rather than writing a second file |
 | ~~**GLO-239** — the profile does not refresh after a handle claim~~ | **Done — #424.** The profile presents the claim sheet itself now, so dismissal is a signal it has. **Not drivable on maya** (she has a handle); reasoned from the code, and whoever gets a handle-less account should confirm it |
 | ~~**GLO-245** — onboarding mounts only from the debug picker~~ | **Done — #429, #432.** FLOW 1 mounts in the real shell and the name+handle step ships. What unblocked it was GLO-23's Apple half: the new-account path now gets a real session, so `finish` has one to write a profile with. The **phone** path still dead-ends pending Twilio |
 | **GLO-224** — does Discover own a search field? | Needs Sean. Three costed answers on the ticket. An honest placeholder (`brand, product, shade…`) already shipped; the IA question did not |
@@ -618,6 +704,9 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 
 | Blocked thing | On what | Who |
 |---|---|---|
+| **Where is the product list?** | Sean's "comprehensive product listing" (Sept 1) reached the repo only as 0057's category rows. No file in `docs/`, `scripts/`, `supabase/seed*`, no `.csv`/`.json`. If it named branded products, they are not in the catalog and nothing can make them searchable until the list itself is in hand | Sean |
+| **Promoting the catalog to hosted** | Hosted has 0 products / 0 images / 0 buckets. `scripts/db.ts` targets local unless `GLOSSED_DB_URL` is set; the image step needs a Mac. Needs `supabase login` or the hosted DB URL — same blocker as the migration ledger | Sean |
+| A DataKit opening for `RankingRepository.positions()` | One line, latent, no caller. Wait for a caller or a grant | Sean |
 | Any **new** Linear issue | Workspace at the free issue cap. **Updates to existing issues work** (verified session 18); only creates fail. Upgrade or archive | Sean |
 | R2 token rotation | Cloudflare's R2 dashboard writes recovering (active incident Sept 1); then mint a bucket-scoped token and swap `.env` | Sean / Cloudflare |
 | Leaf-level ranking question | The 0055 tree ranks at the top level BY DESIGN. If Sean ever wants "rank your lipsticks" as its own ladder, that is a product decision + a re-point of `products.category_id` consumers — ask, don't drift into it | Sean |
@@ -631,7 +720,7 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | [GLO-267](https://linear.app/glossed/issue/GLO-267) seed fixture | **Ready to build, needs a go-ahead only because it moves shared state.** `seed.sql` has no cross-user public fixture, so every isolation assertion in the repo runs against an empty set. Changing seed data reaches every lane's drive at once, and nine PRs were open when it was filed | Sean |
 | [GLO-245](https://linear.app/glossed/issue/GLO-245) onboarding | **Partly unblocked.** FLOW 1 now mounts in the real shell (#429) and the name+handle step ships (#432), because Sign in with Apple gives the new-account path a real session. The **phone** path still dead-ends at the account step pending Twilio | Sean |
 | Any further DataKit opening | Per-session. Aug 30–31's is spent; Aug 31's second opening (the shelf's scoping fix, #422) is **also spent** | Sean |
-| Any migration slot | Per-migration. Held by the schema lane at handoff for GLO-266/263/265 | Sean |
+| Any migration slot | **0057 is held by #476.** Next free is 0058 — and a branch with no PR still holds its number (§0) | Sean |
 | [GLO-172](https://linear.app/glossed/issue/GLO-172), [GLO-156](https://linear.app/glossed/issue/GLO-156), [GLO-178](https://linear.app/glossed/issue/GLO-178) | Design calls, unchanged. Render both options and let him pick rather than re-deriving them | Sean |
 | GLO-23 — **phone OTP half only** | Sign in with Apple is **DONE** (#471): App ID capability, Supabase provider, and the Swift all shipped and were driven on Sean's phone. What remains is Twilio, which Sean deferred outright ("we deal with twilio later"). `sendCode`/`verifyCode` stay no-ops until then | Sean |
 | The hosted project | Still needs a DB password, service-role key, or CLI login. **Hosted is at 46 migrations and lacks `0043` (looks) and `0047` (handles)** — probed, not assumed | Sean |
@@ -641,6 +730,46 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | Save/wishlist mapping | Whether `want_to_try` IS tech/07's +0.5 save signal | Sean |
 
 ## 8. What went wrong, so you don't repeat it
+
+### Session 19 (Sept 1 → 2) — append-only, newest first
+
+**I "restarted Docker Desktop" without checking what Docker was.** `osascript
+quit app "Docker"` → *Unable to find application named 'Docker'* → `docker info`
+answered immediately because nothing had restarted. The provider was Colima the
+whole time (`docker context show`, ten characters). *Shape: look before you
+assert — the fix for "the daemon is wedged" depends on which daemon, and the
+check costs less than the wrong restart.* Recorded in memory as well as here.
+
+**I opened a 6-file PR without the label and CI told me.** #478 is four source
+files plus their two test files; the size gate is ≤5, no exceptions for tests.
+Added the label and the reason after the red run. *Shape: count the files
+`git diff --stat origin/main` prints before `gh pr create`, not after.*
+
+**I killed a `supabase functions serve` that Sean had started.** It was wedged
+(even `{}` hung) and the restart was the right call, but it was his process in
+his terminal, from this worktree. Said here so he is not surprised by a dead
+tab. The replacement runs from this session's `nohup`, so it dies with the
+machine, not with the terminal.
+
+**A `cd features/Profile && swift test` in one command moved the shell's cwd for
+every command after it.** The next lint, commit and `gh pr create` all ran from
+inside the package and failed in ways that looked like real errors (`No lintable
+files`, `pathspec did not match`). *Shape: the Bash cwd persists across calls;
+subshell it — `(cd pkg && swift test)` — or use absolute paths.*
+
+**A `\copy … from stdin` fed through `$(cat file)` inside a heredoc silently lost
+columns.** The first storage repair failed with `missing data for column` on a
+line that was not in the file. `docker cp` the TSV in and `\copy` from a path.
+
+**Duplicates on the storage volume.** 13,882 files, 13,877 objects: a re-upload
+leaves the old version file behind and both claim one object name. The reconcile
+keeps the newest by mtime — an `ON CONFLICT DO UPDATE` over all of them dies with
+*cannot affect row a second time*.
+
+**What was NOT done, stated so it is not assumed:** a `make db-reset` round-trip with #479; driving the
+GLO-278 save-then-see acceptance in the simulator (the edge runtime wedged
+mid-drive, then the daemon did); the full 18-package test run (DataKit 134 and
+Profile 106 were run; the rest were not touched).
 
 ### Session 18 (Sept 1) — append-only, newest first
 
