@@ -22,7 +22,11 @@ public struct SearchRungView: View {
             if model.failure != nil {
                 retryButton
             }
-            if matchCount > 0 {
+            if model.isShowingSuggestions {
+                // Not "matches": nothing was typed. Each row carries its own
+                // reason and n; the eyebrow only says these are a start.
+                Text("START FROM THESE").eyebrow()
+            } else if matchCount > 0 {
                 Text("\(matchCount) MATCHES IN THE CATALOG").eyebrow()
             }
             options
