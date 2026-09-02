@@ -77,6 +77,7 @@ Deno.serve(async (req: Request) => {
   if (plan.intent.kind === "open" && env("ANTHROPIC_API_KEY")) {
     const outcome = await runModelTurn(
       env("ANTHROPIC_API_KEY")!,
+      env("ANTHROPIC_WORKSPACE_ID") ?? null,
       supabase,
       fetched.ctx,
       transcript,

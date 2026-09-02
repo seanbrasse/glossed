@@ -74,14 +74,21 @@ export type ModelOutcome =
   | { readonly ok: true; readonly reply: Reply }
   | { readonly ok: false; readonly kind: string; readonly calls: number };
 
+/// `workspaceID`: an identity-linked ("personal") console key is refused
+/// without `anthropic-workspace-id` on every request; a workspace key
+/// needs none. Both shapes are accepted so the env decides.
 export async function runModelTurn(
   apiKey: string,
+  workspaceID: string | null,
   supabase: SupabaseClient,
   ctx: StylistContext,
   transcript: readonly TranscriptTurn[],
   userID: string,
 ): Promise<ModelOutcome> {
-  const anthropic = new Anthropic({ apiKey });
+  const anthropic = new Anthropic({
+    apiKey,
+    defaultHeaders: workspaceID ? { "anthropic-workspace-id": workspaceID } : undefined,
+  });
   const messages: Anthropic.MessageParam[] = transcript.map((t) => ({
     role: t.role,
     content: t.text,
