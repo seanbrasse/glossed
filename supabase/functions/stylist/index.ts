@@ -7,7 +7,9 @@
 // what to try next, a comparison — from rules and the cohort RPCs. The model
 // (model.ts) is reached only for a free-form question no rule covers, and
 // only when a key exists; without one the person gets the honest menu, not
-// a 503. A turn therefore costs zero model calls in the common case.
+// a 503. A turn therefore costs zero model calls in the common case, and
+// the fallback runs on Sonnet 5 (the Sept 2 bake-off; STYLIST_MODEL
+// overrides it without a deploy).
 //
 // Logging discipline is moderate_text's: the messages and the context hold
 // regulated data (skin, hair, fit), so no log line carries text —
@@ -18,7 +20,7 @@ import { resolvePublishableKey } from "../_shared/credentials.ts";
 import { prefetch, runFetches } from "./data.ts";
 import { runModelTurn } from "./model.ts";
 import { planTurn } from "./plan.ts";
-import { type TranscriptTurn, trimTranscript } from "./tools.ts";
+import { MODEL, type TranscriptTurn, trimTranscript } from "./tools.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -82,6 +84,8 @@ Deno.serve(async (req: Request) => {
       fetched.ctx,
       transcript,
       user.id,
+      // STYLIST_MODEL overrides the default without a deploy — the bake-off knob.
+      env("STYLIST_MODEL") ?? MODEL,
     );
     if (!outcome.ok) {
       console.error("stylist turn failed", {
@@ -100,6 +104,7 @@ Deno.serve(async (req: Request) => {
   console.log("stylist turn", {
     user: user.id,
     intent: plan.intent.kind,
+    model: plan.intent.kind === "open" ? env("STYLIST_MODEL") ?? MODEL : null,
     tools: reply.tools_used,
     blocks: reply.blocks.length,
     ms: Date.now() - started,

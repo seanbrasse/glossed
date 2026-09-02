@@ -16,7 +16,13 @@ export const MAX_ROUTINE_STEPS = 10;
 export const MAX_PRODUCTS_SHOWN = 6;
 export const MAX_TOKENS = 1500;
 export const MAX_MESSAGE_CHARS = 2000;
-export const MODEL = "claude-opus-5";
+/// The free-form fallback's model. Bake-off, Sept 2 (nine open questions,
+/// maya's context, effort low): Sonnet 5 answered every one on the beauty
+/// half with its receipts at a third of Opus 5's cost and half its latency;
+/// Haiku 4.5 refused a layering question as "a dermatologist question",
+/// asked for facts already in <context>, invented a cleanser's strength and
+/// never reached for a tool. `STYLIST_MODEL` in the env overrides this.
+export const MODEL = "claude-sonnet-5";
 
 export type Slot = "am" | "pm" | "weekly" | "wash_day";
 export const SLOTS: readonly Slot[] = ["am", "pm", "weekly", "wash_day"];
@@ -539,6 +545,14 @@ export function validateArtifact(
 export const NO_ANSWER_TEXT =
   "i couldn't put that together from what's on your shelf. try asking about a product you own, or a routine.";
 
+/// The chips a turn ends on when the model called none (Sonnet 5 skipped
+/// suggest_chips once in nine turns) — the row is never empty.
+export const FALLBACK_CHIPS = [
+  "build my am routine",
+  "what's missing for my skin",
+  "what should i try next",
+] as const;
+
 export function assembleReply(
   text: string,
   blocks: readonly Block[],
@@ -546,11 +560,14 @@ export function assembleReply(
   toolsUsed: readonly string[],
   contextKeys: readonly string[],
 ): Reply {
-  const trimmed = text.trim();
+  // Lowercase is the app's voice (design: lowercase UI copy) and the prompt
+  // says so, but every model capitalised a sentence somewhere in the
+  // bake-off — so the reply is normalised here, where it cannot drift.
+  const trimmed = text.trim().toLowerCase();
   return {
     text: trimmed.length > 0 || blocks.length > 0 ? trimmed : NO_ANSWER_TEXT,
     blocks,
-    chips,
+    chips: chips.length > 0 ? chips : [...FALLBACK_CHIPS],
     grounded_in: [...new Set([...contextKeys, ...toolsUsed.filter((t) => DATA_TOOLS.has(t))])],
     tools_used: [...new Set(toolsUsed)],
   };

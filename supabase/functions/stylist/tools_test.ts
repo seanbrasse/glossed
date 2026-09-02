@@ -3,6 +3,7 @@ import {
   ARTIFACT_TOOLS,
   assembleReply,
   DATA_TOOLS,
+  FALLBACK_CHIPS,
   isAdult,
   MAX_CHIPS,
   MAX_TRANSCRIPT,
@@ -197,6 +198,14 @@ Deno.test("chips are lowercased, deduplicated, capped, and an over-long one is d
   );
   assert(v.ok);
   assertEquals(v.ok ? v.chips : [], ["build my pm routine", "a", "b"]);
+});
+
+Deno.test("a reply is lowercased, and a turn without chips gets the fallback row", () => {
+  const r = assembleReply("Yes — Skip It. SPF matters more.", [], [], ["model"], ["shelf"]);
+  assertEquals(r.text, "yes — skip it. spf matters more.");
+  assertEquals(r.chips, [...FALLBACK_CHIPS]);
+  const kept = assembleReply("fine", [], ["build my pm routine"], ["model"], ["shelf"]);
+  assertEquals(kept.chips, ["build my pm routine"]);
 });
 
 Deno.test("an empty answer is the honest line, and grounding names data tools only", () => {

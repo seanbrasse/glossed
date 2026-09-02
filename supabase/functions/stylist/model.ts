@@ -1,5 +1,6 @@
 // The Stylist's model half — reached only when plan.ts found no rule for the
-// words (index.ts decides). The tool loop against claude-opus-5: data tools
+// words (index.ts decides). The tool loop against MODEL (Sonnet 5 by the
+// Sept 2 bake-off; STYLIST_MODEL overrides): data tools
 // read under the caller's JWT, artifact tools are validated against the
 // prefetch, and the turn stops at MAX_TOOL_CALLS whatever the model wants
 // next. Nothing is stored; the SDK error is never echoed (it can carry the
@@ -70,9 +71,23 @@ async function runDataTool(
   }
 }
 
+export interface ModelUsage {
+  readonly input: number;
+  readonly output: number;
+  readonly cache_read: number;
+  readonly cache_write: number;
+  readonly requests: number;
+}
+
 export type ModelOutcome =
-  | { readonly ok: true; readonly reply: Reply }
+  | { readonly ok: true; readonly reply: Reply; readonly usage: ModelUsage }
   | { readonly ok: false; readonly kind: string; readonly calls: number };
+
+/// `output_config.effort` is accepted by the Opus and Sonnet lines and
+/// rejected by Haiku 4.5 (claude-api skill, Thinking & Effort table).
+function supportsEffort(model: string): boolean {
+  return !model.startsWith("claude-haiku");
+}
 
 /// `workspaceID`: an identity-linked ("personal") console key is refused
 /// without `anthropic-workspace-id` on every request; a workspace key
@@ -84,6 +99,7 @@ export async function runModelTurn(
   ctx: StylistContext,
   transcript: readonly TranscriptTurn[],
   userID: string,
+  model: string = MODEL,
 ): Promise<ModelOutcome> {
   const anthropic = new Anthropic({
     apiKey,
@@ -111,6 +127,15 @@ export async function runModelTurn(
   /// calls a tool and adds a line after, and the person should read both.
   const texts: string[] = [];
   let calls = 0;
+  const usage = { input: 0, output: 0, cache_read: 0, cache_write: 0, requests: 0 };
+  const count = (u: Anthropic.Usage) => {
+    usage.requests += 1;
+    usage.input += u.input_tokens;
+    usage.output += u.output_tokens;
+    usage.cache_read += u.cache_read_input_tokens ?? 0;
+    usage.cache_write += u.cache_creation_input_tokens ?? 0;
+  };
+  const effort = supportsEffort(model) ? { output_config: { effort: "low" as const } } : {};
 
   const textOf = (content: Anthropic.ContentBlock[]) =>
     content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join(
@@ -120,13 +145,14 @@ export async function runModelTurn(
   try {
     while (true) {
       const response = await anthropic.messages.create({
-        model: MODEL,
+        model,
         max_tokens: MAX_TOKENS,
         system,
         tools,
         messages,
-        output_config: { effort: "low" },
+        ...effort,
       });
+      count(response.usage);
       if (response.stop_reason === "refusal") {
         texts.length = 0;
         break;
@@ -184,14 +210,15 @@ export async function runModelTurn(
       if (calls > MAX_TOOL_CALLS) {
         // One last, tool-less answer so the person gets words, not a stall.
         const final = await anthropic.messages.create({
-          model: MODEL,
+          model,
           max_tokens: MAX_TOKENS,
           system,
           messages,
           tool_choice: { type: "none" },
           tools,
-          output_config: { effort: "low" },
+          ...effort,
         });
+        count(final.usage);
         const last = textOf(final.content).trim();
         if (last) texts.push(last);
         break;
@@ -215,5 +242,6 @@ export async function runModelTurn(
       "collections",
       "looks",
     ]),
+    usage,
   };
 }
