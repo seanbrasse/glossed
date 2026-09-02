@@ -84,7 +84,7 @@ public struct SettingsView: View {
             }
             Button("stay signed in", role: .cancel) {}
         } message: {
-            Text("your shelf stays where it is — you'll need your email to get back in.")
+            Text("your shelf stays where it is — sign back in any time.")
         }
     }
 

@@ -140,7 +140,7 @@ public struct OnbAccountView: View {
                 .buttonStyle(.glossed(block: true))
                 .disabled(!model.canCreate || model.isCreating)
                 Text(model.canCreate
-                    ? "that\u{2019}s everything — no email, no password"
+                    ? "that\u{2019}s everything"
                     : "a name to continue")
                     .meta()
                     .frame(maxWidth: .infinity)
