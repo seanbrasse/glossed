@@ -20,14 +20,14 @@ next PR to `main` BEFORE deleting the merged branch.*
 
 ## Start here
 
-0. **Did Sean's phone make its account?** The entitled build (dev sign-in off,
-   light-only, Sign in with Apple) has been on his iPhone since Sept 2 14:23,
-   parked at FLOW 1. Check `auth.users` on the local stack for an `apple`
-   provider row. If none: the stack must be up with `supabase functions serve`
-   running and the Mac awake on the same Wi-Fi (`http://Seans-MacBook-Pro.local:54321`);
-   `docker logs supabase_auth_glossed` says why a tap failed. **Done looks
-   like:** an `apple` user, a `profiles` row with a handle, and the tabs on his
-   phone with an empty shelf.
+0. **Sean's account exists on the local stack** (Sept 2 14:25: Apple signup,
+   profile `seantest`, handle `seantest`, then a sign-out from settings). Not
+   yet driven: signing back in — the `.login` path should skip the quiz and
+   land on discover — and logging a product as him. The stack must be up with
+   `supabase functions serve` running and the Mac awake on the same Wi-Fi
+   (`http://Seans-MacBook-Pro.local:54321`); `docker logs supabase_auth_glossed`
+   says why a tap failed. **Done looks like:** the tabs on his phone as
+   `seantest`, one product on the shelf, and a stylist answer about it.
 1. **Five PRs are open and none merged** — #495 (handoff), #496 (the stylist:
    rules first, lexicon, Sonnet 5, plan tools; base #491), #497 (the routine
    card and its door; base #494), #498 (spec §3–4; base `main`), #499 (the
@@ -108,11 +108,10 @@ Tests run at handoff: the stylist function **97** `deno test`s (12 planner, 24
 tools, 61 corpus), `features/Stylist` **11**; no other package was run this
 session. Local catalog: 3,206 products, 13,877 image objects, GETs `200`; the
 stack was stopped and started once (to enable the Apple provider) and the
-catalog survived it. Local `auth.users`: the 3 seeded rows, **no Apple account
-yet**. Hosted: unchanged from session 19 — 22 categories, 0 products, 0 users,
+catalog survived it. Local `auth.users`: the 3 seeded rows plus **Sean's Apple account** (14:25). Hosted: unchanged from session 19 — 22 categories, 0 products, 0 users,
 schema through 0056, no functions, no secrets.
 
 **Driven on the phone (Sean's iPhone 17 Pro Max, over the LAN):** the dev-user
-build in light mode, and then the entitled build to FLOW 1. **Not driven:** the
-Apple tap itself, onboarding as a new user, and the Release build on a device
-(compiled for the simulator only).
+build in light mode, and then the entitled build to FLOW 1. **Driven by Sean, read from the database:** the Apple tap, onboarding to a
+handle, sign-out. **Not driven:** signing back in, and the Release build on a
+device (compiled for the simulator only).
