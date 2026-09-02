@@ -77,6 +77,12 @@ public struct FloatingNav<TabID: Hashable>: View {
                     lineWidth: Tokens.Border.thin
                 ))
                 .opacity(isActive ? 1 : 0.5)
+                // The whole 50×42 answers, not the glyph's strokes. A `.plain`
+                // button hit-tests its label's opaque content, and an inactive
+                // tab's background is clear — so a tap beside a 26pt glyph
+                // landed on nothing (Sean, Sep 2: "clicking the nav sometimes
+                // doesn't feel really responsive"). Same shape as #500's tiles.
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .animation(Tokens.Motion.pop(), value: isActive)
