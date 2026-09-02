@@ -179,7 +179,7 @@ final class AppSession {
                 needsOnboarding = try await Self.needsOnboarding(
                     ProfileRepository(client: booted), environment: environment
                 )
-                anchorVariants = await Self.anchorVariants(CatalogRepository(client: booted))
+                anchorVariants = await Self.loadAnchorVariants(CatalogRepository(client: booted))
                 tracker = Tracker(poster: TrackIngestPoster(client: booted))
                 imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
                 await reloadShelf()
@@ -261,7 +261,7 @@ final class AppSession {
         guard await (try? booted.requireUserID()) == nil else { return false }
         client = booted
         needsOnboarding = true
-        anchorVariants = await Self.anchorVariants(CatalogRepository(client: booted))
+        anchorVariants = await Self.loadAnchorVariants(CatalogRepository(client: booted))
         tracker = Tracker(poster: TrackIngestPoster(client: booted))
         imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
         phase = .ready

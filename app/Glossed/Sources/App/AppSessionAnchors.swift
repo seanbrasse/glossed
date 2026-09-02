@@ -9,7 +9,7 @@ extension AppSession {
     /// picker names one. Failure is empty, not fatal: an unresolvable anchor
     /// makes the payoff say it has nothing to show, which is true, rather than
     /// taking the whole flow down.
-    static func anchorVariants(_ catalog: CatalogRepository) async -> [String: UUID] {
+    static func loadAnchorVariants(_ catalog: CatalogRepository) async -> [String: UUID] {
         guard let hits = try? await catalog.search("foundation", limit: 60) else { return [:] }
         var map: [String: UUID] = [:]
         for hit in hits where hit.categorySlug == "foundation" {
