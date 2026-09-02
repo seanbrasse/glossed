@@ -202,6 +202,12 @@ export function systemPrompt(): string {
     "say so in one line and offer one beauty next step. Do not answer the off-topic",
     "part, even partially.",
     "",
+    "THE APP ANSWERS THE SHAPED ASKS. For a routine, the gaps, what to try, a comparison",
+    "of what they own, or a look for an occasion — however the person phrased it — call",
+    "the matching plan tool (build_routine, find_gaps, what_to_try, compare_owned,",
+    "look_for_tonight). It answers from their shelf and the cohort data with every n and",
+    "shows the cards; you add at most two sentences and never repeat what a card shows.",
+    "",
     "ANSWER IN SHAPES, NOT PARAGRAPHS. When the answer has a shape, make the artifact",
     "with a tool and keep the prose to two or three sentences around it:",
     "- a routine from their products → propose_routine (only user_item_ids from",
@@ -270,7 +276,7 @@ export interface ToolDef {
 
 const uuid = { type: "string", pattern: "^[0-9a-fA-F-]{36}$" };
 
-export const TOOLS: readonly ToolDef[] = [
+const BASE_TOOLS: readonly ToolDef[] = [
   {
     name: "search_catalog",
     description:
@@ -388,7 +394,64 @@ export const TOOLS: readonly ToolDef[] = [
   },
 ];
 
-export const DATA_TOOLS = new Set(["search_catalog", "query_affinity", "crosswalk"]);
+/// The app's own answers, offered to the model as tools: the words are the
+/// model's, the answer is plan.ts's — from the shelf and the cohort reads,
+/// every n attached, the cards shown. The model adds a line, not a fact.
+export const PLAN_TOOLS: readonly ToolDef[] = [
+  {
+    name: "build_routine",
+    description:
+      "The app builds a routine from what the person owns, in category order, and names the one gap — a card they can save. Use for any 'what order / what should my routine be' ask, however it is phrased.",
+    input_schema: {
+      type: "object",
+      properties: {
+        slot: { type: "string", enum: SLOTS },
+        domain: { type: "string", enum: ["skincare", "makeup", "haircare", "fragrance"] },
+      },
+      required: ["slot", "domain"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "find_gaps",
+    description:
+      "The app lists the categories the person's concerns usually want that their shelf lacks, with the top-ranked products in each and their n.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "what_to_try",
+    description:
+      "The app's recommendations: people who wear the same shade, what the person's own logs lean toward, everyone's face-offs — each with its n.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "compare_owned",
+    description:
+      "The person's own ranks within one category of their shelf. category_slug from <context>'s shelf lines; omit it to compare the category they own most of.",
+    input_schema: {
+      type: "object",
+      properties: { category_slug: { type: "string", maxLength: 40 } },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "look_for_tonight",
+    description:
+      "A makeup order from their shelf for an occasion, plus their saved looks as cards they can open. Use for going-out, date, event and 'what should i wear' asks.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+];
+
+/// Data reads, then the app's plans, then the artifacts — the belt the
+/// model sees, in that order so the shaped answer is the nearer reach.
+const DATA_TOOLS_LIST = ["search_catalog", "query_affinity", "crosswalk"];
+export const TOOLS: readonly ToolDef[] = [
+  ...BASE_TOOLS.filter((t) => DATA_TOOLS_LIST.includes(t.name)),
+  ...PLAN_TOOLS,
+  ...BASE_TOOLS.filter((t) => !DATA_TOOLS_LIST.includes(t.name)),
+];
+export const DATA_TOOLS = new Set(DATA_TOOLS_LIST);
+export const PLAN_TOOL_NAMES = new Set(PLAN_TOOLS.map((t) => t.name));
 export const ARTIFACT_TOOLS = new Set([
   "propose_routine",
   "show_products",

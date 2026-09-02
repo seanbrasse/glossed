@@ -8,6 +8,7 @@ import {
   MAX_CHIPS,
   MAX_TRANSCRIPT,
   NO_ANSWER_TEXT,
+  PLAN_TOOL_NAMES,
   renderContext,
   type StylistContext,
   systemPrompt,
@@ -67,12 +68,16 @@ Deno.test("blank and over-long messages are dropped or cut, never sent whole", (
   assertEquals(kept[0].text.length, 2000);
 });
 
-Deno.test("every tool has a schema, and every tool is either data or artifact — no orphans", () => {
+Deno.test("every tool has a schema, and every tool is data, a plan or an artifact — no orphans", () => {
   for (const t of TOOLS) {
     assert(t.name.length > 0 && t.description.length > 0);
     assertEquals(t.input_schema.type, "object");
-    assert(DATA_TOOLS.has(t.name) || ARTIFACT_TOOLS.has(t.name), `${t.name} is in neither set`);
+    assert(
+      DATA_TOOLS.has(t.name) || PLAN_TOOL_NAMES.has(t.name) || ARTIFACT_TOOLS.has(t.name),
+      `${t.name} is in no set`,
+    );
   }
+  assertEquals(TOOLS.length, DATA_TOOLS.size + PLAN_TOOL_NAMES.size + ARTIFACT_TOOLS.size);
   const chips = TOOLS.find((t) => t.name === "suggest_chips")!;
   const items = (chips.input_schema.properties as Record<string, { maxItems: number }>).chips;
   assertEquals(items.maxItems, MAX_CHIPS);

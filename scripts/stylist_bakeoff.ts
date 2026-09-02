@@ -31,7 +31,7 @@ const jwt = auth.session.access_token;
 const asMaya = createClient("http://127.0.0.1:54321", anon, {
   global: { headers: { Authorization: `Bearer ${jwt}` } },
 });
-const { ctx } = await prefetch(asMaya, auth.user!.id);
+const fetched = await prefetch(asMaya, auth.user!.id);
 
 const QUESTIONS = [
   "how long should i wait between serum and moisturizer",
@@ -60,7 +60,7 @@ for (const model of models) {
       env.ANTHROPIC_API_KEY,
       env.ANTHROPIC_WORKSPACE_ID ?? null,
       asMaya,
-      ctx,
+      fetched,
       [{ role: "user", text: q }],
       auth.user!.id,
       model,

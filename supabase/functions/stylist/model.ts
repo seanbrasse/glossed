@@ -8,7 +8,8 @@
 
 import Anthropic from "npm:@anthropic-ai/sdk@0.121.0";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { affinity, crosswalk, searchCatalog } from "./data.ts";
+import { affinity, crosswalk, runFetches, searchCatalog } from "./data.ts";
+import { intentFromTool, type PlanInput, planIntent } from "./plan.ts";
 import {
   ARTIFACT_TOOLS,
   assembleReply,
@@ -18,6 +19,7 @@ import {
   MAX_TOKENS,
   MAX_TOOL_CALLS,
   MODEL,
+  PLAN_TOOL_NAMES,
   renderContext,
   type Reply,
   type StylistContext,
@@ -96,11 +98,12 @@ export async function runModelTurn(
   apiKey: string,
   workspaceID: string | null,
   supabase: SupabaseClient,
-  ctx: StylistContext,
+  planInput: PlanInput,
   transcript: readonly TranscriptTurn[],
   userID: string,
   model: string = MODEL,
 ): Promise<ModelOutcome> {
+  const ctx: StylistContext = planInput.ctx;
   const anthropic = new Anthropic({
     apiKey,
     defaultHeaders: workspaceID ? { "anthropic-workspace-id": workspaceID } : undefined,
@@ -121,6 +124,9 @@ export async function runModelTurn(
 
   const blocks: Block[] = [];
   let chips: string[] = [];
+  /// The last plan tool's chips — the turn's chips when the model calls
+  /// suggest_chips with none of its own.
+  let planChips: string[] = [];
   const toolsUsed: string[] = ["model"];
   const searched = new Map<string, CatalogHit>();
   /// Every response's words, in order — the model often answers before it
@@ -185,6 +191,23 @@ export async function runModelTurn(
             content = "that lookup failed — answer without it, and say so.";
             isError = true;
           }
+        } else if (PLAN_TOOL_NAMES.has(use.name)) {
+          const intent = intentFromTool(use.name, input, planInput);
+          if (!intent) {
+            content = "that plan tool needs a slot of am|pm|weekly|wash_day and a domain";
+            isError = true;
+          } else {
+            const planned = planIntent(intent, planInput);
+            const r = planned.finish(await runFetches(supabase, planned.fetches, userID));
+            blocks.push(...r.blocks);
+            planChips = [...r.chips];
+            toolsUsed.push(...r.tools_used);
+            content = r.blocks.length > 0
+              ? `${r.text}\n(shown to the person as ${
+                r.blocks.map((b) => b.type).join(", ")
+              } — do not repeat what the cards show.)`
+              : r.text;
+          }
         } else if (ARTIFACT_TOOLS.has(use.name)) {
           const v = validateArtifact(use.name, input, ctx, searched);
           if (v.ok) {
@@ -235,13 +258,19 @@ export async function runModelTurn(
 
   return {
     ok: true,
-    reply: assembleReply(texts.join("\n\n"), blocks, chips, toolsUsed, [
-      "profile",
-      "shelf",
-      "routines",
-      "collections",
-      "looks",
-    ]),
+    reply: assembleReply(
+      texts.join("\n\n"),
+      blocks,
+      chips.length > 0 ? chips : planChips,
+      toolsUsed,
+      [
+        "profile",
+        "shelf",
+        "routines",
+        "collections",
+        "looks",
+      ],
+    ),
     usage,
   };
 }

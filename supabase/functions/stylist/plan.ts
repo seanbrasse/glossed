@@ -18,13 +18,35 @@ import {
   type Reply,
   type ShelfItem,
   type Slot,
+  SLOTS,
   type StylistContext,
 } from "./tools.ts";
+import {
+  CATEGORY_WORDS,
+  CLASH_WORDS,
+  COMPARE_WORDS,
+  DOMAIN_WORDS,
+  GREETING_WORDS,
+  hasAny,
+  hasWord,
+  longestMatch,
+  LOOK_WORDS,
+  MEDICAL_WORDS,
+  MISSING_WORDS,
+  OCCASION_WORDS,
+  ROUTINE_WORDS,
+  SLOT_WORDS,
+  TRY_NEXT_WORDS,
+} from "./lexicon.ts";
 
 export type Domain = "skincare" | "makeup" | "haircare" | "fragrance";
+export const DOMAINS: readonly Domain[] = ["skincare", "makeup", "haircare", "fragrance"];
 
 export type Intent =
   | { readonly kind: "routine"; readonly slot: Slot; readonly domain: Domain }
+  /// A look for an occasion — makeup from the shelf, in order, and the
+  /// person's own saved looks as doors; `look_id` when the words named one.
+  | { readonly kind: "look"; readonly look_id: string | null }
   | { readonly kind: "missing" }
   | { readonly kind: "try_next" }
   | { readonly kind: "compare"; readonly category_slug: string | null }
@@ -153,36 +175,6 @@ const CONCERN_WANTS: Record<string, readonly string[]> = {
 };
 const BASICS = ["cleanser", "moisturizer", "sunscreen"] as const;
 
-/// Words a person uses for a category, beyond its slug and label.
-const CATEGORY_WORDS: Record<string, readonly string[]> = {
-  serum: ["serum", "serums", "active", "actives"],
-  foundation: ["foundation", "foundations", "base"],
-  cleanser: ["cleanser", "cleansers", "face wash", "wash"],
-  moisturizer: ["moisturizer", "moisturiser", "moisturizers", "cream"],
-  sunscreen: ["sunscreen", "sunscreens", "spf", "sun"],
-  toner: ["toner", "toners", "essence"],
-  exfoliant: ["exfoliant", "exfoliants", "exfoliator", "acid", "peel"],
-  styler: ["styler", "stylers", "curl cream", "gel", "mousse"],
-  shampoo: ["shampoo", "shampoos"],
-  conditioner: ["conditioner", "conditioners"],
-  fragrance: ["fragrance", "fragrances", "perfume", "perfumes", "scent"],
-  lip: ["lip", "lips", "lipstick", "gloss", "lip oil"],
-  mascara: ["mascara", "mascaras"],
-  blush: ["blush", "blushes"],
-  concealer: ["concealer", "concealers"],
-  bronzer: ["bronzer", "contour"],
-  highlighter: ["highlighter", "highlighters"],
-  eyeshadow: ["eyeshadow", "shadow", "palette"],
-  eyeliner: ["eyeliner", "liner"],
-  brow: ["brow", "brows"],
-  primer: ["primer", "primers"],
-  setting: ["setting spray", "setting powder", "powder"],
-  mask: ["mask", "masks"],
-  eye: ["eye cream"],
-  treatment: ["treatment", "treatments", "spot"],
-  scalp: ["scalp"],
-};
-
 const SLOT_WORD: Record<Slot, string> = {
   am: "morning",
   pm: "night",
@@ -192,58 +184,103 @@ const SLOT_WORD: Record<Slot, string> = {
 
 // ── intent ─────────────────────────────────────────────────────────────────
 
-const MEDICAL =
-  /\b(rash|rashes|infection|infected|prescription|prescribed|antibiotic|accutane|isotretinoin|steroid|eczema|psoriasis|rosacea|dermatitis|hives|cyst|cysts|bleeding|pain|painful|burning|swollen|swelling)\b/;
-const ROUTINE = /\b(routine|regimen|regime|lineup|line-up|order to (use|apply)|what order)\b/;
-const MISSING = /\b(missing|gaps?|lacking|what (do|should) i (need|add)|what('s| is) left)\b/;
-const TRY_NEXT =
-  /\b(try next|should i try|recommend|recommendation|recommendations|suggest|suggestion|suggestions|what('s| is) (good|best|worth)|what (should|could) i (get|buy|add|look at)|new (serum|cleanser|moisturizer|sunscreen|foundation|mascara|product))\b/;
-const COMPARE = /\b(compare|comparison|versus|vs\.?|which (of my|one)|better)\b/;
-const CLASH = /\b(clash|clashes|conflict|conflicts|together|mix|mixing|combine|layer|layering)\b/;
-const GREETING = /^(hi|hey|hello|yo|hiya|hola|good (morning|evening|night))\b/;
-
+/// The words pick the intent, from `lexicon.ts` — learned offline, matched
+/// at zero tokens. Medical first (it wins over any other word), then the
+/// creative asks (a look for tonight), then the shaped ones; a shelf item
+/// named in the message answers as itself; everything else is `open`.
 export function detectIntent(text: string, input: PlanInput): Intent {
   const t = text.toLowerCase().trim();
-  if (MEDICAL.test(t)) return { kind: "medical" };
-  if (ROUTINE.test(t)) return { kind: "routine", ...routineShape(t) };
-  if (MISSING.test(t)) return { kind: "missing" };
-  if (TRY_NEXT.test(t)) return { kind: "try_next" };
-  if (COMPARE.test(t)) {
+  if (hasAny(t, MEDICAL_WORDS)) return { kind: "medical" };
+  const occasion = hasAny(t, OCCASION_WORDS);
+  if (hasAny(t, LOOK_WORDS) || (occasion && (domainOf(t) === "makeup" || hasWord(t, "look")))) {
+    return { kind: "look", look_id: detectLook(t, input.ctx.looks) };
+  }
+  if (hasAny(t, MISSING_WORDS)) return { kind: "missing" };
+  if (hasAny(t, ROUTINE_WORDS)) return { kind: "routine", ...routineShape(t) };
+  if (hasAny(t, COMPARE_WORDS)) {
     return { kind: "compare", category_slug: detectCategory(t, input.categories) };
   }
-  if (CLASH.test(t)) return { kind: "clash" };
+  if (hasAny(t, TRY_NEXT_WORDS)) return { kind: "try_next" };
+  if (hasAny(t, CLASH_WORDS)) return { kind: "clash" };
   const item = detectShelfItem(t, input.ctx.shelf);
   if (item) return { kind: "about_item", user_item_id: item.user_item_id };
-  if (GREETING.test(t) || t.length < 4) return { kind: "greeting" };
+  if (
+    t.length < 4 ||
+    GREETING_WORDS.some((g) =>
+      t === g || t.startsWith(`${g} `) || t.startsWith(`${g},`) || t.startsWith(`${g}!`)
+    )
+  ) {
+    return { kind: "greeting" };
+  }
   return { kind: "open" };
 }
 
+/// The model's plan tools name the same intents — the words are the
+/// model's, the answer is the rules'. Null when the input is not a shape.
+export function intentFromTool(
+  name: string,
+  input: Record<string, unknown>,
+  planInput: PlanInput,
+): Intent | null {
+  switch (name) {
+    case "build_routine": {
+      const slot =
+        typeof input.slot === "string" && (SLOTS as readonly string[]).includes(input.slot)
+          ? input.slot as Slot
+          : null;
+      const domain =
+        typeof input.domain === "string" && (DOMAINS as readonly string[]).includes(input.domain)
+          ? input.domain as Domain
+          : null;
+      return slot && domain ? { kind: "routine", slot, domain } : null;
+    }
+    case "find_gaps":
+      return { kind: "missing" };
+    case "what_to_try":
+      return { kind: "try_next" };
+    case "compare_owned": {
+      const slug = typeof input.category_slug === "string" &&
+          planInput.categories.some((c) => c.slug === input.category_slug)
+        ? input.category_slug
+        : null;
+      return { kind: "compare", category_slug: slug };
+    }
+    case "look_for_tonight":
+      return { kind: "look", look_id: null };
+    default:
+      return null;
+  }
+}
+
+function domainOf(t: string): Domain | null {
+  let best: { domain: Domain; length: number } | null = null;
+  for (const domain of DOMAINS) {
+    const m = longestMatch(t, DOMAIN_WORDS[domain]);
+    if (m && (best === null || m.length > best.length)) best = { domain, length: m.length };
+  }
+  return best?.domain ?? null;
+}
+
 function routineShape(t: string): { slot: Slot; domain: Domain } {
-  const washDay = /wash[ -]?day/.test(t);
-  const domain: Domain = washDay || /\b(hair|curl|curls|scalp)\b/.test(t)
-    ? "haircare"
-    : /\b(makeup|make-up|glam|face beat)\b/.test(t)
-    ? "makeup"
-    : "skincare";
-  const slot: Slot = washDay
-    ? "wash_day"
-    : /\b(weekly|sunday|once a week)\b/.test(t)
-    ? "weekly"
-    : /\b(night|evening|pm|p\.m\.|bed|bedtime|tonight)\b/.test(t)
-    ? "pm"
-    : "am";
+  let slot: Slot = "am";
+  let length = 0;
+  for (const s of SLOTS) {
+    const m = longestMatch(t, SLOT_WORDS[s]);
+    if (m && m.length > length) {
+      slot = s;
+      length = m.length;
+    }
+  }
+  const domain = slot === "wash_day" ? "haircare" : domainOf(t) ?? "skincare";
   return { slot, domain };
 }
 
 export function detectCategory(t: string, categories: readonly CategoryRef[]): string | null {
   let best: { slug: string; length: number } | null = null;
   for (const c of categories) {
-    const words = [c.slug, c.label, ...(CATEGORY_WORDS[c.slug] ?? [])];
-    for (const w of words) {
-      if (w.length < 3) continue;
-      if (new RegExp(`\\b${escape(w)}\\b`).test(t) && (best === null || w.length > best.length)) {
-        best = { slug: c.slug, length: w.length };
-      }
+    const m = longestMatch(t, [c.slug, c.label, ...(CATEGORY_WORDS[c.slug] ?? [])]);
+    if (m && m.length >= 3 && (best === null || m.length > best.length)) {
+      best = { slug: c.slug, length: m.length };
     }
   }
   return best?.slug ?? null;
@@ -258,24 +295,39 @@ export function detectShelfItem(t: string, shelf: readonly ShelfItem[]): ShelfIt
       w.length >= 4
     );
     const brand = item.brand_name.toLowerCase();
-    let score = words.filter((w) => new RegExp(`\\b${escape(w)}\\b`).test(t)).length;
+    let score = words.filter((w) => hasWord(t, w)).length;
     if (score > 0 && brand.length >= 3 && t.includes(brand)) score += 1;
     if (score > 0 && (best === null || score > best.score)) best = { item, score };
   }
   return best?.item ?? null;
 }
 
-function escape(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/// One of the person's own looks, when its caption's words are in the
+/// message ("recreate my golden hour look").
+export function detectLook(t: string, looks: StylistContext["looks"]): string | null {
+  let best: { id: string; score: number } | null = null;
+  for (const look of looks) {
+    const words = (look.caption ?? "").toLowerCase().split(/[^a-z0-9']+/).filter((w) =>
+      w.length >= 4
+    );
+    const score = words.filter((w) => hasWord(t, w)).length;
+    if (score > 0 && (best === null || score > best.score)) best = { id: look.id, score };
+  }
+  return best?.id ?? null;
 }
 
 // ── the plan ───────────────────────────────────────────────────────────────
 
 export function planTurn(text: string, input: PlanInput): Planned {
-  const intent = detectIntent(text, input);
+  return planIntent(detectIntent(text, input), input);
+}
+
+export function planIntent(intent: Intent, input: PlanInput): Planned {
   switch (intent.kind) {
     case "routine":
       return done(intent, buildRoutineReply(intent.slot, intent.domain, input.ctx));
+    case "look":
+      return done(intent, lookReply(intent.look_id, input.ctx));
     case "missing":
       return planMissing(intent, input);
     case "try_next":
@@ -452,6 +504,45 @@ function buildRoutineReply(slot: Slot, domain: Domain, ctx: StylistContext): Rep
   return reply(lines.join(" "), [block], chipsFor(ctx, next), ["profile", "shelf", "routines"], [
     "plan_routine",
   ]);
+}
+
+// ── look ───────────────────────────────────────────────────────────────────
+
+/// A look for tonight: makeup from the shelf in the order it goes on, and
+/// the person's own saved looks as doors (the named one first). Nothing is
+/// invented — no product they do not own, no look they did not save.
+export function lookReply(lookID: string | null, ctx: StylistContext): Reply {
+  const routine = buildRoutine("pm", "makeup", ctx);
+  const named = lookID ? ctx.looks.find((l) => l.id === lookID) ?? null : null;
+  const looks = [
+    ...(named ? [named] : []),
+    ...ctx.looks.filter((l) => l.id !== named?.id),
+  ].slice(0, 2);
+  const blocks: Block[] = [];
+  if (routine) blocks.push({ ...routine, title: "tonight, from your shelf" });
+  for (const l of looks) {
+    blocks.push({ type: "look_ref", look_id: l.id, caption: l.caption, photo_n: l.photo_n });
+  }
+  const lines: string[] = [];
+  if (routine) {
+    const n = routine.steps.length;
+    lines.push(
+      `for tonight, from what you own — ${n} makeup ${n === 1 ? "step" : "steps"}, in order.`,
+    );
+  } else lines.push("nothing makeup logged on your shelf yet, so there's no order to give.");
+  if (named) {
+    lines.push(`your "${named.caption}" look is below — open it and its products are the recipe.`);
+  } else if (looks.length > 0) {
+    lines.push("your saved looks are below — open one and its products are the recipe.");
+  }
+  if (!routine && looks.length === 0) lines.push("log what you'd wear and i'll order it.");
+  return reply(
+    lines.join(" "),
+    blocks,
+    chipsFor(ctx, ["build my night skincare", "what should i try next", "compare my lip"]),
+    ["shelf", "looks"],
+    ["plan_look"],
+  );
 }
 
 // ── missing ────────────────────────────────────────────────────────────────

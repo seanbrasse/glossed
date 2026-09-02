@@ -81,7 +81,7 @@ Deno.serve(async (req: Request) => {
       env("ANTHROPIC_API_KEY")!,
       env("ANTHROPIC_WORKSPACE_ID") ?? null,
       supabase,
-      fetched.ctx,
+      fetched,
       transcript,
       user.id,
       // STYLIST_MODEL overrides the default without a deploy — the bake-off knob.
