@@ -65,7 +65,7 @@ final class AppSession {
     /// `OnboardingFlowModel.resolveVariant` is synchronous, so the lookup has to
     /// already be in memory when the user taps a shade. Foundation only: the
     /// anchor question asks for a foundation and nothing else uses this.
-    private var anchorVariants: [String: UUID] = [:]
+    private(set) var anchorVariants: [String: UUID] = [:]
 
     /// Clears everything a signed-in session held (GLO-213) and hands the
     /// screen to FLOW 1's hook — the sign-in screen — on the next frame.
