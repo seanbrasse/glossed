@@ -36,9 +36,13 @@ struct RoutineDraftCard: View {
                         .meta()
                 }
                 if let onSave {
+                    // Three labels, one button: the transaction is cleared so
+                    // the words swap instead of cross-fading on top of each
+                    // other mid-save (seen in the first drive).
                     Button(saved ? "saved to your routines" : saving ? "saving…" : "save to my routines") { onSave() }
                         .buttonStyle(.glossed(saved ? .secondary : .primary, block: true))
                         .disabled(saved || saving)
+                        .transaction { $0.animation = nil }
                 }
             }
         }

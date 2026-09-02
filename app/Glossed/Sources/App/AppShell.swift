@@ -26,7 +26,7 @@ import SwiftUI
 /// not exist yet.
 struct AppShell: View {
     enum ShellTab: String, CaseIterable {
-        case discover, shelf, you
+        case discover, stylist, shelf, you
     }
 
     @State var session = AppSession()

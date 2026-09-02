@@ -61,12 +61,7 @@ extension AppShell {
                 .overlay { tabPager }
             if !itemSheetOpen {
                 FloatingNav(
-                    tabs: [
-                        .init(id: ShellTab.discover, label: "discover", glyph: .discover),
-                        .init(id: ShellTab.shelf, label: "shelf", glyph: .shelf),
-                        // maya = the dev sign-in; real names are GLO-204's.
-                        .init(id: ShellTab.you, label: "you", glyph: .avatar(name: "maya"))
-                    ],
+                    tabs: navTabs,
                     active: $tab,
                     onPlus: { drawerOpen = true }
                 )
@@ -157,9 +152,28 @@ extension AppShell {
     var tabPager: some View {
         TabView(selection: $tab) {
             tabPage(discoverTab, .discover)
+            if StylistFlag.isEnabled {
+                tabPage(stylistTab, .stylist)
+            }
             tabPage(shelfTab, .shelf)
             tabPage(youTab, .you)
         }
+    }
+
+    /// The nav's tabs, in the pager's order. The stylist sits second (Sean,
+    /// Sept 1: "between discover and shelf") and only behind its flag — a
+    /// tab that is off is absent, not greyed.
+    private var navTabs: [FloatingNav<ShellTab>.Tab] {
+        var tabs: [FloatingNav<ShellTab>.Tab] = [
+            .init(id: .discover, label: "discover", glyph: .discover)
+        ]
+        if StylistFlag.isEnabled {
+            tabs.append(.init(id: .stylist, label: "stylist", glyph: .stylist))
+        }
+        tabs.append(.init(id: .shelf, label: "shelf", glyph: .shelf))
+        // maya = the dev sign-in; real names are GLO-204's.
+        tabs.append(.init(id: .you, label: "you", glyph: .avatar(name: "maya")))
+        return tabs
     }
 
     private func tabPage(_ screen: some View, _ id: ShellTab) -> some View {
