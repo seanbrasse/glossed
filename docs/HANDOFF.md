@@ -1,4 +1,4 @@
-# Session handoff — Sept 2 2026 (session 19: the product photos came back, the tabs stopped remounting, and the stylist shipped behind a flag)
+# Session handoff — Sept 2 2026 (session 20: the stylist went rules-first, got a key and a lexicon, and the phone got its own account path)
 
 Where Phase 1 stands, what to do next, and what the last three sessions learned.
 Read `docs/README.md` first for the design; this file is only about state.
@@ -6,6 +6,24 @@ Read `docs/README.md` first for the design; this file is only about state.
 **Starting a session?** [`docs/NEXT-SESSION.md`](NEXT-SESSION.md) is the short,
 pasteable version — what to start on, what is blocked on a human, and the rule
 that cost the most last time. This file is the reference it points at.
+
+## Session 20 at a glance (Sept 2, daytime)
+
+**Zero PRs merged, five open at handoff** — #495 (this handoff), #496, #497, #498,
+#499 — all green except the iOS job on #499, which was queued when this was
+written (macOS runners ran 20+ minutes behind all afternoon). Sean gave no
+merge grant this session; nothing was merged. One session, one lane.
+
+| What | Where |
+|---|---|
+| **The stylist is rules first, model last.** Sean: *"as little AI as possible — searching, filtering, looking at data and making comparisons."* `plan.ts` answers a routine, the gaps, try-next, compare, about-an-item and a look-for-tonight from the shelf and the cohort RPCs with **zero model calls**; `model.ts` (the original tool loop) runs only for a free-form question, and only when a key exists — without one the person gets the honest menu, not a 503. Driven live as maya, no key: morning routine → save → *open it* → edit → on the profile | **#496**, `08-stylist.md` §4 |
+| **The key exists, locally.** Sean signed in to the console in his real Chrome (the app's browser pane is invisible to him); I created `glossed-stylist-local`, a *personal* (identity-linked) key, expires **Oct 2 2026**. It is refused with `400 anthropic-workspace-id is required` unless the workspace id rides on every request — `ANTHROPIC_WORKSPACE_ID` sits beside it in `supabase/functions/.env` and #496 sends it. **No hosted secret** | §0, §7 |
+| **Sonnet 5 runs the fallback** — a nine-question, three-model bake-off (`scripts/stylist_bakeoff.ts`): Sonnet answered everything with receipts at 0.3–1.4¢ and 3–12 s; Opus was better at 3× the cost; Haiku 4.5 refused a layering question as "a dermatologist question", asked for facts already in its context, and invented a cleanser's strength. `STYLIST_MODEL` in the env overrides without a deploy | #496, `08-stylist.md` §3 |
+| **The lexicon** — how people phrase beauty asks (slang, occasions, category synonyms, slot/domain cues, the medical list), written offline, matched at zero tokens; `lexicon_test.ts` is a 60-row corpus every row of which routes without a model. *"make my going out look slay tonight"* answers in 62 ms with her makeup in order and her look as a door. The plans are offered to Sonnet as tools, so a phrasing the lexicon misses is interpreted once and answered by the rules. A Haiku→Sonnet router was rejected (08 §4) | #496 |
+| **Chips know what you keep** (Sean: *"what if I already built a pm routine?"*) — a routine chip names a slot you do not keep yet and gives way when you keep them all; "build me a routine" lands on the first slot the shelf can fill; starter chips are generic | #496, #497 |
+| **The phone makes its own account** — `GLOSSED_DEV_SIGN_IN=0` baked into the bundle skips the maya sign-in, a kept dev session is signed out, and a launch with no session goes to FLOW 1 → Sign in with Apple. The local stack's Apple provider is on. **The project had no entitlements file**, so no earlier device build could ever have shown a working Apple button; declared now, and it needed Sean's Apple ID in Xcode to sign. Installed and launched on his iPhone at 14:23; **no Apple account had been created by handoff** (`auth.users` still the 3 seeded) | **#499**, GLO-23 thread, §0 |
+| **The app is light-only now** — dark mode had turned the composer's text white on white on Sean's phone | #499 |
+| **Two live bugs found by reading the phone, not the code:** the model's answer lost every paragraph before its last tool call (the loop kept only the final response's text), and a plan tool plus the model's own artifact drew the same card twice | #496 |
 
 ## Session 19 at a glance (Sept 1 → 2)
 
@@ -112,6 +130,48 @@ not estimated. Highlights, in rough order of how much they matter:
 ---
 
 ## 0. Read this first
+
+### A device build signs without the capability it needs, and says nothing
+
+`xcodebuild` for a phone succeeded all session while producing an app whose
+entitlements carried no `com.apple.developer.applesignin` — the project had no
+entitlements block, so the wildcard profile signed it happily and the Apple
+sheet could only ever fail at tap time. **Check the built app, not the exit
+code:** `codesign -d --entitlements :- <app>` and `ls -la <app>/Glossed` (a
+"successful" build that failed at signing leaves the previous binary in place —
+I reinstalled a stale binary twice before noticing the mtime). Declared in
+#499 via `entitlements:` in `project.yml`; signing it needs an Apple developer
+account in Xcode › Settings › Accounts, which Sean added Sept 2 14:20. And
+`CODE_SIGN_ENTITLEMENTS=""` on the command line does **not** remove an
+xcodegen-declared block — the interim build had to drop the block from
+`project.yml`, generate, build, and restore.
+
+### iOS keeps keychain items across an uninstall
+
+A device that ever ran a dev build holds maya's session in the keychain, and
+`devicectl uninstall` does not clear it — the first "fresh" install booted
+straight into maya's tabs. `AppSession.readyWithoutAccount` now signs the seeded
+dev user out when dev sign-in is off; any other session is honoured.
+
+### The stylist's key is a personal key, and the app is light-only
+
+- A console key created today is **identity-linked**; the API refuses it with
+  `anthropic-workspace-id is required`. `model.ts` sends the header from
+  `ANTHROPIC_WORKSPACE_ID` (next to the key in `supabase/functions/.env`, both
+  gitignored, neither on hosted). The workspace id is on the console's
+  Workspaces page.
+- `UIUserInterfaceStyle: Light` is in the plist: dark mode turned the
+  composer's text white on white on the phone, and the simulator never showed
+  it because it was in light mode.
+
+### A stacked PR's `project.yml` carries the stack's packages
+
+#499 (base `main`) failed CI with *Spec validation error: Invalid local package
+"Stylist"* because I copied the integration branch's `project.yml` whole; the
+Stylist package only exists on the #493 stack. A main-based PR gets `main`'s
+`project.yml` plus its own additions, and `xcodegen generate --spec` from a
+worktree of that branch proves it before pushing.
+
 
 ### The catalog images live in the `storage` schema, and a `db reset` drops it
 
@@ -404,9 +464,9 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Thing | State |
 |---|---|
-| **The Stylist** — five PRs (#490–#494), the spec merged first; the rest merging as CI goes green under the standing grant. #494 (the tab) was stacked on #492 and #493 and must be rebased onto `main` after they squash — the inflation shape | GLO-224 thread |
-| **The stylist has a key locally (Sept 2, session 20) — and, as of #496, does not need one for the shaped asks.** `glossed-stylist-local`, a *personal* console key, in `supabase/functions/.env` only, with `ANTHROPIC_WORKSPACE_ID` beside it — a personal key is refused without `anthropic-workspace-id` on the request, so #496 sends it. Expires Oct 2 2026. No hosted secret. With #496, `plan.ts` answers a routine, the gaps, try-next, compare and about from data with zero model calls; only a free-form question reaches `model.ts`, and without a key it gets the honest menu instead of a 503. `STYLIST_DEMO=1` still drives the canned stylist | Sean (key) |
-| **Rules first, model last (Sept 2, session 20).** Sean: *"as little AI as possible."* #496 (function: `plan.ts`, `data.ts`, `model.ts`, 12 planner tests; base #491), #497 (the routine card's shape, *open it* through the shell's `.routine` door, `onRoutineSaved` → the GLO-278 profile trip; base #494), #498 (`08-stylist.md` §4; base `main`). Driven live as maya, no key: morning routine → save → open it → edit → profile lists it; a pm routine saved from the tab reached the already-mounted profile. **Retarget #496/#497 to `main` before their bases are deleted.** Later the same day: Sonnet 5 became the fallback's model (a 3-model bake-off, `scripts/stylist_bakeoff.ts`, numbers in 08 §3 — Haiku refused basic asks and invented facts), and #496 grew the lexicon (`lexicon.ts`, how people phrase beauty asks, learned offline; `lexicon_test.ts`, a 60-row corpus routed with no model), a `look` intent (*"make my going out look slay tonight"* → 62 ms, her makeup in order + her look as a door), and plan tools so Sonnet hands shaped work back to the rules. A Haiku→Sonnet router was considered and rejected (08 §4). The local seed has an empty `agg_rank_scores` and no shade anchor, so *missing* says "no receipts yet" and *try next* carries only the exploration slot — honest, and the cohort receipts light up with face-off data | #496 #497 #498, GLO-224 thread |
+| **Five PRs open, none merged, no grant given.** #496 (function: rules first, lexicon, Sonnet 5, plan tools; base #491), #497 (routine card, *open it*, profile trip, generic starter chips; base #494), #498 (`08-stylist.md` §3–4; base `main`), #499 (the phone's own account, the Apple entitlement, light-only; base `main`), #495 (this handoff). **Retarget #496 to `main` before #491's branch is deleted, and #497 before #494's** — the rule that closed #480 | GLO-224, GLO-23 threads |
+| **The first real account has not been made.** The entitled build is on Sean's iPhone (14:23) at FLOW 1; `auth.users` still holds the 3 seeded rows. The local stack must be up with `supabase functions serve` running and the Mac awake on the same Wi-Fi (`http://Seans-MacBook-Pro.local:54321`). First thing next session: has an `apple` provider row appeared? If the tap failed, `docker logs supabase_auth_glossed` says why | GLO-23 thread |
+| **Friends' phones = TestFlight**, which needs a Release boot path (the account path was moved out of `#if DEBUG` on Sept 2 — see §6 for whether it reached #499), a **hosted backend with the catalog and the functions deployed** (hosted has 0 products; promotion needs the DB URL or a CLI login), and an App Store Connect record | GLO-50, §7 |
 | **Filling the new categories from Shopify** (Sean's ask, Sept 1) | **Step 1 done — #488** (rules in `TYPE_RULES`, backfill in `scripts/reclassify_new_groups.sql`, 168 products moved on local, 0 ladders touched). Step 2 (leaves) still needs slot **0058** |
 | **Sean's product list** | Still not in the repo — ask where it is before building on "the new products" |
 | Local drive data | The `session 19 drive` collection was soft-deleted after the GLO-278 drive; nadia is now seeded on every reset |
@@ -709,6 +769,10 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 
 | Thread | Where |
 |---|---|
+| **Stylist:** Sonnet's two quirks seen in the bake-off — a stiff "not something i can answer from your data… quick answer anyway" preamble on a general question, and "well-regarded" said of catalog rows with no evidence. Prompt work if they recur in real use | #496 comment |
+| **Stylist:** the lexicon grows from misses — a real phrasing that lands on `open` but had a shape is a `lexicon.ts` row, then a `lexicon_test.ts` row. The function logs `intent` per turn; watch the `open` share | `08-stylist.md` §4 |
+| **Stylist:** the first request after a `supabase functions serve` restart logs `stylist prefetch failed` and answers 502; the second succeeds. Runtime cold start, seen three times, not diagnosed | #496 comment |
+| **Phone:** the Release boot path (account path outside `#if DEBUG`, dev sign-in never in Release) was compiled locally for the simulator in Release at handoff — check #499's last commit for it; if absent, the change is on the integration branch `claude/routine-styling-recommendations-26398e` in `AppSession.swift` | #499 |
 | **Stylist:** product rows are not doors — opening a product page needs a `CatalogHit` the block does not carry (STY-12); the row's image area draws nothing without a catalog key (the mock silhouette does not render at 56pt) | GLO-224 thread, `08-stylist.md` §5 |
 | **Stylist:** streaming needs a third method on `GlossedClient` (frozen core); v1 is turn-at-a-time with a `thinking…` line | STY-11 |
 | **Stylist:** no transcript table by decision (08 §3) — the thread dies with the tab; persisting it is a `domain.md` §6 retention decision | 08 §3 |
@@ -774,7 +838,8 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 
 | Blocked thing | On what | Who |
 |---|---|---|
-| **`ANTHROPIC_API_KEY`** for the stylist | In `supabase/functions/.env` locally (the file holds only the R2 keys) and as a hosted function secret. Without it the stylist is a 503 and the tab says so | Sean |
+| **Hosted secrets for the stylist** | `ANTHROPIC_API_KEY` + `ANTHROPIC_WORKSPACE_ID` exist locally only (`supabase/functions/.env`); the hosted project has neither, nor the function deployed. Only the free-form question needs them now | Sean |
+| **TestFlight for friends** | Needs the catalog promoted to hosted (DB URL or CLI login), the functions deployed with their secrets (R2, Anthropic), an App Store Connect record, export compliance. The Release boot path is the only code half | Sean |
 | **Minors and the stylist** | No ruling; v1 answers adults only (`isAdult` in `tools.ts`, `403 not_yet`). 13–17 see *"the stylist is for adults for now"* | Sean |
 | **The stylist's refusal copy** (medical classifier, STY-7), **its budget table** (STY-8, a migration slot), **the kit frame** (STY-10, `/design-login`) | Each named in 08 §5 | Sean |
 | **Where is the product list?** | Sean's "comprehensive product listing" (Sept 1) reached the repo only as 0057's category rows. No file in `docs/`, `scripts/`, `supabase/seed*`, no `.csv`/`.json`. If it named branded products, they are not in the catalog and nothing can make them searchable until the list itself is in hand | Sean |
@@ -803,6 +868,63 @@ For external APIs the drive equivalent is a mock upstream + the audit count —
 | Save/wishlist mapping | Whether `want_to_try` IS tech/07's +0.5 save signal | Sean |
 
 ## 8. What went wrong, so you don't repeat it
+
+### Session 20 (Sept 2, daytime) — append-only, newest first
+
+**Two "successful" phone builds were signing failures, and I reinstalled the
+stale binary both times.** The harness reported exit 0 because my pipeline's
+last command was `grep`; the app dir still held the 13:56 binary. Sean's phone
+therefore ran a build with dev sign-in off and no Apple entitlement — it signed
+maya out and parked him at an Apple button that could not work. *Shape: after a
+device build, check `ls -la <app>/<binary>` against the clock and `codesign -d
+--entitlements :-` before `devicectl install`; and end a pipeline on the command
+whose status you want, not on a filter.*
+
+**`CODE_SIGN_ENTITLEMENTS=""` on the command line does not remove an xcodegen
+entitlements block.** Automatic signing still read the capability and failed on
+the wildcard profile. The interim build needed the block removed from
+`project.yml`, `make generate`, the build, then the block restored.
+
+**I copied the integration branch's `project.yml` into a main-based PR.** It
+carried `- package: Stylist`, which does not exist on `main`; CI failed at
+*Generate project*. *Shape: a PR cut from `main` gets `main`'s file plus the
+diff, and `xcodegen generate --spec` in that worktree proves it before pushing.*
+
+**Moving code to a new file crossed `private`.** `resolveAnchorVariant` read
+`anchorVariants`, a `private var`; in its own file that is invisible, and Swift's
+error named the *static* method of the same name instead — a misleading message
+on a mundane cause. `private(set)` and a distinct name (`loadAnchorVariants`)
+fixed it. *Shape: before extracting for the 300-line ceiling, grep the moved
+code for every `private` it touches.*
+
+**`echo "$json" | jq` in zsh corrupts `\n`.** zsh's `echo` interprets escapes,
+so a reply containing a newline produced a jq "control character" error that
+read like a server bug. `printf '%s'` or `-o file`. Cost fifteen minutes and a
+false alarm.
+
+**The Bash cwd persisted after a `cd supabase/functions/stylist && python3 …`.**
+Every relative path in the next command missed ("no such file", "No target files
+found") and I read it as tooling breakage. *Shape: the harness keeps the cwd; use
+absolute paths or `(cd … && …)`, never a bare `cd`.* The previous handoff said
+exactly this and I did it anyway.
+
+**The model's answer was being thrown away before its last tool call.** In the
+original loop, `text = textOf(response.content)` on every iteration — an answer
+given before `suggest_chips` and closed after it showed as its coda alone
+("that's the whole answer — a beat, not a rule."). Found by typing on the phone,
+not by any test. *Shape: a loop that overwrites where it should append is
+invisible until a model does two things in one turn; keep a list.*
+
+**A plan tool and the model's own artifact tool drew the same card twice**
+(`build_routine` then `propose_routine`; `look_for_tonight` then
+`reference_look`). Deduplicated server-side by identity, not by prompt — a
+prompt line ("do not repeat what the card shows") was already there and Sonnet
+ignored it once in three.
+
+**The bake-off's first run scored Haiku's cost with no cache hits** because the
+system + context block is under Haiku's 2048-token cache minimum, so its
+per-turn cost (~0.7¢) is not comparable to Sonnet's cached turns. The ruling did
+not turn on cost, but the table should say so, and now does here.
 
 ### Session 19 (Sept 1 → 2) — append-only, newest first
 
