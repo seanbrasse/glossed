@@ -123,7 +123,7 @@ update looks set visibility = 'public'
 select test_as('a8000000-0000-0000-0000-000000000002');
 select is((select count(*)::int from looks where state = 'public' and user_id = 'a8000000-0000-0000-0000-000000000001'),
     1, 'public state + public looks scope renders to a stranger');
-select is((select count(*)::int from look_tags where look_id = '18000000-0000-0000-0000-000000000001'),
+select is((select count(*)::int from look_tags where look_photo_id in (select id from look_photos where look_id = '18000000-0000-0000-0000-000000000001')),
     1, 'the tags ride the parent''s visibility');
 
 -- 15 · a block severs regardless of scope
