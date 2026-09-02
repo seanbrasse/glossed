@@ -11,15 +11,20 @@ public struct OnbQuizView: View {
     /// whatever it is handed; an empty catalog renders the no-foundation
     /// path alone rather than an empty wall of pills).
     private let anchorCatalog: [ShadeAnchorPicker.BrandEntry]
+    /// Back off the first question. Nil hides the link there — a caller
+    /// with nowhere to send the user (the debug catalog) shows no door.
+    private let onExit: (() -> Void)?
     private let onFinished: () -> Void
 
     public init(
         model: OnboardingModel,
         anchorCatalog: [ShadeAnchorPicker.BrandEntry],
+        onExit: (() -> Void)? = nil,
         onFinished: @escaping () -> Void
     ) {
         _model = State(initialValue: model)
         self.anchorCatalog = anchorCatalog
+        self.onExit = onExit
         self.onFinished = onFinished
     }
 
@@ -46,9 +51,17 @@ public struct OnbQuizView: View {
             Text("STEP \(min(model.stepIndex, model.steps.count - 1) + 1) OF \(model.steps.count) · JUST TAPS")
                 .eyebrow()
             Spacer(minLength: 0)
-            if !model.isFirstStep {
-                Button("back") { model.back() }
-                    .buttonStyle(.textLink(Tokens.Ink.soft, size: 11))
+            // Every step backs up one; the first backs out to the start
+            // screen (Sean, Sep 2: "go back throughout onboarding").
+            if !model.isFirstStep || onExit != nil {
+                Button("back") {
+                    if model.isFirstStep {
+                        onExit?()
+                    } else {
+                        model.back()
+                    }
+                }
+                .buttonStyle(.textLink(Tokens.Ink.soft, size: 11))
             }
         }
     }

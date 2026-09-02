@@ -127,6 +127,21 @@ public final class OnboardingFlowModel {
         stop = .payoff
     }
 
+    /// Back off the quiz's first question. Sean, Sep 2: *"we should also be
+    /// able to go back throughout onboarding"* — and the first question had
+    /// no way to the start screen at all. Answers are kept: the quiz is one
+    /// instance for the trip, so a second "create an account" resumes it.
+    public func quizExited() {
+        stop = .hook
+    }
+
+    /// Back off the payoff, to the quiz's LAST question — where the user
+    /// left, not the first one over again. The quiz's own step index is
+    /// untouched, which is the whole of why the flow holds one quiz.
+    public func payoffBacked() {
+        stop = .quiz
+    }
+
     public func payoffContinued() {
         // Rebuilt on each arrival: backing out to the payoff and returning
         // should offer the method pick again, not resume mid-verification.
