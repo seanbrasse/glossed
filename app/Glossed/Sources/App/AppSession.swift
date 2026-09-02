@@ -146,13 +146,7 @@ final class AppSession {
                 // account with Sign in with Apple — the real path, on the
                 // real stack, for Sean to test as a new user (Sept 2).
                 if Self.devSignInIsOff(environment) {
-                    if await (try? booted.requireUserID()) == nil {
-                        client = booted
-                        needsOnboarding = true
-                        anchorVariants = await Self.anchorVariants(CatalogRepository(client: booted))
-                        tracker = Tracker(poster: TrackIngestPoster(client: booted))
-                        imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
-                        phase = .ready
+                    if await readyWithoutAccount(booted, config: config) {
                         return
                     }
                 } else {
@@ -256,6 +250,28 @@ final class AppSession {
     /// Nil profile means the quiz was never answered. The env override exists
     /// because both seeded accounts already have a profiles row (GLO-182), so
     /// without it the flow is unreachable in every drive this project makes.
+    /// The phone's boot when no account is signed in: FLOW 1 makes one. A
+    /// session the keychain kept from an earlier dev build is maya's, not
+    /// the person's — iOS keeps keychain items across an uninstall — so it
+    /// is ended, not honoured. False when a real session exists.
+    private func readyWithoutAccount(_ booted: GlossedClient, config: GlossedConfig) async -> Bool {
+        if await (try? booted.requireUserID()) == Self.seededDevUserID {
+            try? await booted.signOut()
+        }
+        guard await (try? booted.requireUserID()) == nil else { return false }
+        client = booted
+        needsOnboarding = true
+        anchorVariants = await Self.anchorVariants(CatalogRepository(client: booted))
+        tracker = Tracker(poster: TrackIngestPoster(client: booted))
+        imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
+        phase = .ready
+        return true
+    }
+
+    /// `seed.sql`'s maya — the dev sign-in's user, and the one account a
+    /// phone must never keep.
+    private static let seededDevUserID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")
+
     /// `GLOSSED_DEV_SIGN_IN=0` in the launch environment or, for a phone
     /// that launches with none, `GlossedDevSignIn` in the bundle.
     private static func devSignInIsOff(_ environment: [String: String]) -> Bool {
@@ -271,36 +287,6 @@ final class AppSession {
             return true
         }
         return try await profiles.own() == nil
-    }
-
-    /// Every foundation variant the local catalog carries, keyed the way the
-    /// picker names one. Failure is empty, not fatal: an unresolvable anchor
-    /// makes the payoff say it has nothing to show, which is true, rather than
-    /// taking the whole flow down.
-    private static func anchorVariants(_ catalog: CatalogRepository) async -> [String: UUID] {
-        guard let hits = try? await catalog.search("foundation", limit: 60) else { return [:] }
-        var map: [String: UUID] = [:]
-        for hit in hits where hit.categorySlug == "foundation" {
-            guard let variants = try? await catalog.variants(productID: hit.id) else { continue }
-            for variant in variants {
-                guard let shade = variant.shadeCode else { continue }
-                map[anchorKey(brand: hit.brandName, product: hit.name, shade: shade)] = variant.id
-            }
-        }
-        return map
-    }
-
-    /// Lowercased and trimmed on both sides, because the picker's strings come
-    /// from the kit and the catalog's come from an importer.
-    static func anchorKey(brand: String, product: String, shade: String) -> String {
-        [brand, product, shade]
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-            .joined(separator: "·")
-    }
-
-    /// Handed to `OnboardingFlowModel`, which calls it when a shade is picked.
-    func resolveAnchorVariant(brand: String, product: String, shade: String) -> UUID? {
-        anchorVariants[Self.anchorKey(brand: brand, product: product, shade: shade)]
     }
 
     /// Onboarding wrote a profile, so the reason to show it is gone. Re-reads
