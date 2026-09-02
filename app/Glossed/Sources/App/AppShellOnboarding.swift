@@ -124,11 +124,18 @@ extension AppShell {
             let ranked = await (try? aggregates.leaderboard(categoryID: category.id, limit: 1))?.first
             if let row = ranked, row.isRankable {
                 picks.append(shelfPick(row.hit, nUsers: row.nUsers, imageBase: imageBase))
-            } else if let hit = await (try? catalog.search(slug, limit: 1))?.first {
+            } else if let hit = await (try? catalog.search(slug, limit: 5))?.first(where: Self.readsAsAProduct) {
                 picks.append(shelfPick(hit, nUsers: nil, imageBase: imageBase))
             }
         }
         return picks
+    }
+
+    /// The Shopify fill left some products named after a creator's handle
+    /// ("@itsmaureenkelly highlight reel…"). Real products, but not what a
+    /// first screen should put in a stranger's hands as an example shelf.
+    private static func readsAsAProduct(_ hit: CatalogHit) -> Bool {
+        !hit.name.contains("@")
     }
 
     private static func shelfPick(_ hit: CatalogHit, nUsers: Int?, imageBase: URL?) -> PayoffModel.ShelfPick {
