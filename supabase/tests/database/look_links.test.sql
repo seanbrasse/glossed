@@ -65,7 +65,10 @@ select is((select count(*)::int from look_collections), 1,
 -- 5-8 · THE ASSERTION. The look is public and readable; the routine and the
 -- collection are only_you. The stranger must see the LOOK and NOTHING ELSE.
 select test_as('aa000000-0000-0000-0000-000000000002');
-select is((select count(*)::int from looks where state = 'public'), 1,
+-- Scoped to this owner: the seed now holds a public stranger with a
+-- published look (GLO-267), and a table-wide count would read her too.
+select is((select count(*)::int from looks where state = 'public'
+            and user_id = 'aa000000-0000-0000-0000-000000000001'), 1,
     'the stranger can read the look itself — the fixture is doing its job');
 select is((select count(*)::int from look_routines), 0,
     'a private routine linked by a PUBLIC look is invisible to a stranger');

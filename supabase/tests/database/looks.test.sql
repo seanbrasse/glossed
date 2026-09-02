@@ -2,6 +2,18 @@
 -- minor photo gate asserted directly (a launch requirement, delta 11), the
 -- scope-gated public read, and the fail-closed state rule. GLO-197.
 -- Fixtures in-txn, rolled back.
+-- **Every count here is scoped to this suite's own fixture, and that is load
+-- bearing.** These assertions used to count `looks`, `look_photos` and
+-- `look_tags` table-wide, which was only ever correct while the seed created
+-- none. GLO-267 seeds a published look for nadia and five of them went red at
+-- once — for a reason that has nothing to do with what any of them is named
+-- for. Same shape as GLO-161's note in `shelf_isolation.test.sql`: an absolute
+-- count over a shared table fails for reasons unrelated to the property under
+-- test, and a red that cannot say why gets dismissed as noise.
+--
+-- The scoping NARROWS nothing that matters: each line already names one
+-- owner's look, and the visibility rule it tests is per-row.
+
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(17);
@@ -71,8 +83,10 @@ select is(
 
 -- 6-9 · another user: a draft is invisible and untouchable
 select test_as('a8000000-0000-0000-0000-000000000002');
-select is((select count(*)::int from looks), 0, 'a draft is invisible to anyone else');
-select is((select count(*)::int from look_photos), 0, 'draft photos are invisible to anyone else');
+select is((select count(*)::int from looks where user_id = 'a8000000-0000-0000-0000-000000000001'),
+    0, 'a draft is invisible to anyone else');
+select is((select count(*)::int from look_photos where look_id = '18000000-0000-0000-0000-000000000001'),
+    0, 'draft photos are invisible to anyone else');
 select lives_ok(
     $$update looks set caption = 'vandalized'
       where id = '18000000-0000-0000-0000-000000000001'$$,
@@ -98,7 +112,7 @@ update looks set state = 'public', posted_at = now()
  where id = '18000000-0000-0000-0000-000000000001';
 
 select test_as('a8000000-0000-0000-0000-000000000002');
-select is((select count(*)::int from looks where state = 'public'),
+select is((select count(*)::int from looks where state = 'public' and user_id = 'a8000000-0000-0000-0000-000000000001'),
     0, 'public state with no looks scope grants nothing — can_view default-deny holds');
 
 set local role postgres;
@@ -107,9 +121,9 @@ update looks set visibility = 'public'
  where user_id = 'a8000000-0000-0000-0000-000000000001';
 
 select test_as('a8000000-0000-0000-0000-000000000002');
-select is((select count(*)::int from looks where state = 'public'),
+select is((select count(*)::int from looks where state = 'public' and user_id = 'a8000000-0000-0000-0000-000000000001'),
     1, 'public state + public looks scope renders to a stranger');
-select is((select count(*)::int from look_tags),
+select is((select count(*)::int from look_tags where look_photo_id in (select id from look_photos where look_id = '18000000-0000-0000-0000-000000000001')),
     1, 'the tags ride the parent''s visibility');
 
 -- 15 · a block severs regardless of scope
@@ -117,7 +131,7 @@ set local role postgres;
 insert into blocks (user_id, blocked_id) values
     ('a8000000-0000-0000-0000-000000000001', 'a8000000-0000-0000-0000-000000000002');
 select test_as('a8000000-0000-0000-0000-000000000002');
-select is((select count(*)::int from looks where state = 'public'),
+select is((select count(*)::int from looks where state = 'public' and user_id = 'a8000000-0000-0000-0000-000000000001'),
     0, 'a block severs the public read in the blocked direction');
 
 -- 16 · fail-closed: an unknown-to-the-policy state renders to nobody else
@@ -126,7 +140,7 @@ delete from blocks;
 update looks set state = 'pending_review'
  where id = '18000000-0000-0000-0000-000000000001';
 select test_as('a8000000-0000-0000-0000-000000000002');
-select is((select count(*)::int from looks),
+select is((select count(*)::int from looks where user_id = 'a8000000-0000-0000-0000-000000000001'),
     0, 'pending_review is not public — the policy tests public, not not-removed');
 
 -- 17 · anon: no grant at all
