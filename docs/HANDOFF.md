@@ -12,10 +12,15 @@ that cost the most last time. This file is the reference it points at.
 **Ten PRs open, none merged, no grant given** — #500–#509. Sean drove
 onboarding on his phone and sent six notes, then two, then three; each is
 one PR.
-**The lot is on his phone** (15:17, `phone/sep-2-onboarding` = #499 + all
-eight, merged clean; binary mtime and `applesignin` entitlement checked
-before install, `GlossedDevSignIn=0` in the plist). That branch is local
-only — it is not a PR.
+**The lot is on his phone** (15:45, `phone/sep-2-onboarding` = #499 + all
+ten + the stylist stack #491–#497, merged clean; binary mtime and
+`applesignin` entitlement checked before install, `GlossedDevSignIn=0` in
+the plist). That branch is local only — it is not a PR. **The first phone
+build of the afternoon left the stylist out** — it took #499 and the day's
+PRs and nothing else; Sean noticed. A phone build is the union of every
+open stack, not just the day's. In a Debug build the app's code is
+`Glossed.app/Glossed.debug.dylib`; `Glossed.app/Glossed` is a 92 KB stub,
+so `strings` it for proof, not the executable.
 **Linear refused every new issue** ("exceeded the free issue limit"), so the
 six ticket bodies are one comment on GLO-108 (the first-run friction ticket)
 and the branches carry `GLO-108` (`GLO-248` for the hair images, which existed).
