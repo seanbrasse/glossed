@@ -11,15 +11,29 @@ now, and the two new ones both failed *silently* for a day.
 
 **The rule that cost the most last session, as an imperative:** *when you
 squash-merge a stack, retarget the next PR to `main` BEFORE deleting the merged
-branch — GitHub closes a PR whose base vanishes, it does not retarget it.* And:
-*before you "fix" the environment, find out what the environment is.* Session 19 quit an app
-named Docker that does not exist on this machine (the daemon is **Colima**) and
-read the daemon's unchanged answer as a successful restart. `docker context show`
-before any daemon surgery. And: **a `db reset` drops the catalog's image index**
-— after any reset, `./scripts/catalog_storage.sh reconcile`, until #479 merges
-and `make db-reset` does it for you.
+branch — GitHub closes a PR whose base vanishes, it does not retarget it.*
+
+Three more, each of which cost real time in session 19:
+
+- *`wc -l` a file before you add to it* — the 300-line ceiling has now bitten
+  three sessions, this time on `KitIcons.swift`, and CI is the only thing that
+  says so.
+- *Find out what the environment is before you "fix" it* — the daemon here is
+  **Colima**, not Docker Desktop; `docker context show` before any surgery.
+- *A `db reset` drops the catalog's image index* — `make db-reset` now runs
+  `scripts/catalog_storage.sh reconcile` for you (#479); after a bare
+  `supabase db reset`, run it by hand.
 
 ## Start here
+
+0. **Give the stylist a key and drive the live path.** Put `ANTHROPIC_API_KEY`
+   in `supabase/functions/.env`, restart `supabase functions serve`, `make run`
+   (no `STYLIST_DEMO`), and ask *build me a morning routine from what I own*.
+   **Done looks like:** a routine card whose steps are all maya's `user_items`,
+   chips of three or fewer, and `grounded_in` naming the context — then the
+   same on hosted with the secret set. `docs/tech/08-stylist.md` §5 is the
+   ticket list; STY-7 (medical classifier) is the next build.
+
 
 1. **Step 1 of the Shopify fill is done (#488).** The rules and the backfill
    are in; `make db-reset` restores the catalog from the snapshot, which was
@@ -36,13 +50,16 @@ and `make db-reset` does it for you.
 
 ## Route around these — they are blocked on Sean, not on code
 
-- **The product list itself** — see 3 above.
+- **`ANTHROPIC_API_KEY`** — the stylist is a `503` without it, on every stack.
+- **The stylist's rulings** — minors (v1 adults only), refusal copy, the
+  budget migration, `/design-login` for the kit frame. 08 §5 names each.
+- **The product list itself** — Sean's Sept 1 listing reached the repo only as 0057's category rows; ask where it is before building on "the new products".
 - **A CLI token or the hosted DB URL** — no migration can be pushed properly and
   no catalog can be promoted without one.
 - **Twilio credentials.** Phone OTP is stubbed. GLO-23's Apple half is done.
 - **Any NEW Linear issue.** The workspace is at its free issue cap. Updates and
-  comments work; creates fail. Session 19 put findings on GLO-223, GLO-256,
-  GLO-258, GLO-272, GLO-278.
+  comments work; creates fail. Session 19 put findings on GLO-223, GLO-224 (the
+  Stylist's whole ticket thread), GLO-256, GLO-258, GLO-272, GLO-278.
 - **A DataKit opening** for the one-line pin in `RankingRepository.positions()`
   (latent, no caller) and for GLO-227's chips.
 
@@ -76,8 +93,11 @@ and `make db-reset` does it for you.
 
 ## State at handoff, verified not recalled
 
-**Zero PRs open.** Fourteen merged in session 19 (#479 #476 #477 #478 #402 #483
-#430 #431 #481 #482 #485 #486 #487 #488), `main` verified after the last one: swiftformat and
+**Fifteen merged in session 19** (#479 #476 #477 #478 #402 #483 #430 #431 #481
+#482 #485 #486 #487 #488 #490) and **four open at handoff, merging under the
+grant as CI goes green**: #491 #492 #493 (the stylist's function, glyph and
+package) and #494 (the tab — stacked on the other two; rebase it onto `main`
+after they squash, then merge). `main` was verified after #488: swiftformat and
 swiftlint clean, `xcodebuild build` for the simulator green, `swift test` green
 in `core/DataKit`, `features/Profile`, `features/Collections`; the other 15
 packages were not run. GLO-278, GLO-267, GLO-264 moved to Done. Local catalog: 3,206 products, 13,877
