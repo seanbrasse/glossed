@@ -48,10 +48,7 @@ public struct OnbQuizView: View {
             Spacer(minLength: 0)
             if !model.isFirstStep {
                 Button("back") { model.back() }
-                    .buttonStyle(.plain)
-                    .font(Typography.mono(11))
-                    .foregroundStyle(Tokens.Ink.soft)
-                    .underline()
+                    .buttonStyle(.textLink(Tokens.Ink.soft, size: 11))
             }
         }
     }
@@ -108,10 +105,7 @@ public struct OnbQuizView: View {
             }
             HStack(spacing: Tokens.Space.s3) {
                 Button("i buy all four →") { model.selectAllDomains() }
-                    .buttonStyle(.plain)
-                    .font(Typography.mono())
-                    .foregroundStyle(Tokens.Semantic.accentText)
-                    .underline()
+                    .buttonStyle(.textLink)
                 Text("\(model.domains.count) of 4 · at least one").meta()
             }
         }
@@ -127,6 +121,11 @@ public struct OnbQuizView: View {
                 .foregroundStyle(Tokens.Ink.primary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
+                // A plain-styled button hit-tests its label's opaque
+                // content, and the tile is drawn on the button, outside the
+                // label — so without this the target was the word "makeup",
+                // not the card around it (Sean, Sep 2: "hard to press").
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .background(on ? Tokens.Cherry.soft : Tokens.Ground.card)
@@ -167,10 +166,7 @@ public struct OnbQuizView: View {
                 )
             }
             Button("i don\u{2019}t wear any foundation →") { model.setNoFoundation() }
-                .buttonStyle(.plain)
-                .font(Typography.mono())
-                .foregroundStyle(Tokens.Semantic.accentText)
-                .underline()
+                .buttonStyle(.textLink)
             if model.noFoundation {
                 Text("no problem — we\u{2019}ll ask for your tone band instead, and sharpen it as you rank")
                     .meta()

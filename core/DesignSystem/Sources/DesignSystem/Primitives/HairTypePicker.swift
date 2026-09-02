@@ -54,6 +54,10 @@ public struct HairTypePicker: View {
                 RoundedRectangle(cornerRadius: Tokens.Radius.md)
                     .strokeBorder(isOn ? Tokens.Ink.primary : .clear, lineWidth: Tokens.Border.std)
             )
+            // The unselected cell's background is `.clear`, and a plain
+            // button does not hit-test clear pixels — the target was the
+            // swatch and the code, with a dead gap between and around them.
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("hair type \(pattern)")

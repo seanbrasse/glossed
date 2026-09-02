@@ -95,3 +95,43 @@ public extension ButtonStyle where Self == GlossedButtonStyle {
         GlossedButtonStyle(variant, size: size, block: block)
     }
 }
+
+/// The kit's underlined mono link — "i buy all four →", "← back",
+/// "i don't wear any foundation →" — as a style rather than four modifiers
+/// re-typed at every site.
+///
+/// The point is the hit target, not the look. Every one of those links was
+/// `.buttonStyle(.plain)` on bare 11–12pt text, which hit-tests the glyphs
+/// and nothing else: a target a few points tall that Sean read as "hard to
+/// press / a little unresponsive" (Sep 2). The label keeps its size; the
+/// tappable area grows to `Tokens.hitTarget` and covers the whole frame.
+/// Left-aligned so the row it sits in does not move.
+public struct TextLinkButtonStyle: ButtonStyle {
+    let color: Color
+    let size: CGFloat
+
+    public init(_ color: Color = Tokens.Semantic.accentText, size: CGFloat = Typography.Size.meta) {
+        self.color = color
+        self.size = size
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(Typography.mono(size))
+            .foregroundStyle(color)
+            .underline()
+            .frame(minHeight: Tokens.hitTarget)
+            .contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.6 : 1)
+    }
+}
+
+public extension ButtonStyle where Self == TextLinkButtonStyle {
+    static var textLink: TextLinkButtonStyle {
+        TextLinkButtonStyle()
+    }
+
+    static func textLink(_ color: Color, size: CGFloat = Typography.Size.meta) -> TextLinkButtonStyle {
+        TextLinkButtonStyle(color, size: size)
+    }
+}
