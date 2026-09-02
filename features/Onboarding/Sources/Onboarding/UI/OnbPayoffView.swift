@@ -13,10 +13,14 @@ import SwiftUI
 /// until those have real data behind them.
 public struct OnbPayoffView: View {
     @State private var model: PayoffModel
+    /// Back to the quiz's last question. Nil hides the link — the debug
+    /// catalog mounts this screen alone and has no quiz to return to.
+    private let onBack: (() -> Void)?
     private let onContinue: () -> Void
 
-    public init(model: PayoffModel, onContinue: @escaping () -> Void) {
+    public init(model: PayoffModel, onBack: (() -> Void)? = nil, onContinue: @escaping () -> Void) {
         _model = State(initialValue: model)
+        self.onBack = onBack
         self.onContinue = onContinue
     }
 
@@ -24,6 +28,13 @@ public struct OnbPayoffView: View {
         VStack(alignment: .leading, spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: Tokens.Space.s3) {
+                    if let onBack {
+                        // The same link the account screen carries, so the
+                        // three screens between the hook and the account
+                        // write all back up the same way.
+                        Button("← back", action: onBack)
+                            .buttonStyle(.textLink)
+                    }
                     switch model.phase {
                     case .loading:
                         loadingBlock

@@ -32,6 +32,34 @@ import Testing
 }
 
 @MainActor
+@Test func theFirstQuestionBacksOutToTheStartScreenAndKeepsItsAnswers() {
+    // Sean, Sep 2: "we should also be able to go back throughout
+    // onboarding." The first question had no way back at all.
+    let flow = OnboardingFlowModel()
+    flow.createAccount()
+    flow.quiz.toggle(.haircare)
+    flow.quizExited()
+    #expect(flow.stop == .hook)
+    // The quiz is one instance for the trip, so coming back resumes it.
+    flow.createAccount()
+    #expect(flow.stop == .quiz)
+    #expect(flow.quiz.domains.contains(.haircare))
+}
+
+@MainActor
+@Test func thePayoffBacksUpToTheQuizsLastQuestionNotItsFirst() {
+    let flow = OnboardingFlowModel()
+    flow.createAccount()
+    _ = flow.quiz.next() // domains → the second question
+    #expect(!flow.quiz.isFirstStep)
+    flow.quizFinished()
+    #expect(flow.stop == .payoff)
+    flow.payoffBacked()
+    #expect(flow.stop == .quiz)
+    #expect(!flow.quiz.isFirstStep, "back from the payoff lands where the user left, not at question one")
+}
+
+@MainActor
 @Test func theShelfStarterNeverHandsStraightToTheWelcome() {
     // The regression this file exists for. "two frames, AFTER the shelf
     // exists: the face-off, then why we're here" — so the tour cannot be

@@ -75,6 +75,7 @@ public struct OnboardingFlowView<Tour: View>: View {
             OnbQuizView(
                 model: flow.quiz,
                 anchorCatalog: anchorCatalog,
+                onExit: { flow.quizExited() },
                 onFinished: { flow.quizFinished() }
             )
         case .payoff:
@@ -82,6 +83,7 @@ public struct OnboardingFlowView<Tour: View>: View {
             // `OnboardingFlowModel.payoffAnchor`.
             OnbPayoffView(
                 model: PayoffModel(anchor: flow.payoffAnchor, payoff: payoff),
+                onBack: { flow.payoffBacked() },
                 onContinue: { flow.payoffContinued() }
             )
             .id(flow.payoffAnchor?.variantID)
