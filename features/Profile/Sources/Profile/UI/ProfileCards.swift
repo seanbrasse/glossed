@@ -41,10 +41,19 @@ struct LookTile: View {
             .aspectRatio(1, contentMode: .fit)
             .overlay {
                 if let url = look.previewURL {
-                    AsyncImage(url: url) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Rectangle().fill(Tokens.Ground.milk)
+                    // The photo fades over its placeholder instead of
+                    // cutting in: the last of the four jumps in the
+                    // first-entry recording (`ProfileSkeleton`) was this
+                    // image arriving.
+                    AsyncImage(
+                        url: url,
+                        transaction: Transaction(animation: .easeOut(duration: Tokens.Motion.med))
+                    ) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFill().transition(.opacity)
+                        } else {
+                            Rectangle().fill(Tokens.Ground.line)
+                        }
                     }
                 } else {
                     Rectangle().fill(Tokens.Ground.milk)

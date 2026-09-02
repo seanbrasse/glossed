@@ -78,7 +78,16 @@ struct ProfileTabsSection: View {
 
     @ViewBuilder private var content: some View {
         if model.isLoading {
-            ProgressView().frame(maxWidth: .infinity)
+            // Rarely seen: the identity load usually finishes first and the
+            // profile's own skeleton covers this. When it does show, it is
+            // the grid's silhouette, not a spinner — same reason as there.
+            HStack(spacing: Tokens.Space.s3) {
+                ForEach(0 ..< 2, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: Tokens.Radius.lg)
+                        .fill(Tokens.Ground.line)
+                        .aspectRatio(1, contentMode: .fit)
+                }
+            }
         } else if model.isEmpty {
             // Sean's `+`: one empty state for the whole profile, not one per
             // tab. See `ProfileTabsModel.isEmpty`.
