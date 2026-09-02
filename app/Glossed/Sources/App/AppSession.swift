@@ -66,6 +66,10 @@ final class AppSession {
     /// already be in memory when the user taps a shade. Foundation only: the
     /// anchor question asks for a foundation and nothing else uses this.
     private(set) var anchorVariants: [String: UUID] = [:]
+    /// The letter the nav's `you` tab wears. `?` until the account is read;
+    /// settable from `AppSessionAccount.swift`, which is why it is not
+    /// `private(set)` — an extension in another file cannot write one.
+    var avatarName = "?"
 
     /// Clears everything a signed-in session held (GLO-213) and hands the
     /// screen to FLOW 1's hook — the sign-in screen — on the next frame.
@@ -97,6 +101,7 @@ final class AppSession {
         discoverModel = nil
         shelfItemCount = 0
         needsOnboarding = true
+        avatarName = "?"
     }
 
     func boot() async {
@@ -186,6 +191,7 @@ final class AppSession {
             tracker = Tracker(poster: TrackIngestPoster(client: booted))
             imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
             await reloadShelf()
+            await refreshIdentity()
             phase = .ready
         } catch let error as GlossedError {
             phase = .failed("\(error.code.rawValue): \(error.debugDetail ?? error.userMessage)")
@@ -275,6 +281,7 @@ final class AppSession {
         if tracker == nil {
             tracker = Tracker(poster: TrackIngestPoster(client: client))
         }
+        await refreshIdentity()
         await reloadShelf()
     }
 }

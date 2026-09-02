@@ -81,6 +81,12 @@ extension AppShell {
         .animation(Tokens.Motion.pop(Tokens.Motion.med), value: drawerOpen)
         .privacySheet(isPresented: $privacyOpen, client: session.client)
         .handleClaimSheet(isPresented: $handleOpen, client: session.client)
+        // A claim gives a handle-less account its letter; re-read on dismiss.
+        .onChange(of: handleOpen) { _, open in
+            if !open {
+                Task { await session.refreshIdentity() }
+            }
+        }
         .fullScreenCover(isPresented: $ladderOpen, onDismiss: askFitIfAnchor) {
             ladderFlow
         }
@@ -171,8 +177,8 @@ extension AppShell {
             tabs.append(.init(id: .stylist, label: "stylist", glyph: .stylist))
         }
         tabs.append(.init(id: .shelf, label: "shelf", glyph: .shelf))
-        // maya = the dev sign-in; real names are GLO-204's.
-        tabs.append(.init(id: .you, label: "you", glyph: .avatar(name: "maya")))
+        // Your own letter, by the profile's rule — see `AppSession.refreshIdentity`.
+        tabs.append(.init(id: .you, label: "you", glyph: .avatar(name: session.avatarName)))
         return tabs
     }
 

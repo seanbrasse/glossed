@@ -6,6 +6,20 @@ import Foundation
 // met on `main` — a mechanical move, the same shape as `AppSessionAnchors`.
 
 extension AppSession {
+    /// The letter the nav's `you` tab wears — the profile's own rule
+    /// (`OwnProfileModel.avatarName`): the display name, else the handle,
+    /// else `?`. The nav used to hard-code `maya`, the dev sign-in, and on
+    /// Sean's phone it read *m* beside a profile that read *s* (Sep 2).
+    /// Read at boot, after onboarding, and after a handle claim; a failed
+    /// read keeps the letter it had rather than inventing one.
+    func refreshIdentity() async {
+        guard let client else { return }
+        let profile = try? await ProfileRepository(client: client).own()
+        let handle = try? await SocialRepository(client: client).myHandle()
+        let displayName = profile?.displayName.flatMap { $0.isEmpty ? nil : $0 }
+        avatarName = displayName ?? handle ?? "?"
+    }
+
     /// `seed.sql`'s maya — the dev sign-in's user, and the one account a
     /// phone must never keep.
     static let seededDevUserID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")
