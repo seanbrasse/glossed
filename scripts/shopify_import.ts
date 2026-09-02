@@ -155,6 +155,26 @@ const STORES: Record<string, string> = {
 /// fill. Keyed on exact type; the regex fallback below catches phrasing
 /// variants ("Liquid Blush", "Gel Cleanser").
 const TYPE_RULES: [RegExp, string][] = [
+  // 0057's ten new rankable groups, first — each claims its words before
+  // the older rule that used to swallow them ("lip balm" was `lip`, "cheek
+  // brush" was `blush`, "body serum" was `serum`, "exfoliator" was
+  // `treatment`). Vocabulary is the leaf list under each group, and the
+  // order between them is load-bearing too: primer before lip (lip
+  // primer), device before tools (cleansing brush), lip care before body
+  // before exfoliant (lip scrub, body scrub). The same rules, as SQL, are
+  // scripts/reclassify_new_groups.sql — the importer's product insert is
+  // `on conflict do nothing`, so a re-run does NOT move a row already
+  // filed; that file is the backfill.
+  [/\bprimer\b/i, "primer"],
+  [/\bdevice\b|gua sha(?! (oil|serum))|roller(?! oil)|led mask|microcurrent|steamer|dermaplan|extractor|cleansing brush|high-frequency/i, "device"],
+  [/\b(brush|brushes|sponge|puff|tweezers|sharpener|tools?)\b/i, "tools"],
+  [/^(?!.*mascara).*\blash(es)?\b/i, "lashes"],
+  [/\bscalp\b|dandruff|minoxidil|rosemary oil|thickening fibers/i, "scalp"],
+  [/hair (color|colour|dye|gloss|toner)|color-depositing|demi-permanent|permanent dye|\bbleach\b|\bhenna\b|keratin treatment|relaxer|\bperm\b/i, "haircolor"],
+  [/setting (spray|powder)|finishing (spray|powder)|loose powder|pressed powder|blotting/i, "setting"],
+  [/lip\s?(balms?|masks?|scrubs?|treatments?|care)\b|\bbalm\b.*\blip\b|\blip\b.*\bbalm\b/i, "lipcare"],
+  [/(?<!face & )\bbody\b|hand cream|foot cream|deodorant|aftershave|shaving cream|depilatory|stretch mark/i, "body"],
+  [/exfoliat|\bpeel\b|\bscrub\b|\baha\b|\bbha\b|\bpha\b/i, "exfoliant"],
   // "lippie" is ColourPop's house word for lip (~90 products) and "Lips" is
   // huda's (36) — \blip\b misses both on the word boundary, one letter each
   // (GLO-94/97 tallies). The boundary bites the same way twice.
@@ -173,7 +193,8 @@ const TYPE_RULES: [RegExp, string][] = [
   // never learns any of that. "essence" rides with toner (adjacent, not
   // identical — workshop note); the eye rule names its forms so
   // eyeshadow/eyeliner (makeup, unmapped) never match; ampoules keep
-  // matching serum above.
+  // matching serum above. "scalp treatment" has a home now — the scalp
+  // rule above claims it before this one sees it.
   [/shampoo/i, "shampoo"],
   [/conditioner|hair mask/i, "conditioner"],
   [/sun\s?screen|sun\s?care|sun\s?cream|sun\s?stick|\bspf\b|uv (protect|shield|defense)/i, "sunscreen"],
