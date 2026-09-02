@@ -66,6 +66,10 @@ final class AppSession {
     /// already be in memory when the user taps a shade. Foundation only: the
     /// anchor question asks for a foundation and nothing else uses this.
     private(set) var anchorVariants: [String: UUID] = [:]
+    /// The categories where a shade is meant to match skin (`is_anchor`),
+    /// so a surface holding only a catalog hit can tell whether the shade
+    /// cohort's question applies to it. Loaded once, beside the anchors.
+    private(set) var anchorCategoryIDs: Set<UUID> = []
     /// The letter the nav's `you` tab wears. `?` until the account is read;
     /// settable from `AppSessionAccount.swift`, which is why it is not
     /// `private(set)` — an extension in another file cannot write one.
@@ -188,6 +192,7 @@ final class AppSession {
                 ProfileRepository(client: booted), environment: environment
             )
             anchorVariants = await Self.loadAnchorVariants(CatalogRepository(client: booted))
+            anchorCategoryIDs = await Self.loadAnchorCategoryIDs(CatalogRepository(client: booted))
             tracker = Tracker(poster: TrackIngestPoster(client: booted))
             imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
             await reloadShelf()
@@ -263,6 +268,7 @@ final class AppSession {
         client = booted
         needsOnboarding = true
         anchorVariants = await Self.loadAnchorVariants(CatalogRepository(client: booted))
+        anchorCategoryIDs = await Self.loadAnchorCategoryIDs(CatalogRepository(client: booted))
         tracker = Tracker(poster: TrackIngestPoster(client: booted))
         imageBase = config.supabaseURL.appending(path: "storage/v1/object/public/catalog")
         phase = .ready
