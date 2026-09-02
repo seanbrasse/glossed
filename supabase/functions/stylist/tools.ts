@@ -16,7 +16,13 @@ export const MAX_ROUTINE_STEPS = 10;
 export const MAX_PRODUCTS_SHOWN = 6;
 export const MAX_TOKENS = 1500;
 export const MAX_MESSAGE_CHARS = 2000;
-export const MODEL = "claude-opus-5";
+/// The free-form fallback's model. Bake-off, Sept 2 (nine open questions,
+/// maya's context, effort low): Sonnet 5 answered every one on the beauty
+/// half with its receipts at a third of Opus 5's cost and half its latency;
+/// Haiku 4.5 refused a layering question as "a dermatologist question",
+/// asked for facts already in <context>, invented a cleanser's strength and
+/// never reached for a tool. `STYLIST_MODEL` in the env overrides this.
+export const MODEL = "claude-sonnet-5";
 
 export type Slot = "am" | "pm" | "weekly" | "wash_day";
 export const SLOTS: readonly Slot[] = ["am", "pm", "weekly", "wash_day"];
@@ -48,6 +54,9 @@ export interface ShelfItem {
   readonly status: string;
   readonly rank_position: number | null;
   readonly ranked_in_category: number;
+  /// The catalog's one line on what it does — the planner's "about" answer.
+  readonly benefit_line?: string | null;
+  readonly catalog_image_key?: string | null;
 }
 
 export interface RoutineSummary {
@@ -110,6 +119,10 @@ export type Block =
       readonly ranked_in_category: number | null;
       readonly n_face_offs: number | null;
       readonly catalog_image_key: string | null;
+      /// Whose receipt this is, and its n — "face-offs by people who wear
+      /// your shade" · 12. Null when the row's evidence is the shelf's own.
+      readonly basis_label: string | null;
+      readonly basis_n: number | null;
     }[];
   }
   | {
@@ -166,6 +179,8 @@ export function systemPrompt(): string {
     "You are the stylist inside glossed, a beauty journal that ranks. You talk with one",
     "person about their skin, hair, makeup and fragrance, and about what is on their",
     "shelf. You are warm, brief and specific. Lowercase, plain words, no exclamation marks.",
+    "You are reached only for questions the app's own rules could not answer from data;",
+    "keep to the question asked, and lean on the tools for anything with a shape.",
     "",
     "WHAT YOU KNOW. The <context> block holds what the app knows about this person:",
     "their fit answers and stated facts, the products they own with how they ranked",
@@ -186,6 +201,12 @@ export function systemPrompt(): string {
     "STAY NARROW. If a message is outside skin, hair, makeup, fragrance and their shelf,",
     "say so in one line and offer one beauty next step. Do not answer the off-topic",
     "part, even partially.",
+    "",
+    "THE APP ANSWERS THE SHAPED ASKS. For a routine, the gaps, what to try, a comparison",
+    "of what they own, or a look for an occasion — however the person phrased it — call",
+    "the matching plan tool (build_routine, find_gaps, what_to_try, compare_owned,",
+    "look_for_tonight). It answers from their shelf and the cohort data with every n and",
+    "shows the cards; you add at most two sentences and never repeat what a card shows.",
     "",
     "ANSWER IN SHAPES, NOT PARAGRAPHS. When the answer has a shape, make the artifact",
     "with a tool and keep the prose to two or three sentences around it:",
@@ -255,7 +276,7 @@ export interface ToolDef {
 
 const uuid = { type: "string", pattern: "^[0-9a-fA-F-]{36}$" };
 
-export const TOOLS: readonly ToolDef[] = [
+const BASE_TOOLS: readonly ToolDef[] = [
   {
     name: "search_catalog",
     description:
@@ -373,7 +394,64 @@ export const TOOLS: readonly ToolDef[] = [
   },
 ];
 
-export const DATA_TOOLS = new Set(["search_catalog", "query_affinity", "crosswalk"]);
+/// The app's own answers, offered to the model as tools: the words are the
+/// model's, the answer is plan.ts's — from the shelf and the cohort reads,
+/// every n attached, the cards shown. The model adds a line, not a fact.
+export const PLAN_TOOLS: readonly ToolDef[] = [
+  {
+    name: "build_routine",
+    description:
+      "The app builds a routine from what the person owns, in category order, and names the one gap — a card they can save. Use for any 'what order / what should my routine be' ask, however it is phrased.",
+    input_schema: {
+      type: "object",
+      properties: {
+        slot: { type: "string", enum: SLOTS },
+        domain: { type: "string", enum: ["skincare", "makeup", "haircare", "fragrance"] },
+      },
+      required: ["slot", "domain"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "find_gaps",
+    description:
+      "The app lists the categories the person's concerns usually want that their shelf lacks, with the top-ranked products in each and their n.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "what_to_try",
+    description:
+      "The app's recommendations: people who wear the same shade, what the person's own logs lean toward, everyone's face-offs — each with its n.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "compare_owned",
+    description:
+      "The person's own ranks within one category of their shelf. category_slug from <context>'s shelf lines; omit it to compare the category they own most of.",
+    input_schema: {
+      type: "object",
+      properties: { category_slug: { type: "string", maxLength: 40 } },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "look_for_tonight",
+    description:
+      "A makeup order from their shelf for an occasion, plus their saved looks as cards they can open. Use for going-out, date, event and 'what should i wear' asks.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+];
+
+/// Data reads, then the app's plans, then the artifacts — the belt the
+/// model sees, in that order so the shaped answer is the nearer reach.
+const DATA_TOOLS_LIST = ["search_catalog", "query_affinity", "crosswalk"];
+export const TOOLS: readonly ToolDef[] = [
+  ...BASE_TOOLS.filter((t) => DATA_TOOLS_LIST.includes(t.name)),
+  ...PLAN_TOOLS,
+  ...BASE_TOOLS.filter((t) => !DATA_TOOLS_LIST.includes(t.name)),
+];
+export const DATA_TOOLS = new Set(DATA_TOOLS_LIST);
+export const PLAN_TOOL_NAMES = new Set(PLAN_TOOLS.map((t) => t.name));
 export const ARTIFACT_TOOLS = new Set([
   "propose_routine",
   "show_products",
@@ -480,7 +558,9 @@ export function validateArtifact(
           rank_position: shelf?.rank_position ?? null,
           ranked_in_category: shelf?.ranked_in_category ?? null,
           n_face_offs: hit?.n_face_offs ?? null,
-          catalog_image_key: hit?.catalog_image_key ?? null,
+          catalog_image_key: shelf?.catalog_image_key ?? hit?.catalog_image_key ?? null,
+          basis_label: null,
+          basis_n: null,
         });
       }
       if (products.length === 0) {
@@ -505,8 +585,12 @@ export function validateArtifact(
       };
     }
     case "suggest_chips": {
+      // A chip over the limit is dropped, not cut: a sliced word on a
+      // tappable button reads as a bug, and the model was told the limit.
       const chips = Array.isArray(input.chips)
-        ? input.chips.map((c) => str(c, 32)).filter((c): c is string => c !== null)
+        ? input.chips.map((c) => str(c, 200)).filter((c): c is string =>
+          c !== null && c.length <= 32
+        )
         : [];
       const unique = [...new Set(chips.map((c) => c.toLowerCase()))].slice(0, MAX_CHIPS);
       if (unique.length === 0) {
@@ -524,6 +608,36 @@ export function validateArtifact(
 export const NO_ANSWER_TEXT =
   "i couldn't put that together from what's on your shelf. try asking about a product you own, or a routine.";
 
+/// The chips a turn ends on when the model called none (Sonnet 5 skipped
+/// suggest_chips once in nine turns) — the row is never empty.
+export const FALLBACK_CHIPS = [
+  "build my am routine",
+  "what's missing for my skin",
+  "what should i try next",
+] as const;
+
+/// One card per thing: a plan tool and the model's own artifact tool can
+/// both draw the same routine or look in one turn (seen with Sonnet 5 —
+/// build_routine then propose_routine, look_for_tonight then
+/// reference_look). The first stays; a later twin is dropped.
+export function dedupeBlocks(blocks: readonly Block[]): Block[] {
+  const seen = new Set<string>();
+  const out: Block[] = [];
+  for (const b of blocks) {
+    const key = b.type === "routine_draft"
+      ? `routine:${b.slot}:${b.steps.map((s) => s.user_item_id).join(",")}`
+      : b.type === "product_list"
+      ? `products:${b.products.map((p) => p.product_id).join(",")}`
+      : b.type === "look_ref"
+      ? `look:${b.look_id}`
+      : `collection:${b.collection_id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(b);
+  }
+  return out;
+}
+
 export function assembleReply(
   text: string,
   blocks: readonly Block[],
@@ -531,11 +645,15 @@ export function assembleReply(
   toolsUsed: readonly string[],
   contextKeys: readonly string[],
 ): Reply {
-  const trimmed = text.trim();
+  // Lowercase is the app's voice (design: lowercase UI copy) and the prompt
+  // says so, but every model capitalised a sentence somewhere in the
+  // bake-off — so the reply is normalised here, where it cannot drift.
+  const trimmed = text.trim().toLowerCase();
+  const unique = dedupeBlocks(blocks);
   return {
-    text: trimmed.length > 0 || blocks.length > 0 ? trimmed : NO_ANSWER_TEXT,
-    blocks,
-    chips,
+    text: trimmed.length > 0 || unique.length > 0 ? trimmed : NO_ANSWER_TEXT,
+    blocks: unique,
+    chips: chips.length > 0 ? chips : [...FALLBACK_CHIPS],
     grounded_in: [...new Set([...contextKeys, ...toolsUsed.filter((t) => DATA_TOOLS.has(t))])],
     tools_used: [...new Set(toolsUsed)],
   };
