@@ -17,7 +17,7 @@ change waits as a PR. `main` is still at `9be4ede`. Three of the six are a
 |---|---|
 | **Why the product photos vanished (Aug 31 ~11:39 UTC): a `db reset` drops the `storage` schema.** 3,206 products and 7,625 `variant_images` came back from the snapshot; **1.9 GB of cutouts were still on the storage volume**; but `storage.buckets` and `storage.objects` were empty, so Storage said *"Bucket not found"* for files it was standing on. `ProductImage` swallows a failed load into its floor by design, so nothing errored. **Local repaired** (13,877 rows registered, GETs `200 image/png`, cutouts back on the shelf in the simulator) | **#479**, GLO-223, §0 |
 | **The tab "glitches" are one bug: the shell's `switch` on `tab` is not a tab container.** Every switch unmounted the old screen and mounted the new one from nothing — state, scroll, and every `.task` gone. GLO-256's flash was one symptom. A `TabView` with its bar hidden per tab; driven: the shelf came back instantly with its cutouts **while the Docker daemon was being restarted underneath**, and a 163-frame `recordVideo` shows every switch as a cross-dissolve of two laid-out screens (frames on the ticket) | **#481**, GLO-256 |
-| **The profile reloads when a composer or editor closes** (GLO-278 — five covers, zero `onDismiss`), reloads *in place*, pulls to refresh, clears a stale toast, and its loading column is full width (the 60pt column GLO-256 recorded, at its source) | **#478 → #480**, GLO-278 |
+| **The profile reloads when a composer or editor closes** (GLO-278 — five covers, zero `onDismiss`), reloads *in place*, pulls to refresh, clears a stale toast, and its loading column is full width (the 60pt column GLO-256 recorded, at its source). Driven: a collection saved from `+` was on the tab the moment the composer closed | **#478 → #480**, GLO-278 |
 | **The category tree has its PR**: renumbered `0055 → 0057` on the branch, both commits, `size-override`, 8 pgTAP + DataKit 134 green, CI green | **#476**, GLO-272 |
 | **GLO-258's last five tables are in the suite** — 8 → 16 asserts. One latent finding: `RankingRepository.positions()` is unpinned (category + scope only) and has **no caller** yet | **#477**, GLO-258 |
 | **Sean's "updated products list" came through as a TAXONOMY, not products** — 0057 inserts categories only; zero `products` rows; the raw list is nowhere in the repo; the 202 leaves add no search reach until products are classified onto them | GLO-272 comment, §7 |
@@ -766,10 +766,10 @@ leaves the old version file behind and both claim one object name. The reconcile
 keeps the newest by mtime — an `ON CONFLICT DO UPDATE` over all of them dies with
 *cannot affect row a second time*.
 
-**What was NOT done, stated so it is not assumed:** a `make db-reset` round-trip with #479; driving the
-GLO-278 save-then-see acceptance in the simulator (the edge runtime wedged
-mid-drive, then the daemon did); the full 18-package test run (DataKit 134 and
-Profile 106 were run; the rest were not touched).
+**What was NOT done, stated so it is not assumed:** a `make db-reset` round-trip
+with #479; the GLO-278 acceptance for a routine and a look (collections was
+driven: saved from `+`, on the tab immediately, no spinner); the full 18-package
+test run (DataKit 134 and Profile 106 were run; the rest were not touched).
 
 ### Session 18 (Sept 1) — append-only, newest first
 

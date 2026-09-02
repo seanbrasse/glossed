@@ -31,10 +31,10 @@ and `make db-reset` does it for you.
    **Done looks like:** `main` builds and launches signed-in, product photos
    render on the shelf, switching tabs does not blank a screen, and a collection
    saved from `+` appears on the profile without leaving the tab.
-2. **The proof session 19 owed and did not make**, in the simulator: the
-   GLO-278 acceptance (save a collection → it is on the profile, no spinner over
-   a correct list). GLO-256's recording is done and on the ticket. Next free
-   migration number is **0058** — you do not need it.
+2. **Drive the two GLO-278 paths not yet driven** — a routine and a look saved
+   from `+`, then on the profile without leaving the tab. Collections was
+   driven and passed; GLO-256's recording is on its ticket. Next free migration
+   number is **0058** — you do not need it.
 3. **Ask Sean where his product list is** before doing anything about "the new
    products". What landed is a taxonomy (categories only, PR #476); no product
    row came through, and the raw list is not in the repo.
