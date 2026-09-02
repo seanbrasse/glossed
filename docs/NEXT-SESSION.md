@@ -35,9 +35,14 @@ Three more, each of which cost real time in session 19:
    detail's shape, a save offers *open it* and trips the profile reload; base
    #494), **#498** (`08-stylist.md` §4; base `main`). **Retarget #496 and #497
    to `main` BEFORE their base branches are deleted.** Driven live as maya with
-   no key: morning routine → save → open it → edit → on the profile. The key
-   now only unlocks the free-form path; the console tab was opened for Sean to
-   sign in and none was created. Next builds: STY-7 (refusal copy is Sean's),
+   no key: morning routine → save → open it → edit → on the profile. **The key
+   exists now** — Sean created `glossed-stylist-local` in the console (a
+   *personal*, identity-linked key; expires Oct 2 2026); it lives ONLY in
+   `supabase/functions/.env` as `ANTHROPIC_API_KEY` plus
+   `ANTHROPIC_WORKSPACE_ID`, which a personal key needs on every request
+   (`400 anthropic-workspace-id is required` without it — #496 sends it).
+   The free-form path was driven: 200 in 8s, a routine card of maya's items.
+   Hosted still has no secret. Next builds: STY-7 (refusal copy is Sean's),
    ingredient clashes once an INCI table exists, use cases 11 and 12 as planner
    intents.
 
@@ -56,7 +61,7 @@ Three more, each of which cost real time in session 19:
 
 ## Route around these — they are blocked on Sean, not on code
 
-- **`ANTHROPIC_API_KEY`** — only the free-form question needs it now (#496); every shaped ask answers without one.
+- **Hosted secrets** — `ANTHROPIC_API_KEY` + `ANTHROPIC_WORKSPACE_ID` exist locally only; setting them on the hosted project is Sean's.
 - **The stylist's rulings** — minors (v1 adults only), refusal copy, the
   budget migration, `/design-login` for the kit frame. 08 §5 names each.
 - **The product list itself** — Sean's Sept 1 listing reached the repo only as 0057's category rows; ask where it is before building on "the new products".
