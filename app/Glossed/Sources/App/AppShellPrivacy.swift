@@ -84,7 +84,10 @@ extension AppShell {
                 // profile, the claim sheet's dismissal is a signal the profile
                 // has, so it reloads instead of going on saying "no handle
                 // yet" over a handle that is already public.
-                handleStore: .live(SocialRepository(client: client))
+                handleStore: .live(SocialRepository(client: client)),
+                // The moment a composer or editor closes (GLO-278): the
+                // profile reloads in place rather than on the next launch.
+                reloadKey: profileReloadTrip
             )
         } else {
             // `client` is nil only after sign out now that `boot()` proves the

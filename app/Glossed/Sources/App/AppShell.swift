@@ -132,6 +132,11 @@ struct AppShell: View {
     /// which is what it did, on screen, before the nav started reporting this.
     /// The only honest source is the thing that lays the tabs out.
     @State var navTabAnchors: [String: CGFloat] = [:]
+    /// Bumped when a cover that can write what the profile shows closes —
+    /// a composer, a card's editor — and handed to `OwnProfileView` as its
+    /// `reloadKey` (GLO-278). The shell presents every one of those covers,
+    /// so it is the one place that knows the moment.
+    @State var profileReloadTrip = UUID()
 
     var body: some View {
         content
