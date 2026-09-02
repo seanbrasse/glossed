@@ -58,18 +58,39 @@ public final class SearchRungModel {
     private var result = SearchRung.Result(hits: [], isMiss: false)
     private let rung: SearchRung
     private let domain: Domain?
+    /// What the rung offers before a letter is typed (GLO-108). Loaded once,
+    /// on the first search with an empty query; nil means the rung opens on
+    /// the field alone, as it always did.
+    private let suggestions: (any LadderSuggesting)?
+    public private(set) var suggested: [LadderSuggestion] = []
+    static let suggestionLimit = 6
 
-    public init(catalog: any CatalogSearching, domain: Domain? = nil, query: String = "") {
+    public init(
+        catalog: any CatalogSearching,
+        domain: Domain? = nil,
+        query: String = "",
+        suggestions: (any LadderSuggesting)? = nil
+    ) {
         rung = SearchRung(catalog: catalog)
         self.domain = domain
         self.query = query
+        self.suggestions = suggestions
         ladder = Ladder(entry: .search, query: query)
+    }
+
+    /// Suggestions stand in for matches only while there is nothing to match:
+    /// the first character typed hands the list to the catalog.
+    public var isShowingSuggestions: Bool {
+        Ladder.tidy(query).isEmpty && !suggested.isEmpty
     }
 
     /// Always ends with the way out. A rung with nothing to show is still a rung
     /// the user can leave, so this list is never empty.
     public var options: [LadderOption] {
-        result.hits.map { .match($0, reason: nil) } + [.noneOfThese(prompt: escapePrompt)]
+        let rows: [LadderOption] = isShowingSuggestions
+            ? suggested.map { .match($0.hit, reason: $0.line) }
+            : result.hits.map { .match($0, reason: nil) }
+        return rows + [.noneOfThese(prompt: escapePrompt)]
     }
 
     /// Names what happens next rather than just refusing: at the search rung the
@@ -95,6 +116,11 @@ public final class SearchRungModel {
     public func search() async {
         isSearching = true
         defer { isSearching = false }
+        if Ladder.tidy(query).isEmpty, suggested.isEmpty, let suggestions {
+            // A failed fetch is the same rung as no suggestions: the field
+            // is still there, and nothing is claimed that was not fetched.
+            suggested = await (try? suggestions.suggestions(limit: Self.suggestionLimit)) ?? []
+        }
         do {
             result = try await rung.typeahead(query, domain: domain)
             // Cleared only once an answer actually arrives, matching the

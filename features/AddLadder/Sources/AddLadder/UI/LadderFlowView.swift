@@ -77,6 +77,7 @@ public struct LadderFlowView: View {
         shelf: any ItemLogging,
         tracker: Tracker? = nil,
         fill: (any BarcodeFilling)? = nil,
+        suggestions: (any LadderSuggesting)? = nil,
         query: String = "",
         onClose: @escaping () -> Void = {},
         onShelfChanged: @escaping () -> Void = {},
@@ -89,7 +90,7 @@ public struct LadderFlowView: View {
         self.onClose = onClose
         self.onShelfChanged = onShelfChanged
         self.onLogged = onLogged
-        _step = State(initialValue: .search(SearchRungModel(catalog: catalog, query: query)))
+        _step = State(initialValue: .search(SearchRungModel(catalog: catalog, query: query, suggestions: suggestions)))
         _carriedQuery = State(initialValue: query)
     }
 

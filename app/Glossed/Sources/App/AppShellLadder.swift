@@ -26,6 +26,10 @@ extension AppShell {
                 // fails closed (no key, exhausted budget, unreachable all
                 // answer "nothing to add"), so wiring it is unconditional.
                 fill: BarcodeFillService(client: client),
+                // Before a letter is typed: the discover feed's picks, each
+                // with its basis and n (GLO-108, Sean's "suggestions for the
+                // user to click on without searching").
+                suggestions: AggregatesRepository(client: client),
                 query: ladderSeed,
                 onClose: {
                     ladderOpen = false
