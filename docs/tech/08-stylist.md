@@ -108,7 +108,8 @@ app · features/Stylist ──POST /functions/v1/stylist (JWT)──▶ Edge Fun
                                                               │    profile · shelf (+benefit_line) · routines ·
                                                               │    collections · looks · categories · shade anchor
                                                               │ 3. plan.ts — rules, no model:
-                                                              │      intent from the words (medical first)
+                                                              │      intent from the words via lexicon.ts (medical first)
+                                                              │      look      = makeup from the shelf + own looks as doors
                                                               │      routine   = shelf in category order, one gap
                                                               │      missing   = concern's wants − shelf → leaderboard
                                                               │      try next  = discover + crosswalk, merged, with n
@@ -119,6 +120,24 @@ app · features/Stylist ──POST /functions/v1/stylist (JWT)──▶ Edge Fun
                                                               └ 5. one JSON reply; nothing stored
 ```
 
+- **The words are learned offline, matched at zero tokens.** `lexicon.ts`
+  is how people actually ask — slang ("slay", "grwm", "full beat"),
+  occasions ("date night", "wedding guest"), category synonyms ("spf",
+  "curl cream", "skin tint"), slot and domain cues, the medical list —
+  written by a Claude Code session from how beauty is talked about on the
+  internet, never by a model at runtime. `lexicon_test.ts` is the simulated
+  corpus (60 phrasings, each with the intent it must land on); a real
+  phrasing that misses is a row for the lexicon, then a row for the corpus.
+  A rule hit answers in ~300 ms; only the leftover reaches the model.
+- **The model hands shaped work back to the rules.** Sonnet sees the plans
+  as tools (`build_routine`, `find_gaps`, `what_to_try`, `compare_owned`,
+  `look_for_tonight`): for a creative phrasing the lexicon missed, it
+  interprets once in a few output tokens and the planner answers with every
+  n and the cards — the model adds a line, never a fact. A Haiku-then-Sonnet
+  router was considered and rejected (Sept 2): it adds a hop to every open
+  turn, puts the least reliable model on the routing decision, and a misroute
+  by rules is harmless (the model still answers) while a misroute by a
+  classifier is a confidently wrong card.
 - **Rules first.** `plan.ts` is pure and tested: it reads the words and the
   context, names the fetches it wants (`leaderboard`, `discover_for_user`,
   `crosswalk_for_user`) and finishes from their rows with templated copy.
