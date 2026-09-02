@@ -39,6 +39,7 @@ public final class OwnProfileModel {
     public private(set) var badges = ProfileBadges()
     public private(set) var isLoading = true
     public private(set) var errorMessage: String?
+    private var hasLoaded = false
 
     private let store: OwnProfileStore
 
@@ -52,9 +53,18 @@ public final class OwnProfileModel {
         handle == nil
     }
 
+    /// Reloads in place after the first time: a spinner replaces the screen
+    /// only while there is nothing to show yet, so a reload after an edit
+    /// updates what is there rather than blanking it (GLO-278's rule). The
+    /// message is cleared on entry — a toast from a blip that has since
+    /// recovered would otherwise sit there for the visit (GLO-274's shape).
     public func load() async {
-        isLoading = true
-        defer { isLoading = false }
+        isLoading = !hasLoaded
+        errorMessage = nil
+        defer {
+            isLoading = false
+            hasLoaded = true
+        }
         do {
             handle = try await store.handle()
             badges = try await store.badges()

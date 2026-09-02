@@ -36,6 +36,7 @@ public final class ProfileTabsModel {
     /// Setter internal, not private: `ProfileTabsRename.swift` is the same
     /// type split across files (the ceiling), and `private` is file-scoped.
     public internal(set) var errorMessage: String?
+    private var hasLoaded = false
 
     let looksStore: ProfileLooksStore?
     let collectionsStore: ProfileCollectionsStore?
@@ -133,9 +134,18 @@ public final class ProfileTabsModel {
     /// One failure does not blank the others: each read keeps whatever it got,
     /// and the first message wins. A user with routines and a looks read that
     /// timed out should still see their routines.
+    ///
+    /// After the first load this refreshes in place — `isLoading` stays false,
+    /// so a reload after a save updates the lists under the user rather than
+    /// swapping them for a spinner (GLO-278). The message resets on entry so
+    /// a recovered read does not keep an old toast on screen.
     public func load() async {
-        isLoading = true
-        defer { isLoading = false }
+        isLoading = !hasLoaded
+        errorMessage = nil
+        defer {
+            isLoading = false
+            hasLoaded = true
+        }
         await loadScopes()
         await read(looksStore?.mine, "looks") { self.looks = $0 }
         await read(collectionsStore?.mine, "collections") { self.collections = $0 }
@@ -187,8 +197,12 @@ public final class ProfileTabsModel {
     /// routine, etc."* A `+` that appeared whenever the open tab happened to be
     /// empty would be a second create affordance sitting under the shell's own
     /// one, on a profile that is not empty at all.
+    ///
+    /// Want-to-try counts: it renders on the collections tab as the default
+    /// collection, so a profile whose only content is saved products is not
+    /// empty — and was reading as `nothing here yet` while holding four.
     public var isEmpty: Bool {
-        looks.isEmpty && collections.isEmpty && routines.isEmpty && shelf.isEmpty
+        looks.isEmpty && collections.isEmpty && routines.isEmpty && shelf.isEmpty && wantToTry.isEmpty
     }
 
     private func note(_ error: Error, fallback: String) {

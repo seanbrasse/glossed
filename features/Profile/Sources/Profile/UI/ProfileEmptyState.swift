@@ -27,7 +27,7 @@ struct ProfileEmptyState: View {
                 // it names the four things that land here and stops. It does
                 // not say who will see them — the tab marks say that, once
                 // there is a tab to mark.
-                Text("your looks, collections, routines and shelf show up here.")
+                Text("your looks, collections and routines show up here.")
                     .meta()
                 if let onCompose {
                     doors(onCompose)

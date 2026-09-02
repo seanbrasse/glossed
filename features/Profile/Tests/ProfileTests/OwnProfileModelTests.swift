@@ -186,3 +186,34 @@ private func store(
     // draw in its place. All three off is an empty row, not three blanks.
     #expect(ProfileBadgeRow.badges(skinType: nil, anchor: nil, hairPattern: nil).isEmpty)
 }
+
+@MainActor
+@Test func aReloadKeepsTheScreenAndClearsAnOldMessage() async {
+    // The first load owns the spinner; every later one updates in place, and
+    // a message from a blip that has recovered goes with it (GLO-278, and
+    // GLO-274's toast-that-stayed).
+    let attempts = Counter()
+    let model = OwnProfileModel(store: store(handle: {
+        if await attempts.next() == 1 {
+            throw GlossedError(.offline, userMessage: "you're offline.")
+        }
+        return "maya_k"
+    }))
+    await model.load()
+    #expect(model.errorMessage != nil)
+
+    let reload = Task { await model.load() }
+    let spinnerOnReload = model.isLoading
+    await reload.value
+    #expect(!spinnerOnReload)
+    #expect(model.errorMessage == nil)
+    #expect(!model.needsHandle)
+}
+
+private actor Counter {
+    private var n = 0
+    func next() -> Int {
+        n += 1
+        return n
+    }
+}
