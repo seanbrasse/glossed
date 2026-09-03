@@ -687,7 +687,7 @@ export function emptyShelfReply(input: PlanInput): Reply {
   const basics = BASICS.map((slug) => input.categories.find((c) => c.slug === slug)?.label ?? slug);
   return reply(
     "nothing on your shelf yet, so i can't say what's missing — log what you own " +
-      `from the + and ask me again. most shelves start with ${joinWords(basics)}.`,
+      `from the + and ask me again. most shelves start with ${joinWords(basics, "and")}.`,
     [],
     chipsFor(ctx, ["what should i try next"]),
     ["shelf"],
