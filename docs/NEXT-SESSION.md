@@ -48,7 +48,8 @@ And: *wait for the iOS job, not just lint, on any PR that touches
   saves) or GLO-23 (the phone's account).
 - **A real Apple ID** for #508/#509 — only Sean's phone can drive them.
 - **Hosted secrets, the catalog promotion, TestFlight** — all his.
-- **The migration slot** — STY-8 then SAV-2 are queued behind it.
+- **The migration slot** — STY-8, SAV-2 and now #529 (the handle gate) and
+  the `products.created_by` deletion rule are queued behind it.
 - **The payoff's picks** — whether to draw from the leaderboard later is his.
 
 ## Process
