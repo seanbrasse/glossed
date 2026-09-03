@@ -28,6 +28,11 @@ from (values
 insert into profiles (user_id, birth_year_month, domains) values
     ('aa000000-0000-0000-0000-000000000001', '1990-01', '{makeup}'),
     ('aa000000-0000-0000-0000-000000000002', '1992-06', '{makeup}');
+-- 0058: a public scope needs a handle, so every fixture owner claims one
+-- (directly — the fixture runs as postgres; `claim_handle` is the app's door).
+insert into handles (user_id, handle) values
+    ('aa000000-0000-0000-0000-000000000001', 'tstaa000000001'),
+    ('aa000000-0000-0000-0000-000000000002', 'tstaa000000002');
 
 -- The owner's looks scope is public from the start; the ROUTINE and COLLECTION
 -- scopes are the variables under test, and they begin closed.
