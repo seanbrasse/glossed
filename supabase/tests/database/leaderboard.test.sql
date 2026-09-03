@@ -91,10 +91,13 @@ select set_config('role', 'anon', true);
 -- and clear the previous impersonation's claims — a real anon has no sub,
 -- and auth.uid() reads the GUC, not the role
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
-select lives_ok($$ select * from leaderboard('c7000000-0000-0000-0000-000000000001') $$,
-    'anon reads the population board — the payoff precedent');
-select is((select count(*) from leaderboard('c7000000-0000-0000-0000-000000000001')),
-    3::bigint, 'and sees every row');
+select throws_ok($$ select * from leaderboard('c7000000-0000-0000-0000-000000000001') $$, '42501', null,
+    'anon cannot read the population board — nothing reads without an account (0060, Sean Sept 3)');
+select ok(not has_function_privilege('anon', 'leaderboard(uuid,text,boolean,integer)', 'execute'),
+    'and the grant is gone from the role, not hidden by a policy');
+-- The fallback is an ACCOUNT's question now: a signed-in viewer with no anchor.
+select set_config('request.jwt.claims', '{"sub":"c7000000-0000-0000-0000-0000000000ff","role":"authenticated"}', true);
+select set_config('role', 'authenticated', true);
 select is((select count(*) from leaderboard('c7000000-0000-0000-0000-000000000001', 'yours')),
     3::bigint, 'yours with nobody to resolve falls back to all rather than erroring');
 

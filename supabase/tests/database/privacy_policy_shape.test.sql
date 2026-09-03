@@ -63,12 +63,12 @@ select ok(not has_function_privilege('anon','can_follow(uuid)','execute'),
     'can_follow is not executable by anon — 0020 granted without revoking; 0022 fixed it');
 
 -- the client-facing surface IS reachable, or the policies break
-select ok(has_function_privilege('anon','can_view(uuid,visibility_surface)','execute'),
-    'the 2-arg wrapper IS executable by anon — link cards and web share pages need it');
-select ok(has_function_privilege('anon','collection_is_visible(uuid)','execute'),
-    'collection_is_visible IS executable by anon — the collections_public policy names it, and policies run as the invoking user');
-select ok(has_function_privilege('anon','item_is_published(uuid,uuid)','execute'),
-    'item_is_published IS executable by anon — same reason');
+select ok(not has_function_privilege('anon','can_view(uuid,visibility_surface)','execute'),
+    'the 2-arg wrapper is NOT executable by anon — nothing reads without an account (0060)');
+select ok(not has_function_privilege('anon','collection_is_visible(uuid)','execute'),
+    'collection_is_visible is NOT executable by anon — nothing reads without an account (0060)');
+select ok(not has_function_privilege('anon','item_is_published(uuid,uuid)','execute'),
+    'item_is_published is NOT executable by anon — same rule (0060)');
 
 -- ---------------------------------------------------------------------------
 -- 4. Defaults. Default-deny is the gate's entire premise.
@@ -125,10 +125,10 @@ select ok(not has_table_privilege('authenticated','public.reserved_handles','sel
 
 -- ...while the tables that DO carry `to anon` public read policies keep the
 -- privilege they need. Revoking there would break link cards and share pages.
-select ok(has_table_privilege('anon','public.user_items','select'),
-    'user_items KEEPS anon select — its *_public policy is `to anon` and web share pages read it unauthenticated');
-select ok(has_table_privilege('anon','public.collections','select'),
-    'collections keeps anon select for the same reason');
+select ok(not has_table_privilege('anon','public.user_items','select'),
+    'user_items has NO anon select — public is for signed-in viewers (0060, Sean Sept 3)');
+select ok(not has_table_privilege('anon','public.collections','select'),
+    'collections has no anon select for the same reason');
 
 select * from finish();
 rollback;

@@ -60,8 +60,8 @@ select ok(not has_function_privilege('anon', 'refresh_trending()', 'execute'),
     'anon cannot execute refresh_trending() — it reads user_items');
 select ok(not has_function_privilege('authenticated', 'refresh_trending()', 'execute'),
     'authenticated cannot execute refresh_trending() either');
-select ok(has_function_privilege('anon', 'trending(text, int)', 'execute'),
-    'anon CAN execute trending() — trending is products, not people, so it is open to logged-out browse');
+select ok(not has_function_privilege('anon', 'trending(text, int)', 'execute'),
+    'anon cannot execute trending() — it is built from people''s logs, and nothing reads without an account (0060, Sean Sept 3)');
 
 -- ---------------------------------------------------------------------------
 -- The read contract, over crafted aggregate rows.

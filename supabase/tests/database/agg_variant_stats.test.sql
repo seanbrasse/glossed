@@ -113,8 +113,8 @@ select test_as('a2000000-0000-0000-0000-000000000001');
 select throws_ok('select refresh_variant_stats()', '42501', null,
     'authenticated cannot run the writer');
 select set_config('role', 'anon', true);
-select is((select count(*)::int from agg_variant_stats), 0,
-    'anon reads the aggregate table as RLS-empty — the 0004 contract; definer RPCs are the door');
+select throws_ok('select count(*) from agg_variant_stats', '42501', null,
+    'anon has no grant on the aggregate table at all (0060) — definer RPCs, for accounts, are the door');
 
 select * from finish();
 rollback;

@@ -157,15 +157,15 @@ select ok(has_function_privilege('authenticated','can_post_swatch(uuid)','execut
     'can_post_swatch IS executable by authenticated — the insert policy names it and policies run as the invoker');
 select ok(not has_function_privilege('anon','can_post_swatch(uuid)','execute'),
     'but NOT by anon — anon never posts');
-select ok(has_function_privilege('anon','viewer_blocked_by(uuid)','execute'),
-    'viewer_blocked_by IS executable by anon — the public read policy names it and anon reads share pages');
+select ok(not has_function_privilege('anon','viewer_blocked_by(uuid)','execute'),
+    'viewer_blocked_by is NOT executable by anon — nothing reads without an account (0060)');
 select ok(not has_function_privilege('anon','is_blocked(uuid,uuid)','execute'),
     'while the raw is_blocked stays revoked — the wrapper answers only about auth.uid()');
 
 -- Privilege and policy agree (the 0024 rule, applied to a table added after it).
 -- SELECT stays because swatches_public_read is `to anon`; the write verbs go.
-select ok(has_table_privilege('anon','public.swatches','select'),
-    'anon KEEPS select — the public read policy is `to anon` and share pages read swatches unauthenticated');
+select ok(not has_table_privilege('anon','public.swatches','select'),
+    'anon has NO select on swatches — public is for signed-in viewers (0060, Sean Sept 3)');
 select ok(not has_table_privilege('anon','public.swatches','insert'),
     'anon has no INSERT privilege — RLS is the second layer, not the only one');
 select ok(not has_table_privilege('anon','public.swatches','update'),

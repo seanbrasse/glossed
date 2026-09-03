@@ -90,9 +90,9 @@ select ok(not has_function_privilege('authenticated',
 select ok(has_function_privilege('authenticated',
         'can_view(uuid,visibility_surface)', 'execute'),
     'the 2-arg wrapper IS executable by authenticated');
-select ok(has_function_privilege('anon',
+select ok(not has_function_privilege('anon',
         'can_view(uuid,visibility_surface)', 'execute'),
-    'the 2-arg wrapper is executable by anon — link cards and web pages need it');
+    'the 2-arg wrapper is NOT executable by anon — nothing reads without an account (0060, Sean Sept 3)');
 select ok(not has_function_privilege('authenticated', 'is_blocked(uuid,uuid)', 'execute'),
     'is_blocked is not executable by authenticated');
 select ok(not has_function_privilege('authenticated', 'is_minor_user(uuid)', 'execute'),
