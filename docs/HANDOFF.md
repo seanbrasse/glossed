@@ -1,4 +1,4 @@
-# Session handoff — Sept 2 2026 (session 22: thirty-one PRs merged under a grant, two rounds of Sean's phone notes answered, main on his phone)
+# Session handoff — Sept 2 2026 (session 22: thirty-three PRs merged under a grant, three rounds of Sean's phone notes answered, main on his phone)
 
 Where Phase 1 stands, what to do next, and what the last three sessions learned.
 Read `docs/README.md` first for the design; this file is only about state.
@@ -88,6 +88,25 @@ union branch swapped the email (never pushed), and her profile needed a
 temporary `handles` row (inserted through `docker exec … psql`, deleted
 after) to get past the claim gate. The debug catalog has no empty-shelf or
 empty-profile fixture — worth adding.
+
+## Session 22, the last round (Sept 2, night — the stylist on an empty shelf)
+
+| Sean said | What was built | PR |
+|---|---|---|
+| "I have nothing on my shelf, what am I missing gave a correct response technically but also pretty bad one" | `planMissing` on an empty shelf: `emptyShelfReply` says the shelf is empty, names the `+` as the way in, calls the basics where most shelves start (joined with *and*, #524); no leaderboard fetched. Empty-shelf chips drop the routine and look doors. Driven live as juli against `functions serve` from `main` | **#523**, **#524** |
+| "we should see an empty single level shelf, and as we add things to it, that shelf either gets a new tier if it's a new product type or it gets added to existing shelf if the product type matches" | **Already the behaviour — proven, not asserted:** as juli, a cleanser made one tier, a serum a second, a second cleanser joined the first. Screenshots sent to Sean; her items deleted after | — |
+
+**`supabase functions serve` now runs from THIS worktree**
+(`glossed-phase-1-1fbaa3`, at `main`), not from `glo-145-fitsection-gate`;
+its `.env` (R2 + the stylist key + workspace id, gitignored) was copied
+across so the phone keeps the model fallback. Restart it from `main` after
+any function merge — the first request after a restart still fails once
+("stylist prefetch failed"), the second answers.
+
+**Two more §8 shapes tonight:** `deno fmt` without `--line-width=100`
+reflows the whole file to 80 columns and the 100-column pass does not rejoin
+what it broke — restore the file from `main` and format once; and a chain
+that ends on `grep` opened a PR with an unformatted file (twice).
 
 ## Session 21 at a glance (Sept 2, afternoon → evening — Sean's notes from his phone)
 
@@ -592,7 +611,7 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Thing | State |
 |---|---|
-| **Zero PRs open.** Thirty-one merged in session 22 (#491–#521) under Sean's grant — see the two "Session 22" blocks. The grant was per-session. `main` = `fe0f658`, lint-clean, eight packages green, driven on the simulator, on Sean's phone | GLO-224, GLO-23, GLO-108 threads |
+| **Zero PRs open.** Thirty-three merged in session 22 (#491–#524) under Sean's grant — see the three "Session 22" blocks. The grant was per-session. `main` is lint-clean, eight packages and the stylist function green, driven on the simulator, on Sean's phone | GLO-224, GLO-23, GLO-108 threads |
 | **The first real account exists** — Sean's, made on his phone at 14:25 (Apple → birthday → name → handle `seantest`), then signed out from settings. **He then walked "create an account" again with the same Apple ID and was asked the birthday and a handle he already had** — #508 and #509 answer that; neither is driven with a real Apple ID yet (only he can). Still not driven: logging a product as him. The local stack must be up with `supabase functions serve` running and the Mac awake on the same Wi-Fi (`http://Seans-MacBook-Pro.local:54321`) | GLO-23 thread |
 | **Friends' phones = TestFlight**, which needs a Release boot path (the account path was moved out of `#if DEBUG` on Sept 2 — see §6 for whether it reached #499), a **hosted backend with the catalog and the functions deployed** (hosted has 0 products; promotion needs the DB URL or a CLI login), and an App Store Connect record | GLO-50, §7 |
 | **Filling the new categories from Shopify** (Sean's ask, Sept 1) | **Step 1 done — #488** (rules in `TYPE_RULES`, backfill in `scripts/reclassify_new_groups.sql`, 168 products moved on local, 0 ladders touched). Step 2 (leaves) still needs slot **0058** |
