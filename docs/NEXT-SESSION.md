@@ -6,11 +6,10 @@ disagree, the handoff is newer.*
 
 ---
 
-**Read `docs/HANDOFF.md` §0 and the three "Session 22" blocks before you
-touch anything.** Zero PRs are open. Thirty-three merged tonight; Sean's phone
-runs `main` as of `fe0f658` (the two later merges are function-side and reach
-his phone through `functions serve`, which now runs from the
-`glossed-phase-1-1fbaa3` worktree at `main`).
+**Read `docs/HANDOFF.md` §0 and the four "Session 22" blocks before you
+touch anything.** Zero PRs are open. Thirty-five merged tonight; Sean's phone
+runs `main` at #527, and `functions serve` runs from the
+`glossed-phase-1-1fbaa3` worktree at `main`.
 
 **The rule that cost the most this session, as an imperative:** *after
 `git rebase --onto`, read the commits that survived and the diff of any file
@@ -90,13 +89,13 @@ And: *wait for the iOS job, not just lint, on any PR that touches
 
 ## State at handoff, verified not recalled
 
-**Zero open, thirty-three merged** (#491–#524). `main` at #524: swiftlint and
+**Zero open, thirty-five merged** (#491–#527). `main` at #527: swiftlint and
 swiftformat clean; simulator build green, fresh dylib; Onboarding 78, Profile
 108, DesignSystem 54, Stylist 11, Tracking 16, Shelf 144, AddLadder 125,
 ProductPage 22; the stylist function's 97 deno
 tests; FLOW 1 driven from `main` on the simulator (hook → quiz → tone →
 payoff bay with images → *create your account*). The other thirteen packages
-were not re-run. Sean's phone: the 19:26 build of `fe0f658`, entitlement
+were not re-run. Sean's phone: the build of `main` at #527, entitlement
 and dev-sign-in-off proven, launched. Local stack up, `supabase functions
 serve` running (pid from the `glo-145-fitsection-gate` worktree, with the
 stylist key in its `.env`). Hosted: unchanged — 0 products, 0 users, no
