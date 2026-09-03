@@ -100,7 +100,7 @@ select ok(can_view(:'juli', :'maya', 'shelf'),          'public · mutual → vi
 select ok(can_view(:'follower_only', :'maya', 'shelf'), 'public · follower-only → visible');
 select ok(can_view(:'followed_only', :'maya', 'shelf'), 'public · followed-only → visible');
 select ok(can_view(:'stranger', :'maya', 'shelf'),      'public · stranger → visible');
-select ok(can_view(null, :'maya', 'shelf'),             'public · ANON → visible — link cards and web share pages depend on this');
+select ok(not can_view(null, :'maya', 'shelf'),         'public · ANON → invisible — nothing reads without an account (0060, Sean Sept 3)');
 
 -- ---------------------------------------------------------------------------
 -- GRID B · the surface switch. 4 surfaces × 2 scopes × 2 viewers = 16.

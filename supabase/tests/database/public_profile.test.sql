@@ -147,10 +147,10 @@ select is((select badge_hair_pattern from public_profile('maya_k')), 'similar ha
 -- viewer a public profile is most exposed to.
 select set_config('request.jwt.claims', null, true);
 select set_config('role', 'anon', true);
-select is((select badge_hair_pattern from public_profile('maya_k')), null,
-    'a SIGNED-OUT viewer is told no body fact at all');
-select isnt((select handle from public_profile('maya_k')), null,
-    'the profile itself still resolves for them — the badges went quiet, the profile did not');
+select throws_ok($$ select * from public_profile('maya_k') $$, '42501', null,
+    'a SIGNED-OUT viewer gets no profile at all — nothing reads without an account (0060, Sean Sept 3)');
+select ok(not has_function_privilege('anon', 'public_profile(text)', 'execute'),
+    'and the grant is gone from the role');
 
 -- ---------------------------------------------------------------------------
 -- The bio: only approved text ever renders.
