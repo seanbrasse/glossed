@@ -103,6 +103,48 @@ struct ShelfEmptyStateTests {
     }
 }
 
+/// Sean, Sep 3: "if we filter in the shelf for items that don't exist, we just
+/// get an empty state. Filtering for only makeup with no makeup products on the
+/// shelf shows no empty shelf. We want an empty shelf." The dead-ends draw one
+/// bare tier; its label band names the domains that narrowed the shelf.
+@MainActor
+struct ShelfEmptyTierLabelTests {
+    private let skincareOnly = [section(.skincare, [item("serum", .skincare), item("toner", .skincare)])]
+
+    @Test func oneDomainOnLabelsThePlankWithIt() {
+        // The case Sean filed: makeup on, no makeup owned — the makeup shelf, empty.
+        let live = model(skincareOnly, domains: [.makeup])
+        #expect(live.emptyState == .filteredOut)
+        #expect(live.emptyTierLabel == "makeup")
+    }
+
+    @Test func severalDomainsOnReadInTheFiltersOrderNotTheSets() {
+        // A Set has no order; the filter row does, and the plank agrees with it.
+        let live = model(skincareOnly, domains: [.fragrance, .makeup])
+        #expect(live.emptyTierLabel == "makeup · fragrance")
+    }
+
+    @Test func nothingNarrowingTheShelfHangsNoLabel() {
+        // Every domain on and everything hidden, or none on: the sentence above
+        // the plank already says why it is bare, and `all` would claim nothing.
+        let allOn = model(
+            [section(.makeup, [item("a", .makeup, status: .wantToTry), item("b", .makeup, status: .wantToTry)])],
+            domains: Set(ShelfModel.domains)
+        )
+        #expect(allOn.emptyState == .wishlistHidden)
+        #expect(allOn.emptyTierLabel == "")
+
+        let noneOn = model(skincareOnly, domains: [])
+        #expect(noneOn.emptyState == .noDomains)
+        #expect(noneOn.emptyTierLabel == "")
+    }
+
+    @Test func theFirstProductTierIsUntouched() {
+        // The cold start keeps its own words; only the filter dead-ends borrow the tier.
+        #expect(ShelfBay.bare.label == "first product")
+    }
+}
+
 /// Sean, Sep 2: "Why is there a search if we have no items? … There should be
 /// no filters unless there's more than one item logged."
 @MainActor

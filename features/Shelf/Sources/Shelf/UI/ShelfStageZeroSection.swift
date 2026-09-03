@@ -57,10 +57,21 @@ extension ShelfView {
                 .padding(.top, 6)
                 .task { await loadStageZero() }
             } else {
-                Text(empty.message)
-                    .meta()
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 6)
+                // The shelf is never absent. Sean, Sep 3: "filtering for only
+                // makeup with no makeup products on the shelf shows no empty
+                // shelf. We want an empty shelf." The sentence, then one bare
+                // tier labelled for the domains on, and the same door to the
+                // ladder — a dry search seeds it with what was typed, since
+                // "add it with +" is what the sentence just said.
+                VStack(alignment: .leading, spacing: Tokens.Space.s4) {
+                    Text(empty.message)
+                        .meta()
+                        .fixedSize(horizontal: false, vertical: true)
+                    ShelfBayView.bare(label: model.emptyTierLabel) {
+                        addProduct(model.searchQuery.trimmingCharacters(in: .whitespaces))
+                    }
+                }
+                .padding(.top, 6)
             }
         }
     }

@@ -8,20 +8,42 @@ import SwiftUI
 // stands where the first product will; the words sit in the label band. The
 // first product then lands on this same tier — the bay is the category's
 // from then on — rather than replacing a drawing with a different one.
+//
+// The filter dead-ends draw the same tier (Sean, Sep 3: *"filtering for only
+// makeup with no makeup products on the shelf shows no empty shelf. We want
+// an empty shelf"*), labelled for the domains on instead of `first product`
+// — the shelf is never absent, whatever narrowed it to nothing.
 
 extension ShelfBayView {
     /// One plank between the uprights with the invitation standing on it.
-    /// `onAdd` opens the add-ladder; nil (fixtures, previews) draws the same
-    /// tier untappable rather than a door onto nothing.
-    public static func bare(onAdd: (() -> Void)? = nil) -> ShelfBayView {
-        ShelfBayView(bare: true, onAdd: onAdd)
+    /// `label` fills the band where a category name goes — `ShelfBay.bare`'s
+    /// `first product` by default, or the domains a filter narrowed the shelf
+    /// to; empty hangs no label at all. `onAdd` opens the add-ladder; nil
+    /// (fixtures, previews) draws the same tier untappable rather than a door
+    /// onto nothing.
+    public static func bare(
+        label: String = ShelfBay.bare.label,
+        onAdd: (() -> Void)? = nil
+    ) -> ShelfBayView {
+        ShelfBayView(bareLabel: label, onAdd: onAdd)
+    }
+
+    var isBare: Bool {
+        bareLabel != nil
+    }
+
+    /// The first-product tier and a filtered-out one tell a screen reader
+    /// different things: one adds the first product, the other a product
+    /// to a shelf that has some already.
+    private var invitationAccessibilityLabel: String {
+        bareLabel == ShelfBay.bare.label ? "add your first product" : "add a product"
     }
 
     @ViewBuilder var invitation: some View {
         if let onAdd {
             Button(action: onAdd) { invitationLabel }
                 .buttonStyle(.plain)
-                .accessibilityLabel("add your first product")
+                .accessibilityLabel(invitationAccessibilityLabel)
         } else {
             invitationLabel
         }

@@ -20,23 +20,23 @@ public struct ShelfBayView: View {
     /// visibly.
     @State private var shelfWidth: CGFloat = 0
 
-    /// Draws `ShelfBay.bare` and nothing else — the empty shelf's own shelf.
-    /// See `ShelfBayInvitation.swift` for what stands on it.
-    let isBare: Bool
+    /// Set, this view draws one bare tier under that label and nothing else —
+    /// the empty shelf's own shelf. `ShelfBayInvitation.swift` is what stands on it.
+    let bareLabel: String?
     /// The empty tier's door: opens the add-ladder. Nil in fixtures.
     let onAdd: (() -> Void)?
 
     public init(sections: [ShelfSection], onTap: @escaping (ShelfItem) -> Void = { _ in }) {
         self.sections = sections
         self.onTap = onTap
-        isBare = false
+        bareLabel = nil
         onAdd = nil
     }
 
-    init(bare: Bool, onAdd: (() -> Void)?) {
+    init(bareLabel: String, onAdd: (() -> Void)?) {
         sections = []
         onTap = { _ in }
-        isBare = bare
+        self.bareLabel = bareLabel
         self.onAdd = onAdd
     }
 
@@ -60,8 +60,8 @@ public struct ShelfBayView: View {
     /// than in the model — `ShelfModel` decides *which* items and in what order,
     /// which is the part that should be testable without a layout.
     private var bays: [ShelfBay] {
-        if isBare {
-            return [.bare]
+        if let bareLabel {
+            return [ShelfBay(id: ShelfBay.bare.id, label: bareLabel, items: [])]
         }
         guard shelfWidth > 0 else { return [] }
         return ShelfBay.bays(from: sections, fittingWidth: shelfWidth - Frame.bayHorizontalPadding * 2)
