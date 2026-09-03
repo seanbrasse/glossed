@@ -340,6 +340,10 @@ Deno.test("an empty shelf is told so and pointed at the +, not handed two basics
   const r = planned.finish([]);
   assert(r.text.startsWith("nothing on your shelf yet"));
   assert(r.text.includes("from the +"));
+  assert(
+    r.text.endsWith("cleanser, moisturizer and sun."),
+    "the basics are a set, joined with and",
+  );
   assertEquals(r.blocks, []);
   assertEquals(r.chips, ["what should i try next", "what's missing for my skin"]);
 });
