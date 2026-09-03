@@ -25,7 +25,6 @@ public struct ShelfView: View {
     /// it the cold-start screen still renders, saying it has no picks rather
     /// than pretending to load forever.
     let stageZero: ShelfStageZeroStore?
-    let onImport: (() -> Void)?
     /// The empty shelf's way in (GLO-108): opens the add-ladder, seeded with
     /// a pick's name or with nothing. Handed up because the ladder is a
     /// feature. Nil in fixtures — see `addProduct(_:)`.
@@ -53,7 +52,6 @@ public struct ShelfView: View {
         onTapItem: @escaping (ShelfItem) -> Void = { _ in },
         onOpenProduct: ((ShelfItem) -> Void)? = nil,
         onRank: ((ShelfItem) -> Void)? = nil,
-        onImport: (() -> Void)? = nil,
         onAddProduct: ((String) -> Void)? = nil,
         productDetails: ((ShelfItem) -> AnyView)? = nil
     ) {
@@ -63,7 +61,6 @@ public struct ShelfView: View {
         self.onTapItem = onTapItem
         self.onOpenProduct = onOpenProduct
         self.onRank = onRank
-        self.onImport = onImport
         self.onAddProduct = onAddProduct
         self.productDetails = productDetails
     }
