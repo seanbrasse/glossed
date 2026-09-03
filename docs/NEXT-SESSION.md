@@ -7,7 +7,7 @@ disagree, the handoff is newer.*
 ---
 
 **Read `docs/HANDOFF.md` §0, the "Session 23" block and the five "Session 22"
-blocks before you touch anything.** Zero PRs are open. Thirty-nine merged; Sean's phone
+blocks before you touch anything.** Zero PRs are open. Forty merged; Sean's phone
 runs `main` at #527, and `functions serve` runs from the
 `glossed-phase-1-1fbaa3` worktree at `main`.
 
@@ -48,7 +48,7 @@ And: *wait for the iOS job, not just lint, on any PR that touches
   saves) or GLO-23 (the phone's account).
 - **A real Apple ID** for #508/#509 — only Sean's phone can drive them.
 - **Hosted secrets, the catalog promotion, TestFlight** — all his.
-- **The migration slot** — next free number is **0060**; STY-8 then SAV-2 are
+- **The migration slot** — next free number is **0061**; STY-8 then SAV-2 are
   queued. Sean's grant was per-session.
 - **The payoff's picks** — whether to draw from the leaderboard later is his.
 
@@ -90,7 +90,7 @@ And: *wait for the iOS job, not just lint, on any PR that touches
 
 ## State at handoff, verified not recalled
 
-**Zero open, thirty-nine merged** (#491–#532). `main` at #532: swiftlint and
+**Zero open, forty merged** (#491–#534). `main` at #534: swiftlint and
 swiftformat clean; simulator build green, fresh dylib; Onboarding 78, Profile
 108, DesignSystem 54, Stylist 11, Tracking 16, Shelf 144, AddLadder 125,
 ProductPage 22; the stylist function's 97 deno
