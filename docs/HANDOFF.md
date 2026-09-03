@@ -1,4 +1,4 @@
-# Session handoff — Sept 2 2026 (session 22: thirty-three PRs merged under a grant, three rounds of Sean's phone notes answered, main on his phone)
+# Session handoff — Sept 2 2026 (session 22: thirty-five PRs merged under a grant, four rounds of Sean's phone notes answered, main on his phone)
 
 Where Phase 1 stands, what to do next, and what the last three sessions learned.
 Read `docs/README.md` first for the design; this file is only about state.
@@ -107,6 +107,17 @@ any function merge — the first request after a restart still fails once
 reflows the whole file to 80 columns and the 100-column pass does not rejoin
 what it broke — restore the file from `main` and format once; and a chain
 that ends on `grep` opened a PR with an unformatted file (twice).
+
+## Session 22, the empty shelf (Sept 2, night — two more PRs)
+
+| Sean said | What was built | PR |
+|---|---|---|
+| "0 products should still be 1 tier and encourage users to add to their shelf" … "That screenshot looks bad" … "Put the empty shelf under the empty shelf text between that and the add a product button" | the bare plank carries a dashed `+` slot where the first product will stand; the tier opens the ladder; it sits after the eyebrow, aside, meter and picks. The first drawing put the slot on the left upright and ran its words through the middle one — fixed before merge | **#526** |
+| "I also don't like how the add your first product text goes through the shelf … the add a product pink button does the same. Plus we have the add button in the navigation. Let's consolidate." | the words moved into the bay's label band (`FIRST PRODUCT`, where category names go, clear of the uprights); the `add a product` / `import a list` row under the shelf is gone (the nav's `+` and its drawer hold both), and the shelf's callerless `onImport` seam with it; the no-picks line says *tap the shelf to add your first product*. Driven as juli: a tap on the bare plank opens the ladder | **#527** |
+
+**Sean's phone is NOT on this yet.** The device build at 20:22 found no destination — `devicectl` listed the iPhone as *unavailable* (off the LAN, or locked) — and the stale-binary guard refused to install the 19:26 binary. His phone runs `main` as of `fe0f658` (#521); #526/#527's empty-shelf tier and #523/#524's stylist copy are not on it (the stylist copy is server-side and reaches it through `functions serve`). Rebuild with `scratchpad/phone-build.sh` the moment `xcrun devicectl list devices` says *available* — and grep for that word exactly: *unavailable* contains it, which is how one retry started against a phone that was not there.
+
+**Zero PRs open. Thirty-five merged this session (#491–#527).**
 
 ## Session 21 at a glance (Sept 2, afternoon → evening — Sean's notes from his phone)
 
@@ -611,7 +622,7 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Thing | State |
 |---|---|
-| **Zero PRs open.** Thirty-three merged in session 22 (#491–#524) under Sean's grant — see the three "Session 22" blocks. The grant was per-session. `main` is lint-clean, eight packages and the stylist function green, driven on the simulator, on Sean's phone | GLO-224, GLO-23, GLO-108 threads |
+| **Zero PRs open.** Thirty-five merged in session 22 (#491–#527) under Sean's grant — see the four "Session 22" blocks. The grant was per-session. `main` is lint-clean, eight packages and the stylist function green, driven on the simulator, on Sean's phone | GLO-224, GLO-23, GLO-108 threads |
 | **The first real account exists** — Sean's, made on his phone at 14:25 (Apple → birthday → name → handle `seantest`), then signed out from settings. **He then walked "create an account" again with the same Apple ID and was asked the birthday and a handle he already had** — #508 and #509 answer that; neither is driven with a real Apple ID yet (only he can). Still not driven: logging a product as him. The local stack must be up with `supabase functions serve` running and the Mac awake on the same Wi-Fi (`http://Seans-MacBook-Pro.local:54321`) | GLO-23 thread |
 | **Friends' phones = TestFlight**, which needs a Release boot path (the account path was moved out of `#if DEBUG` on Sept 2 — see §6 for whether it reached #499), a **hosted backend with the catalog and the functions deployed** (hosted has 0 products; promotion needs the DB URL or a CLI login), and an App Store Connect record | GLO-50, §7 |
 | **Filling the new categories from Shopify** (Sean's ask, Sept 1) | **Step 1 done — #488** (rules in `TYPE_RULES`, backfill in `scripts/reclassify_new_groups.sql`, 168 products moved on local, 0 ladders touched). Step 2 (leaves) still needs slot **0058** |
