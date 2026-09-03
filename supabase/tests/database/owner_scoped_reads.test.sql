@@ -55,6 +55,11 @@ values
 insert into profiles (user_id, birth_year_month, domains) values
     ('05c07ed0-0000-0000-0000-000000000001', '1990-01', '{makeup}'),
     ('05c07ed0-0000-0000-0000-000000000002', '1991-02', '{makeup}');
+-- 0058: a public scope needs a handle, so every fixture owner claims one
+-- (directly — the fixture runs as postgres; `claim_handle` is the app's door).
+insert into handles (user_id, handle) values
+    ('05c07ed0-0000-0000-0000-000000000001', 'tst05c07ed0001'),
+    ('05c07ed0-0000-0000-0000-000000000002', 'tst05c07ed0002');
 
 insert into privacy_scopes (user_id, shelf, rankings) values
     ('05c07ed0-0000-0000-0000-000000000001', 'public', 'public');
@@ -118,6 +123,10 @@ values
      'scoped-collector@test.local', '', now(), '{}', '{}', now(), now(), '', '', '', '', '', '', '', '');
 insert into profiles (user_id, birth_year_month, domains) values
     ('05c07ed0-0000-0000-0000-000000000003', '1989-03', '{makeup}');
+-- 0058: a public scope needs a handle, so every fixture owner claims one
+-- (directly — the fixture runs as postgres; `claim_handle` is the app's door).
+insert into handles (user_id, handle) values
+    ('05c07ed0-0000-0000-0000-000000000003', 'tst05c07ed0003');
 -- every surface shut. The ONLY thing public about this user is the collection.
 insert into privacy_scopes (user_id, shelf, rankings) values
     ('05c07ed0-0000-0000-0000-000000000003', 'only_you', 'only_you');

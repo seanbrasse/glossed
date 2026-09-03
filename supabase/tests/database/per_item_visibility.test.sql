@@ -29,6 +29,12 @@ insert into profiles (user_id, birth_year_month, domains) values
     ('ca000000-0000-0000-0000-000000000001', '1990-01', '{makeup}'),
     ('ca000000-0000-0000-0000-000000000002', '1991-02', '{makeup}'),
     ('ca000000-0000-0000-0000-000000000003', '1992-03', '{makeup}');
+-- 0058: a public scope needs a handle, so every fixture owner claims one
+-- (directly — the fixture runs as postgres; `claim_handle` is the app's door).
+insert into handles (user_id, handle) values
+    ('ca000000-0000-0000-0000-000000000001', 'tstca000000001'),
+    ('ca000000-0000-0000-0000-000000000002', 'tstca000000002'),
+    ('ca000000-0000-0000-0000-000000000003', 'tstca000000003');
 
 -- friends = MUTUAL follow (§1.3, Sean's ruling)
 insert into follows (follower_id, followed_id) values

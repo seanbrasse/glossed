@@ -19,6 +19,14 @@ end $$;
 \set followed_only '00000000-0000-0000-0000-0000000000a2'
 \set stranger      '00000000-0000-0000-0000-0000000000a3'
 
+-- 0058: a public scope needs a handle, so the two seeded owners claim one here.
+-- seed.sql gives them none on purpose (handles.test claims Maya_K), and a local
+-- database may already hold one from a drive — hence on conflict. Directly, as
+-- postgres: the fixture is not the app, and claim_handle is the app's door.
+select set_config('role', 'postgres', true);
+insert into handles (user_id, handle) values (:'maya', 'tstmaya0058'), (:'juli', 'tstjuli0058')
+    on conflict (user_id) do nothing;
+
 -- The extra three actors need auth.users rows. Inside this transaction only —
 -- seed.sql stays untouched, so no db reset, which three sessions would feel.
 select set_config('role', 'postgres', true);

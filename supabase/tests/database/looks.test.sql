@@ -43,6 +43,11 @@ from (values
 insert into profiles (user_id, birth_year_month, domains) values
     ('a8000000-0000-0000-0000-000000000001', '1990-01', '{makeup}'),
     ('a8000000-0000-0000-0000-000000000002', '1992-06', '{makeup}');
+-- 0058: a public scope needs a handle, so every fixture owner claims one
+-- (directly — the fixture runs as postgres; `claim_handle` is the app's door).
+insert into handles (user_id, handle) values
+    ('a8000000-0000-0000-0000-000000000001', 'tsta8000000001'),
+    ('a8000000-0000-0000-0000-000000000002', 'tsta8000000002');
 
 insert into brands (id, name, normalized_name) values
     ('b8000000-0000-0000-0000-000000000001', 'looks brand', 'looks brand');

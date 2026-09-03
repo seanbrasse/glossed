@@ -26,6 +26,11 @@ from (values
 insert into profiles (user_id, birth_year_month, domains) values
     ('ba000000-0000-0000-0000-000000000001', '1990-01', '{skincare}'),
     ('ba000000-0000-0000-0000-000000000002', '1992-06', '{skincare}');
+-- 0058: a public scope needs a handle, so every fixture owner claims one
+-- (directly — the fixture runs as postgres; `claim_handle` is the app's door).
+insert into handles (user_id, handle) values
+    ('ba000000-0000-0000-0000-000000000001', 'tstba000000001'),
+    ('ba000000-0000-0000-0000-000000000002', 'tstba000000002');
 
 -- The ROUTINE scope is public from the start; the COLLECTION's own visibility
 -- is the variable under test, and it begins closed.
