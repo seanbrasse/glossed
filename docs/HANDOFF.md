@@ -1,4 +1,4 @@
-# Session handoff — Sept 2 2026 (session 22: thirty-five PRs merged under a grant, four rounds of Sean's phone notes answered, main on his phone, and a privacy audit with real accounts)
+# Session handoff — Sept 3 2026 (session 22/23: thirty-nine PRs merged under a grant, four rounds of Sean's phone notes answered, main on his phone, a privacy audit with real accounts and two migrations from it)
 
 Where Phase 1 stands, what to do next, and what the last three sessions learned.
 Read `docs/README.md` first for the design; this file is only about state.
@@ -118,6 +118,32 @@ that ends on `grep` opened a PR with an unformatted file (twice).
 **Sean's phone caught up at 21:14.** The 20:22 device build had found no destination (the iPhone was *unavailable* — off the LAN or locked); a watcher polled `devicectl list devices` for the exact word *available* (*unavailable* contains it — one retry started against a phone that was not there) and built `main` the moment it saw it: fresh binary, `applesignin` entitlement, `GlossedDevSignIn=0`, both proof strings, installed and launched. His phone runs `main` at #530.
 
 **Zero PRs open. Thirty-five merged this session (#491–#527).**
+
+## Session 23 (Sept 3, small hours) — the audit's two migrations, under a grant
+
+Sean: *"Go for it, merge as you please."* That opened the migration slot, and
+findings 1 and 3 of the audit became **0058** and **0059**, both merged with
+the CI database suite green.
+
+| Migration | What | PR |
+|---|---|---|
+| **0058** `a_public_scope_needs_a_handle` | `has_handle(uuid)`; `can_view` and `can_view_item` fail closed for a handle-less owner, after the self check and before minors and blocks. `privacy_handle_gate.test.sql` (12). **Nine fixture files** gained a handle line: six with their own owners, and the three privacy grids that use maya and juli — `on conflict (user_id) do nothing`, because **seed.sql gives maya no handle on purpose** (`handles.test` claims `Maya_K`) while a local database usually holds one from a drive. That difference is why the grids passed locally and failed in CI on the first push; verified both ways by deleting maya's handle inside the test transaction | **#529** |
+| **0059** `an_account_can_leave` | Nulling `products.created_by` was not an option — `personal_has_creator` says a personal *or submitted* product must have one — so `account_leaves()`, a `before delete` trigger on `auth.users`, removes the leaver's personal and submitted products with their variants and every `NO ACTION` reference in dependency order, and unsigns a product of theirs that reached canonical. `rec_dismissals` cascade. `account_can_leave.test.sql` (8). The audit's six accounts then deleted cleanly, personal product included | **#532** |
+
+**Verified live with the harness after 0058:** the handle-less public owner
+reads as zero rows to every other viewer and to anon; the handled owner is
+unchanged; the anonymous scrape of `user_items` fell from 8 rows / 5 owners
+to 5 / 3. `scripts/privacy_audit.sh`'s expectations follow the new model.
+
+**The local pgTAP baseline is five suites**, not two: `handles`,
+`browse_routines`, `public_profile`, `suggested_people` (maya's handle from a
+drive collides with the fixtures') and `shelf_view` #14 (an image
+assertion). All five fail identically on `main` without tonight's changes;
+CI is clean. `Files=50, Tests=675`.
+
+**Still open from the audit:** finding 2 (the anonymous role is half-open —
+a decision) and finding 4 (public routines never reach browse because
+nothing submits a title for moderation; the pipeline is unbuilt).
 
 ## Session 22, the privacy audit (Sept 2, night)
 
@@ -667,7 +693,7 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Thing | State |
 |---|---|
-| **Zero PRs open.** Thirty-five merged in session 22 (#491–#527) under Sean's grant — see the four "Session 22" blocks. The grant was per-session. `main` is lint-clean, eight packages and the stylist function green, driven on the simulator, on Sean's phone | GLO-224, GLO-23, GLO-108 threads |
+| **Zero PRs open.** Thirty-nine merged across sessions 22–23 (#491–#532) under Sean's grants, two of them migrations (0058, 0059). `main` is lint-clean, eight packages, the stylist function and the CI database suite green; on Sean's phone as of #530 (the migrations are server-side) | GLO-224, GLO-23, GLO-108, GLO-258 threads |
 | **The first real account exists** — Sean's, made on his phone at 14:25 (Apple → birthday → name → handle `seantest`), then signed out from settings. **He then walked "create an account" again with the same Apple ID and was asked the birthday and a handle he already had** — #508 and #509 answer that; neither is driven with a real Apple ID yet (only he can). Still not driven: logging a product as him. The local stack must be up with `supabase functions serve` running and the Mac awake on the same Wi-Fi (`http://Seans-MacBook-Pro.local:54321`) | GLO-23 thread |
 | **Friends' phones = TestFlight**, which needs a Release boot path (the account path was moved out of `#if DEBUG` on Sept 2 — see §6 for whether it reached #499), a **hosted backend with the catalog and the functions deployed** (hosted has 0 products; promotion needs the DB URL or a CLI login), and an App Store Connect record | GLO-50, §7 |
 | **Filling the new categories from Shopify** (Sean's ask, Sept 1) | **Step 1 done — #488** (rules in `TYPE_RULES`, backfill in `scripts/reclassify_new_groups.sql`, 168 products moved on local, 0 ladders touched). Step 2 (leaves) still needs slot **0058** |
