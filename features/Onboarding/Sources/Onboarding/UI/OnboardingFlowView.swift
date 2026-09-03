@@ -128,8 +128,7 @@ public struct OnboardingFlowView<Tour: View, Shelf: View>: View {
                     + OnbBuildView.progressLine(added: shelfStarterCount)
                     : "search, scan, or create — your call",
                 onBuild: { flow.welcomeChose(.buildShelf) },
-                onImport: { flow.welcomeChose(.importList) },
-                onBrowse: { flow.welcomeChose(.discover) }
+                onImport: { flow.welcomeChose(.importList) }
             )
         }
     }

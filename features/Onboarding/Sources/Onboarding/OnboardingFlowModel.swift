@@ -50,7 +50,10 @@ public final class OnboardingFlowModel {
     /// Where onboarding hands back to the app. The app owns every one of
     /// these destinations; the flow only names them.
     public enum Exit: String, Equatable, Sendable {
-        /// Both "just browse" and the whole returning-user path.
+        /// The returning-user path, and only that. The welcome's *just
+        /// browse* door used to exit here too; Sean, Sep 3: *"new accounts
+        /// should land on the shelf"* — so a fresh signup has no way to this
+        /// exit, and both of the welcome's doors are shelf exits.
         case discover
         case buildShelf
         case importList
@@ -196,7 +199,11 @@ public final class OnboardingFlowModel {
         stop = .welcome
     }
 
+    /// The welcome offers two doors, `.buildShelf` and `.importList`, and
+    /// both land on the shelf — a new account's first screen is its own
+    /// shelf, not discover (Sean, Sep 3). `.discover` is not one of them.
     public func welcomeChose(_ exit: Exit) {
+        assert(exit != .discover, "a fresh signup lands on the shelf; discover is login's exit")
         self.exit = exit
     }
 
