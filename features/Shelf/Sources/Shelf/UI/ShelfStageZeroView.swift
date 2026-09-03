@@ -22,12 +22,6 @@ struct ShelfStageZeroView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s4) {
-            // The shelf, bare. Sean, Sep 2: "Empty shelf should also show an
-            // empty shelf state with a singular empty shelf." It leads: the
-            // screen is called your shelf, and this is it, before anything
-            // stands on it.
-            ShelfBayView.bare
-                .accessibilityLabel("an empty shelf")
             Text("NOTHING LOGGED YET · STAGE 0")
                 .eyebrow(color: Tokens.Cherry.deep)
             Text("an empty shelf still knows your shade — start from these three")
@@ -38,6 +32,15 @@ struct ShelfStageZeroView: View {
             ConfidenceMeter(have: anchorsHeld, need: 5)
 
             picksSection
+
+            // The shelf, with one tier and the invitation standing on it.
+            // Sean, Sep 2: "Empty shelf should also show an empty shelf state
+            // with a singular empty shelf" … "0 products should still be 1
+            // tier and encourage users to add to their shelf" … "Put the
+            // empty shelf under the empty shelf text between that and the
+            // add a product button." So it sits here: after what the shade
+            // cohort can say, right above the door.
+            ShelfBayView.bare(onAdd: onAddProduct)
 
             HStack(spacing: Tokens.Space.s3) {
                 Button("add a product", action: onAddProduct)
