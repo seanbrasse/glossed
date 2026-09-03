@@ -2,8 +2,8 @@
 # Privacy audit through the real stack (GLO-258, session 22): real accounts (auth API), writes through
 # PostgREST + the app's RPCs, reads as every viewer. Stages: setup · looks · reads.
 # Needs the local stack up. State lives in $GLOSSED_AUDIT_STATE (default /tmp).
-# Clean up: delete the accounts' personal products first (products.created_by has
-# no cascade), then `delete from auth.users where email like 'audit-%'`.
+# Clean up: `delete from auth.users where email like 'audit-%'` — since 0059 a leaver's
+# personal catalog goes with them.
 set +u
 S=${GLOSSED_AUDIT_STATE:-${TMPDIR:-/tmp}/glossed-privacy-audit}; mkdir -p "$S"
 API=http://127.0.0.1:54321
@@ -140,10 +140,11 @@ if [ "${1:-}" = reads ]; then
   # aria: shelf public (3 own, wtt never), rankings public (2), routines 1 public, collections 1 public, looks 1 public
   # bea: friends (mutual with aria only): items 2, routine 1, collection 1, look 1 — to aria only
   # cal: only_you everywhere; ONE public collection with one item
-  # dee: public scopes, NO handle: items 2, rank 1
+  # dee: public scopes, NO handle: nothing, since 0058 (a public scope needs a handle)
   # mia: minor: nothing; xan: public: 1 item, nothing else; blocked <-> aria
   stranger() { # owner -> "items rank routines colls looks"
-    case $1 in aria) echo "3 2 1 1 1";; bea) echo "0 0 0 0 0";; cal) echo "0 0 0 1 0";; dee) echo "2 1 0 0 0";; mia) echo "0 0 0 0 0";; xan) echo "1 0 0 0 0";; esac
+    # dee has public scopes and NO handle: since 0058 a stranger sees nothing of hers.
+    case $1 in aria) echo "3 2 1 1 1";; bea) echo "0 0 0 0 0";; cal) echo "0 0 0 1 0";; dee) echo "0 0 0 0 0";; mia) echo "0 0 0 0 0";; xan) echo "1 0 0 0 0";; esac
   }
   self() { case $1 in aria) echo "4 2 2 2 2";; bea) echo "2 0 1 1 1";; cal) echo "1 0 1 1 0";; dee) echo "2 1 0 0 0";; mia) echo "1 0 0 0 0";; xan) echo "1 0 0 0 0";; esac; }
   expected() { # viewer owner
