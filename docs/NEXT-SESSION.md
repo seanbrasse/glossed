@@ -6,9 +6,11 @@ disagree, the handoff is newer.*
 
 ---
 
-**Read `docs/HANDOFF.md` §0 and both "Session 22" blocks before you touch
-anything.** Zero PRs are open. Thirty-one merged tonight; `main` is `fe0f658`
-and Sean's phone runs it.
+**Read `docs/HANDOFF.md` §0 and the three "Session 22" blocks before you
+touch anything.** Zero PRs are open. Thirty-three merged tonight; Sean's phone
+runs `main` as of `fe0f658` (the two later merges are function-side and reach
+his phone through `functions serve`, which now runs from the
+`glossed-phase-1-1fbaa3` worktree at `main`).
 
 **The rule that cost the most this session, as an imperative:** *after
 `git rebase --onto`, read the commits that survived and the diff of any file
@@ -61,6 +63,9 @@ And: *wait for the iOS job, not just lint, on any PR that touches
   origin/<branch> && git rebase --onto origin/main <old-base-tip>`, push with
   `--force-with-lease`, retarget, read the surviving commits, merge, repeat.
   §3 has the loop.
+- **`deno fmt --line-width=100`, always** — the bare default is 80 and does
+  not undo itself. **End a chain on the command whose status matters**, not
+  on `grep`.
 - **Edit scripts anchor on raw text, with `^`-anchored regexes** — an
   indented line is a substring of its deeper twin — **and the chain ends on
   the script's exit code.** zsh: `$pipestatus`, `printf '%s'` for
@@ -85,7 +90,7 @@ And: *wait for the iOS job, not just lint, on any PR that touches
 
 ## State at handoff, verified not recalled
 
-**Zero open, thirty-one merged** (#491–#521). `main` `fe0f658`: swiftlint and
+**Zero open, thirty-three merged** (#491–#524). `main` at #524: swiftlint and
 swiftformat clean; simulator build green, fresh dylib; Onboarding 78, Profile
 108, DesignSystem 54, Stylist 11, Tracking 16, Shelf 144, AddLadder 125,
 ProductPage 22; the stylist function's 97 deno
