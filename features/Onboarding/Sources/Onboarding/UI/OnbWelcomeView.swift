@@ -1,8 +1,14 @@
 import DesignSystem
 import SwiftUI
 
-/// `G.OnbWelcome` — where to first? Three doors, each a real destination,
-/// and the honest footer about why finding friends is not one of them.
+/// `G.OnbWelcome` — where to first? Two doors, both onto the shelf, and the
+/// honest footer about why finding friends is not one of them.
+///
+/// The kit drew three: build, import, and *just browse* onto discover. Sean,
+/// Sep 3: *"new accounts should land on the shelf"* — the stage-0 shelf is
+/// the product's opening argument, and discover is one tab away from it. So
+/// the browse door is gone, and a fresh signup has no exit that is not the
+/// shelf. `Exit.discover` is login's, and only login's.
 public struct OnbWelcomeView: View {
     /// The first card's mono line carries the shelf starter's progress
     /// ("pick up where you left off — 2 of 5") — supplied by whoever knows
@@ -10,18 +16,15 @@ public struct OnbWelcomeView: View {
     private let buildLine: String
     private let onBuild: () -> Void
     private let onImport: () -> Void
-    private let onBrowse: () -> Void
 
     public init(
         buildLine: String = "search, scan, or create — your call",
         onBuild: @escaping () -> Void,
-        onImport: @escaping () -> Void,
-        onBrowse: @escaping () -> Void
+        onImport: @escaping () -> Void
     ) {
         self.buildLine = buildLine
         self.onBuild = onBuild
         self.onImport = onImport
-        self.onBrowse = onBrowse
     }
 
     public var body: some View {
@@ -44,10 +47,6 @@ public struct OnbWelcomeView: View {
                         title: "import a list", line: "notes, csv, a screenshot of a haul",
                         symbol: "doc.text", tint: Tokens.Support.butterSoft
                     ), onImport)
-                    door(Door(
-                        title: "just browse", line: "see what people in your shade love",
-                        symbol: "sparkles", tint: Tokens.Support.mintSoft
-                    ), onBrowse)
                 }
                 .padding(.vertical, Tokens.Space.s5)
             }

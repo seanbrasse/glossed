@@ -274,16 +274,23 @@ import Testing
     #expect(flow.stop == .hook) // none of this moved the flow
 }
 
+/// Sean, Sep 3: "new accounts should land on the shelf." The welcome's
+/// third door, *just browse* → discover, is gone; the two that remain are
+/// both shelf exits, and the app routes both to the shelf tab.
 @MainActor
-@Test func theWelcomesThreeDoorsAreTheOnlyWayOutOfSignup() {
-    let flow = OnboardingFlowModel()
-    flow.createAccount()
-    flow.quizFinished()
-    flow.payoffContinued()
-    flow.accountFinished()
-    flow.shelfStarterFinished()
-    flow.tourFinished()
-    #expect(flow.exit == nil)
-    flow.welcomeChose(.importList)
-    #expect(flow.exit == .importList)
+@Test func theWelcomesTwoDoorsAreTheOnlyWayOutOfSignupAndBothLandOnTheShelf() {
+    for door in [OnboardingFlowModel.Exit.buildShelf, .importList] {
+        let flow = OnboardingFlowModel()
+        flow.createAccount()
+        flow.quizFinished()
+        flow.payoffContinued()
+        flow.accountFinished()
+        flow.handleClaimed()
+        flow.shelfStarterFinished()
+        flow.tourFinished()
+        #expect(flow.exit == nil)
+        flow.welcomeChose(door)
+        #expect(flow.exit == door)
+        #expect(flow.exit != .discover, "discover is login's exit, never a fresh signup's")
+    }
 }

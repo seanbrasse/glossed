@@ -61,10 +61,10 @@
         static let welcome = ScreenEntry(
             id: "onb-welcome",
             title: "onboarding · welcome in",
-            note: "three doors, all real destinations — and the honest footer about why finding "
-                + "friends is not one of them"
+            note: "two doors, both onto the shelf (Sean, Sep 3: new accounts land on the shelf) — "
+                + "and the honest footer about why finding friends is not one of them"
         ) {
-            OnbWelcomeView(onBuild: {}, onImport: {}, onBrowse: {})
+            OnbWelcomeView(onBuild: {}, onImport: {})
         }
 
         /// A stand-in shell for the overlay: milk ground + a real FloatingNav,
@@ -162,8 +162,7 @@
                 case .welcome:
                     OnbWelcomeView(
                         onBuild: { stop = .hook },
-                        onImport: { stop = .hook },
-                        onBrowse: { stop = .hook }
+                        onImport: { stop = .hook }
                     )
                 }
             }
