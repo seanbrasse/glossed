@@ -1,4 +1,4 @@
-# Session handoff — Sept 3 2026 (session 22/23: thirty-nine PRs merged under a grant, four rounds of Sean's phone notes answered, main on his phone, a privacy audit with real accounts and two migrations from it)
+# Session handoff — Sept 3 2026 (session 22/23: forty PRs merged under a grant, four rounds of Sean's phone notes answered, main on his phone, a privacy audit with real accounts and three migrations from it)
 
 Where Phase 1 stands, what to do next, and what the last three sessions learned.
 Read `docs/README.md` first for the design; this file is only about state.
@@ -118,6 +118,34 @@ that ends on `grep` opened a PR with an unformatted file (twice).
 **Sean's phone caught up at 21:14.** The 20:22 device build had found no destination (the iPhone was *unavailable* — off the LAN or locked); a watcher polled `devicectl list devices` for the exact word *available* (*unavailable* contains it — one retry started against a phone that was not there) and built `main` the moment it saw it: fresh binary, `applesignin` entitlement, `GlossedDevSignIn=0`, both proof strings, installed and launched. His phone runs `main` at #530.
 
 **Zero PRs open. Thirty-five merged this session (#491–#527).**
+
+## Session 23, continued — nothing reads without an account (0060)
+
+Sean, on finding 2: *"There should be no anonymous callers though? Only
+public and private profiles/posts."* So **0060** (`nothing_reads_without_an_account`,
+**#534**): the anonymous role held the platform's default grant on every
+table and row policies were the only fence; now every user-content table,
+view and RPC loses its anon grant (from PUBLIC where that is where it came
+from — Postgres grants EXECUTE on new functions to PUBLIC, which anon is a
+member of — with the grant to `authenticated` and `service_role` made
+explicit), the catalog tables keep SELECT only, the default privileges for
+what `postgres` creates in `public` hand anon nothing, and `can_view` /
+`can_view_item` fail closed for a null viewer. `no_anonymous_readers.test.sql`
+(37) proves the grants and the fence with a probe table. Eight assertions in
+six suites had said the opposite ("web share pages read unauthenticated");
+each now says the rule and why.
+
+**The one anonymous read the app depends on is the catalog** — onboarding
+searches it before an account exists — and it is kept: driven with the
+keychain cleared and the dev sign-in off, the hook → quiz → payoff's bay
+drew its twelve products from `search_catalog` as anon. `tech/02` §6's link
+cards, which assumed anon reads, will need a server-side renderer with its
+own credential.
+
+**Emulating a no-account boot on the simulator:** `xcrun simctl keychain
+"<sim>" reset`, then launch with `SIMCTL_CHILD_GLOSSED_DEV_SIGN_IN=0` —
+`readyWithoutAccount` honours any non-maya keychain session, so juli's
+survived the first attempt.
 
 ## Session 23 (Sept 3, small hours) — the audit's two migrations, under a grant
 
@@ -693,7 +721,7 @@ Tracked in **Linear**: workspace [glossed](https://linear.app/glossed), team
 
 | Thing | State |
 |---|---|
-| **Zero PRs open.** Thirty-nine merged across sessions 22–23 (#491–#532) under Sean's grants, two of them migrations (0058, 0059). `main` is lint-clean, eight packages, the stylist function and the CI database suite green; on Sean's phone as of #530 (the migrations are server-side) | GLO-224, GLO-23, GLO-108, GLO-258 threads |
+| **Zero PRs open.** Forty merged across sessions 22–23 (#491–#534) under Sean's grants, three of them migrations (0058 the handle gate, 0059 account deletion, 0060 no anonymous readers). `main` is lint-clean, eight packages, the stylist function and the CI database suite green; on Sean's phone as of #530 (the migrations are server-side) | GLO-224, GLO-23, GLO-108, GLO-258 threads |
 | **The first real account exists** — Sean's, made on his phone at 14:25 (Apple → birthday → name → handle `seantest`), then signed out from settings. **He then walked "create an account" again with the same Apple ID and was asked the birthday and a handle he already had** — #508 and #509 answer that; neither is driven with a real Apple ID yet (only he can). Still not driven: logging a product as him. The local stack must be up with `supabase functions serve` running and the Mac awake on the same Wi-Fi (`http://Seans-MacBook-Pro.local:54321`) | GLO-23 thread |
 | **Friends' phones = TestFlight**, which needs a Release boot path (the account path was moved out of `#if DEBUG` on Sept 2 — see §6 for whether it reached #499), a **hosted backend with the catalog and the functions deployed** (hosted has 0 products; promotion needs the DB URL or a CLI login), and an App Store Connect record | GLO-50, §7 |
 | **Filling the new categories from Shopify** (Sean's ask, Sept 1) | **Step 1 done — #488** (rules in `TYPE_RULES`, backfill in `scripts/reclassify_new_groups.sql`, 168 products moved on local, 0 ladders touched). Step 2 (leaves) still needs slot **0058** |
