@@ -1,4 +1,4 @@
-# Session handoff — Sept 2 2026 (session 22: thirty-five PRs merged under a grant, four rounds of Sean's phone notes answered, main on his phone)
+# Session handoff — Sept 2 2026 (session 22: thirty-five PRs merged under a grant, four rounds of Sean's phone notes answered, main on his phone, and a privacy audit with real accounts)
 
 Where Phase 1 stands, what to do next, and what the last three sessions learned.
 Read `docs/README.md` first for the design; this file is only about state.
@@ -118,6 +118,51 @@ that ends on `grep` opened a PR with an unformatted file (twice).
 **Sean's phone is NOT on this yet.** The device build at 20:22 found no destination — `devicectl` listed the iPhone as *unavailable* (off the LAN, or locked) — and the stale-binary guard refused to install the 19:26 binary. His phone runs `main` as of `fe0f658` (#521); #526/#527's empty-shelf tier and #523/#524's stylist copy are not on it (the stylist copy is server-side and reaches it through `functions serve`). Rebuild with `scratchpad/phone-build.sh` the moment `xcrun devicectl list devices` says *available* — and grep for that word exactly: *unavailable* contains it, which is how one retry started against a phone that was not there.
 
 **Zero PRs open. Thirty-five merged this session (#491–#527).**
+
+## Session 22, the privacy audit (Sept 2, night)
+
+Sean: *"make test accounts and add varying amounts of products/post things
+and see how accounts interact with each other and how visible posts are
+between users. Ensure privacy and such works."*
+
+**The instrument is `scripts/privacy_audit.sh`** (`setup` · `looks` ·
+`reads`): six real accounts through `POST /auth/v1/signup`, content through
+PostgREST and the RPCs the app calls, then every table and RPC read as each
+account and as the anonymous role, diffed cell by cell against `tech/02`'s
+matrix. Under a minute to recreate; the full run and findings are on
+[GLO-258](https://linear.app/glossed/issue/GLO-258).
+
+**What holds:** every scope, per-item visibility, `friends` on a mutual
+follow only, drafts, `want_to_try` never published, a public collection
+revealing only its members, blocks both ways (rows, profile, follow, the
+severed edge), the minor everywhere, the never-public tables, the three
+`security_invoker` views, badges only where opted in, suggestions with
+every exclusion, personal-scope products, min-n on the leaderboard,
+cross-owner writes touching zero rows.
+
+**Findings (all four on GLO-258):**
+1. **A public scope publishes without a handle.** `can_view`/`can_view_item`
+   never check `handles`; §3.1 and the profile's copy say otherwise. Draft
+   fix **#529** (migration 0058 + `privacy_handle_gate.test.sql`, 12/12) —
+   **takes the slot**, and ten fixture files need an `insert into handles`
+   each before it can go green (measured with the migration applied locally,
+   then reverted; the local database runs `main`'s functions).
+2. **The anonymous role is half-open** — public shelf/rankings/collections
+   readable by user id with no session; looks/routines/handles refused, and
+   `routines` errors rather than returning nothing because anon may not
+   execute `can_view_item`. A decision for Sean (§6's link cards, or drop
+   the grants).
+3. **Account deletion is blocked by a personal product** —
+   `products.created_by` has no `on delete` rule; against `domain.md` §5's
+   deletion rights. A migration.
+4. **Browse needs a moderated title, and nothing submits one** — no caller
+   of `set_public_text('routine_title' | 'collection_title')` exists and only
+   bios auto-approve, so a public routine never appears in `browse_routines`.
+   The title-moderation pipeline (tech/02 §3.2, §7) is unbuilt.
+
+**Two harness lessons:** `looks` has column-level grants (insert only
+`id,user_id,caption`, then update `visibility`/`state`); bios go through
+`set_public_text`. Audit accounts were deleted afterwards.
 
 ## Session 21 at a glance (Sept 2, afternoon → evening — Sean's notes from his phone)
 
