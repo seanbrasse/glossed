@@ -201,5 +201,6 @@ private let uprightInset: CGFloat = 14
     // precisely because `anEmptyCategoryGetsNoGroundLineAtAll` is right —
     // a labelled empty bay is a claim, a bare plank is not.
     #expect(ShelfBay.bare.items.isEmpty)
-    #expect(ShelfBay.bare.label.isEmpty)
+    // Labelled for what the tier is for, never for a category you own.
+    #expect(ShelfBay.bare.label == "first product")
 }

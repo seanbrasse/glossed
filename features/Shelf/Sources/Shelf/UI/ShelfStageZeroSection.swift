@@ -52,8 +52,7 @@ extension ShelfView {
                     picks: stageZeroPicks,
                     isLoading: stageZeroLoading,
                     onAdd: { pick in addProduct("\(pick.brand) \(pick.name)") },
-                    onAddProduct: { addProduct("") },
-                    onImport: { onImport?() }
+                    onAddProduct: { addProduct("") }
                 )
                 .padding(.top, 6)
                 .task { await loadStageZero() }

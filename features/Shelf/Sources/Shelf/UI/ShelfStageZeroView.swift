@@ -18,7 +18,6 @@ struct ShelfStageZeroView: View {
     /// Opens the add-ladder. Named for the room it opens, not the rungs
     /// inside it — "scan or search" read as a search field to Sean.
     let onAddProduct: () -> Void
-    let onImport: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Tokens.Space.s4) {
@@ -33,22 +32,16 @@ struct ShelfStageZeroView: View {
 
             picksSection
 
-            // The shelf, with one tier and the invitation standing on it.
-            // Sean, Sep 2: "Empty shelf should also show an empty shelf state
-            // with a singular empty shelf" … "0 products should still be 1
-            // tier and encourage users to add to their shelf" … "Put the
-            // empty shelf under the empty shelf text between that and the
-            // add a product button." So it sits here: after what the shade
-            // cohort can say, right above the door.
+            // The shelf, with one tier and the invitation standing on it —
+            // and the screen's one door to the ladder. Sean, Sep 2: "Empty
+            // shelf should also show an empty shelf state with a singular
+            // empty shelf" … "0 products should still be 1 tier and encourage
+            // users to add" … "put the empty shelf under the empty shelf
+            // text" … "let's consolidate": the `add a product` and `import a
+            // list` buttons that sat under it are gone — the nav's `+` and
+            // its drawer hold both, and three doors to one room on one
+            // screen was two too many.
             ShelfBayView.bare(onAdd: onAddProduct)
-
-            HStack(spacing: Tokens.Space.s3) {
-                Button("add a product", action: onAddProduct)
-                    .buttonStyle(.glossed(.primary, block: true))
-                Button("import a list", action: onImport)
-                    .buttonStyle(.glossed(.secondary))
-                    .fixedSize()
-            }
 
             Text("your shade band, plus the products it agrees on.")
                 .meta()
@@ -77,7 +70,7 @@ struct ShelfStageZeroView: View {
             // to clear min-n. Saying so beats three empty rows — and beats
             // implying the shelf is broken when it is the evidence that is
             // missing.
-            Text("no picks yet — there isn't enough logged in your shade to point at anything.")
+            Text("no picks yet in your shade — tap the shelf to add your first product.")
                 .meta()
                 .fixedSize(horizontal: false, vertical: true)
         } else {

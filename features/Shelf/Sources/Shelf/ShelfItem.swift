@@ -149,10 +149,13 @@ public struct ShelfBay: Identifiable, Sendable, Equatable {
     /// The one bay an empty shelf draws (GLO-108). Sean, Sep 2: *"Empty shelf
     /// should also show an empty shelf state with a singular empty shelf"* and
     /// *"0 products should still be 1 tier and encourage users to add"*.
-    /// No label: `bays(from:)` refuses an empty labelled bay because a bay
-    /// labelled "blush" claims you own blushes — a bare plank claims nothing.
-    /// What stands on it is `ShelfBayView.invitation`.
-    public static let bare = ShelfBay(id: "bare", label: "", items: [])
+    /// Its label names what the tier is for, not a category you own —
+    /// `bays(from:)` refuses an empty *category* bay because "blush" over a
+    /// bare plank claims you own blushes; "first product" claims nothing.
+    /// The words live in the label band, where category names go, because
+    /// a line drawn along the plank crossed the uprights (Sean, Sep 2).
+    /// What stands on the plank is `ShelfBayView.invitation`.
+    public static let bare = ShelfBay(id: "bare", label: "first product", items: [])
 
     /// The gap between two objects standing on the same shelf, from the kit.
     public static let itemGap: CGFloat = 10
