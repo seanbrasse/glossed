@@ -96,7 +96,7 @@ swiftformat clean; simulator build green, fresh dylib; Onboarding 78, Profile
 ProductPage 22; the stylist function's 97 deno
 tests; FLOW 1 driven from `main` on the simulator (hook → quiz → tone →
 payoff bay with images → *create your account*). The other thirteen packages
-were not re-run. Sean's phone: the build of `main` at #527, entitlement
+were not re-run. Sean's phone: the 21:14 build of `main` at #530, entitlement
 and dev-sign-in-off proven, launched. Local stack up, `supabase functions
 serve` running (pid from the `glo-145-fitsection-gate` worktree, with the
 stylist key in its `.env`). Hosted: unchanged — 0 products, 0 users, no
