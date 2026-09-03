@@ -80,6 +80,20 @@ public extension ShelfModel {
         return .filteredOut
     }
 
+    /// The label band over the tier a filter dead-end draws. Sean, Sep 3:
+    /// *"filtering for only makeup with no makeup products on the shelf shows
+    /// no empty shelf. We want an empty shelf."* The plank names the domains
+    /// narrowing the shelf, in the filter's own order — `makeup`, or
+    /// `makeup · haircare` — so it reads as *the makeup shelf, empty*. Nothing
+    /// when no domain narrows it, none on or all on: the message above the
+    /// plank already says why it is bare, and `all` over a plank is a claim
+    /// about nothing.
+    var emptyTierLabel: String {
+        let on = ShelfModel.domains.filter { selectedDomains.contains($0) }
+        guard on.count < ShelfModel.domains.count else { return "" }
+        return on.map(\.rawValue).joined(separator: " · ")
+    }
+
     /// Whether the only things the chosen domains hold are want-to-try.
     ///
     /// Checked against the *selected* domains rather than the whole shelf: a
