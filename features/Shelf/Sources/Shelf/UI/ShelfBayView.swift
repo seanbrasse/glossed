@@ -21,25 +21,23 @@ public struct ShelfBayView: View {
     @State private var shelfWidth: CGFloat = 0
 
     /// Draws `ShelfBay.bare` and nothing else — the empty shelf's own shelf.
-    private let isBare: Bool
+    /// See `ShelfBayInvitation.swift` for what stands on it.
+    let isBare: Bool
+    /// The empty tier's door: opens the add-ladder. Nil in fixtures.
+    let onAdd: (() -> Void)?
 
     public init(sections: [ShelfSection], onTap: @escaping (ShelfItem) -> Void = { _ in }) {
         self.sections = sections
         self.onTap = onTap
         isBare = false
+        onAdd = nil
     }
 
-    private init(bare: Bool) {
+    init(bare: Bool, onAdd: (() -> Void)?) {
         sections = []
         onTap = { _ in }
         isBare = bare
-    }
-
-    /// One plank between the uprights, holding nothing and saying nothing:
-    /// the drawing the empty shelf keeps, so "your shelf" is still a shelf
-    /// before the first thing lands on it (GLO-108, Sean's Sep 2 note).
-    public static var bare: ShelfBayView {
-        ShelfBayView(bare: true)
+        self.onAdd = onAdd
     }
 
     public var body: some View {
@@ -85,7 +83,7 @@ public struct ShelfBayView: View {
 
     // MARK: - The frame's numbers, named once
 
-    private enum Frame {
+    enum Frame {
         static let upright: CGFloat = 11
         static let uprightInsetFromEdge: CGFloat = 14
         /// The uprights stop short of the stack at both ends so they read as
@@ -123,6 +121,9 @@ public struct ShelfBayView: View {
     private func bayRow(_ bay: ShelfBay) -> some View {
         VStack(spacing: 0) {
             HStack(alignment: .bottom, spacing: Frame.itemGap) {
+                if isBare {
+                    invitation
+                }
                 ForEach(bay.items) { item in
                     Button { onTap(item) } label: {
                         ProductImage(
